@@ -12,6 +12,9 @@
   import { getProject, type ProjectViewModel } from '../../../services/projectService';
   import { createProjectSpecification } from '../../../services/projectSpecificationService';
   import SpecificationEmbedFullscreen from './SpecificationEmbedFullscreen.svelte';
+  import { openChatById } from '../plans/planEmbedModel';
+  import { loadSpecPlanLinks } from './loadSpecPlanLinks';
+  import type { SpecPlanLinks } from './specPlanLinks';
   import { specificationDocumentFromSkill } from './specificationSkillDocument';
 
   interface Props extends EmbedFullscreenCommonProps {
@@ -25,10 +28,12 @@
   let resolved = $state(false);
   let saving = $state(false);
   let status = $state<{ kind: 'saved' | 'error'; text: string } | null>(null);
+  let plan = $state<SpecPlanLinks | undefined>(undefined);
 
   onMount(() => {
     let cancelled = false;
     const chatId = sourceChat?.chatId ?? null;
+    void loadSpecPlanLinks(chatId).then((links) => { if (!cancelled && links) plan = links; });
     void (async () => {
       try {
         const index = chatId ? await loadChatProjectIndex() : [];
@@ -63,7 +68,7 @@
   const notice = $derived(resolved && !project ? `${$text('plan_embeds.skill.draft_not_saved')}. ${$text('specifications.save.no_project')}` : $text('plan_embeds.skill.draft_not_saved'));
 </script>
 
-<SpecificationEmbedFullscreen {document} {onClose}
+<SpecificationEmbedFullscreen {document} {onClose} {plan} onOpenChat={openChatById}
   draftNotice={notice}
   saveLabel={saving ? $text('specifications.save.saving') : $text('plan_embeds.skill.save_to_project')}
   onSaveToProject={project ? () => void save() : undefined}

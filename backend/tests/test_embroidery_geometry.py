@@ -119,18 +119,71 @@ def _bordered(border_mm: float = 3.0, colour: str = "#000000"):
     return apply_border(prepare(BORDER_SVG, scan_source(BORDER_SVG), 156.0, colour), border_mm, colour)
 
 
+def _border_parts(prepared):
+    from backend.apps.design.embroidery_sandbox.geometry import BORDER_INDEX
+
+    design = [shape for shape in prepared.shapes if shape.index != BORDER_INDEX]
+    border = prepared.shapes[len(design):]
+    assert all(shape.index == BORDER_INDEX for shape in border), "the border is sewn after the design"
+    return design, border
+
+
+def _covered(border):
+    """What the border sews: its fill plus the band between the two rails of each satin ring."""
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
+    pieces = []
+    for shape in border:
+        if shape.rails is None:
+            pieces.append(shape.geom)
+        else:
+            outer, inner = (Polygon(rail.coords) for rail in shape.rails)
+            pieces.append(outer.symmetric_difference(inner))
+    return unary_union(pieces)
+
+
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
-def test_border_is_sewn_first_and_grows_the_design_by_its_width_on_every_side() -> None:
+def test_border_is_a_satin_edge_sewn_last_and_grows_the_design_by_its_width_on_every_side() -> None:
     plain = prepare(BORDER_SVG, scan_source(BORDER_SVG), 156.0)
     bordered = _bordered(3.0, "#1d3557")
-    border, *design = bordered.shapes
-    assert border.colour == "#1d3557" and border.kind == "fill"
+    design, border = _border_parts(bordered)
     assert len(design) == len(plain.shapes)
+    assert {shape.colour for shape in border} == {"#1d3557"}
+    satin = [shape for shape in border if shape.rails is not None]
+    # Three separate outlines plus the wide slot that stays open: four satin rings, sewn last.
+    assert len(satin) == 4 and border[-len(satin):] == satin
+    assert all(shape.kind == "satin" and shape.width == pytest.approx(3.45) for shape in satin)
+    assert all(rail.is_closed for shape in satin for rail in shape.rails)
     assert bordered.width_mm == pytest.approx(plain.width_mm + 6.0, abs=0.05)
     assert bordered.height_mm == pytest.approx(plain.height_mm + 6.0, abs=0.05)
-    assert border.geom.bounds[0] == pytest.approx(1.0, abs=0.01)  # page margin
+    assert min(shape.rails[0].bounds[0] for shape in satin) == pytest.approx(1.0, abs=0.01)  # page margin
     assert bordered.notes[-1] == {"code": "border_added", "mm": 3.0, "text": "Border of 3 mm added for sewing on"}
     assert all(note["code"] != "border_added" for note in plain.notes)
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_border_satin_stitches_are_square_to_the_edge_and_never_cross() -> None:
+    import math
+
+    from shapely.geometry import LineString
+
+    _, border = _border_parts(_bordered(3.0))
+    for shape in (shape for shape in border if shape.rails is not None):
+        outer, inner = (list(rail.coords) for rail in shape.rails)
+        assert len(outer) == len(inner)
+        for k in range(1, len(outer) - 1):
+            stitch = (inner[k][0] - outer[k][0], inner[k][1] - outer[k][1])
+            edge = (outer[k + 1][0] - outer[k - 1][0], outer[k + 1][1] - outer[k - 1][1])
+            length = math.hypot(*stitch)
+            # As wide as the column; longer only where it fans around a corner.
+            assert shape.width - 0.05 < length < shape.width * 1.45
+            if math.hypot(*edge) > 1e-6:
+                cosine = abs(stitch[0] * edge[0] + stitch[1] * edge[1]) / (length * math.hypot(*edge))
+                assert cosine < 0.75, "stitch more than about 40 degrees off square to the edge"
+            here = LineString([outer[k], inner[k]])
+            following = LineString([outer[k + 1], inner[k + 1]])
+            assert not here.crosses(following)
 
 
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
@@ -140,7 +193,9 @@ def test_border_fills_narrow_gaps_keeps_wide_openings_and_is_not_sewn_under_the_
 
     from backend.apps.design.embroidery_sandbox.border import BORDER_OVERLAP_MM
 
-    border, *design = _bordered(3.0).shapes
+    design, border = _border_parts(_bordered(3.0))
+    covered = _covered(border)
+    fill = unary_union([shape.geom for shape in border if shape.rails is None])
     silhouette = unary_union([shape.geom for shape in design])
     x0, y0 = silhouette.bounds[:2]
 
@@ -148,15 +203,44 @@ def test_border_fills_narrow_gaps_keeps_wide_openings_and_is_not_sewn_under_the_
         """A point given in source millimetres, moved to where the design now lies."""
         return Point(x0 + x, y0 + y)
 
-    assert border.geom.contains(at(32, 20))        # 4 mm gap between the squares: filled
-    assert border.geom.contains(at(141, 20))       # 4 mm slot: filled
-    assert not border.geom.contains(at(95, 20))    # 10 mm slot: stays open
-    assert border.geom.contains(at(91.5, 20))      # ... with a 3 mm band along its edge
+    assert fill.contains(at(32, 20))               # 4 mm gap between the squares: filled
+    assert fill.contains(at(141, 20))              # 4 mm slot: filled
+    assert not covered.contains(at(95, 20))        # 10 mm slot: stays open
+    assert covered.contains(at(91.5, 20))          # ... with a 3 mm satin edge along it
+    assert not fill.contains(at(91.5, 20))
     # Not under the design, only the strip under its edge.
-    assert border.geom.intersection(silhouette.buffer(-BORDER_OVERLAP_MM - 0.05)).area < 0.5
-    assert border.geom.intersection(silhouette).area > 0
+    assert covered.intersection(silhouette.buffer(-BORDER_OVERLAP_MM - 0.05)).area < 0.5
+    assert covered.intersection(silhouette).area > 0
     # Exactly 3 mm wide outside: points 2.9 mm out are border, 3.1 mm out are not.
-    assert border.geom.contains(at(15, -2.9)) and not border.geom.contains(at(15, -3.1))
+    assert covered.contains(at(15, -2.9)) and not covered.contains(at(15, -3.1))
+    # No fabric shows between the fill and the satin edge.
+    assert covered.buffer(0.01).contains(fill.buffer(0.3).intersection(covered.envelope).intersection(covered))
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_border_satin_is_dense_with_underlay_and_closed_rails_in_the_prepared_svg() -> None:
+    import re
+
+    svg = write_prepared_svg(_bordered(3.0), "normal")
+    last = [line for line in svg.splitlines() if line.lstrip().startswith("<path")][-1]  # sewn last
+    assert 'inkstitch:zigzag_spacing_mm="0.34"' in last
+    assert 'inkstitch:contour_underlay="true"' in last and 'inkstitch:zigzag_underlay="true"' in last
+    assert "inkstitch:pull_compensation_mm=" in last and "inkstitch:short_stitch_inset=" in last
+    assert len(re.findall(r"M[^M]*Z", re.search(r' d="([^"]+)"', last).group(1))) == 2
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_a_speck_too_small_for_a_satin_column_keeps_a_filled_border() -> None:
+    from backend.apps.design.embroidery_sandbox.border import apply_border
+
+    speck = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 10">'
+             '<rect width="20" height="10" fill="#e8451f"/><circle cx="36" cy="5" r="0.4" fill="#e8451f"/></svg>')
+    design, border = _border_parts(apply_border(prepare(speck, scan_source(speck), 40.0), 3.0, "#000000"))
+    satin = [shape for shape in border if shape.rails is not None]
+    assert len(satin) == 1  # the rectangle's edge; the speck's border stays a fill
+    fills = [shape for shape in border if shape.rails is None]
+    assert fills and any(shape.geom.contains(design[-1].geom.centroid) or
+                         shape.geom.distance(design[-1].geom) < 0.5 for shape in fills)
 
 
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
@@ -307,7 +391,7 @@ def test_border_moves_satin_columns_together_with_the_design() -> None:
     plain = prepare(WHISKERS, scan_source(WHISKERS), 100.0)
     bordered = apply_border(plain, 3.0, "#000000")
     before = next(shape for shape in plain.shapes if shape.rails is not None)
-    after = next(shape for shape in bordered.shapes if shape.rails is not None)
+    after = next(shape for shape in bordered.shapes if shape.rails is not None and shape.index >= 0)
     shift = (after.geom.coords[0][0] - before.geom.coords[0][0], after.geom.coords[0][1] - before.geom.coords[0][1])
     assert abs(shift[0]) + abs(shift[1]) > 1.0
     moved = (after.rails[0].coords[0][0] - before.rails[0].coords[0][0],

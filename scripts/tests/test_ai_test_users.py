@@ -35,7 +35,7 @@ def test_select_rejects_unknown_persona():
 def test_run_refuses_caps_above_total_budget(monkeypatch):
     monkeypatch.setattr(ai_test_users.dev_test_account, "server_is_development", lambda: True)
     with pytest.raises(SystemExit, match="above --total-cap-usd"):
-        ai_test_users.main(["run", "--credit-cap", "5000", "--total-cap-usd", "20"])
+        ai_test_users.main(["run", "--harness-cap-usd", "5", "--total-cap-usd", "20"])
 
 
 def test_similar_titles_merge_but_different_ones_do_not():
@@ -60,3 +60,35 @@ def test_slow_replies_and_reviewer_groups_become_one_task_each():
     clusters = ai_test_users.cluster_findings(findings, ai_test_users.merge_groups("b#1+c#1"))
     assert [[f["id"] for f in c] for c in clusters] == [["b#1", "c#1"], ["a#1", "d#1"], ["e#1"]]
     assert ai_test_users.slow_title(clusters[1]) == "Slow chat replies on dev: 2 test users waited 72-111 s for answers"
+
+
+def test_run_holds_the_shared_dev_stack_lease_and_releases_it(monkeypatch):
+    import types
+
+    calls = []
+    fake = types.SimpleNamespace(
+        DOCKER_RESOURCE_DEV_STACK="dev-stack",
+        acquire_test_resource_lease=lambda lease_id, owner, resources, mode, timeout: calls.append(
+            ("acquire", lease_id, frozenset(resources), mode)),
+        release_test_resource_lease=lambda lease_id: calls.append(("release", lease_id)),
+    )
+    monkeypatch.setitem(sys.modules, "sessions", fake)
+    with pytest.raises(RuntimeError):
+        with ai_test_users.dev_stack_lease("20261120-120000"):
+            assert calls == [("acquire", "ai-test-users-20261120-120000", frozenset({"dev-stack"}), "shared")]
+            raise RuntimeError("worker crashed")
+    assert calls[-1] == ("release", "ai-test-users-20261120-120000")
+
+
+def test_notify_failure_pushes_one_alert_with_the_unit_result(monkeypatch):
+    sent = []
+    monkeypatch.setattr(ai_test_users.accounts, "_push", lambda message, title: sent.append(message))
+    monkeypatch.setattr(ai_test_users, "failure_detail", lambda unit: f"{unit} exit-code 1: RuntimeError: boom")
+    assert ai_test_users.main(["notify-failure"]) == 0
+    assert len(sent) == 1 and sent[0].startswith("❌") and "boom" in sent[0]
+
+
+def test_setup_script_wires_the_failure_alert():
+    text = (Path(__file__).resolve().parents[1] / "ai-test-users-setup.sh").read_text()
+    assert "OnFailure=ai-test-users-failure.service" in text
+    assert "ai_test_users.py notify-failure --unit ai-test-users.service" in text

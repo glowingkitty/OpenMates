@@ -45,11 +45,49 @@ class StoredEmbroideryFiles:
     s3_keys: list[str]
 
 
-def result_title(label: str) -> str:
-    """Readable title (at most ``MAX_TITLE_CHARS``) from the source graphic's title, prompt or filename."""
+# File names that say nothing about the design (lower case, without extension and
+# separators); a title is never one of these words (TASK-1610: "source").
+GENERIC_NAME_WORDS = frozenset({
+    "source", "src", "input", "file", "files", "image", "images", "img", "picture", "pic", "photo",
+    "graphic", "graphics", "drawing", "vector", "vectors", "svg", "design", "artwork", "art", "logo",
+    "untitled", "unnamed", "new", "copy", "download", "downloads", "upload", "export", "output", "final",
+    "test", "temp", "tmp", "draft", "sample", "example", "document", "doc", "scan", "screenshot",
+    "embroidery", "patch", "stitch", "stitches", "result", "edited", "version", "v",
+    "at", "screen", "shot", "bildschirmfoto", "capture", "am", "um",
+})
+_EXTENSION = re.compile(r"\.(svg|png|jpe?g|webp|gif|bmp|tiff?|heic|pdf)$", re.IGNORECASE)
+# Embed refs of uploaded files end in a short random suffix ("source.svg-x4F").
+_EMBED_REF_SUFFIX = re.compile(r"(\.[a-z0-9]{2,4})-[A-Za-z0-9]{2,6}$", re.IGNORECASE)
+
+
+def descriptive_title(label: str | None) -> str | None:
+    """The readable title of ``label``, or ``None`` when it does not describe the design.
+
+    Generic words ("source", "image", "untitled"), camera and download names
+    ("IMG_1234", "Screenshot 2026-11-22"), bare numbers and ids are not titles.
+    """
     text = " ".join(str(label or "").split())
-    text = re.sub(r"\.(svg|png|jpe?g|webp)$", "", text, flags=re.IGNORECASE)
-    return readable_title(text) or DEFAULT_TITLE
+    text = _EMBED_REF_SUFFIX.sub(r"\1", text)
+    text = _EXTENSION.sub("", text)
+    words = [word for word in re.split(r"[\s\-_.()\[\]]+", text.casefold()) if word]
+    meaningful = [word for word in words
+                  if word not in GENERIC_NAME_WORDS and not re.fullmatch(r"\d+|[0-9a-f]{6,}|v?\d+(\.\d+)*|(img|dsc|pxl|vid)\d*", word)]
+    if not meaningful:
+        return None
+    return readable_title(text) or None
+
+
+def result_title(*labels: str | None) -> str:
+    """Readable title (at most ``MAX_TITLE_CHARS``): the first descriptive label, else ``DEFAULT_TITLE``.
+
+    Callers pass the candidates in order of preference: the source graphic's
+    title, prompt or file name, then the short name the assistant gave the design.
+    """
+    for label in labels:
+        title = descriptive_title(label)
+        if title:
+            return title
+    return DEFAULT_TITLE
 
 
 def variant_filename(title: str, variant: str) -> str:

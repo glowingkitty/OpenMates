@@ -234,7 +234,7 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	await expect(newChatButton).toBeVisible({ timeout: 10000 });
 	await newChatButton.click();
 	const sharedContinueCard = page.locator(
-		`[data-testid="resume-chat-large-card"][data-chat-id="${activeChatId}"], [data-testid="resume-chat-card"][data-chat-id="${activeChatId}"]`
+		`[data-testid="resume-chat-large-card"][data-chat-id="${activeChatId}"]`
 	).first();
 	await expect(sharedContinueCard).toBeVisible({ timeout: 15000 });
 	await expect(sharedContinueCard.getByTestId('shared-chat-badge')).toHaveText('Shared chat');

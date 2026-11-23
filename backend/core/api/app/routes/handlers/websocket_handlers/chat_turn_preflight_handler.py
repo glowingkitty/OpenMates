@@ -17,6 +17,11 @@ import os
 import uuid
 from typing import Any
 
+from backend.core.api.app.routes.handlers.websocket_handlers.finished_turn_resend import (
+    find_finished_turn,
+    log_finished_turn_resend,
+    send_finished_turn_frames,
+)
 from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryProtocolError,
     ChatRecoveryService,
@@ -59,6 +64,10 @@ def _end_ws_span(otel_span: Any, otel_token: Any) -> None:
 
 # Memory fields whose Project rows may be added after preflight (see below).
 PROJECT_BOUND_MEMORY_FIELDS = ("custom_memory_documents", "custom_rule_documents", "memory_catalog")
+# Fields that only ever carry the active Project's own Focus modes and reference
+# documents. Dispatch re-checks each row against the live Project (Focus bodies via
+# validate_specialist_context, references by owned item and revision).
+PROJECT_ONLY_CONTEXT_FIELDS = ("project_focus_catalog", "project_focus_documents", "project_context_documents")
 
 
 def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
@@ -86,6 +95,10 @@ def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
                 committed_request[key] = committed_rows
             else:
                 committed_request.pop(key)
+    # The Project's Focus modes and reference documents follow the same lifecycle:
+    # an @Project mention can add them only after activation, so they never commit.
+    for key in PROJECT_ONLY_CONTEXT_FIELDS:
+        committed_request.pop(key, None)
     return json.dumps(
         committed_request,
         sort_keys=True,
@@ -509,6 +522,37 @@ async def handle_chat_turn_preflight(
         logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])
         return result
     except ChatRecoveryProtocolError as exc:
+        if exc.code == "preflight_mismatch":
+            finished = await find_finished_turn(
+                directus_service, user_id=user_id,
+                chat_id=payload.get("chat_id"), message_id=payload.get("message_id"),
+            )
+            if finished is not None:
+                log_finished_turn_resend(
+                    chat_id=payload.get("chat_id"), message_id=payload.get("message_id"),
+                    finished=finished, path="preflight_mismatch",
+                )
+                ack = {
+                    "preflight_id": finished.get("preflight_id"),
+                    "state": finished.get("state"),
+                    "turn_id": payload.get("turn_id"),
+                }
+                # The op reports the chat's current messages_v; omit it when absent.
+                if finished.get("committed_messages_v") is not None:
+                    ack["committed_messages_v"] = finished["committed_messages_v"]
+                await send_response({"type": "chat_turn_preflight_ack", "payload": ack})
+                # Clients finish a send on chat_message_confirmed; this path never
+                # reaches the message handler, so confirm here (already logged above).
+                inference_message = (payload.get("inference_request") or {}).get("message")
+                await send_finished_turn_frames(
+                    websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    chat_id=payload.get("chat_id"), message_id=payload.get("message_id"),
+                    temp_id=payload.get("temp_id") or (
+                        inference_message.get("temp_id") if isinstance(inference_message, dict) else None),
+                    finished=finished,
+                )
+                return None
         await send_response(
             {
                 "type": "error",

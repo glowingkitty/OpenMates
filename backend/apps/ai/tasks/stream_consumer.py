@@ -55,6 +55,10 @@ from backend.shared.providers.e2b_application_preview import (
 
 from backend.apps.code.application_identity import derive_application_identity
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.processing.project_code_fence_commit import (
+    apply_project_diff_fence, commit_code_fence, fence_project_focus, link_project_file_references,
+    project_file_path, remember_shown_file,
+)
 from backend.apps.ai.assistant_speech.projection import (
     build_app_use_announcement,
     classify_acknowledgement_category,
@@ -1845,24 +1849,33 @@ def _is_document_fence(language: Optional[str]) -> bool:
 
 
 def _parse_docx_model_fence(content: str) -> Dict[str, Any]:
-    parsed = json.loads(content.strip())
+    """Strictly parse a docx_model fence into a document model.
+
+    Models sometimes double-encode the document (a JSON string whose value is the
+    JSON object); that one extra layer is unwrapped. Anything else that is not a
+    JSON object with a ``blocks`` array raises ValueError.
+    """
+    try:
+        parsed = json.loads(content.strip())
+        if isinstance(parsed, str):
+            parsed = json.loads(parsed.strip())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"docx_model content is not valid JSON: {exc}") from exc
     if not isinstance(parsed, dict):
         raise ValueError("docx_model content must be a JSON object")
     blocks = parsed.get("blocks")
-    if not isinstance(blocks, list):
-        raise ValueError("docx_model must include a blocks array")
+    if not isinstance(blocks, list) or not all(isinstance(b, dict) for b in blocks):
+        raise ValueError("docx_model must include a blocks array of objects")
     return parsed
 
 
 def _extract_document_title_and_filename(language: Optional[str], content: str) -> tuple[Optional[str], Optional[str], Optional[Dict[str, Any]]]:
+    """Return (title, filename, model); raises ValueError for an invalid docx_model fence."""
     if (language or "").lower() == "docx_model":
-        try:
-            docx_model = _parse_docx_model_fence(content)
-            title = docx_model.get("title") if isinstance(docx_model.get("title"), str) else None
-            filename = docx_model.get("filename") if isinstance(docx_model.get("filename"), str) else None
-            return title, filename, docx_model
-        except (json.JSONDecodeError, ValueError):
-            logger.warning("Falling back to legacy document_html conversion for non-JSON document content")
+        docx_model = _parse_docx_model_fence(content)
+        title = docx_model.get("title") if isinstance(docx_model.get("title"), str) else None
+        filename = docx_model.get("filename") if isinstance(docx_model.get("filename"), str) else None
+        return title, filename, docx_model
 
     title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', content)
     filename_match = re.search(r'<!--\s*filename:\s*["\'](.+?)["\']\s*-->', content)
@@ -2249,6 +2262,7 @@ async def _apply_diff_block_to_existing_embed(
     embed_service: Any,
     user_vault_key_id: str,
     log_prefix: str,
+    secrets_manager: Optional[SecretsManager] = None,
 ) -> str:
     """Apply a unified diff fence to an existing embed and return response markdown."""
     from backend.core.api.app.services.embed_diff_service import (
@@ -2256,6 +2270,21 @@ async def _apply_diff_block_to_existing_embed(
     )
     from backend.core.api.app.services.embed_version_transaction_service import PROJECT_FILE_TOOL_REQUIRED, requires_atomic_project_embed_write
     from toon_format import decode
+
+    # A cloud Project file is edited through the Project sandbox; the reply shows the normal diff embed below.
+    project_diff_path = project_file_path(diff_embed_ref) if fence_project_focus(request_data) else None
+    if project_diff_path:
+        project_file = await apply_project_diff_fence(
+            request_data, path=project_diff_path, patch=diff_content, cache_service=cache_service,
+            directus_service=directus_service, log_prefix=log_prefix, secrets_manager=secrets_manager,
+        )
+        if not project_file:
+            return _render_diff_visual_card(project_diff_path, diff_content, "could not apply to the Project file")
+        logger.info(f"{log_prefix} [PROJECT_FENCE] Applied diff fence to Project file embed {project_file['embed_id']}")
+    # The chat shows the file through this turn's chat code embed of the path, when there is one.
+    shown_project_embed_id = (
+        (getattr(request_data, "project_fence_files", None) or {}).get(project_diff_path) if project_diff_path else None
+    )
 
     file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
     resolved_ref = diff_embed_ref or next(iter(file_path_index), None)
@@ -2265,7 +2294,7 @@ async def _apply_diff_block_to_existing_embed(
         f"embed_ref={resolved_ref!r} ({len(diff_content)} chars)"
     )
 
-    target_embed_id = resolve_diff_target_embed_id(resolved_ref, file_path_index)
+    target_embed_id = shown_project_embed_id or resolve_diff_target_embed_id(resolved_ref, file_path_index)
     if not target_embed_id:
         logger.warning(
             f"{log_prefix} [DIFF_BLOCK] Could not resolve embed_ref "
@@ -2273,10 +2302,10 @@ async def _apply_diff_block_to_existing_embed(
             f"{list(file_path_index.keys())[:10]}. Showing visual diff card."
         )
         return _render_diff_visual_card(resolved_ref, diff_content)
-    # One write path (P11): a Project-linked embed changes only through the Project file tools.
+    # One write path (P11): a Project-linked embed changes only through the Project sandbox or file tools.
     if await requires_atomic_project_embed_write(directus_service, target_embed_id):
         logger.info(f"{log_prefix} [DIFF_BLOCK] Not applied to Project-linked embed {target_embed_id}: {PROJECT_FILE_TOOL_REQUIRED}")
-        return _render_diff_visual_card(resolved_ref, diff_content, f"not applied: {PROJECT_FILE_TOOL_REQUIRED}; use project_update_file")
+        return _render_diff_visual_card(resolved_ref, diff_content, "not applied: name the file by its Project path")
 
     cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
     if not cached_embed:
@@ -2396,7 +2425,11 @@ async def _apply_diff_block_to_existing_embed(
         if new_version % 32 == 0:
             version_history_rows[-1]["snapshot"] = capped_new_content
         new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
-        doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", capped_new_content)
+        try:
+            doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", capped_new_content)
+        except ValueError as exc:
+            logger.warning(f"{log_prefix} [DIFF_BLOCK] Patched document is invalid: {exc}")
+            return _render_diff_visual_card(resolved_ref, diff_content, "result is not a valid document")
         await embed_service.update_document_embed_content(
             embed_id=target_embed_id,
             html_content="",
@@ -4250,6 +4283,10 @@ async def _update_chat_metadata(
     # This ensures follow-up messages include assistant responses in the history
     # The cache tracks its own messages_v for AI inference purposes
     if cache_service:
+        if category:
+            await cache_service.update_chat_list_item_field(
+                request_data.user_id, request_data.chat_id, "last_mate_category", category
+            )
         # Server-authoritative unread counter: a finished top-level assistant reply
         # stays unread until a client reports its last line was seen.
         unread_count: Optional[int] = None
@@ -6822,10 +6859,11 @@ async def _consume_main_processing_stream(
                 # Already played when the turn started (explicitly chosen Mate, or
                 # the neutral system clip of a new chat); otherwise it plays now,
                 # in the routed Mate's voice.
-                # A Memory-approval continuation is the same spoken turn: its
-                # paused first task reached this point and confirmed it.
+                # A Memory-approval or focus-decision continuation is the same
+                # spoken turn: its paused first task reached this point and confirmed it.
                 instant_ack_played = (
                     request_data.is_app_settings_memories_continuation
+                    or request_data.is_focus_mode_continuation
                     or _INSTANT_ACK_SENT.pop(assistant_message_id, 0) is None
                     or await publish_instant_voice_acknowledgement(
                         task_id=task_id, request_data=request_data, mate=selected_mate,
@@ -7357,6 +7395,11 @@ async def _consume_main_processing_stream(
                 awaiting_app_settings_memories_permission = True
                 request_id = chunk.get("request_id", "unknown")
                 logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
+                continue
+
+            if isinstance(chunk, dict) and "__awaiting_e2b_upload_consent__" in chunk:
+                awaiting_connected_account_permission = True  # same pause: empty response is expected
+                logger.info(f"{log_prefix} Awaiting E2B upload consent from user. Task will complete without response.")
                 continue
 
             if isinstance(chunk, dict) and "__awaiting_connected_account_permission__" in chunk:
@@ -8020,6 +8063,7 @@ async def _consume_main_processing_stream(
                                         embed_service=embed_service,
                                         user_vault_key_id=user_vault_key_id,
                                         log_prefix=log_prefix,
+                                        secrets_manager=secrets_manager,
                                     )
 
                                     # Reset code block state
@@ -8222,7 +8266,13 @@ async def _consume_main_processing_stream(
                                         request_data,
                                         code_content,
                                     )
-                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    document_error: Optional[str] = None
+                                    try:
+                                        doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    except ValueError as exc:
+                                        doc_title, doc_filename, docx_model = None, None, None
+                                        document_error = str(exc)
+                                        logger.warning(f"{log_prefix} Invalid document fence: {document_error}")
                                     
                                     # Create document embed placeholder and finalize immediately
                                     embed_data = await embed_service.create_document_embed_placeholder(
@@ -8242,34 +8292,35 @@ async def _consume_main_processing_stream(
                                         # Store the structured model, then let the docs worker generate artifacts.
                                         await embed_service.update_document_embed_content(
                                             embed_id=current_code_embed_id,
-                                            html_content=capped_document_content,
+                                            html_content="" if (current_code_language or "").lower() == "docx_model" else capped_document_content,
                                             chat_id=request_data.chat_id,
                                             user_id=request_data.user_id,
                                             user_id_hash=request_data.user_id_hash,
                                             user_vault_key_id=user_vault_key_id,
-                                            status="processing",
+                                            status="error" if document_error else "processing",
                                             title=doc_title,
                                             filename=doc_filename,
-                                            docx_model=docx_model,
+                                            docx_model=docx_model if docx_model is not None else {},
                                             learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix
                                         )
-                                        await _dispatch_ai_embed_task(
-                                            "apps.docs.tasks.generate_docx",
-                                            args=[{
-                                                "embed_id": current_code_embed_id,
-                                                "chat_id": request_data.chat_id,
-                                                "message_id": request_data.message_id,
-                                                "user_id": request_data.user_id,
-                                                "user_id_hash": request_data.user_id_hash,
-                                                "vault_key_id": user_vault_key_id,
-                                                "title": doc_title,
-                                                "filename": doc_filename,
-                                                "docx_model": docx_model,
-                                                "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
-                                            }],
-                                            queue="app_docs",
-                                        )
+                                        if not document_error:
+                                            await _dispatch_ai_embed_task(
+                                                "apps.docs.tasks.generate_docx",
+                                                args=[{
+                                                    "embed_id": current_code_embed_id,
+                                                    "chat_id": request_data.chat_id,
+                                                    "message_id": request_data.message_id,
+                                                    "user_id": request_data.user_id,
+                                                    "user_id_hash": request_data.user_id_hash,
+                                                    "vault_key_id": user_vault_key_id,
+                                                    "title": doc_title,
+                                                    "filename": doc_filename,
+                                                    "docx_model": docx_model,
+                                                    "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
+                                                }],
+                                                queue="app_docs",
+                                            )
                                         
                                         # Replace document block with embed reference in chunk
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
@@ -8473,6 +8524,28 @@ async def _consume_main_processing_stream(
                                                         f"for {target_embed_id}; creating a new embed instead."
                                                     )
 
+                                            # A file of a cloud Project chat that arrived as one complete block is
+                                            # also saved as the Project file; the reply keeps the normal chat code
+                                            # embed below (plan project-files-as-chat-code-embeds).
+                                            complete_fence_path = (
+                                                project_file_path(current_code_filename)
+                                                if not replacement_applied and fence_project_focus(request_data)
+                                                else None
+                                            )
+                                            complete_fence_file = (
+                                                await commit_code_fence(
+                                                    request_data, path=complete_fence_path, content=code_content,
+                                                    cache_service=cache_service, directus_service=directus_service,
+                                                    log_prefix=log_prefix, secrets_manager=secrets_manager,
+                                                )
+                                                if complete_fence_path else None
+                                            )
+                                            if complete_fence_file:
+                                                logger.info(
+                                                    f"{log_prefix} [PROJECT_FENCE] Saved complete code block as Project "
+                                                    f"file embed {complete_fence_file['embed_id']} "
+                                                    f"(created={complete_fence_file['created']})"
+                                                )
                                             if replacement_applied:
                                                 in_code_block = False
                                                 current_code_language = ""
@@ -8500,6 +8573,9 @@ async def _consume_main_processing_stream(
 
                                                 if embed_data:
                                                     current_code_embed_id = embed_data["embed_id"]
+                                                    if complete_fence_file:
+                                                        remember_shown_file(request_data, complete_fence_path,
+                                                                            current_code_embed_id)
 
                                                     # Update with full content and finalize
                                                     await embed_service.update_code_embed_content(
@@ -8513,12 +8589,13 @@ async def _consume_main_processing_stream(
                                                         learning_mode_metadata=learning_mode_metadata,
                                                         log_prefix=log_prefix
                                                     )
-                                                    _record_generated_code_file_embed(
-                                                        generated_code_file_embeds,
-                                                        embed_id=current_code_embed_id,
-                                                        filename=current_code_filename,
-                                                        language=current_code_language,
-                                                    )
+                                                    if not complete_fence_file:
+                                                        _record_generated_code_file_embed(
+                                                            generated_code_file_embeds,
+                                                            embed_id=current_code_embed_id,
+                                                            filename=current_code_filename,
+                                                            language=current_code_language,
+                                                        )
                                                     await _mark_code_embed_assistant_runnable(
                                                         cache_service=cache_service,
                                                         request_data=request_data,
@@ -9738,6 +9815,7 @@ async def _consume_main_processing_stream(
                                 embed_service=embed_service,
                                 user_vault_key_id=user_vault_key_id,
                                 log_prefix=log_prefix,
+                                secrets_manager=secrets_manager,
                             )
 
                             in_code_block = False
@@ -9847,39 +9925,46 @@ async def _consume_main_processing_stream(
                                         request_data,
                                         current_code_content,
                                     )
-                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    document_error = None
+                                    try:
+                                        doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    except ValueError as exc:
+                                        doc_title, doc_filename, docx_model = None, None, None
+                                        document_error = str(exc)
+                                        logger.warning(f"{log_prefix} Invalid document fence: {document_error}")
                                     current_document_title = current_document_title or doc_title
                                       
                                     await embed_service.update_document_embed_content(
                                         embed_id=current_code_embed_id,
-                                        html_content=capped_document_content,
+                                        html_content="" if (current_code_language or "").lower() == "docx_model" else capped_document_content,
                                         chat_id=request_data.chat_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
-                                        status="processing",
+                                        status="error" if document_error else "processing",
                                         title=current_document_title,
                                         filename=doc_filename,
-                                        docx_model=docx_model,
+                                        docx_model=docx_model if docx_model is not None else {},
                                         learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
-                                    await _dispatch_ai_embed_task(
-                                        "apps.docs.tasks.generate_docx",
-                                        args=[{
-                                            "embed_id": current_code_embed_id,
-                                            "chat_id": request_data.chat_id,
-                                            "message_id": request_data.message_id,
-                                            "user_id": request_data.user_id,
-                                            "user_id_hash": request_data.user_id_hash,
-                                            "vault_key_id": user_vault_key_id,
-                                            "title": current_document_title,
-                                            "filename": doc_filename,
-                                            "docx_model": docx_model,
-                                            "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
-                                        }],
-                                        queue="app_docs",
-                                    )
+                                    if not document_error:
+                                        await _dispatch_ai_embed_task(
+                                            "apps.docs.tasks.generate_docx",
+                                            args=[{
+                                                "embed_id": current_code_embed_id,
+                                                "chat_id": request_data.chat_id,
+                                                "message_id": request_data.message_id,
+                                                "user_id": request_data.user_id,
+                                                "user_id_hash": request_data.user_id_hash,
+                                                "vault_key_id": user_vault_key_id,
+                                                "title": current_document_title,
+                                                "filename": doc_filename,
+                                                "docx_model": docx_model,
+                                                "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
+                                            }],
+                                            queue="app_docs",
+                                        )
                                      
                                     logger.info(
                                         f"{log_prefix} Queued document artifact generation for {current_code_embed_id} with {len(current_code_content)} chars "
@@ -10032,6 +10117,29 @@ async def _consume_main_processing_stream(
                                                 f"for streaming target {current_code_embed_id}; finalizing without version rows."
                                             )
 
+                                    # A file of a cloud Project chat is also saved as the Project file; the reply
+                                    # keeps this normal chat code embed with the same content (plan
+                                    # project-files-as-chat-code-embeds).
+                                    project_fence_path = (
+                                        project_file_path(current_code_filename)
+                                        if not current_code_replacement_ref and fence_project_focus(request_data)
+                                        else None
+                                    )
+                                    project_fence_file = (
+                                        await commit_code_fence(
+                                            request_data, path=project_fence_path, content=current_code_content,
+                                            cache_service=cache_service, directus_service=directus_service,
+                                            log_prefix=log_prefix, secrets_manager=secrets_manager,
+                                        )
+                                        if project_fence_path else None
+                                    )
+                                    if project_fence_file:
+                                        logger.info(
+                                            f"{log_prefix} [PROJECT_FENCE] Saved code fence as Project file embed "
+                                            f"{project_fence_file['embed_id']} (created={project_fence_file['created']})"
+                                        )
+                                        # The reply shows this chat code embed; inline links to the path point at it.
+                                        remember_shown_file(request_data, project_fence_path, current_code_embed_id)
                                     if version_history_rows and new_version:
                                         await embed_service.update_code_embed_content(
                                             embed_id=current_code_embed_id,
@@ -10067,12 +10175,14 @@ async def _consume_main_processing_stream(
                                             new_type="notebook",
                                             log_prefix=log_prefix,
                                         )
-                                    _record_generated_code_file_embed(
-                                        generated_code_file_embeds,
-                                        embed_id=current_code_embed_id,
-                                        filename=current_code_filename,
-                                        language=current_code_language,
-                                    )
+                                    if not project_fence_file:
+                                        # A Project's app is previewed from its sandbox, not as a chat application.
+                                        _record_generated_code_file_embed(
+                                            generated_code_file_embeds,
+                                            embed_id=current_code_embed_id,
+                                            filename=current_code_filename,
+                                            language=current_code_language,
+                                        )
                                     await _mark_code_embed_assistant_runnable(
                                         cache_service=cache_service,
                                         request_data=request_data,
@@ -10080,7 +10190,7 @@ async def _consume_main_processing_stream(
                                         action="edited" if current_code_replacement_ref else "created",
                                         log_prefix=log_prefix,
                                     )
-                                      
+
                                     logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
 
                                     if (
@@ -10849,6 +10959,10 @@ async def _consume_main_processing_stream(
                 f"for application embed {streaming_application_embed_id}"
             )
 
+    # Cloud commands are shown by their Run cards (command, folder, status, exit
+    # code), which the continuation carries over (carried_reply_references). The
+    # terminal code embeds are those cards' children and never reply content.
+
     # Test results of the completed run are shown in the reply even when the
     # model did not link them (they carry the run video and step timeline).
     if request_data.completed_result_embed_ids and not was_revoked_during_stream:
@@ -10859,6 +10973,15 @@ async def _consume_main_processing_stream(
             aggregated_response = referenced_response
             final_response_chunks = [aggregated_response]
             logger.info(f"{log_prefix} Added completed test result embed reference(s) to the reply")
+
+    # A later continuation of this reply re-emits these cards first (ids only).
+    if not was_revoked_during_stream:
+        from backend.apps.ai.processing.carried_reply_references import store_reply_references
+
+        await store_reply_references(
+            cache_service, user_id=request_data.user_id, chat_id=request_data.chat_id,
+            message_id=_assistant_message_id(task_id, request_data), text=aggregated_response,
+        )
 
     # Files streamed after the streaming application parent was created are not in
     # its manifest yet. Re-publish the same parent embed with the complete file list.
@@ -11340,6 +11463,22 @@ async def _consume_main_processing_stream(
                     f"(length: {len(aggregated_response)})",
                 )
 
+    # --- Project file inline references (plan project-files-as-chat-code-embeds) ---
+    # The model links files it wrote this turn by Project path; point them at the committed file embeds.
+    project_fence_files = getattr(request_data, "project_fence_files", None) or {}
+    if aggregated_response and project_fence_files:
+        linked_response = link_project_file_references(aggregated_response, project_fence_files)
+        if linked_response != aggregated_response:
+            aggregated_response = linked_response
+            final_response_chunks = [aggregated_response]
+            if cache_service:
+                await _publish_to_redis(
+                    cache_service, redis_channel_name,
+                    _create_redis_payload(task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                                          is_final=False, model_name=stream_model_name),
+                    log_prefix, "Published response with Project file links pointed at their file embeds",
+                )
+
     # --- Backticked Inline Embed Reference Fix ---
     # Detect and rewrite patterns where the LLM wrapped a correct embed markdown
     # link in inline-code backticks, e.g.:
@@ -11561,6 +11700,7 @@ async def _consume_main_processing_stream(
             from backend.shared.python_utils.generated_media_graph import authenticated_generated_outputs
             generated_outputs = authenticated_generated_outputs(authored_inline_outputs)
             known_refs = authored_web_refs | set(generated_outputs) | (parent_source_refs or set())
+            known_refs |= set((getattr(request_data, "project_fence_files", None) or {}).values())
             ref_validated_response = await _strip_invalid_inline_embed_links(
                 aggregated_response=aggregated_response,
                 tool_calls_info=tool_calls_info,

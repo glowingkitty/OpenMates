@@ -2537,6 +2537,10 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
             user_info=user_info,
             requested_credits=len(body.requests) * RUN_CREDITS_PER_MINUTE,
         )
+        if body.allow_e2b_upload:
+            from backend.core.api.app.services.e2b_upload_consent import record_allowed_if_unset
+
+            await record_allowed_if_unset(user.id, directus_service)
         results: list[CodeRunAppSkillResult] = []
         for item in body.requests:
             if item.mode == "direct":
@@ -2555,6 +2559,7 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
                     dependency_installs=item.dependency_installs,
                     api_key_hash=user_info.get("api_key_hash"),
                     device_hash=user_info.get("device_hash"),
+                    directus_service=directus_service,
                 )
                 persisted_output = False
             else:
@@ -2595,6 +2600,7 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
                     dependency_installs=item.dependency_installs,
                     api_key_hash=user_info.get("api_key_hash"),
                     device_hash=user_info.get("device_hash"),
+                    directus_service=directus_service,
                 )
                 persisted_output = True
 

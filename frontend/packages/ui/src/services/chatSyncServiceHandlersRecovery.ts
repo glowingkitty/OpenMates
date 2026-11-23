@@ -31,6 +31,7 @@ import { aiTypingStore } from "../stores/aiTypingStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { announceChatMessageOnce, noteChatMessageCard } from "./chatMessageNotificationReceipt";
 import {
   encryptChatKeyWithMasterKey, deriveEmbedKeyFromChatKey,
   encryptWithEmbedKey, decryptWithEmbedKey, wrapEmbedKeyWithMasterKey, wrapEmbedKeyWithChatKey,
@@ -1392,17 +1393,26 @@ export async function handleRecoveryJobsAvailableImpl(
         serviceInstance.activeAITasks?.delete(job.chat_id);
       }
       aiTypingStore.clearTyping(job.chat_id, job.assistant_message_id);
-      if (!isChatVisiblyActive(job.chat_id) && !updatedChat.is_sub_chat && !updatedChat.parent_id) {
+      // A reply this device already showed (it streamed here before a reload or
+      // hang-up) is completed quietly, not announced as new.
+      const shownBefore = existingAssistantMessage?.role === "assistant" &&
+        !!(existingAssistantMessage.content || existingAssistantMessage.encrypted_content);
+      if (announceChatMessageOnce(job.chat_id, job.assistant_message_id, isChatVisiblyActive(job.chat_id) || shownBefore) &&
+        !updatedChat.is_sub_chat && !updatedChat.parent_id) {
         unreadMessagesStore.incrementUnread(job.chat_id, job.assistant_message_id);
+        noteChatMessageCard("recovery", job.chat_id);
+        const previewStarted = Date.now();
+        const preview = RUST_UPDATES_POLICY
+          ? await (await rustUpdatesPolicy()).messagePreview(recovered.content)
+          : messagePreview(recovered.content);
         notificationStore.chatMessage(
           job.chat_id,
           updatedChat.title || "New message",
-          RUST_UPDATES_POLICY
-            ? await (await rustUpdatesPolicy()).messagePreview(recovered.content)
-            : messagePreview(recovered.content),
+          preview,
           undefined,
           (recovered.category as string | null) || updatedChat.category || undefined,
         );
+        console.info("[Notifications] Chat notice raised", { source: "recovery", chatID: job.chat_id, previewMs: Date.now() - previewStarted });
       }
       serviceInstance.dispatchEvent(
         new CustomEvent("chatUpdated", {

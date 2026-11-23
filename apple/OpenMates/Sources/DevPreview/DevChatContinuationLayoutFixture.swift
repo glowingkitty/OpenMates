@@ -13,7 +13,6 @@ struct DevChatContinuationLayoutFixture: View {
     @State private var browsingChatGrid = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var input = ""
-    @State private var bannerBottom: CGFloat?
     @State private var composerTop: CGFloat?
     @State private var keyboardMinY: CGFloat?
     init(onAction: @escaping (String) -> Void) {
@@ -44,21 +43,9 @@ struct DevChatContinuationLayoutFixture: View {
                 let globalBottom = geometry.frame(in: .global).maxY
                 let keyboardOverlap = max(0, globalBottom - (keyboardMinY ?? globalBottom))
                 let placement = WorkspaceContinuationLayoutPolicy.resolve(width: geometry.size.width, height: geometry.size.height,
-                    bannerBottom: browsingChatGrid ? 0 : bannerBottom ?? 190,
+                    bannerBottom: 0,
                     composerTop: composerTop ?? max(0, geometry.size.height - 69 - keyboardOverlap))
                 ZStack(alignment: .bottom) {
-                    VStack {
-                        if !browsingChatGrid {
-                        InspirationCard(inspiration: DailyInspirationData(text: "Explore a useful research question.", title: "Research tip", category: "technology"),
-                            containerSize: geometry.size, heightOverride: 190) { }
-                            .accessibilityIdentifier("continuation-inspiration")
-                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("continuation-fixture-layout")).maxY } action: {
-                                bannerBottom = $0
-                            }
-                            .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
-                        }
-                        Spacer(minLength: 0)
-                    }
                     if browsingChatGrid {
                         WelcomeChatGrid(cards: store.chats.map { WelcomeScreenState.cardData(for: $0) },
                             width: geometry.size.width, height: placement.availableHeight,
@@ -73,17 +60,18 @@ struct DevChatContinuationLayoutFixture: View {
                                 Text(AppStrings.welcomeHeyUser("Researcher")).font(.custom("Lexend Deca", size: 30).weight(.semibold))
                                 Text(AppStrings.resumeLastChatTitle).font(.omP.weight(.semibold))
                             }
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("continuation-heading")
                             WelcomeContinuationCarousel(cards: store.chats.map { WelcomeScreenState.cardData(for: $0) },
                                 containerSize: CGSize(width: geometry.size.width, height: placement.availableHeight),
-                                onOpenChat: selected, onShowChatActions: { onAction("actions:\($0)") })
-                            HStack(spacing: .spacing5) {
-                                WorkspaceContinuationLink(title: AppStrings.welcomeShowAllChats, icon: "message-square", identifier: "welcome-show-all-chats") {
-                                    setBrowsing(true)
-                                }
-                                WorkspaceContinuationLink(title: AppStrings.search, icon: "search", identifier: "welcome-search-chats") {
-                                    sidebarOpen = true; searchOpen = true
-                                }
-                            }
+                                onOpenChat: selected, onShowChatActions: { onAction("actions:\($0)") },
+                                // Web start row: Show all and Search are the row's last tile.
+                                actions: [
+                                    StartRowAction(title: AppStrings.welcomeShowAllChats, icon: "message-square",
+                                        identifier: "welcome-show-all-chats") { setBrowsing(true) },
+                                    StartRowAction(title: AppStrings.search, icon: "search",
+                                        identifier: "welcome-search-chats") { sidebarOpen = true; searchOpen = true }
+                                ])
                         }
                         .fixedSize(horizontal: false, vertical: true)
                     }

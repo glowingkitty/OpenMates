@@ -888,7 +888,10 @@
         "text": "Voir le visuel"
       },
       "interactive_html_blocked": {
-        "text": "Ce visuel a tenté d'ouvrir une autre page et a été arrêté."
+        "text": "Ce visuel a tenté d'ouvrir une autre page. Ce n'est pas autorisé dans un chat, il a donc été mis en pause."
+      },
+      "interactive_html_reload": {
+        "text": "Recharger le visuel"
       },
       "search_repos": {
         "text": "Rechercher des dépôts",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Tout rejeter"
       },
+      "continue_without_memories": {
+        "text": "Continuer sans souvenirs"
+      },
+      "call_countdown_label": {
+        "text": "Temps restant avant de répondre sans souvenirs"
+      },
       "entry_singular": {
         "text": "entrée"
       },
@@ -3747,7 +3756,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Reprendre là où vous vous êtes arrêté:"
+        "text": "Reprenez vos conversations récentes :"
+      },
+      "active_title_single": {
+        "text": "Vous avez 1 conversation active :"
+      },
+      "active_title": {
+        "text": "Vous avez {count} conversations actives :"
+      },
+      "active_card_label": {
+        "text": "Active"
       },
       "guest_title": {
         "text": "Découvrez quelques exemples de conversations :"
@@ -4338,76 +4356,6 @@
         "text": "Le paradoxe de Fermi interroge l'absence de preuves convaincantes de civilisations extraterrestres. Explore les réponses possibles."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Garde ta propre sauvegarde. Exporte tes données OpenMates quand tu en as besoin."
-      },
-      "title": {
-        "text": "Exporte tes données OpenMates"
-      },
-      "description": {
-        "text": "Sauvegarde tes discussions, paramètres, souvenirs et plus encore."
-      },
-      "assistant_response": {
-        "text": "Exporte une copie de tes données OpenMates depuis les paramètres du compte. Connecte-toi pour accéder à tes données chiffrées."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Tu veux plus de contrôle sur ta vie privée ? Ajoute les informations personnelles qu'OpenMates doit masquer."
-      },
-      "title": {
-        "text": "Détection personnalisée des PII"
-      },
-      "description": {
-        "text": "Protège tes données personnelles avant les appels au modèle."
-      },
-      "assistant_response": {
-        "text": "Choisis les informations personnelles qu'OpenMates doit masquer avant un appel au modèle. Gère-les dans les paramètres de confidentialité."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Besoin d'une réponse plus ciblée ? Donne une mission précise à ton mate."
-      },
-      "title": {
-        "text": "Modes Focus"
-      },
-      "description": {
-        "text": "Oriente une discussion vers un objectif précis."
-      },
-      "assistant_response": {
-        "text": "Utilise un mode focus pour orienter une discussion vers un objectif précis. Explore les modes disponibles dans les Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Se répéter devient lassant. Enregistre le contexte dont tes mates doivent se souvenir."
-      },
-      "title": {
-        "text": "Souvenirs"
-      },
-      "description": {
-        "text": "Enregistre tes préférences et ton contexte."
-      },
-      "assistant_response": {
-        "text": "Enregistre tes préférences et ton contexte sous forme de souvenirs, puis choisis ce que tes mates peuvent utiliser."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Tu cherches une activité ? Découvre les événements près de chez toi."
-      },
-      "title": {
-        "text": "Trouver des événements locaux"
-      },
-      "description": {
-        "text": "Recherche des cours, des rencontres et d'autres événements."
-      },
-      "assistant_response": {
-        "text": "Utilise la recherche d'événements pour trouver des cours et des rencontres près de chez toi. Choisis un lieu et un sujet pour voir ce qui se passe à proximité."
-      }
-    },
     "collective": {
       "title": {
         "text": "Comportement collectif des animaux"
@@ -4448,62 +4396,6 @@
       },
       "assistant_response": {
         "text": "Des structures stabilisées par l’équilibre entre tension et compression."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citations de sources fiables"
-      },
-      "description": {
-        "text": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse."
-      },
-      "phrase": {
-        "text": "Besoin de vérifier une réponse ? Demande à OpenMates de citer sa source."
-      },
-      "assistant_response": {
-        "text": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Détection d’images IA"
-      },
-      "description": {
-        "text": "Importe une image et examine les indices de génération par IA dans le chat."
-      },
-      "phrase": {
-        "text": "Cette image a-t-elle été générée par IA ? Importe-la pour examiner les indices."
-      },
-      "assistant_response": {
-        "text": "Importe une image et examine les indices de génération par IA dans le chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Chats incognito"
-      },
-      "description": {
-        "text": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique."
-      },
-      "phrase": {
-        "text": "Besoin d’une conversation temporaire ? Garde-la hors de ton historique enregistré."
-      },
-      "assistant_response": {
-        "text": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Réglages de confidentialité"
-      },
-      "description": {
-        "text": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit."
-      },
-      "phrase": {
-        "text": "Découvre comment OpenMates protège tes données avant d’avoir besoin de ces réglages en urgence."
-      },
-      "assistant_response": {
-        "text": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit."
       }
     }
   },
@@ -4717,6 +4609,56 @@
       },
       "ask_question": {
         "text": "Poser une question sur cette documentation..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Pour exécuter ceci, ton code et tes fichiers sont envoyés à E2B, un fournisseur de sandbox cloud, et y sont exécutés, aux États-Unis. Pour les tâches de Projet, le Projet entier et la clé qui l'ouvre sont aussi placés dans le sandbox, scellés pour que seul ce sandbox puisse l'ouvrir. Le sandbox est supprimé ensuite."
+      },
+      "privacy_policy": {
+        "text": "Politique de confidentialité"
+      },
+      "own_machine_hint": {
+        "text": "Ou exécute-le sur ta propre machine avec :"
+      },
+      "allow": {
+        "text": "Autoriser"
+      },
+      "own_machine": {
+        "text": "Utiliser ma propre machine"
+      },
+      "not_now": {
+        "text": "Pas maintenant"
+      },
+      "answered": {
+        "text": "Ta réponse :"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "L'exécution de code dans le sandbox cloud E2B n'est pas autorisée pour ton compte, donc rien n'a été lancé. Tu peux le modifier dans Paramètres > Confidentialité ou l'exécuter sur ta propre machine avec la commande d'accès à distance."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Exécuter du code dans le sandbox cloud E2B"
+      },
+      "description": {
+        "text": "Si tu l'autorises, le code et les fichiers que tu exécutes sont envoyés à E2B, un fournisseur de sandbox cloud, et traités aux États-Unis. Pour les tâches de Projet, cela inclut le Projet et la clé qui l'ouvre, scellés pour que seul ce sandbox puisse l'ouvrir. Le sandbox est supprimé ensuite. Sinon, rien n'est envoyé."
+      },
+      "status_allowed": {
+        "text": "Autorisé"
+      },
+      "status_declined": {
+        "text": "Non autorisé"
+      },
+      "status_undecided": {
+        "text": "Pas encore décidé"
+      },
+      "error": {
+        "text": "Impossible d'enregistrer ce paramètre. Réessaie."
       }
     }
   },
@@ -8397,6 +8339,9 @@
         },
         "no_video": {
           "text": "Aucune vidéo disponible pour cette exécution"
+        },
+        "with_setup": {
+          "text": "{duration} avec préparation"
         }
       }
     },
@@ -12498,7 +12443,7 @@
               "text": "E2B (bac à sable de code isolé)"
             },
             "description": {
-              "text": "E2B exécute les intégrations de code sélectionnées et les aperçus d'applications générés dans des bacs à sable isolés. E2B reçoit le code ou les fichiers et ressources d'application générés que tu choisis d'exécuter, les entrées d'exécution, les journaux d'aperçu et la sortie d'exécution nécessaires pour faire fonctionner et afficher le résultat du bac à sable. Ce partage n'a lieu que lorsque tu exécutes explicitement du code, crées une application générée qui lance automatiquement un court aperçu par capture d'écran, ou démarres/reprends un aperçu en direct d'une application."
+              "text": "E2B exécute les intégrations de code sélectionnées et les aperçus d'applications générés dans des bacs à sable isolés. E2B reçoit le code ou les fichiers et ressources d'application générés que tu choisis d'exécuter, les entrées d'exécution, les journaux d'aperçu et la sortie d'exécution nécessaires pour faire fonctionner et afficher le résultat du bac à sable. Ce partage n'a lieu que lorsque tu exécutes explicitement du code, crées une application générée qui lance automatiquement un court aperçu par capture d'écran, ou démarres/reprends un aperçu en direct d'une application. Lorsqu'une tâche d'agent s'exécute sur un projet cloud, E2B, aux États-Unis, reçoit aussi tous les fichiers du projet et, scellée de sorte que seul ce bac à sable puisse l'ouvrir, la clé qui ouvre le projet, pendant la durée de la tâche. Le bac à sable est supprimé après 15 minutes d'inactivité ou au plus tard après 4 heures (jusqu'à 24 heures si tu l'actives) et n'est jamais mis en pause."
             }
           }
         },
@@ -19992,6 +19937,9 @@
       "screenshot_size_too_large": {
         "text": "Capture trop grande. Essayez une fenêtre plus petite."
       },
+      "screenshot_limit_reached": {
+        "text": "Vous pouvez joindre jusqu'à 5 captures d'écran."
+      },
       "screenshot_preview_alt": {
         "text": "Aperçu de la capture"
       },
@@ -21177,7 +21125,7 @@
       "text": "Tester gratuitement"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "Domaine e-mail non autorisé."
@@ -21965,7 +21913,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Demande de souvenirs expirée, réponse sans souvenirs"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Les appels utilisent la transcription Mistral, la voix ElevenLabs v4 Turbo, le routage IA habituel d’OpenMates et une facturation à l’usage."

@@ -16,7 +16,13 @@ const defaultProps = fixture(passedMixed);
 
 export default defaultProps;
 
+const planTasks = [
+  { taskId: 'task-pay', title: 'Build the payment step', description: 'Covers: A shopper can pay', status: 'in_progress', linkedSubChatId: 'preview-chat-task-pay' },
+  { taskId: 'task-docs', title: 'Update the help page', description: 'Unrelated documentation', status: 'todo', linkedSubChatId: 'preview-chat-task-docs' },
+];
+
 export const variants = {
+  'with-plan-tasks': { ...fixture(passedMixed), planTasks, onOpenChat: (chatId: string) => { (window as unknown as { __openedChat?: string }).__openedChat = chatId; } },
   failedRequiredUnit: fixture(failedRequiredUnit),
   waitingForConfirmation: fixture(waitingForConfirmation),
   stale: fixture(stale),

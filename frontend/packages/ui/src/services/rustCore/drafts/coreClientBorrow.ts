@@ -121,6 +121,13 @@ export interface BorrowOptions {
 	 * applied frame, such as the voice turn committing on the chat's messages_v.
 	 */
 	readonly drainSocketFrames?: boolean;
+	/**
+	 * Client affinity: lend only this client while a dispatcher of the principal
+	 * still holds it (waiting while it is busy), so per-chat state kept inside one
+	 * core Client (Project file-job approvals and privacy layer) stays on it. When
+	 * no dispatcher holds it any more (retired or disposed), any client is lent.
+	 */
+	readonly prefer?: object;
 }
 
 function matches(rt: WorkerRuntimeState, principal: string): boolean {
@@ -139,7 +146,9 @@ async function drainIdleSources(principal: string): Promise<void> {
 /** One attempt. Local-only (cache-read) admissions confer no server authority and are skipped unless `allowLocal`. */
 export function tryBorrowCoreClient(principal: string, observeBusy?: (reason: string) => void, options: BorrowOptions = {}): CoreClientBorrow | CoreBorrowRefusal {
 	let busy = false, local = false;
-	for (const rt of sources) {
+	const preferred = options.prefer === undefined ? undefined
+		: [...sources].find((rt) => rt.client === options.prefer && matches(rt, principal));
+	for (const rt of preferred ? [preferred] : sources) {
 		const client = rt.client;
 		if (!client || !matches(rt, principal)) continue;
 		const reason = busyReason(rt);

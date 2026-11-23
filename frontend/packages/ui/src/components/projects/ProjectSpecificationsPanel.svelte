@@ -10,11 +10,16 @@
   import {
     approveProjectSpecification, listProjectSpecifications, openProjectSpecification, type OpenedSpecification,
   } from '../../services/projectSpecificationService';
+  import { refreshPresentationAfterSpecificationApproval } from '../../services/projectPresentationService';
   import ProjectSpecificationsSection from './ProjectSpecificationsSection.svelte';
   import SpecificationEmbedFullscreen from '../embeds/specifications/SpecificationEmbedFullscreen.svelte';
   import type { SpecificationListItem } from '../embeds/specifications/SpecificationRevision';
 
-  let { project }: { project: ProjectViewModel } = $props();
+  let { project, onProjectUpdated }: {
+    project: ProjectViewModel;
+    /** Receives the Project after the first approval refreshed its description, icon and category. */
+    onProjectUpdated: (project: ProjectViewModel) => void;
+  } = $props();
   let items = $state<SpecificationListItem[]>([]);
   let opened = $state<OpenedSpecification | null>(null);
   let loadFailed = $state(false);
@@ -42,10 +47,19 @@
     actionFailed = false;
     const id = opened.id;
     try {
+      const approved = opened.document;
       await approveProjectSpecification(project, id, revisionId, contentHash);
       await open(id, revisionId);
       await load();
+      void refreshPresentation(approved.title, approved.summary);
     } catch (error) { console.error('[ProjectSpecificationsPanel] approve failed:', error); actionFailed = true; }
+  }
+  // The approval itself succeeded; a failed tile refresh is reported, not shown as an approval error.
+  async function refreshPresentation(title: string, summary: string): Promise<void> {
+    try {
+      const updated = await refreshPresentationAfterSpecificationApproval(project, { title, summary });
+      if (updated !== project) onProjectUpdated(updated);
+    } catch (error) { console.error('[ProjectSpecificationsPanel] presentation refresh failed:', error); }
   }
   onMount(() => { void load(); });
 </script>

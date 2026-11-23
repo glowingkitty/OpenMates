@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 pub mod account;
 pub mod chat_state;
+pub mod code_run_request;
 pub mod client;
 pub mod crypto;
 pub mod embed_read;
@@ -14,6 +15,7 @@ pub mod mentions_list;
 pub mod model;
 pub mod pairing;
 pub mod pii_display_aliases;
+mod path_rules;
 mod platform;
 pub mod privacy;
 pub mod project_task_sync;
@@ -72,6 +74,10 @@ mod web_share_state_tests;
 /// User Plans (later Tasks/Teams) decisions of the web `work` op.
 pub mod web_work;
 pub mod web_stream;
+/// Sub-chat shell and assumption link decisions of the web `subchatDecide` op.
+pub mod web_subchat;
+#[cfg(test)]
+mod web_subchat_tests;
 pub mod web_sync;
 pub mod web_chat_state;
 #[cfg(test)]
@@ -84,8 +90,10 @@ mod web_search_query_tests;
 mod web_search_tests;
 pub use client::{
     Client, ClientIdentity, ClientOptions, PasswordLoginOptions, CredentialEvent, CredentialSnapshot, PairChallenge,
-    MachineProjectDecision, SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
+    E2B_CONSENT_STATUS_PREFIX, SendE2bConsentRequest, E2bConsentChoice, E2bConsentPolicy, E2bConsentRecord, E2bDecision, MachineProjectDecision, SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
 };
+#[cfg(feature = "workflow-yaml")]
+pub use client::{ProjectFileJobFrame, ProjectFilePrivacyBlob, ProjectFileJobStep};
 pub use error::{Error, Result};
 pub use session::Session;
 

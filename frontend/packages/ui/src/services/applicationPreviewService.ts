@@ -7,6 +7,13 @@
 import { getApiUrl } from '../config/api';
 import { isPublicChat } from '../demo_chats';
 import { chatDB } from './db';
+import {
+  E2bConsentRefusedError,
+  e2bConsentCodeFromPayload,
+  ensureE2bConsentForUserStart,
+  isE2bAutoStartAllowed,
+  resolveServerE2bConsentRefusal,
+} from './e2bConsentGate';
 import { decodeToonContent, extractEmbedReferences, resolveEmbed } from './embedResolver';
 
 const AUTO_START_RESOLVE_ATTEMPTS = 6;
@@ -44,10 +51,28 @@ export interface CachedApplicationPreviewSession extends ApplicationPreviewStart
   status_updated_at?: number;
 }
 
+/** A Project app previewed from the chat's Project sandbox (no files travel; the server runs its dev server). */
+export interface ProjectSandboxPreviewTarget {
+  project_id: string;
+  cwd: string;
+  team_id?: string;
+}
+
 interface ApplicationPreviewStartOptions {
   sharedContext?: string;
   autoStarted?: boolean;
   sourceMessageId?: string;
+  projectSandbox?: ProjectSandboxPreviewTarget;
+}
+
+/** The sandbox target of a Project application card, or null for a card made of chat files. */
+export function projectSandboxPreviewTarget(content: Record<string, unknown>): ProjectSandboxPreviewTarget | null {
+  if (content.source !== 'project_sandbox' || typeof content.project_id !== 'string' || !content.project_id) return null;
+  return {
+    project_id: content.project_id,
+    cwd: typeof content.cwd === 'string' ? content.cwd : '',
+    ...(typeof content.team_id === 'string' && content.team_id ? { team_id: content.team_id } : {}),
+  };
 }
 
 interface ApplicationFileRef {
@@ -203,7 +228,7 @@ async function performApplicationPreviewStart(
 ): Promise<ApplicationPreviewStartResponse> {
   const generation = sessionGeneration;
   const options = normalizeStartOptions(sharedContextOrOptions);
-  const response = await fetch(`${getApiUrl()}/v1/applications/${encodeURIComponent(applicationEmbedId)}/preview/start`, {
+  const post = () => fetch(`${getApiUrl()}/v1/applications/${encodeURIComponent(applicationEmbedId)}/preview/start`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -212,12 +237,25 @@ async function performApplicationPreviewStart(
       shared_context: options.sharedContext,
       auto_started: options.autoStarted ?? false,
       source_message_id: options.sourceMessageId,
+      ...(options.projectSandbox ? { project_sandbox: options.projectSandbox } : {}),
     }),
   });
 
+  if (!options.autoStarted) await ensureE2bConsentForUserStart();
+  let response = await post();
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw new Error(errorMessageFromPayload(payload, `Application preview failed to start (${response.status})`));
+    let payload = await response.json().catch(() => null);
+    const consentCode = e2bConsentCodeFromPayload(payload);
+    if (consentCode) {
+      // Automatic starts never prompt; a user start asks once and retries.
+      if (options.autoStarted) throw new E2bConsentRefusedError(errorMessageFromPayload(payload, consentCode));
+      await resolveServerE2bConsentRefusal(consentCode);
+      response = await post();
+      if (!response.ok) payload = await response.json().catch(() => null);
+    }
+    if (!response.ok) {
+      throw new Error(errorMessageFromPayload(payload, `Application preview failed to start (${response.status})`));
+    }
   }
 
   const session = await response.json() as ApplicationPreviewStartResponse;
@@ -282,6 +320,8 @@ async function startApplicationPreviewOnce(
   const generation = sessionGeneration;
   const attemptKey = sessionCacheKey(chatId, applicationEmbedId);
   if (autoStartAttempts.has(attemptKey)) return undefined;
+  // No decision or declined: never start and never prompt; the Start preview button stays.
+  if (!await isE2bAutoStartAllowed() || generation !== sessionGeneration) return undefined;
   autoStartAttempts.add(attemptKey);
 
   let lastError: unknown;
@@ -294,6 +334,10 @@ async function startApplicationPreviewOnce(
       });
     } catch (error) {
       if (generation !== sessionGeneration) return undefined;
+      if (error instanceof E2bConsentRefusedError) {
+        autoStartAttempts.delete(attemptKey);
+        return undefined;
+      }
       lastError = error;
       if (attempt < AUTO_START_START_ATTEMPTS - 1) {
         await new Promise((resolve) => setTimeout(resolve, AUTO_START_START_DELAY_MS));

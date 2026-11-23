@@ -43,6 +43,8 @@ const JOB_TTL_MS = 7 * 24 * 60 * 60_000;
 const TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
 const LEGACY_RUNNING_TTL_MS = 15 * 60_000;
 const LEGACY_TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
+// An epoch-zero output producer idle this long is retired at epoch-1 activation.
+const LEGACY_PRODUCER_STALE_MS = 24 * 60 * 60_000;
 const SERVER_TRIGGER_TASK_IDENTITY_PREFIX = 'server-trigger:';
 const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
 const MAX_AVAILABLE_JOBS = 100;
@@ -298,6 +300,7 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'hashed_user_id', 'child_chat_id',
   ]),
   list_available_jobs: new Set(['protocol_version', 'hashed_user_id', 'device_hash']),
+  get_finished_turn: new Set(['protocol_version', 'hashed_user_id', 'chat_id', 'user_message_id']),
   lease_job: new Set(['protocol_version', 'job_id', 'hashed_user_id', 'device_hash']),
   renew_lease: new Set([
     'protocol_version', 'job_id', 'hashed_user_id', 'device_hash', 'lease_generation', 'lease_token',
@@ -1292,6 +1295,27 @@ async function releaseLegacyInference(database, raw, now) {
   });
 }
 
+/**
+ * Retire epoch-zero output producers that have not moved for a full day.
+ *
+ * Legacy turns live at most LEGACY_RUNNING_TTL_MS, so a producer still PENDING a
+ * day after registration, or RUNNING a day after it started, belongs to a task
+ * that died without reporting. Left alone, such a row blocks the epoch-1
+ * activation forever. It becomes INVALIDATED, the state every finish path
+ * already refuses, so a late task cannot write through it. Runs only inside the
+ * activation transaction, after sends are paused and no legacy turn is running.
+ */
+async function retireStaleLegacyOutputProducers(trx, now) {
+  const cutoff = new Date(now.getTime() - LEGACY_PRODUCER_STALE_MS);
+  const retired = { state: 'INVALIDATED', invalidated_at: now };
+  await trx(LEGACY_OUTPUT_PRODUCERS).where({ state: 'PENDING' })
+    .where('registered_at', '<=', cutoff).update(retired);
+  await trx(LEGACY_OUTPUT_PRODUCERS).where({ state: 'RUNNING' })
+    .where('started_at', '<=', cutoff).update(retired);
+  await trx(LEGACY_OUTPUT_PRODUCERS).where({ state: 'RUNNING' }).whereNull('started_at')
+    .where('registered_at', '<=', cutoff).update(retired);
+}
+
 async function activateProtocolEpoch(database, raw, now) {
   const body = operationBody(raw, 'activate_protocol_epoch');
   const targetEpoch = integer(body.target_epoch, 'invalid_protocol_epoch');
@@ -1314,6 +1338,7 @@ async function activateProtocolEpoch(database, raw, now) {
     if (targetEpoch !== 1) fail(400, 'invalid_protocol_epoch');
     if (!row.sends_paused) fail(409, 'sends_not_paused');
     if (row.legacy_in_flight !== 0) fail(409, 'legacy_in_flight');
+    await retireStaleLegacyOutputProducers(trx, now);
     if (await trx(LEGACY_OUTPUT_PRODUCERS)
       .whereIn('state', ['PENDING', 'RUNNING']).first()) {
       fail(409, 'legacy_output_producers_pending');
@@ -5437,6 +5462,45 @@ async function markChildLifecycle(database, raw, now, phase) {
   });
 }
 
+/**
+ * Read-only: tells a client resending an already-finished turn that it is done.
+ * Plain selects only; "not finished" is a normal answer, never an error.
+ */
+async function getFinishedTurn(database, raw) {
+  const body = operationBody(raw, 'get_finished_turn');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  const chatId = uuid(body.chat_id, 'invalid_chat');
+  const userMessageId = string(body.user_message_id, 'invalid_message', 255);
+  const rows = await database(PREFLIGHTS)
+    .where({ hashed_user_id: ownerHash, chat_id: chatId, user_message_id: userMessageId })
+    .whereIn('state', ['TERMINAL', 'CONSUMED'])
+    .whereNull('deletion_invalidated_at')
+    .orderBy('prepared_at', 'desc')
+    .orderBy('id', 'desc')
+    .limit(1)
+    .select(['id', 'turn_id', 'state', 'inference_task_id', 'committed_messages_v']);
+  const row = rows[0];
+  if (!row) return { finished: false };
+  if (await database(CHAT_DELETION_FENCES).where({ id: chatId }).first()) return { finished: false };
+  const chat = await database(CHATS).where({ id: chatId }).first();
+  const owned = chat && (chat.hashed_user_id === ownerHash || chat.hashed_team_id != null);
+  const job = await database(JOBS)
+    .where({ preflight_id: row.id, state: 'TERMINAL' })
+    .whereNull('invalidated_at')
+    .orderBy('id', 'desc')
+    .first();
+  return {
+    finished: true,
+    state: row.state,
+    preflight_id: row.id,
+    turn_id: row.turn_id ?? null,
+    inference_task_id: row.inference_task_id ?? null,
+    assistant_message_id: job?.assistant_message_id ?? null,
+    committed_messages_v: owned && Number.isSafeInteger(chat.messages_v) ? chat.messages_v : null,
+    recovery_job: job ? { job_id: job.id, state: job.state } : null,
+  };
+}
+
 async function listAvailableJobs(database, raw, now) {
   const body = operationBody(raw, 'list_available_jobs');
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
@@ -6002,6 +6066,7 @@ export const operations = Object.freeze({
   release_inference_outbox: releaseInferenceOutbox,
   mark_inference_failed: markInferenceFailed,
   create_sealed_job: createSealedJob, list_available_jobs: listAvailableJobs,
+  get_finished_turn: getFinishedTurn,
   register_output_producer: registerOutputProducer,
   register_legacy_output_producer: registerLegacyOutputProducer,
   verify_volatile_output_actor: verifyVolatileOutputActor,

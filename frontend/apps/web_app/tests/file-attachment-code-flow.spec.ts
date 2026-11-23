@@ -19,7 +19,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, deleteActiveChat, allowE2bUpload } = require('./helpers/chat-test-helpers');
 const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
@@ -180,6 +180,7 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 
 	await page.goto(getE2EDebugUrl('/'));
 	await loginToTestAccount(page, log, screenshot);
+	await allowE2bUpload(page);
 	await page.waitForTimeout(3000);
 
 	await openNewChat(page, log);
@@ -247,6 +248,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 
 	await page.goto(getE2EDebugUrl('/'));
 	await loginToTestAccount(page, log, screenshot);
+	await allowE2bUpload(page);
 	await page.waitForTimeout(3000);
 
 	await openNewChat(page, log);
@@ -442,6 +444,7 @@ test('uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds', 
 
 	await page.goto(getE2EDebugUrl('/'));
 	await loginToTestAccount(page, log, screenshot);
+	await allowE2bUpload(page);
 	await page.waitForTimeout(3000);
 
 	await openNewChat(page, log);

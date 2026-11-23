@@ -1,8 +1,12 @@
 /**
- * Shared display formatting for backend mention syntax (@ai-model:..., @mate:...).
- * Used by draft saving and draft/title previews so all surfaces show the same names.
+ * Shared display formatting for backend mention syntax (@ai-model:..., @mate:...,
+ * @project:...). Used by draft saving, draft/chat previews and temporary chat
+ * titles so every surface shows the same readable names and never an id.
  */
+import { get } from "svelte/store";
+import { text as translations } from "../i18n/translations";
 import { modelsMetadata } from "../data/modelsMetadata";
+import { projectNameLookup, type ProjectNameLookup } from "./mentionProjectNames";
 import { matesMetadata } from "../data/matesMetadata";
 import { appSkillsStore } from "../stores/appSkillsStore";
 
@@ -25,19 +29,78 @@ function capitalizeWords(str: string): string {
     .join("-");
 }
 
+export { registerMentionProjectNameLookup, knownProjectMentionName, type ProjectNameLookup } from "./mentionProjectNames";
+
+const PROJECT_MENTION = /@project:([a-zA-Z0-9_.-]+):(?:read_write|read)\b/g;
+const PROJECT_SCOPED_MENTION =
+  /@project-(?:folder|file):[a-zA-Z0-9_.-]+:(?:[a-zA-Z0-9_.-]+:)?([^\s:]+):(?:read_write|read)\b/g;
+const MEMORY_ENTRY_MENTION = /@memory-entry:[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+/g;
+const WIKIPEDIA_MENTION = /@wikipedia:[a-z]{2,10}:([^\s]+)/g;
+// Anything still shaped like backend mention syntax after the known kinds.
+const LEFTOVER_MENTION = /@[a-z][a-z-]*:[^\s]+/gi;
+const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
+function humanize(slug: string): string {
+  const words = slug.replace(/[_-]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
+}
+
+function decodePart(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function translated(key: string | undefined): string | null {
+  if (!key) return null;
+  const value = get(translations)(key);
+  return value && !value.startsWith("[T:") && value !== key ? value : null;
+}
+
+/** The Focus or skill title shown in the app, or its humanized id when the app list is not loaded. */
+function appItemName(kind: "focus" | "skill", appId: string, itemId: string): string {
+  const app = appSkillsStore.apps?.[appId];
+  const items: ReadonlyArray<{ id: string; name_translation_key?: string }> | undefined =
+    kind === "focus" ? app?.focus_modes : app?.skills;
+  return translated(items?.find((item) => item.id === itemId)?.name_translation_key) || humanize(itemId);
+}
+
+/** The Project ids mentioned in a text, in order of appearance. */
+export function mentionedProjectIds(value: string | null | undefined): string[] {
+  if (!value) return [];
+  const ids = [
+    ...[...value.matchAll(PROJECT_MENTION)].map((match) => match[1]),
+    ...[...value.matchAll(/@project-(?:folder|file):([a-zA-Z0-9_.-]+):/g)].map((match) => match[1]),
+  ];
+  return [...new Set(ids)];
+}
+
 /**
- * Convert backend mention syntax to human-readable display names.
- * This ensures draft previews show "@Claude-4.5-Opus" instead of "@ai-model:claude-4-sonnet"
+ * Convert backend mention syntax to human-readable display names, and remove
+ * any identifier, so previews and titles never show raw mention tokens.
  *
- * Supported mention formats:
+ * - @project:{id}:{access} -> @Project Name (generic @Project while the name is unknown)
+ * - @project-folder / @project-file -> @folder or file name
+ * - @focus:{app_id}:{focus_id} / @skill:{app_id}:{skill_id} -> @Focus or skill title
  * - @ai-model:{model_id} -> @Model-Name (e.g., @Claude-4.5-Opus)
+ * - @best-model:{alias} -> @Alias
  * - @mate:{mate_id} -> @MateName (e.g., @Sophia)
- * - @skill:{app_id}:{skill_id} -> @App-Skill-Name (e.g., @Code-Get-Docs)
- * - @focus:{app_id}:{focus_id} -> @App-Focus-Name (e.g., @Web-Research)
- * - @memory:{app_id}:{memory_id}:{type} -> @App-Memory-Name (e.g., @Code-Projects)
+ * - @memory:openmates:memories:{type} -> @Openmates-Memories; @memory-entry -> @Memory
+ * - @wikipedia:{lang}:{title} -> @Article title
+ * Leftover mention syntax and bare UUIDs are removed.
  */
-export function convertMentionSyntaxToDisplayName(text: string): string {
-  // @ai-model:{id} or @ai-model:{id}:{provider} -> @Model-Name
+export function convertMentionSyntaxToDisplayName(
+  text: string,
+  projectName: ProjectNameLookup | null = projectNameLookup(),
+): string {
+  text = text.replace(PROJECT_SCOPED_MENTION, (_match, encodedPath: string) => {
+    const label = decodePart(encodedPath).split("/").filter(Boolean).pop()?.trim();
+    return `@${label || "Project"}`;
+  });
+  text = text.replace(PROJECT_MENTION, (_match, projectId: string) => `@${projectName?.(projectId)?.trim() || "Project"}`);
+
   text = text.replace(/@ai-model:([^\s]+)/g, (_match, ref: string) => {
     const baseId = ref.split(":")[0];
     const model =
@@ -46,53 +109,18 @@ export function convertMentionSyntaxToDisplayName(text: string): string {
     return `@${model ? toHyphenatedName(model.name) : capitalizeWords(baseId)}`;
   });
 
-  // @best-model:{alias} (best, fast) -> @Best / @Fast
   text = text.replace(/@best-model:([^\s:]+)/g, (_match, alias: string) => {
     return `@${capitalizeWords(alias)}`;
   });
 
-  // Replace @mate:{id} with @MateName
   text = text.replace(/@mate:([^\s]+)/g, (match, mateId) => {
     const mate = matesMetadata.find((m) => m.id === mateId);
-    if (mate) {
-      // Use first search name (the actual name like "Sophia")
-      const displayName = capitalizeWords(mate.search_names[0] || mate.id);
-      return `@${displayName}`;
-    }
-    return match; // Keep original if mate not found
+    return mate ? `@${capitalizeWords(mate.search_names[0] || mate.id)}` : match;
   });
 
-  // Replace @skill:{app_id}:{skill_id} with @App-Skill-Name
-  text = text.replace(/@skill:([^:]+):([^\s]+)/g, (match, appId, skillId) => {
-    const apps = appSkillsStore.apps;
-    const app = apps[appId];
-    if (app) {
-      const skill = app.skills.find((s) => s.id === skillId);
-      if (skill) {
-        const appDisplayName = capitalizeWords(appId);
-        const skillDisplayName = capitalizeWords(skillId.replace(/_/g, "-"));
-        return `@${appDisplayName}-${skillDisplayName}`;
-      }
-    }
-    return match; // Keep original if not found
-  });
+  text = text.replace(/@(focus|skill):([a-zA-Z0-9_.-]+):([a-zA-Z0-9_.-]+)/g,
+    (_match, kind: "focus" | "skill", appId: string, itemId: string) => `@${appItemName(kind, appId, itemId)}`);
 
-  // Replace @focus:{app_id}:{focus_id} with @App-Focus-Name
-  text = text.replace(/@focus:([^:]+):([^\s]+)/g, (match, appId, focusId) => {
-    const apps = appSkillsStore.apps;
-    const app = apps[appId];
-    if (app) {
-      const focusMode = app.focus_modes.find((f) => f.id === focusId);
-      if (focusMode) {
-        const appDisplayName = capitalizeWords(appId);
-        const focusDisplayName = capitalizeWords(focusId.replace(/_/g, "-"));
-        return `@${appDisplayName}-${focusDisplayName}`;
-      }
-    }
-    return match; // Keep original if not found
-  });
-
-  // Replace @memory:{app_id}:{memory_id}:{type} with @App-Memory-Name
   text = text.replace(
     /@memory:([^:]+):([^:]+):([^\s]+)/g,
     (match, appId, memoryId) =>
@@ -100,7 +128,8 @@ export function convertMentionSyntaxToDisplayName(text: string): string {
         ? "@Openmates-Memories"
         : match,
   );
+  text = text.replace(MEMORY_ENTRY_MENTION, "@Memory");
+  text = text.replace(WIKIPEDIA_MENTION, (_match, encodedTitle: string) => `@${humanize(decodePart(encodedTitle))}`);
 
-  return text;
+  return text.replace(LEFTOVER_MENTION, " ").replace(UUID, " ").replace(/[ \t]{2,}/g, " ");
 }
-

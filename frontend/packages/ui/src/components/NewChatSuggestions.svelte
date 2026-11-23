@@ -20,10 +20,10 @@
   import { onMount } from 'svelte';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
-  import { decryptWithMasterKey } from '../services/cryptoService';
+  import { loadStoredNewChatSuggestions } from '../services/startScreenSuggestions';
   import { setClickedSuggestion } from '../stores/suggestionTracker';
   import { text } from '@repo/ui';
-  import type { Chat, NewChatSuggestion } from '../types/chat';
+  import type { Chat } from '../types/chat';
   import { authStore } from '../stores/authStore';
   import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
   import { getInterestSurfaceIds, rankSuggestionKeysByInterests } from '../demo_chats/guestSmartSelection';
@@ -411,25 +411,10 @@
     // IndexedDB results arrive. This prevents a flash where default suggestions
     // briefly appear before being replaced by user-specific ones.
     try {
-      await chatDB.init();
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const all: NewChatSuggestion[] = await chatDB.getAllNewChatSuggestions();
-      const decryptedSuggestions = await Promise.all(
-        all.map(async s => {
-          const decrypted = await decryptWithMasterKey(s.encrypted_suggestion);
-          if (!decrypted) return null;
-          const plainText = stripLegacySuggestionPrefix(stripHtmlTags(decrypted));
-          return {
-            text: plainText,
-            encrypted: s.encrypted_suggestion,
-            id: s.id
-          };
-        })
-      );
-      let realSuggestions = decryptedSuggestions.filter(
-        (s): s is { text: string; encrypted: string; id: string } => s !== null
-      );
+      const stored = await loadStoredNewChatSuggestions();
+      let realSuggestions = stored.map(({ text, encrypted, id }) => ({ text, encrypted, id }));
 
       // Shuffle for random order
       realSuggestions = shuffleArray(realSuggestions);

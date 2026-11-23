@@ -54,7 +54,8 @@ def pending_jobs(root: Path, session_ids: list[str]) -> list[dict]:
         terminal = ",".join("?" for _ in TERMINAL)
         rows = db.execute(
             f"SELECT id, mode, specs, state FROM jobs WHERE owner IN ({owners}) "
-            f"AND state NOT IN ({terminal}) ORDER BY created",
+            # A prepare producer finishes before its consumers; waiting on them covers it.
+            f"AND state NOT IN ({terminal}) AND mode != 'prepare' ORDER BY created",
             [*session_ids, *TERMINAL],
         ).fetchall()
         return [dict(row) for row in rows]

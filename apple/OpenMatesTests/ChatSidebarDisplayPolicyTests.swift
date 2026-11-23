@@ -38,6 +38,14 @@ final class ChatSidebarDisplayPolicyTests: XCTestCase {
             chats: [first, second], ancestry: [child.id: first.id]), [first.id, second.id])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.activity.global-running
+    @MainActor
+    func testIdleActivityResolvesNoRunningRootsWithoutIndexingTheChatList() {
+        let rows = (0..<600).map { chat("idle-\($0)", age: $0) }
+        XCTAssertEqual(NativeChatActivityStore.orderedRootIDs(processingChatIDs: [], chats: rows), [])
+        XCTAssertEqual(NativeChatActivityStore.orderedRootIDs(processingChatIDs: [rows[3].id], chats: rows), [rows[3].id])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     @MainActor
     func testRootHistoryKeepsShellsAndLegacyArchivedRowsBeforeBoundedSortProjection() {

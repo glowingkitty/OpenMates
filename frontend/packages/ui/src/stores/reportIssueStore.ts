@@ -65,7 +65,8 @@ export interface ReportIssueFormDraft {
   /** Admin-only (development server): hand the report to a Claude chat. */
   sendToClaudeChat?: boolean;
   pickedElementHtml: string | null;
-  screenshotDataUrl: string | null;
+  /** Attached screenshot data URLs (max 5). */
+  screenshotDataUrls: string[];
 }
 
 export const reportIssueFormDraftStore = writable<ReportIssueFormDraft | null>(

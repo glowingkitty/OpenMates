@@ -749,6 +749,21 @@ enum MarkdownParser {
                 continue
             }
 
+            // An embed fence after inline text on the same line (a model mention
+            // sent with only a space before an uploaded file, TASK-1610): the
+            // text stays a paragraph and the file renders as its embed.
+            // Web: frontend/packages/ui/src/message_parsing/embedFenceRepair.ts
+            if !trimmed.hasPrefix("```"), i + 2 < lines.count,
+               let fence = trimmed.range(of: #"\s+```json$"#, options: .regularExpression),
+               lines[i + 2].trimmingCharacters(in: .whitespaces) == "```",
+               let embed = parseFencedEmbedReference(language: "json", code: lines[i + 1]) {
+                let prefix = String(trimmed[..<fence.lowerBound])
+                if !prefix.isEmpty { blocks.append(.paragraph(prefix)) }
+                blocks.append(.embedGroup([embed]))
+                i += 3
+                continue
+            }
+
             // Fenced code block
             if trimmed.hasPrefix("```") {
                 let lang = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
@@ -796,6 +811,10 @@ enum MarkdownParser {
                 } else if let embed = parseFencedEmbedReference(language: language, code: code) {
                     blocks.append(.embedGroup([embed]))
                 } else {
+                    if !isStreaming && isClosed && code.contains("\"embed_id\"") {
+                        // Content-free report: a message shows a raw embed reference (TASK-1610).
+                        NativeDiagnostics.error("[EmbedRenderAnomaly] message shows a raw embed reference as code", category: "render")
+                    }
                     blocks.append(.codeBlock(language: language, code: code))
                 }
                 continue

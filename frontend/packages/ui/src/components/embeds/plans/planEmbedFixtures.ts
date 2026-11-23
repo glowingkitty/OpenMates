@@ -57,7 +57,7 @@ export function fixtureCheck(
 
 const tasks: PlanLinkedTask[] = [
   { taskId: 'task-1', title: 'Write the release notes', status: 'done' },
-  { taskId: 'task-2', title: 'Review the release checklist', status: 'in_progress' },
+  { taskId: 'task-2', title: 'Review the release checklist', status: 'in_progress', linkedSubChatId: 'preview-task-sub-chat' },
   { taskId: 'task-3', title: 'Announce the launch', status: 'todo' },
 ];
 
@@ -89,6 +89,11 @@ export const inProgressPlanData: PlanEmbedData = {
   ...approvedPlanData,
   plan: fixturePlan({ status: 'executing', approvalState: 'approved', submittedRevisionId: 'rev-2', approvedRevisionId: 'rev-2' }),
   tasks,
+  // The corrected assumption keeps a link to the sub-chat that checked it.
+  assumptions: [
+    fixtureAssumption('a1', 'Launch requirements are confirmed', 'confirmed'),
+    fixtureAssumption('a2', 'The announcement channel is available', 'corrected', 'preview-sub-chat'),
+  ],
   checks: [
     fixtureCheck('v1', 'Release checklist is complete', 'passed', { covers: ['c1'] }),
     fixtureCheck('v2', 'Signup flow works end to end', 'pending', { covers: ['c1'], lifecycleStatus: 'waiting_for_confirmation' }),

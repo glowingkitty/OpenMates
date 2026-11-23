@@ -5,7 +5,7 @@ import {
   type HostedProjectFileAdapter,
   type HostedProjectFileHead,
 } from "../hostedProjectFileExecutor";
-import type { ProjectFileJob } from "../projectFileJobExecutor";
+import type { ProjectFileJob } from "../projectFileJobTypes";
 import { projectFileRule, type ProjectFileDecider } from "../projectState/projectFilePolicy";
 
 const projectId = "72dcdd3a-c264-4291-812b-02e820ca88c9";
@@ -148,7 +148,7 @@ describe("hosted Project path policy", () => {
       max_results: 20,
     }));
     expect(searched.matches).toEqual([
-      { path: "src/allowed.ts", line: 1, snippet: "needle allowed" },
+      { path: "src/allowed.ts", embed_id: "allowed-head", line: 1, snippet: "needle allowed" },
     ]);
     expect(adapter.reads).toEqual(["allowed-head"]);
 

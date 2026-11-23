@@ -1025,7 +1025,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                                          'type': 'object'},
                                                                                                                'type': 'array'},
                                                                                                  'charged_credits': {'type': 'integer'},
-                                                                                                 'charged_minutes': {'type': 'integer'},
+                                                                                                 'charged_seconds': {'type': 'number'},
                                                                                                  'duration_seconds': {'type': 'number'},
                                                                                                  'error': {'type': 'string'},
                                                                                                  'exit_code': {'type': 'integer'},
@@ -1502,12 +1502,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'events',
   'app_namespace_py': 'events',
   'app_namespace_ts': 'events',
-  'description': 'Prefer this over web search for any question about upcoming events or '
-                 'conferences, anywhere: in a city, a country, a region such as Europe, or '
-                 'worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and '
-                 '37C3, from their official schedules (set conference only for those). Without a '
-                 'city give only a topic query. Include past_events only when requested. Never '
-                 'retry another source or fall back to web search.',
+  'description': 'Find events and conferences and when and where they happen, anywhere; prefer '
+                 'this over web search. Use for upcoming events in a city, a country, a region '
+                 'such as Europe, or worldwide, for the largest or best-known conference on a '
+                 'topic, and for the dates of a named conference. Results come from public web '
+                 'pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set '
+                 'conference only for those). Without a city give only a topic query. Include '
+                 'past_events only when requested. Never',
   'description_key': 'events.search.description',
   'output_schema': {'properties': {'events': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
                                                            'date_end': '2026-09-23T20:00:00+02:00',
@@ -1961,23 +1962,44 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'sessions.',
                                                                                   'type': 'boolean',
                                                                                   'x-ui': {'basic': False}},
-                                                                  'provider': {'description': 'Source '
-                                                                                              'of '
-                                                                                              'the '
-                                                                                              'results '
-                                                                                              '(an '
-                                                                                              'official '
-                                                                                              'conference '
-                                                                                              'schedule, '
-                                                                                              'web '
-                                                                                              'for '
+                                                                  'provider': {'description': 'Leave '
+                                                                                              'as '
+                                                                                              'auto '
+                                                                                              '(the '
+                                                                                              'default), '
+                                                                                              'which '
+                                                                                              'searches '
                                                                                               'public '
                                                                                               'web '
-                                                                                              'pages, '
-                                                                                              'or '
-                                                                                              'an '
-                                                                                              'installed '
-                                                                                              'provider).',
+                                                                                              'pages '
+                                                                                              'and '
+                                                                                              'every '
+                                                                                              'available '
+                                                                                              'source. '
+                                                                                              'pretalx, '
+                                                                                              'GPN24, '
+                                                                                              '39C3, '
+                                                                                              '38C3 '
+                                                                                              'and '
+                                                                                              '37C3 '
+                                                                                              'are '
+                                                                                              'only '
+                                                                                              'those '
+                                                                                              'four '
+                                                                                              'official '
+                                                                                              'schedules; '
+                                                                                              'never '
+                                                                                              'set '
+                                                                                              'them '
+                                                                                              'for '
+                                                                                              'any '
+                                                                                              'other '
+                                                                                              'conference, '
+                                                                                              'because '
+                                                                                              'they '
+                                                                                              'search '
+                                                                                              'nothing '
+                                                                                              'else.',
                                                                                'enum': ['auto',
                                                                                         'pretalx',
                                                                                         'GPN24',
@@ -4607,12 +4629,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'jobs',
   'app_namespace_py': 'jobs',
   'app_namespace_ts': 'jobs',
-  'description': 'Search current Swedish job listings using JobTech. Germany is unavailable. '
-                 'Preserve country, remote, employment and age filters. Radius search is '
-                 'unavailable. Use relevance_criteria only for an explicit user goal. Set listing '
-                 'filters (visa, experience, education, start, contract length, deadline, salary, '
-                 'languages) only when the user asks; they drop listings that do not state the '
-                 'value. Never invent listing facts or broaden filters after empty results.',
+  'description': 'Search current job listings. The built-in source covers Sweden (JobTech); '
+                 'operator-installed providers can add other countries. Preserve country, remote, '
+                 'employment and age filters. Radius search is unavailable. Use relevance_criteria '
+                 'only for an explicit user goal. Set listing filters (visa, experience, '
+                 'education, start, contract length, deadline, salary, languages) only when the '
+                 'user asks; they drop listings that do not state the value. Never invent listing '
+                 'facts or broaden filters after empty',
   'description_key': 'app_skills.jobs.search.description',
   'output_schema': {'description': 'Jobs search response with one result group per input request.',
                     'properties': {'app_id': {'type': 'string'},
@@ -7095,10 +7118,35 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'plans',
   'app_namespace_py': 'plans',
   'app_namespace_ts': 'plans',
-  'description': 'Request creation of a user-visible plan. Durable plan content is client-side '
-                 'encrypted, so a capable connected client must apply the change.',
+  'description': 'Request creation of a user-visible plan with optional assumptions; returns '
+                 'plan_id and assumption ids. Durable plan content is client-side encrypted, so a '
+                 'capable connected client must apply the change.',
   'description_key': 'plans.skills.create.description',
-  'schema': {'properties': {'goal': {'description': 'Optional plan goal.', 'type': 'string'},
+  'schema': {'properties': {'assumptions': {'description': 'Open assumptions to investigate before '
+                                                           "work (for example the Specification's "
+                                                           'open assumptions). The result returns '
+                                                           'plan_id and one assumption_id per '
+                                                           'assumption in order, so sub-chats and '
+                                                           'tasks can be linked in the same turn; '
+                                                           'the connected client then saves the '
+                                                           'encrypted Plan and its assumption '
+                                                           'rows.\n',
+                                            'items': {'properties': {'required_before': {'default': 'implementation',
+                                                                                         'enum': ['implementation',
+                                                                                                  'task_execution',
+                                                                                                  'completion'],
+                                                                                         'type': 'string'},
+                                                                     'text': {'maxLength': 2000,
+                                                                              'type': 'string'}},
+                                                      'required': ['text'],
+                                                      'type': 'object'},
+                                            'maxItems': 20,
+                                            'type': 'array'},
+                            'goal': {'description': 'Optional plan goal.', 'type': 'string'},
+                            'specification_ref': {'description': 'Optional reference to the '
+                                                                 'approved Specification this Plan '
+                                                                 'implements.',
+                                                  'type': 'string'},
                             'summary': {'description': 'Optional plan summary.', 'type': 'string'},
                             'title': {'description': 'Short user-facing plan title.',
                                       'type': 'string'}},
@@ -7268,8 +7316,34 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Request creation of a user-visible project. Durable project content is '
                  'client-side encrypted, so a capable connected client must apply the change.',
   'description_key': 'projects.skills.create.description',
-  'schema': {'properties': {'description': {'description': 'Optional project description.',
+  'schema': {'properties': {'category': {'description': 'The single category the project mainly '
+                                                        'belongs to; for a mixed project the '
+                                                        'category of its main deliverable.',
+                                         'enum': ['software_development',
+                                                  'business_development',
+                                                  'medical_health',
+                                                  'legal_law',
+                                                  'maker_prototyping',
+                                                  'marketing_sales',
+                                                  'finance',
+                                                  'design',
+                                                  'electrical_engineering',
+                                                  'movies_tv',
+                                                  'history',
+                                                  'science',
+                                                  'life_coach_psychology',
+                                                  'cooking_food',
+                                                  'activism',
+                                                  'general_knowledge'],
+                                         'type': 'string'},
+                            'description': {'description': 'One short sentence (at most 120 '
+                                                           'characters) saying what the project is '
+                                                           'for; shown on its tile.',
                                             'type': 'string'},
+                            'icon': {'description': 'One Lucide icon name in kebab case that fits '
+                                                    'the project (for example chef-hat, gamepad-2, '
+                                                    'wallet).',
+                                     'type': 'string'},
                             'name': {'description': 'Short user-facing project name.',
                                      'type': 'string'}},
              'required': ['name'],
@@ -8260,6 +8334,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                              'description': 'Default chat-link choice for created '
                                                             'Tasks; tasks[] can override it.',
                                              'type': 'boolean'},
+                            'plan_id': {'description': 'Default Plan to link the created Tasks to. '
+                                                       'The Plan must belong to the user and be '
+                                                       'saved; a missing Plan fails the call.\n',
+                                        'type': 'string'},
                             'tasks': {'items': {'properties': {'assignee': {'enum': ['user',
                                                                                      'openmates'],
                                                                             'type': 'string'},
@@ -8276,6 +8354,16 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'Task '
                                                                                                'unlinked.',
                                                                                 'type': 'boolean'},
+                                                               'plan_id': {'description': 'Link '
+                                                                                          'this '
+                                                                                          'Task to '
+                                                                                          'a saved '
+                                                                                          'Plan '
+                                                                                          '(overrides '
+                                                                                          'the '
+                                                                                          'top-level '
+                                                                                          'plan_id).',
+                                                                           'type': 'string'},
                                                                'status': {'enum': ['backlog',
                                                                                    'todo',
                                                                                    'in_progress',
@@ -11172,7 +11260,7 @@ class EventsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never retry another source or fall back to web search.
+        """Find events and conferences and when and where they happen, anywhere; prefer this over web search. Use for upcoming events in a city, a country, a region such as Europe, or worldwide, for the largest or best-known conference on a topic, and for the dates of a named conference. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never
 
         Description key: events.search.description
         Skill: events/search
@@ -11260,7 +11348,7 @@ class JobsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.
+        """Search current job listings. The built-in source covers Sweden (JobTech); operator-installed providers can add other countries. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty
 
         Description key: app_skills.jobs.search.description
         Skill: jobs/search
@@ -11452,7 +11540,7 @@ class PlansAppSkills:
         return self._run_skill("plans", "check", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
+        """Request creation of a user-visible plan with optional assumptions; returns plan_id and assumption ids. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
 
         Description key: plans.skills.create.description
         Skill: plans/create

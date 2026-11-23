@@ -888,7 +888,10 @@
         "text": "Pokaż wizualizację"
       },
       "interactive_html_blocked": {
-        "text": "Ta wizualizacja próbowała otworzyć inną stronę i została zatrzymana."
+        "text": "Ta wizualizacja próbowała otworzyć inną stronę. Nie jest to dozwolone w czacie, więc została wstrzymana."
+      },
+      "interactive_html_reload": {
+        "text": "Załaduj wizualizację ponownie"
       },
       "search_repos": {
         "text": "Szukaj repozytoriów",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Odrzuć wszystko"
       },
+      "continue_without_memories": {
+        "text": "Kontynuuj bez wspomnień"
+      },
+      "call_countdown_label": {
+        "text": "Czas do odpowiedzi bez wspomnień"
+      },
       "entry_singular": {
         "text": "wpis"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Kontynuuj od miejsca, w którym skończyłeś:"
+        "text": "Kontynuuj ostatnie czaty:"
+      },
+      "active_title_single": {
+        "text": "Masz 1 aktywny czat:"
+      },
+      "active_title": {
+        "text": "Masz aktywne czaty: {count}:"
+      },
+      "active_card_label": {
+        "text": "Aktywny"
       },
       "guest_title": {
         "text": "Odkryj przykładowe czaty:"
@@ -4311,76 +4329,6 @@
         "text": "Paradoks Fermiego stawia pytanie, dlaczego nie znaleźliśmy przekonujących dowodów na istnienie pozaziemskich cywilizacji. Poznaj możliwe odpowiedzi."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Twórz własne kopie zapasowe. Eksportuj swoje dane z OpenMates, kiedy tylko potrzebujesz."
-      },
-      "title": {
-        "text": "Eksportuj swoje dane z OpenMates"
-      },
-      "description": {
-        "text": "Twórz kopie zapasowe czatów, ustawień, wspomnień i nie tylko."
-      },
-      "assistant_response": {
-        "text": "Wyeksportuj kopię swoich danych z OpenMates w ustawieniach konta. Zaloguj się, aby uzyskać dostęp do zaszyfrowanych danych."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Chcesz lepszej kontroli prywatności? Dodaj dane osobowe, które OpenMates ma ukrywać."
-      },
-      "title": {
-        "text": "Niestandardowe wykrywanie danych osobowych"
-      },
-      "description": {
-        "text": "Chroń dane osobowe przed wysłaniem zapytania do modelu."
-      },
-      "assistant_response": {
-        "text": "Wybierz dane osobowe, które OpenMates ma ukrywać przed zapytaniem do modelu. Zarządzaj nimi w ustawieniach prywatności."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Potrzebujesz bardziej konkretnej odpowiedzi? Przydziel swojemu asystentowi konkretne zadanie."
-      },
-      "title": {
-        "text": "Tryby skupienia"
-      },
-      "description": {
-        "text": "Skieruj czat na konkretny cel."
-      },
-      "assistant_response": {
-        "text": "Użyj trybu skupienia, aby skierować czat na konkretny cel. Sprawdź dostępne tryby w sekcji Aplikacje."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Powtarzanie się bywa męczące. Zapisuj kontekst, który Twoi asystenci powinni zapamiętać."
-      },
-      "title": {
-        "text": "Wspomnienia"
-      },
-      "description": {
-        "text": "Zapisuj przydatne preferencje i kontekst."
-      },
-      "assistant_response": {
-        "text": "Zapisuj przydatne preferencje i kontekst jako wspomnienia, a potem wybieraj, z czego mogą korzystać Twoi asystenci."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Szukasz czegoś do zrobienia? Odkryj wydarzenia w pobliżu."
-      },
-      "title": {
-        "text": "Znajdź lokalne wydarzenia"
-      },
-      "description": {
-        "text": "Szukaj zajęć, spotkań i innych wydarzeń."
-      },
-      "assistant_response": {
-        "text": "Użyj wyszukiwarki wydarzeń, aby znaleźć lokalne zajęcia i spotkania. Wybierz miejsce i temat, by zobaczyć, co dzieje się w pobliżu."
-      }
-    },
     "collective": {
       "title": {
         "text": "Zachowania zbiorowe zwierząt"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "Konstrukcje stabilizowane równowagą naprężeń rozciągających i ściskających."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Cytaty z wiarygodnych źródeł"
-      },
-      "description": {
-        "text": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź."
-      },
-      "phrase": {
-        "text": "Chcesz zweryfikować odpowiedź? Poproś OpenMates o cytat ze źródła."
-      },
-      "assistant_response": {
-        "text": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Wykrywanie obrazów AI"
-      },
-      "description": {
-        "text": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie."
-      },
-      "phrase": {
-        "text": "Czy obraz powstał dzięki AI? Prześlij go i sprawdź wskazówki."
-      },
-      "assistant_response": {
-        "text": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Czaty incognito"
-      },
-      "description": {
-        "text": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii."
-      },
-      "phrase": {
-        "text": "Potrzebujesz tymczasowej rozmowy? Nie zapisuj jej w historii czatów."
-      },
-      "assistant_response": {
-        "text": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Ustawienia prywatności"
-      },
-      "description": {
-        "text": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu."
-      },
-      "phrase": {
-        "text": "Sprawdź ochronę OpenMates, zanim pilnie potrzebne będą ustawienia."
-      },
-      "assistant_response": {
-        "text": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu."
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "Zapytaj o tę dokumentację..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Aby to uruchomić, twój kod i pliki są wysyłane do E2B, dostawcy piaskownicy w chmurze, i tam uruchamiane, w USA. W zadaniach Projektu do piaskownicy trafia też cały Projekt i klucz, który go otwiera, zapieczętowany tak, że otworzyć go może tylko ta piaskownica. Piaskownica jest potem usuwana."
+      },
+      "privacy_policy": {
+        "text": "Polityka prywatności"
+      },
+      "own_machine_hint": {
+        "text": "Albo uruchom to na własnym komputerze za pomocą:"
+      },
+      "allow": {
+        "text": "Zezwól"
+      },
+      "own_machine": {
+        "text": "Użyj mojego komputera"
+      },
+      "not_now": {
+        "text": "Nie teraz"
+      },
+      "answered": {
+        "text": "Twoja odpowiedź:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Uruchamianie kodu w chmurowej piaskownicy E2B nie jest dozwolone dla twojego konta, więc nic nie zostało uruchomione. Możesz to zmienić w Ustawienia > Prywatność albo uruchomić kod na własnym komputerze poleceniem zdalnego dostępu."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Uruchamiaj kod w chmurowej piaskownicy E2B"
+      },
+      "description": {
+        "text": "Gdy jest dozwolone, kod i pliki, które uruchamiasz, są wysyłane do E2B, dostawcy piaskownicy w chmurze, i przetwarzane w USA. W zadaniach Projektu obejmuje to Projekt i klucz, który go otwiera, zapieczętowany tak, że otworzyć go może tylko ta piaskownica. Piaskownica jest potem usuwana. Gdy nie jest dozwolone, nic nie jest wysyłane."
+      },
+      "status_allowed": {
+        "text": "Dozwolone"
+      },
+      "status_declined": {
+        "text": "Niedozwolone"
+      },
+      "status_undecided": {
+        "text": "Jeszcze nie zdecydowano"
+      },
+      "error": {
+        "text": "Nie udało się zapisać tego ustawienia. Spróbuj ponownie."
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "Brak wideo dla tego uruchomienia"
+        },
+        "with_setup": {
+          "text": "{duration} z przygotowaniem"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B (izolowana piaskownica kodu)"
             },
             "description": {
-              "text": "E2B uruchamia wybrane fragmenty kodu i wygenerowane podglądy aplikacji w izolowanych piaskownicach. E2B otrzymuje kod lub wygenerowane pliki i zasoby aplikacji, które zdecydujesz się uruchomić, dane wejściowe środowiska wykonawczego, logi podglądu oraz dane wyjściowe niezbędne do uruchomienia i wyświetlenia wyniku piaskownicy. Udostępnianie to następuje tylko wtedy, gdy jawnie uruchomisz kod, utworzysz wygenerowaną aplikację z automatycznym podglądem zrzutu ekranu lub uruchomisz/wznowisz podgląd aplikacji na żywo."
+              "text": "E2B uruchamia wybrane fragmenty kodu i wygenerowane podglądy aplikacji w izolowanych piaskownicach. E2B otrzymuje kod lub wygenerowane pliki i zasoby aplikacji, które zdecydujesz się uruchomić, dane wejściowe środowiska wykonawczego, logi podglądu oraz dane wyjściowe niezbędne do uruchomienia i wyświetlenia wyniku piaskownicy. Udostępnianie to następuje tylko wtedy, gdy jawnie uruchomisz kod, utworzysz wygenerowaną aplikację z automatycznym podglądem zrzutu ekranu lub uruchomisz/wznowisz podgląd aplikacji na żywo. Gdy zadanie agenta działa w projekcie w chmurze, E2B w USA otrzymuje dodatkowo wszystkie pliki projektu oraz, zapieczętowany tak, by tylko ta piaskownica mogła go otworzyć, klucz otwierający projekt, na czas trwania zadania. Piaskownica jest usuwana po 15 minutach bezczynności lub najpóźniej po 4 godzinach (do 24 godzin, jeśli to włączysz) i nigdy nie jest wstrzymywana."
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "Zrzut ekranu zbyt duży. Spróbuj mniejszego okna."
       },
+      "screenshot_limit_reached": {
+        "text": "Możesz dołączyć do 5 zrzutów ekranu."
+      },
       "screenshot_preview_alt": {
         "text": "Podgląd zrzutu ekranu"
       },
@@ -21150,7 +21098,7 @@
       "text": "Testuj za darmo"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "Domena e-mail niedozwolona."
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Prośba o wspomnienia wygasła, odpowiedź bez wspomnień"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Połączenia używają transkrypcji Mistral, głosu ElevenLabs v4 Turbo, zwykłego routingu AI OpenMates i rozliczeń według użycia."

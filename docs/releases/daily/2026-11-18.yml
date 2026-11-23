@@ -1,0 +1,1084 @@
+schema_version: 1
+cadence: daily
+date: '2026-11-18'
+generated_at: '2026-11-23T00:46:44+00:00'
+range:
+  since: '2026-11-18T00:00:00+00:00'
+  until: '2026-11-19T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 15
+  section_counts:
+    features: 2
+    bug_fixes: 9
+    improvements: 0
+    docs: 3
+    tests: 0
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 3
+  user_facing_items: 6
+  dev_only_items: 8
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:slides:template
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:code:write_specification
+    kind: platform
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: admin_config
+  - id: focus:slides:design_template
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:slides:plan_presentation
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:design:get_design
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:design
+    source: backend/apps/design/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:list-spawned-chats
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:read-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:report-to-creator
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:send-to-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:start-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(chat-lifecycle): timer waiter that wakes chats at a time or after the weekly usage reset'
+    section: features
+    commits:
+    - 23a923eb31
+    authored_at: '2026-11-18T21:13:39+00:00'
+    changed_paths:
+    - scripts/claude_chat_waiters.py
+    - scripts/tests/test_claude_chat_waiters.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(jobs): create-CV focus mode saves a structured master CV, tailors from it and reuses a style note'
+    section: features
+    commits:
+    - 500950c3a7
+    authored_at: '2026-11-18T13:36:28+00:00'
+    changed_paths:
+    - backend/apps/jobs/focus_modes/create-cv/SKILL.md
+    - backend/tests/test_focus_phases.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:jobs'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix(chat-lifecycle): read weekly usage once per cycle for all due timers'
+    section: bug_fixes
+    commits:
+    - a70d43b924
+    authored_at: '2026-11-18T21:16:40+00:00'
+    changed_paths:
+    - scripts/claude_chat_waiters.py
+    - scripts/tests/test_claude_chat_waiters.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(promote-webapp): compare and write the alias by deployment id, not host name'
+    section: bug_fixes
+    commits:
+    - 7f4c1e7a72
+    authored_at: '2026-11-18T21:01:56+00:00'
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/promote_production_webapp.py
+    - scripts/tests/test_production_webapp_promotion.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(update-prod-server): promotion expects the full merge SHA and reports a failed candidate'
+    section: bug_fixes
+    commits:
+    - dd4da047d8
+    authored_at: '2026-11-18T18:29:29+00:00'
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/tests/test_production_webapp_promotion.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(report-issue): keep dictated text at the 2-minute cap and the full text of long reports'
+    section: bug_fixes
+    commits:
+    - af9daf3288
+    authored_at: '2026-11-18T15:37:06+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/issue_report_storage.py
+    - backend/core/api/app/services/report_issue_dictation_quota.py
+    - backend/tests/test_issue_report_storage.py
+    - backend/tests/test_report_issue_dictation_quota.py
+    - frontend/apps/web_app/tests/components/report-issue-composer.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/settings/ReportIssueComposer.svelte
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ci): release gate requires the per-project Vercel statuses'
+    section: bug_fixes
+    commits:
+    - 8dd52001fe
+    authored_at: '2026-11-18T14:10:28+00:00'
+    changed_paths:
+    - .github/workflows/release-core-journeys.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(voice-call): a call chat with a turn becomes last opened and leads Continue where you left off (3X228)'
+    section: bug_fixes
+    commits:
+    - f7750f2211
+    authored_at: '2026-11-18T09:51:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallTurns.test.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(web): show drafted Specification card when grouped with other skill calls (XUDR8)'
+    section: bug_fixes
+    commits:
+    - cabf98a987
+    authored_at: '2026-11-18T09:23:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(plans): drafted Specification, Check and Plan cards stay visible in the answer (XUDR8)'
+    section: bug_fixes
+    commits:
+    - c5a3aeb41a
+    authored_at: '2026-11-18T08:47:11+00:00'
+    changed_paths:
+    - backend/apps/plans/app.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:plans'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:plans'
+  - title: 'fix(web): minimize inactive composer drafts with embeds to an [Image]/[Sheet] summary line'
+    section: bug_fixes
+    commits:
+    - f84b247977
+    authored_at: '2026-11-18T08:26:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-embed-draft-minimized.spec.ts
+    - frontend/apps/web_app/tests/components/message-input-url-conversion.spec.ts
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/enter_message/draft_summary.yml
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/utils/__tests__/draftPreview.test.ts
+    - frontend/packages/ui/src/utils/draftPreview.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs(update-prod-server): promote the web app as the final step when the backend is healthy'
+    section: docs
+    commits:
+    - 6f3d9bae32
+    authored_at: '2026-11-18T18:25:31+00:00'
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/tests/test_production_webapp_promotion.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs(create-pr): release titles lead with user-noticeable changes, no version number'
+    section: docs
+    commits:
+    - 8e7fb4fa55
+    authored_at: '2026-11-18T13:01:08+00:00'
+    changed_paths:
+    - .claude/skills/create-pr/SKILL.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: release steps never wait for the build gate; override with reason starts at once'
+    section: docs
+    commits:
+    - ecca8ced15
+    authored_at: '2026-11-18T10:34:49+00:00'
+    changed_paths:
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests: []
+  infrastructure:
+  - title: 'chore(release): gate prepared orchestration, slides template and Figma features in the release config'
+    section: infrastructure
+    commits:
+    - 9db620d1ab
+    authored_at: '2026-11-18T10:50:25+00:00'
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/tests/test_feature_availability_service.py
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix(chat-lifecycle): read weekly usage once per cycle for all due timers'
+    commits:
+    - a70d43b924
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(chat-lifecycle): timer waiter that wakes chats at a time or after the weekly usage reset'
+    commits:
+    - 23a923eb31
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(promote-webapp): compare and write the alias by deployment id, not host name'
+    commits:
+    - 7f4c1e7a72
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(update-prod-server): promotion expects the full merge SHA and reports a failed candidate'
+    commits:
+    - dd4da047d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs(update-prod-server): promote the web app as the final step when the backend is healthy'
+    commits:
+    - 6f3d9bae32
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(report-issue): keep dictated text at the 2-minute cap and the full text of long reports'
+    commits:
+    - af9daf3288
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(ci): release gate requires the per-project Vercel statuses'
+    commits:
+    - 8dd52001fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(jobs): create-CV focus mode saves a structured master CV, tailors from it and reuses a style note'
+    commits:
+    - 500950c3a7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'chore(release): gate prepared orchestration, slides template and Figma features in the release config'
+    commits:
+    - 9db620d1ab
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(plans): drafted Specification, Check and Plan cards stay visible in the answer (XUDR8)'
+    commits:
+    - c5a3aeb41a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+marketing_candidates:
+  newsletter:
+  - title: 'fix(voice-call): a call chat with a turn becomes last opened and leads Continue where you left off (3X228)'
+    commits:
+    - f7750f2211
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(web): show drafted Specification card when grouped with other skill calls (XUDR8)'
+    commits:
+    - cabf98a987
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(web): minimize inactive composer drafts with embeds to an [Image]/[Sheet] summary line'
+    commits:
+    - f84b247977
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix(report-issue): keep dictated text at the 2-minute cap and the full text of long reports'
+    commits:
+    - af9daf3288
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat(jobs): create-CV focus mode saves a structured master CV, tailors from it and reuses a style note'
+    commits:
+    - 500950c3a7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    newsletter_ready: false
+  - title: 'fix(voice-call): a call chat with a turn becomes last opened and leads Continue where you left off (3X228)'
+    commits:
+    - f7750f2211
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(web): show drafted Specification card when grouped with other skill calls (XUDR8)'
+    commits:
+    - cabf98a987
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(plans): drafted Specification, Check and Plan cards stay visible in the answer (XUDR8)'
+    commits:
+    - c5a3aeb41a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    newsletter_ready: false
+  - title: 'fix(web): minimize inactive composer drafts with embeds to an [Image]/[Sheet] summary line'
+    commits:
+    - f84b247977
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: a70d43b924793032c2badbce024ea0bdbea3e839
+    short_sha: a70d43b924
+    authored_at: '2026-11-18T21:16:40+00:00'
+    subject: 'fix(chat-lifecycle): read weekly usage once per cycle for all due timers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude_chat_waiters.py
+    - scripts/tests/test_claude_chat_waiters.py
+    related_feature_ids: []
+  - sha: 23a923eb31b96a775f802885fbe14502199edcd0
+    short_sha: 23a923eb31
+    authored_at: '2026-11-18T21:13:39+00:00'
+    subject: 'feat(chat-lifecycle): timer waiter that wakes chats at a time or after the weekly usage reset'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude_chat_waiters.py
+    - scripts/tests/test_claude_chat_waiters.py
+    related_feature_ids: []
+  - sha: 7f4c1e7a729c00a18f1368e8a17aeca8c173f046
+    short_sha: 7f4c1e7a72
+    authored_at: '2026-11-18T21:01:56+00:00'
+    subject: 'fix(promote-webapp): compare and write the alias by deployment id, not host name'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/promote_production_webapp.py
+    - scripts/tests/test_production_webapp_promotion.py
+    related_feature_ids: []
+  - sha: dd4da047d8c426bdf43764d836f5f1f91ac599f5
+    short_sha: dd4da047d8
+    authored_at: '2026-11-18T18:29:29+00:00'
+    subject: 'fix(update-prod-server): promotion expects the full merge SHA and reports a failed candidate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/tests/test_production_webapp_promotion.py
+    related_feature_ids: []
+  - sha: 6f3d9bae32d013b74ca041d69b102362b9a20c94
+    short_sha: 6f3d9bae32
+    authored_at: '2026-11-18T18:25:31+00:00'
+    subject: 'docs(update-prod-server): promote the web app as the final step when the backend is healthy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/tests/test_production_webapp_promotion.py
+    related_feature_ids: []
+  - sha: af9daf3288c984798771756f1a48d7ea71009453
+    short_sha: af9daf3288
+    authored_at: '2026-11-18T15:37:06+00:00'
+    subject: 'fix(report-issue): keep dictated text at the 2-minute cap and the full text of long reports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/issue_report_storage.py
+    - backend/core/api/app/services/report_issue_dictation_quota.py
+    - backend/tests/test_issue_report_storage.py
+    - backend/tests/test_report_issue_dictation_quota.py
+    - frontend/apps/web_app/tests/components/report-issue-composer.spec.ts
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/settings/ReportIssueComposer.svelte
+    - frontend/packages/ui/src/services/audioRealtimeTranscription.ts
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 8dd52001fe15ca3c089fb835f9746767c4e95ea5
+    short_sha: 8dd52001fe
+    authored_at: '2026-11-18T14:10:28+00:00'
+    subject: 'fix(ci): release gate requires the per-project Vercel statuses'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/release-core-journeys.yml
+    related_feature_ids: []
+  - sha: 500950c3a795057a2b513ba3278d02a44aa611c9
+    short_sha: 500950c3a7
+    authored_at: '2026-11-18T13:36:28+00:00'
+    subject: 'feat(jobs): create-CV focus mode saves a structured master CV, tailors from it and reuses a style note'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/jobs/focus_modes/create-cv/SKILL.md
+    - backend/tests/test_focus_phases.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:jobs
+  - sha: 8e7fb4fa5559f8d7cb8c719b63a7bc89ad966ad3
+    short_sha: 8e7fb4fa55
+    authored_at: '2026-11-18T13:01:08+00:00'
+    subject: 'docs(create-pr): release titles lead with user-noticeable changes, no version number'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/skills/create-pr/SKILL.md
+    related_feature_ids: []
+  - sha: 9db620d1ab9c86d2f096ce72437abd29818fa43e
+    short_sha: 9db620d1ab
+    authored_at: '2026-11-18T10:50:25+00:00'
+    subject: 'chore(release): gate prepared orchestration, slides template and Figma features in the release config'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/tests/test_feature_availability_service.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ecca8ced156142a525b6a2b5089aadb07ae4e9bd
+    short_sha: ecca8ced15
+    authored_at: '2026-11-18T10:34:49+00:00'
+    subject: 'docs: release steps never wait for the build gate; override with reason starts at once'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    related_feature_ids: []
+  - sha: f7750f2211048b0809d4861d1ed51b6093d86d43
+    short_sha: f7750f2211
+    authored_at: '2026-11-18T09:51:52+00:00'
+    subject: 'fix(voice-call): a call chat with a turn becomes last opened and leads Continue where you left off (3X228)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallTurns.test.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: cabf98a987149333826313b3b21209ec2269def1
+    short_sha: cabf98a987
+    authored_at: '2026-11-18T09:23:47+00:00'
+    subject: 'fix(web): show drafted Specification card when grouped with other skill calls (XUDR8)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c5a3aeb41ae57499ce663afdb7428a98ee2f532d
+    short_sha: c5a3aeb41a
+    authored_at: '2026-11-18T08:47:11+00:00'
+    subject: 'fix(plans): drafted Specification, Check and Plan cards stay visible in the answer (XUDR8)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/plans/app.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:plans
+  - sha: f84b24797768a054dae48eb341e95e849417a1b2
+    short_sha: f84b247977
+    authored_at: '2026-11-18T08:26:29+00:00'
+    subject: 'fix(web): minimize inactive composer drafts with embeds to an [Image]/[Sheet] summary line'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/message-input-embed-draft-minimized.spec.ts
+    - frontend/apps/web_app/tests/components/message-input-url-conversion.spec.ts
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/enter_message/draft_summary.yml
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/utils/__tests__/draftPreview.test.ts
+    - frontend/packages/ui/src/utils/draftPreview.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on web interface refinements and voice call continuity today. Key updates include a more compact
+    draft view in the composer and improved tracking for voice sessions. Significant unreleased work progressed on job application
+    tools and internal deployment infrastructure.
+  released_changes:
+  - text: OpenMates added a minimized summary view for inactive composer drafts that include embeds like images or sheets.
+    evidence:
+      commits:
+      - f84b247977
+    release_status: released_main
+  - text: The project improved the display of assistant activity groups to ensure drafted specifications are not hidden when
+      grouped with other skill calls.
+    evidence:
+      commits:
+      - cabf98a987
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where voice call chats would not appear in the 'Continue where you left off' section after a turn.
+    evidence:
+      commits:
+      - f7750f2211
+    release_status: released_main
+  - text: Fixed the visibility of drafted Specification cards when they are grouped with other skill calls in the web interface.
+    evidence:
+      commits:
+      - cabf98a987
+    release_status: released_main
+  - text: Corrected the behavior of inactive composer drafts containing embeds, which now minimize to a summary line (e.g.,
+      [Image] or [Sheet]) instead of remaining expanded.
+    evidence:
+      commits:
+      - f84b247977
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the Jobs focus mode, including a structured master CV system that allows for tailored resumes
+      and style note reuse.
+    evidence:
+      commits:
+      - 500950c3a7
+    release_status: dev_only
+  - text: Work is underway to improve issue reporting, specifically ensuring dictated text is preserved at the 2-minute cap
+      and long reports are not truncated.
+    evidence:
+      commits:
+      - af9daf3288
+    release_status: dev_only
+  - text: New chat lifecycle waiters are being tested to wake chats based on specific times or weekly usage resets.
+    evidence:
+      commits:
+      - 23a923eb31
+      - a70d43b924
+    release_status: dev_only
+  - text: While the Plans feature remains disabled, updates were made to keep Specification and Plan cards visible within
+      assistant answers.
+    evidence:
+      commits:
+      - c5a3aeb41a
+    release_status: released_main
+  internal_progress:
+  - text: Refined the production web app promotion scripts to use deployment IDs for aliasing and improved error reporting
+      for failed candidates.
+    evidence:
+      commits:
+      - 7f4c1e7a72
+      - dd4da047d8
+      - 6f3d9bae32
+    release_status: dev_only
+  - text: Updated CI release gates to require per-project Vercel deployment statuses.
+    evidence:
+      commits:
+      - 8dd52001fe
+    release_status: dev_only
+  - text: Updated release configurations to gate orchestration, slides templates, and Figma-related features.
+    evidence:
+      commits:
+      - 9db620d1ab
+    release_status: released_main
+  - text: Updated internal documentation regarding pull request naming conventions and daily meeting briefing procedures.
+    evidence:
+      commits:
+      - 8e7fb4fa55
+      - ecca8ced15
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: The web composer now automatically minimizes inactive drafts containing images or sheets into a clean summary
+        line.
+      evidence:
+        commits:
+        - f84b247977
+      reason: This is a polished UI improvement for the web app that affects all users with active drafts.
+    - text: Voice calls now correctly update the 'last opened' status, ensuring you can pick up exactly where you left off
+        from the home screen.
+      evidence:
+        commits:
+        - f7750f2211
+      reason: Improves the reliability of the voice call experience and cross-session continuity.
+    - text: Assistant activity grouping has been refined to ensure drafted specifications remain visible when multiple skills
+        are active.
+      evidence:
+        commits:
+        - cabf98a987
+      reason: Ensures critical assistant activity information remains visible during complex interactions.
+    exclude:
+    - text: Visibility improvements for drafted Specification and Plan cards.
+      evidence:
+        commits:
+        - c5a3aeb41a
+      reason: The Plans feature is currently disabled in the production environment.
+    - text: New master CV tailoring and style note reuse in Jobs focus mode.
+      evidence:
+        commits:
+        - 500950c3a7
+      reason: The Jobs focus mode updates are currently in development and not yet released to main.
+    - text: Dictation quota and text retention fixes for issue reporting.
+      evidence:
+        commits:
+        - af9daf3288
+      reason: Issue reporting improvements are currently dev-only.
+    rationale: The newsletter focuses on released refinements to the web composer and voice call continuity, while excluding
+      features gated by disabled flags or still in the development branch.
+  social_video_recommendations:
+  - idea: A short clip showing a user switching between multiple chats and seeing the composer drafts neatly minimize into
+      '[Image]' or '[Sheet]' tags.
+    priority: medium
+    reason: Visual UI polish that demonstrates the app's ability to handle complex user states cleanly.
+    evidence:
+      commits:
+      - f84b247977
+  - idea: Demonstrate starting a voice call, ending it, and then immediately seeing that chat at the top of the 'Continue
+      where you left off' list.
+    priority: low
+    reason: Shows functional reliability and continuity in the mobile-friendly voice experience.
+    evidence:
+      commits:
+      - f7750f2211
+  quality_notes:
+  - The web app UI is becoming more resilient to complex states, such as multiple active skill calls and large drafts.
+  - Internal deployment scripts were hardened to ensure backend health before promoting frontend changes.
+  validation_warnings: []

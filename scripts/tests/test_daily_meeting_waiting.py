@@ -246,3 +246,18 @@ def test_meeting_script_has_the_triage_rule_and_decisions_record_labels():
     script = briefing.MEETING_SCRIPT
     assert "Triage rule" in script and "Talk through NOW items only" in script and "Side notes" in script
     assert "Triage (labels the founder CHANGED" in script and "<NOW|LATER YYYY-MM-DD|DROP> <chat title>" in script
+
+
+def test_a_chat_with_an_open_discord_question_shows_that_question(tmp_path):
+    base, markers = tmp_path / "projects", tmp_path / "questions"
+    base.mkdir()
+    markers.mkdir()
+    _chat(base, "pushed", [_human(10, "investigate the prod alert"), _msg("assistant", 9, "Sent the decision; stopping.")])
+    (markers / "pushed.json").write_text(json.dumps({"ts": (NOW - timedelta(hours=9)).timestamp(),
+                                                     "question": "Make resends of finished messages quiet?", "kind": "❓"}))
+    [found] = waiting.waiting_chats(base, NOW, markers=markers)
+    assert found["signal"] == "asks you a question (Discord ❓)"
+    assert found["needs"] == "Make resends of finished messages quiet?"
+    (markers / "pushed.json").write_text(json.dumps({"ts": (NOW - timedelta(hours=11)).timestamp(),
+                                                     "question": "Older than the last prompt", "kind": "❓"}))
+    assert waiting.waiting_chats(base, NOW, markers=markers)[0]["signal"] != "asks you a question (Discord ❓)"

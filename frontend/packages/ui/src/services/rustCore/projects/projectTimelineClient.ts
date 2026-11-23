@@ -4,8 +4,9 @@
  * the core reads and shapes the page; failures reject with the core's stable
  * code (`UnitPortError.code`). The page's history session starts local-only;
  * the unit then refuses `local_session` / `not_admitted` without a core call,
- * so each request asks once for the existing server-checked upgrade
- * (serverSessionRegistry, as embed edits do) and is sent again.
+ * so each request asks for the existing server-checked upgrade
+ * (serverSessionRegistry, as embed edits do) and is sent again, a few bounded
+ * times (see `withServerSession`).
  */
 import { requireSharedRustCore, type SharedRustCore } from '../host/sharedCoreRegistry';
 import { createUnitPort, UnitPortError, type UnitPort } from '../host/unitPort';
@@ -22,6 +23,13 @@ const RESTORE_TIMEOUT_MS = 120_000;
 export const SERVER_SESSION_TIMEOUT_MS = 15_000;
 /** Unit refusals that mean "no server-checked client yet"; the unit made no core call. */
 const NEEDS_SERVER_SESSION = new Set(['local_session', 'not_admitted']);
+/**
+ * Pause before each upgrade-and-resend round. The first server-checked session
+ * of a page can be closed and re-admitted right after it starts (run 23 of the
+ * layered-focus proof: the resend landed in that gap and the Project file job
+ * was never answered). A refused request made no core call, so resending is safe.
+ */
+export const SERVER_SESSION_RETRY_DELAYS_MS: readonly number[] = Object.freeze([0, 500, 1_500]);
 
 interface Opened { core: SharedRustCore; generation: number; unit: UnitPort<ProjectTimelineProtocol>; close(): void }
 let current: { generation: number; opening: Promise<Opened> } | null = null;
@@ -67,24 +75,30 @@ async function unit(): Promise<UnitPort<ProjectTimelineProtocol>> {
 
 /**
  * Sends a request; a `local_session` / `not_admitted` refusal asks for the
- * page's server-checked session and sends it once more. Without a registered
- * upgrade, or when it fails, the original refusal stands.
+ * page's server-checked session and sends it again, at most once per entry of
+ * `SERVER_SESSION_RETRY_DELAYS_MS` (the session may be replaced right after it
+ * was admitted). Without a registered upgrade, when it fails, or after the last
+ * round, the latest refusal stands.
  */
 export async function withServerSession<T>(send: () => Promise<T>,
-	ensure: (timeoutMs: number) => Promise<boolean> = ensureServerCheckedSession): Promise<T> {
-	try {
-		return await send();
-	} catch (error) {
-		if (!(error instanceof UnitPortError) || !NEEDS_SERVER_SESSION.has(error.code)) throw error;
-		let admitted: boolean;
+	ensure: (timeoutMs: number) => Promise<boolean> = ensureServerCheckedSession,
+	pause: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms))): Promise<T> {
+	for (let round = 0; ; round++) {
 		try {
-			admitted = await ensure(SERVER_SESSION_TIMEOUT_MS);
-		} catch (failure) {
-			console.warn('[projectTimelineClient] Server-checked session unavailable:', failure instanceof Error ? failure.message : failure);
-			throw error;
+			return await send();
+		} catch (error) {
+			if (!(error instanceof UnitPortError) || !NEEDS_SERVER_SESSION.has(error.code)
+				|| round >= SERVER_SESSION_RETRY_DELAYS_MS.length) throw error;
+			if (SERVER_SESSION_RETRY_DELAYS_MS[round] > 0) await pause(SERVER_SESSION_RETRY_DELAYS_MS[round]);
+			let admitted: boolean;
+			try {
+				admitted = await ensure(SERVER_SESSION_TIMEOUT_MS);
+			} catch (failure) {
+				console.warn('[projectTimelineClient] Server-checked session unavailable:', failure instanceof Error ? failure.message : failure);
+				throw error;
+			}
+			if (!admitted) throw error;
 		}
-		if (!admitted) throw error;
-		return send();
 	}
 }
 

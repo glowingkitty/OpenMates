@@ -77,6 +77,8 @@ for (const selected of profiles) {
 
 		async function openStack(page: Page) {
 			await page.addInitScript(() => {
+				// The one-time "Sounds are on" notice would add its own card on the first error.
+				localStorage.setItem('openmates_event_sound_notice_shown', 'true');
 				sessionStorage.setItem(
 					'openmates_e2e_log_forwarding',
 					JSON.stringify({ runId: 'notification-grouping', token: 'local-e2e' })
@@ -89,6 +91,25 @@ for (const selected of profiles) {
 			);
 		}
 
+
+		// contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
+		test('a chat notice for the chat the user just left through New Chat is not dismissed at once', async ({ page }) => {
+			await openStack(page);
+			const cards = page.getByTestId('notification-stack-item');
+			const chatNotice = { type: 'chat_message', chatId: 'left-chat', chatTitle: 'Recipe app', title: 'Recipe app', message: '✅ Added a recipe list', duration: 0 };
+			await test.step('The user is in the chat, then starts a new one (hash cleared without an event)', async () => {
+				await page.evaluate(() => { window.location.hash = 'chat-id=left-chat'; });
+				await page.evaluate(() => history.replaceState(null, '', location.pathname + location.search));
+			});
+			await test.step('A card for the chat just left is shown', async () => {
+				await inject(page, [chatNotice]);
+				await expect(cards).toHaveCount(1);
+				await expect(cards.first()).toContainText('Added a recipe list');
+				await page.waitForTimeout(1000);
+				await expect(cards).toHaveCount(1);
+				await test.info().attach('chat-notice-after-new-chat', { body: await page.screenshot(), contentType: 'image/png' });
+			});
+		});
 
 		// contract-test: supporting surface=gui.web assertions=notifications.web.stacked-deck,pii.composer.detect-redact-exclude
 		test('a persistent recovery notification keeps its retry action through upward swipes', async ({ page }) => {
@@ -184,7 +205,7 @@ for (const selected of profiles) {
 		});
 
 		// contract-test: direct surface=gui.web assertions=notifications.web.duplicate-grouping,notifications.web.duplicate-lifecycle
-		test('chat targets stay separate and one action handles a repeated keyed group', async ({
+		test('identical chat text joins one card while another chat title stays separate', async ({
 			page
 		}) => {
 			await openStack(page);
@@ -197,26 +218,24 @@ for (const selected of profiles) {
 			};
 			await inject(page, [
 				{ ...chat, chatId: 'chat-one' },
-				{ ...chat, chatId: 'chat-two' }
+				{ ...chat, chatId: 'chat-two' },
+				{ ...chat, chatId: 'chat-three', chatTitle: 'Garden plans' }
 			]);
 			await inject(page, [
 				{ ...chat, chatId: 'chat-one' },
 				{ ...chat, chatId: 'chat-two' }
 			]);
 			await expect(cards).toHaveCount(2);
-			await expectCount(cards.first(), 2);
-			await expect(cards.first().getByTestId('chat-notification')).toHaveAttribute(
-				'data-chat-id',
-				'chat-two'
-			);
-			await expectHeaderFits(cards.first());
+			await expect(cards.first().getByTestId('notification-repeat-count')).toHaveCount(0);
 			await cards.first().getByTestId('notification-dismiss').click();
 			await expect(cards).toHaveCount(1);
-			await expectCount(cards.first(), 2);
+			await expectCount(cards.first(), 4);
+			// The first trigger keeps its destination.
 			await expect(cards.first().getByTestId('chat-notification')).toHaveAttribute(
 				'data-chat-id',
 				'chat-one'
 			);
+			await expectHeaderFits(cards.first());
 			await cards.first().getByTestId('notification-dismiss').click();
 			await expect(cards).toHaveCount(0);
 
@@ -239,6 +258,35 @@ for (const selected of profiles) {
 			await expectCount(cards.first(), 3);
 			await cards.first().getByTestId('notification-action').click();
 			await expect(page.locator('body')).toHaveAttribute('data-notification-actions', '1');
+			await expect(cards).toHaveCount(0);
+		});
+
+		// contract-test: direct surface=gui.web assertions=notifications.web.duplicate-grouping,notifications.web.duplicate-lifecycle
+		test('the same warning fired 10 times under different keys is one ×10 card that one close removes', async ({
+			page
+		}, testInfo) => {
+			await openStack(page);
+			const cards = page.getByTestId('notification-stack-item');
+			// The test hook takes a few notifications per event, so fire them one by one.
+			for (let index = 0; index < 10; index += 1) {
+				await inject(page, [
+					{
+						type: 'warning',
+						title: 'Saved result',
+						message: 'A saved result has a conflicting revision. Review the chat before saving changes again.',
+						duration: 0,
+						dedupeKey: `embed-write-conflict:embed-${index}`
+					}
+				]);
+			}
+			await expect(cards).toHaveCount(1);
+			await expectCount(cards.first(), 10);
+			await expectHeaderFits(cards.first());
+			await testInfo.attach(`warning-x10-${profile.name.replace(' ', '-')}`, {
+				body: await cards.first().screenshot(),
+				contentType: 'image/png'
+			});
+			await cards.first().getByTestId('notification-dismiss').click();
 			await expect(cards).toHaveCount(0);
 		});
 

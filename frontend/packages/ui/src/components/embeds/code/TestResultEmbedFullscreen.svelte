@@ -17,6 +17,7 @@
     activeStepIndex,
     findEvidence,
     formatDuration,
+    testResultDurations,
     parseTestResult,
     resolveArtifactEvidenceUrl,
     testResultTitle,
@@ -56,7 +57,10 @@
   let view = $derived(parseTestResult(data.decodedContent));
   let title = $derived(testResultTitle(view, $text('embeds.code.test_result.title')));
   let statusLabel = $derived($text(`embeds.code.test_result.status_${view.runStatus}`));
-  let subtitle = $derived([statusLabel, formatDuration(view.durationMs)].filter(Boolean).join(' · '));
+  let durations = $derived(testResultDurations(view));
+  let subtitle = $derived([statusLabel, durations.tests,
+    durations.withSetup ? $text('embeds.code.test_result.with_setup', { values: { duration: durations.withSetup } }) : '',
+  ].filter(Boolean).join(' · '));
 
   let videoEl = $state<HTMLVideoElement | undefined>();
   let videoUrl = $state<string | null>(null);
@@ -127,7 +131,7 @@
           </span>
         {/if}
         <span class="tr-count tr-count-passed" data-testid="test-result-count-passed">{view.passed} {$text('embeds.code.test_result.status_passed')}</span>
-        <span class="tr-count tr-count-failed" data-testid="test-result-count-failed">{view.failed} {$text('embeds.code.test_result.status_failed')}</span>
+        <span class="tr-count tr-count-failed" class:tr-count-zero={view.failed === 0} data-testid="test-result-count-failed">{view.failed} {$text('embeds.code.test_result.status_failed')}</span>
         <span class="tr-count" data-testid="test-result-count-skipped">{view.skipped} {$text('embeds.code.test_result.status_skipped')}</span>
       </header>
       {#if view.error}<p class="tr-error-text" data-testid="test-result-error">{view.error}</p>{/if}
@@ -206,6 +210,8 @@
   .tr-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-6); }
   .tr-count { font-size: var(--font-size-small); font-weight: 500; color: var(--color-font-secondary); }
   .tr-count-failed { color: var(--color-error); }
+  /* Nothing failed: the zero count is neutral, never an error colour. */
+  .tr-count-failed.tr-count-zero { color: var(--color-font-secondary); }
   .tr-error-text { margin: 0; color: var(--color-error); font-size: var(--font-size-small); white-space: pre-wrap; }
 
   .tr-browser { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-8); }

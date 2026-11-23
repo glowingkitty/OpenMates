@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 import hashlib
 import json
 import sys
@@ -18,7 +19,7 @@ from fastapi import HTTPException
 
 from backend.core.api.app.routes.application_preview import (
     APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS,
-    APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
+    APPLICATION_PREVIEW_CREDITS_PER_SECOND,
     APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS,
     APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS,
     ApplicationPreviewConfigError,
@@ -246,12 +247,12 @@ def test_auto_started_preview_session_uses_short_screenshot_deadline() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
-def test_preview_billing_reuses_code_run_started_minute_rate() -> None:
-    assert APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE == 3
+def test_preview_billing_reuses_code_run_per_second_rate() -> None:
+    assert APPLICATION_PREVIEW_CREDITS_PER_SECOND == Decimal("0.05")
     assert calculate_preview_charge_credits(0) == 0
-    assert calculate_preview_charge_credits(1) == 3
+    assert calculate_preview_charge_credits(0.3) == 1
     assert calculate_preview_charge_credits(60) == 3
-    assert calculate_preview_charge_credits(61) == 6
+    assert calculate_preview_charge_credits(61) == 4
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
@@ -528,7 +529,7 @@ async def test_shared_recipient_preview_session_is_distinct_and_billed_to_recipi
     recipient_record = json.loads((await cache.redis.get(application_preview_session_key("recipient-session"))).decode("utf-8"))
     assert creator_record["viewer_user_id_hash"] == hashlib.sha256(b"alice-user").hexdigest()
     assert recipient_record["viewer_user_id_hash"] == hashlib.sha256(b"bob-user").hexdigest()
-    assert recipient_record["billing_state"]["credits_per_started_minute"] == 3
+    assert recipient_record["billing_state"]["credits_per_second"] == "0.05"
     assert recipient_record["session_id"] != creator_record["session_id"]
     assert recipient_record["uses_client_shared_context"] is True
     assert "client-decrypted" not in json.dumps(recipient_record)

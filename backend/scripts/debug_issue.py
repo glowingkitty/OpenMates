@@ -79,6 +79,11 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.issue_report_yaml import (
+    IssueReportYamlUnreadable,
+    read_issue_report_yaml,
+)
+from backend.core.api.app.services.issue_report_screenshots import decrypt_screenshot_keys, issue_has_screenshots
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.utils.report_issue_ids import issue_identifier_query_params
 
@@ -507,6 +512,27 @@ async def get_screenshot_presigned_url(
         return None
 
 
+async def get_screenshot_presigned_urls(
+    encryption_service: EncryptionService,
+    s3_service: S3UploadService,
+    issue: Dict[str, Any],
+    expiration: int = 7 * 24 * 3600,
+) -> List[str]:
+    """Generate fresh pre-signed URLs for every screenshot of an issue (legacy rows: one)."""
+    if not issue_has_screenshots(issue):
+        return []
+    try:
+        keys = await decrypt_screenshot_keys(issue, encryption_service)
+        bucket_name = get_bucket_name('issue_logs', os.getenv('SERVER_ENVIRONMENT', 'development'))
+        return [
+            s3_service.generate_presigned_url(bucket_name=bucket_name, file_key=key, expiration=expiration)
+            for key in keys
+        ]
+    except Exception as e:
+        script_logger.error(f"Error generating screenshot pre-signed URLs: {e}", exc_info=True)
+        return []
+
+
 async def delete_issue(
     directus_service: DirectusService,
     encryption_service: EncryptionService,
@@ -548,13 +574,10 @@ async def delete_issue(
         except Exception as e:
             script_logger.warning(f"Failed to delete S3 YAML file for issue {issue_id}: {e}")
 
-    # Delete screenshot PNG from S3 if key exists
-    if issue.get("encrypted_screenshot_s3_key") and s3_service:
+    # Delete every screenshot PNG from S3 (list field or legacy single key)
+    if issue_has_screenshots(issue) and s3_service:
         try:
-            screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
-                issue["encrypted_screenshot_s3_key"]
-            )
-            if screenshot_s3_key:
+            for screenshot_s3_key in await decrypt_screenshot_keys(issue, encryption_service):
                 await s3_service.delete_file(bucket_key="issue_logs", file_key=screenshot_s3_key)
                 script_logger.info(f"Deleted S3 screenshot for issue {issue_id}: {screenshot_s3_key}")
         except Exception as e:
@@ -577,78 +600,36 @@ async def delete_issue(
     return True, msg
 
 
+S3_REPORT_SKIPPED_NOTE = "skipped: --no-logs was given"
+
+
 async def fetch_s3_report(
     encryption_service: EncryptionService,
     s3_service: S3UploadService,
     issue: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
     """
     Fetch and decrypt the full YAML report from S3.
 
-    The flow is:
-    1. Decrypt the S3 object key from the issue record
-    2. Download the encrypted YAML from S3
-    3. Decrypt the YAML content
-    4. Parse the YAML into a dictionary
-
-    Args:
-        encryption_service: EncryptionService instance
-        s3_service: S3UploadService instance (initialized)
-        issue: Raw issue dictionary from Directus
-
-    Returns:
-        Parsed YAML report dictionary, or None if unavailable/failed
+    Returns ``(report, None)`` on success, ``(None, None)`` when the issue has
+    no YAML key yet, and ``(None, "<step>: <detail>")`` naming the exact step
+    that failed (see backend/core/api/app/services/issue_report_yaml.py).
     """
     if not issue.get('encrypted_issue_report_yaml_s3_key'):
         script_logger.debug("No S3 key found for this issue")
-        return None
+        return None, None
 
     try:
-        import yaml
-
-        # Step 1: Decrypt the S3 object key
-        s3_object_key = await encryption_service.decrypt_issue_report_data(
-            issue['encrypted_issue_report_yaml_s3_key']
+        report = await read_issue_report_yaml(
+            encryption_service,
+            s3_service,
+            issue['encrypted_issue_report_yaml_s3_key'],
         )
-
-        if not s3_object_key:
-            script_logger.warning("Failed to decrypt S3 object key (returned None)")
-            return None
-
-        script_logger.debug(f"Decrypted S3 key: {s3_object_key}")
-
-        # Step 2: Get the bucket name for current environment
-        environment = os.getenv('SERVER_ENVIRONMENT', 'development')
-        bucket_name = get_bucket_name('issue_logs', environment)
-
-        # Step 3: Download encrypted YAML from S3
-        encrypted_yaml_bytes = await s3_service.get_file(
-            bucket_name=bucket_name,
-            object_key=s3_object_key
-        )
-
-        if not encrypted_yaml_bytes:
-            script_logger.warning(f"S3 file not found or empty: bucket={bucket_name}, key={s3_object_key}")
-            return None
-
-        script_logger.debug(f"Downloaded {len(encrypted_yaml_bytes)} bytes from S3")
-
-        # Step 4: Decrypt the YAML content
-        encrypted_yaml_str = encrypted_yaml_bytes.decode('utf-8')
-        decrypted_yaml = await encryption_service.decrypt_issue_report_data(encrypted_yaml_str)
-
-        if not decrypted_yaml:
-            script_logger.warning("Failed to decrypt YAML content from S3")
-            return None
-
-        # Step 5: Parse YAML
-        report = yaml.safe_load(decrypted_yaml)
-        script_logger.debug("Successfully parsed YAML report from S3")
-        return report
-
-    except Exception as e:
-        script_logger.error(f"Error fetching S3 report: {e}", exc_info=True)
-        return None
+    except IssueReportYamlUnreadable as exc:
+        script_logger.error(f"S3 YAML report unreadable at step {exc.step}: {exc.detail}")
+        return None, str(exc)
+    script_logger.debug("Successfully parsed YAML report from S3")
+    return report, None
 
 
 def filter_logs_to_errors(
@@ -1407,7 +1388,7 @@ def format_list_output(
             lines.append(f"       S3 Report: {has_s3}")
 
             # Show if screenshot exists
-            has_screenshot = "✓" if issue.get('encrypted_screenshot_s3_key') else "✗"
+            has_screenshot = "✓" if issue_has_screenshots(issue) else "✗"
             lines.append(f"       Screenshot: {has_screenshot}")
 
             # Show Linear issue if linked
@@ -1487,7 +1468,9 @@ def format_detail_output(
     decrypted: Dict[str, Optional[str]],
     s3_report: Optional[Dict[str, Any]],
     full_logs: bool = False,
-    screenshot_presigned_url: Optional[str] = None
+    screenshot_presigned_url: Optional[str] = None,
+    screenshot_presigned_urls: Optional[List[str]] = None,
+    s3_report_note: Optional[str] = None,
 ) -> str:
     """
     Format the issue inspection results as human-readable text.
@@ -1639,11 +1622,13 @@ def format_detail_output(
         # Screenshot — display a fresh pre-signed URL so Claude/admin can view the image directly.
         # The URL is generated by the caller (main()) and passed in as screenshot_presigned_url.
         # It expires in 7 days.
-        if screenshot_presigned_url:
+        all_urls = screenshot_presigned_urls or ([screenshot_presigned_url] if screenshot_presigned_url else [])
+        if all_urls:
             lines.append("")
-            lines.append("  🖼  SCREENSHOT (pre-signed URL, valid 7 days from now):")
-            lines.append(f"      {screenshot_presigned_url}")
-        elif issue.get('encrypted_screenshot_s3_key'):
+            lines.append(f"  🖼  SCREENSHOTS ({len(all_urls)}, pre-signed URLs, valid 7 days from now):")
+            for index, url in enumerate(all_urls, start=1):
+                lines.append(f"      {index}. {url}")
+        elif issue_has_screenshots(issue):
             lines.append("  🖼  SCREENSHOT:         S3 key exists but pre-signed URL generation failed")
         else:
             lines.append("  🖼  SCREENSHOT:         N/A (not attached)")
@@ -1667,8 +1652,11 @@ def format_detail_output(
     lines.append("-" * 100)
 
     if s3_report is None:
-        if issue and issue.get('encrypted_issue_report_yaml_s3_key'):
-            lines.append("  ❌ Failed to fetch or decrypt S3 report (key exists but retrieval failed)")
+        if s3_report_note == S3_REPORT_SKIPPED_NOTE:
+            lines.append("  ℹ️  YAML report not loaded (--no-logs). Run without --no-logs to read it.")
+        elif issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+            reason = s3_report_note or "S3 service could not be initialized"
+            lines.append(f"  ❌ YAML report exists but could not be read: {reason}")
         elif issue:
             lines.append("  ℹ️  No S3 report available (issue may not have been fully processed)")
         else:
@@ -1805,12 +1793,15 @@ def format_detail_output(
 
         # Screenshot pre-signed URL from YAML report
         # (also shown in DECRYPTED FIELDS above from a freshly generated URL)
-        screenshot_url_in_yaml = report.get('screenshot_presigned_url')
-        if screenshot_url_in_yaml:
+        yaml_screenshot_urls = report.get('screenshot_presigned_urls') or (
+            [report['screenshot_presigned_url']] if report.get('screenshot_presigned_url') else []
+        )
+        if yaml_screenshot_urls:
             lines.append("")
-            lines.append("  SCREENSHOT URL (from YAML report — may have expired):")
+            lines.append("  SCREENSHOT URLS (from YAML report — may have expired):")
             lines.append("  " + "-" * 60)
-            lines.append(f"    {screenshot_url_in_yaml}")
+            for url_in_yaml in yaml_screenshot_urls:
+                lines.append(f"    {url_in_yaml}")
             lines.append("    Note: Use the pre-signed URL in DECRYPTED FIELDS for a fresh 7-day link.")
 
         # Last messages HTML section (rendered HTML of last user message + assistant response)
@@ -1875,6 +1866,7 @@ def format_summary_output(
     issue: Optional[Dict[str, Any]],
     decrypted: Dict[str, Optional[str]],
     s3_report: Optional[Dict[str, Any]],
+    s3_report_note: Optional[str] = None,
 ) -> str:
     """Format a condensed issue summary for sessions.py inline context.
 
@@ -1917,6 +1909,8 @@ def format_summary_output(
         lines.append(f"  Description: {clean_desc}")
 
     # ── S3 YAML key findings
+    if s3_report is None and s3_report_note:
+        lines.append(f"  YAML report: {s3_report_note}")
     report = s3_report or {}
     indexeddb = report.get('indexeddb_inspection')
     if indexeddb and isinstance(indexeddb, dict):
@@ -1974,7 +1968,9 @@ def format_detail_json(
     issue: Optional[Dict[str, Any]],
     decrypted: Dict[str, Optional[str]],
     s3_report: Optional[Dict[str, Any]],
-    screenshot_presigned_url: Optional[str] = None
+    screenshot_presigned_url: Optional[str] = None,
+    screenshot_presigned_urls: Optional[List[str]] = None,
+    s3_report_note: Optional[str] = None,
 ) -> str:
     """
     Format the issue inspection results as JSON.
@@ -2009,9 +2005,12 @@ def format_detail_json(
         'issue_metadata': issue,
         'decrypted_fields': censored_decrypted,
         's3_report': censored_s3_report,
+        # Why s3_report is empty: "skipped: --no-logs was given" or "<step>: <detail>".
+        's3_report_note': s3_report_note,
         # Fresh 7-day pre-signed URL for the screenshot PNG (if attached).
         # Load this URL directly to view the screenshot image.
-        'screenshot_presigned_url': screenshot_presigned_url
+        'screenshot_presigned_url': screenshot_presigned_url,
+        'screenshot_presigned_urls': screenshot_presigned_urls or ([screenshot_presigned_url] if screenshot_presigned_url else []),
     }
 
     return json.dumps(output, indent=2, default=str)
@@ -2555,7 +2554,7 @@ async def main():
                     # Init S3 if issue has any S3 key (YAML report or screenshot)
                     if (
                         issue.get("encrypted_issue_report_yaml_s3_key")
-                        or issue.get("encrypted_screenshot_s3_key")
+                        or issue_has_screenshots(issue)
                     ):
                         try:
                             await secrets_manager.initialize()
@@ -2612,10 +2611,14 @@ async def main():
 
                     # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
                     s3_report = None
+                    s3_report_note: Optional[str] = None
+                    if args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+                        s3_report_note = S3_REPORT_SKIPPED_NOTE
                     screenshot_presigned_url: Optional[str] = None
+                    screenshot_presigned_urls: List[str] = []
                     needs_s3 = (
                         (not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'))
-                        or (issue and issue.get('encrypted_screenshot_s3_key'))
+                        or (issue and issue_has_screenshots(issue))
                     )
                     if needs_s3:
                         script_logger.info("Initializing S3 service for report/screenshot...")
@@ -2627,32 +2630,44 @@ async def main():
                             # Fetch YAML report (unless --no-logs)
                             if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
                                 script_logger.info("Fetching S3 YAML report...")
-                                s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+                                s3_report, s3_report_note = await fetch_s3_report(
+                                    encryption_service, s3_service, issue
+                                )
 
                             # Generate fresh 7-day pre-signed URL for the screenshot PNG
-                            if issue and issue.get('encrypted_screenshot_s3_key'):
-                                script_logger.info("Generating screenshot pre-signed URL...")
-                                screenshot_presigned_url = await get_screenshot_presigned_url(
+                            if issue and issue_has_screenshots(issue):
+                                script_logger.info("Generating screenshot pre-signed URLs...")
+                                screenshot_presigned_urls = await get_screenshot_presigned_urls(
                                     encryption_service, s3_service, issue
+                                )
+                                screenshot_presigned_url = (
+                                    screenshot_presigned_urls[0] if screenshot_presigned_urls else None
                                 )
                         except Exception as e:
                             script_logger.warning(f"Failed to initialize S3 service: {e}")
+                            if s3_report is None and s3_report_note is None:
+                                s3_report_note = f"S3 service could not be initialized: {e}"
 
                     # 4. Format and output results
                     if args.json:
                         print(format_detail_json(
                             args.issue_id, issue, decrypted, s3_report,
-                            screenshot_presigned_url=screenshot_presigned_url
+                            screenshot_presigned_url=screenshot_presigned_url,
+                            screenshot_presigned_urls=screenshot_presigned_urls,
+                            s3_report_note=s3_report_note,
                         ))
                     elif args.summary:
                         print(format_summary_output(
                             args.issue_id, issue, decrypted, s3_report,
+                            s3_report_note=s3_report_note,
                         ))
                     else:
                         print(format_detail_output(
                             args.issue_id, issue, decrypted, s3_report,
                             full_logs=args.full_logs,
-                            screenshot_presigned_url=screenshot_presigned_url
+                            screenshot_presigned_url=screenshot_presigned_url,
+                            screenshot_presigned_urls=screenshot_presigned_urls,
+                            s3_report_note=s3_report_note,
                         ))
 
                     # --related-commits: search git history for prior related fixes

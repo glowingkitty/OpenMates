@@ -100,6 +100,20 @@ def deactivation_result(layers: FocusLayers) -> dict[str, str]:
     return {}
 
 
+def layer_end_client_event(layers: FocusLayers, chat_id: str) -> dict[str, Any] | None:
+    """Client event after the assistant ends a layered focus (focus-modes.layer-end).
+
+    Clients show the chat's focus from the last activation frame. When only the
+    layer ends, the Project base is active again, so they receive the base as a
+    fresh activation and persist it with their chat key; without it the focus
+    pill kept showing the ended layer. Returns None when no layer ended.
+    """
+    if not layers.layered or not chat_id:
+        return None
+    return {"event_type": "focus_mode_activated",
+            "payload": {"chat_id": chat_id, "focus_id": layers.base_focus_id}}
+
+
 LAYER_PRECEDENCE_HEADER = "--- Focus layering ---"
 LAYER_PRECEDENCE_FOOTER = "--- End Focus layering ---"
 

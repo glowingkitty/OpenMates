@@ -888,7 +888,10 @@
         "text": "Lihat visual"
       },
       "interactive_html_blocked": {
-        "text": "Visual ini mencoba membuka halaman lain dan dihentikan."
+        "text": "Visual ini mencoba membuka halaman lain. Itu tidak diizinkan di dalam chat, jadi visual dijeda."
+      },
+      "interactive_html_reload": {
+        "text": "Muat ulang visual"
       },
       "search_repos": {
         "text": "Cari repo",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Tolak semua"
       },
+      "continue_without_memories": {
+        "text": "Lanjutkan tanpa kenangan"
+      },
+      "call_countdown_label": {
+        "text": "Sisa waktu sebelum menjawab tanpa kenangan"
+      },
       "entry_singular": {
         "text": "entri"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Lanjutkan dari yang terakhir:"
+        "text": "Lanjutkan obrolan terbaru Anda:"
+      },
+      "active_title_single": {
+        "text": "Anda memiliki 1 obrolan aktif:"
+      },
+      "active_title": {
+        "text": "Anda memiliki {count} obrolan aktif:"
+      },
+      "active_card_label": {
+        "text": "Aktif"
       },
       "guest_title": {
         "text": "Jelajahi beberapa contoh percakapan:"
@@ -4311,76 +4329,6 @@
         "text": "Paradoks Fermi mempertanyakan mengapa kita belum menemukan bukti meyakinkan tentang peradaban luar angkasa. Jelajahi jawaban yang mungkin."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Simpan cadanganmu sendiri. Ekspor data OpenMates kamu kapan pun kamu membutuhkannya."
-      },
-      "title": {
-        "text": "Ekspor data OpenMates kamu"
-      },
-      "description": {
-        "text": "Cadangkan chat, pengaturan, memori, dan lainnya."
-      },
-      "assistant_response": {
-        "text": "Ekspor salinan data OpenMates kamu dari pengaturan akun. Masuk untuk mengakses data akun kamu yang terenkripsi."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Ingin kontrol privasi yang lebih kuat? Tambahkan detail pribadi yang harus disembunyikan OpenMates."
-      },
-      "title": {
-        "text": "Deteksi PII kustom"
-      },
-      "description": {
-        "text": "Lindungi detail pribadi sebelum pemanggilan model."
-      },
-      "assistant_response": {
-        "text": "Pilih detail pribadi yang ingin disembunyikan OpenMates sebelum pemanggilan model. Tinjau pengaturan privasi untuk mengelolanya."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Butuh jawaban yang lebih fokus? Berikan tugas spesifik kepada mate kamu."
-      },
-      "title": {
-        "text": "Mode fokus"
-      },
-      "description": {
-        "text": "Arahkan chat menuju tujuan tertentu."
-      },
-      "assistant_response": {
-        "text": "Gunakan mode fokus untuk mengarahkan chat ke tujuan tertentu. Jelajahi mode yang tersedia di Aplikasi."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Mengulang hal yang sama itu membosankan. Simpan konteks yang harus diingat oleh mate kamu."
-      },
-      "title": {
-        "text": "Memori"
-      },
-      "description": {
-        "text": "Simpan preferensi dan konteks yang berguna."
-      },
-      "assistant_response": {
-        "text": "Simpan preferensi dan konteks yang berguna sebagai memori, lalu pilih apa yang bisa digunakan oleh mate kamu."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Mencari kegiatan? Jelajahi acara di dekatmu."
-      },
-      "title": {
-        "text": "Temukan acara lokal"
-      },
-      "description": {
-        "text": "Cari kelas, pertemuan, dan acara lainnya."
-      },
-      "assistant_response": {
-        "text": "Gunakan pencarian Acara untuk menemukan kelas dan pertemuan setempat. Pilih lokasi dan topik untuk melihat kegiatan di sekitarmu."
-      }
-    },
     "collective": {
       "title": {
         "text": "Perilaku kolektif hewan"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "Struktur yang stabil berkat keseimbangan tegangan dan kompresi."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Kutipan sumber tepercaya"
-      },
-      "description": {
-        "text": "Minta mate memeriksa sumber dan mengutip baris yang mendukung jawaban."
-      },
-      "phrase": {
-        "text": "Ingin memverifikasi jawaban? Minta OpenMates mengutip sumber pendukungnya."
-      },
-      "assistant_response": {
-        "text": "Minta mate memeriksa sumber dan mengutip baris yang mendukung jawaban."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Deteksi gambar AI"
-      },
-      "description": {
-        "text": "Unggah gambar dan lihat tanda pembuatan AI langsung di obrolan."
-      },
-      "phrase": {
-        "text": "Penasaran apakah gambar dibuat AI? Unggah dan periksa tanda-tandanya."
-      },
-      "assistant_response": {
-        "text": "Unggah gambar dan lihat tanda pembuatan AI langsung di obrolan."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Obrolan penyamaran"
-      },
-      "description": {
-        "text": "Mulai obrolan sementara saat kamu tidak ingin menyimpannya di riwayat."
-      },
-      "phrase": {
-        "text": "Butuh percakapan sementara? Jangan simpan di riwayat obrolan."
-      },
-      "assistant_response": {
-        "text": "Mulai obrolan sementara saat kamu tidak ingin menyimpannya di riwayat."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Kontrol privasi"
-      },
-      "description": {
-        "text": "Atur penyembunyian data pribadi, akun terhubung, dan penghapusan otomatis di satu tempat."
-      },
-      "phrase": {
-        "text": "Tinjau perlindungan OpenMates sebelum kamu mendadak membutuhkan kontrolnya."
-      },
-      "assistant_response": {
-        "text": "Atur penyembunyian data pribadi, akun terhubung, dan penghapusan otomatis di satu tempat."
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "Tanyakan tentang dokumentasi ini..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Untuk menjalankan ini, kode dan file kamu dikirim ke E2B, penyedia sandbox cloud, dan dijalankan di sana, di AS. Untuk tugas Proyek, seluruh Proyek dan kunci yang membukanya juga ditempatkan di sandbox, disegel agar hanya sandbox itu yang bisa membukanya. Sandbox dihapus setelahnya."
+      },
+      "privacy_policy": {
+        "text": "Kebijakan privasi"
+      },
+      "own_machine_hint": {
+        "text": "Atau jalankan di komputer kamu sendiri dengan:"
+      },
+      "allow": {
+        "text": "Izinkan"
+      },
+      "own_machine": {
+        "text": "Pakai komputer saya"
+      },
+      "not_now": {
+        "text": "Jangan sekarang"
+      },
+      "answered": {
+        "text": "Jawaban kamu:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Menjalankan kode di sandbox cloud E2B tidak diizinkan untuk akunmu, jadi tidak ada yang dimulai. Kamu bisa mengubahnya di Pengaturan > Privasi, atau menjalankannya di mesinmu sendiri dengan perintah akses jarak jauh."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Jalankan kode di sandbox cloud E2B"
+      },
+      "description": {
+        "text": "Jika diizinkan, kode dan file yang kamu jalankan dikirim ke E2B, penyedia sandbox cloud, dan diproses di AS. Untuk tugas Proyek, ini mencakup Proyek dan kunci yang membukanya, disegel agar hanya sandbox itu yang bisa membukanya. Sandbox dihapus setelahnya. Jika tidak diizinkan, tidak ada yang dikirim."
+      },
+      "status_allowed": {
+        "text": "Diizinkan"
+      },
+      "status_declined": {
+        "text": "Tidak diizinkan"
+      },
+      "status_undecided": {
+        "text": "Belum diputuskan"
+      },
+      "error": {
+        "text": "Pengaturan ini tidak dapat disimpan. Coba lagi."
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "Tidak ada video untuk eksekusi ini"
+        },
+        "with_setup": {
+          "text": "{duration} dengan persiapan"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B (sandbox kode terisolasi)"
             },
             "description": {
-              "text": "E2B menjalankan sematan kode yang dipilih dan pratinjau aplikasi yang dihasilkan di dalam sandbox yang terisolasi. E2B menerima kode atau file aplikasi dan aset yang dihasilkan yang kamu pilih untuk dijalankan, input runtime, log pratinjau, dan output eksekusi yang diperlukan untuk menjalankan dan menampilkan hasil sandbox. Berbagi ini hanya terjadi saat kamu secara eksplisit menjalankan kode, membuat aplikasi yang dihasilkan yang memulai pratinjau tangkapan layar singkat secara otomatis, atau memulai/melanjutkan pratinjau langsung aplikasi."
+              "text": "E2B menjalankan sematan kode yang dipilih dan pratinjau aplikasi yang dihasilkan di dalam sandbox yang terisolasi. E2B menerima kode atau file aplikasi dan aset yang dihasilkan yang kamu pilih untuk dijalankan, input runtime, log pratinjau, dan output eksekusi yang diperlukan untuk menjalankan dan menampilkan hasil sandbox. Berbagi ini hanya terjadi saat kamu secara eksplisit menjalankan kode, membuat aplikasi yang dihasilkan yang memulai pratinjau tangkapan layar singkat secara otomatis, atau memulai/melanjutkan pratinjau langsung aplikasi. Saat tugas agen berjalan pada proyek cloud, E2B di AS juga menerima semua berkas proyek dan, dalam keadaan tersegel sehingga hanya sandbox itu yang dapat membukanya, kunci yang membuka proyek, selama tugas berlangsung. Sandbox dihapus setelah 15 menit tidak aktif atau paling lama setelah 4 jam (hingga 24 jam jika kamu memilihnya) dan tidak pernah dijeda."
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "Tangkapan layar terlalu besar. Coba jendela yang lebih kecil."
       },
+      "screenshot_limit_reached": {
+        "text": "Anda dapat melampirkan hingga 5 tangkapan layar."
+      },
       "screenshot_preview_alt": {
         "text": "Pratinjau tangkapan layar"
       },
@@ -21150,7 +21098,7 @@
       "text": "Coba gratis"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Permintaan kenangan habis waktu, dijawab tanpa kenangan"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Panggilan memakai transkripsi Mistral, suara ElevenLabs v4 Turbo, perutean AI OpenMates biasa, dan penagihan berdasarkan penggunaan."

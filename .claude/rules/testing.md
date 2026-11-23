@@ -81,7 +81,9 @@ paths:
   dev/production serve it; job log shows `RUST-CORE-ON`); `--no-web-rust-core`
   opts out, `--web-rust-core` is an accepted no-op. Daily reports list `web_build`.
   Flow: `sessions.py ci-source` → `ci_coordinator.py submit` →
-  `ci_coordinator.py wait <id>`. Never start a second scheduler, deploy before
+  `ci_coordinator.py wait <id> [<id> ...]`: one background wait for the whole
+  set, which returns once (all final, or `--first-failure`) with one summary,
+  so a set brings one notification, not one per job. Never start a second scheduler, deploy before
   E2E, or use the shared dev stack for these tests.
   - E2B overflow: when the 20 GitHub-hosted slots are full, the coordinator
     runs queued component, pytest and e2e jobs (e2e once its preparation
@@ -94,10 +96,20 @@ paths:
     never the daily batch). Runs at 90% of the 8 GB sandbox or with an OOM
     kill go to Discord and `logs/ci-coordinator/e2b/memory-alerts.jsonl`;
     `ci_e2b_runner.py memory` lists runs by peak memory.
-- Real AI inference: only on the dev server, never in CI. Deploy the candidate
-  via the session helper first, use disposable Projects and isolated
-  CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)
-  and fail if the persisted assistant model differs. Record revision + results.
+- Real AI inference: in isolated CI, never waiting on dev. Write it as a
+  `real-inference-*.spec.ts` spec in the `real_inference` group of
+  `scripts/ci_coverage_manifest.json` and submit it like any e2e spec (one per
+  job). The job gets its own stack, the protected `real-inference` environment's
+  dev-only keys (Google AI Studio, Mistral, Brave, Typesafe) and egress only to those
+  providers; never add a provider whose key is shared with production. Guard
+  the spec with `requireRealInference()` (`tests/helpers/real-inference-guard.ts`).
+  A real-inference spec stays outside the group only while it needs what the
+  job lacks (another key, E2B, outside sites, a dev-only fixture). There is
+  no dev test lock: deploys and dev restarts never wait for a test. The dev-host
+  `*_real_test.py` runners remain for manual checks against dev. Either way: use
+  disposable Projects and isolated CLI state, select `@Gemini-3.8-Flash` (unless
+  the user names another model) and fail if the persisted assistant model
+  differs. Record revision + results. Dev-host runs:
   Account: the personal dev test account (`OPENMATES_PERSONAL_TEST_ACOUNT_*`,
   lease `playwright-account:personal-dev`); when that lease is busy,
   `scripts/dev_test_account.py` creates a throwaway account for the test, backs
@@ -139,7 +151,13 @@ paths:
 ## Debugging bounds
 Existing browser observations, logs or failing checks suffice to start; do not
 re-reproduce known bugs. After two failed attempts with the same approach,
-reassess. Ask before unrelated infrastructure repair, uncertain expected
+reassess. Triage gate (owner, 22 Nov): once a spec failed twice in a row for
+your chat (any commits, no success since), `ci_coordinator.py submit` refuses
+it until you diagnose the cause (`ci_coordinator.py failures <ids>`,
+`test-failure-triager`, `e2e-test-investigator`) and pass
+`--after-triage "<cause found and what this run changes>"`
+(`scripts/ci_triage_gate.py`, notes in `logs/ci-coordinator/triage-notes.jsonl`,
+switch `logs/ci-coordinator/triage-gate.json`). Ask before unrelated infrastructure repair, uncertain expected
 behavior or material scope growth; keep the patch and evidence.
 
 ## E2E recording delivery (web, component, CLI)
@@ -160,6 +178,18 @@ behavior or material scope growth; keep the patch and evidence.
 4. Report missing capture, expiry or upload failure beside the test result.
    Retry uploads or renew signed links from S3; never rerun a test just for
    media. Do not pass `--ack` (Claude has no delivered-message ID).
+4b. Sound (owner, 22 Nov): Playwright video is silent, so every spec or script
+   whose flow plays or records audio (voice calls, assistant speech, chimes,
+   dictation) wraps its `test` with `withProofAudio` and launches with
+   `proofAudioLaunchArgs()` from `tests/helpers/proof-audio.ts` (scripts with
+   their own contexts: `installProofAudio(context, dir)` then `finish()`). It
+   records every Web Audio output, every playing media element and the fake
+   microphone (a spoken test voice, `TEST_VOICE_WAV`) inside the page and muxes
+   them in sync into `video-with-audio.webm`, which is the proof video to send.
+   Without ffmpeg in the run the manifest is attached and `ci_evidence.py` or
+   `proof_video_audio.py mux-all <folder>` muxes it on the host. The spec audit
+   asks for it; opt out only with `// proof-audio: not_required reason=<why>`.
+   Check the sound is there: `proof_video_audio.py loudness <video>`.
 5. Keep Playwright video on for all attempts. CLI E2E needs real terminal
    recordings (`cli-tui-proof-helpers.ts` / `cli_video_capture.py`). Dev-host
    real-inference recordings: `response_media.py <video> --output markdown`.

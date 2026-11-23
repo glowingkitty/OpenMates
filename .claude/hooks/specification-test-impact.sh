@@ -34,7 +34,7 @@ case "$REL" in
   specifications/*)
     SESSION_ID="${OPENMATES_SESSION_ID:-${SESSION_ID:-<session-id>}}"
     BUNDLE="${REL%/*}"
-    MESSAGE="[OpenMates Specification approval required] The session worktree is the proposal boundary. Do not deploy this specification.yml or examples.yml change until explicit user confirmation is recorded for the exact bundle hash. For a new Specification, quote the complete specification.yml in chat. For an existing Specification, quote every explicit specification.yml and examples.yml change in chat. Ask for explicit user confirmation, then run: python3 scripts/specifications.py approve ${BUNDLE} --session ${SESSION_ID} --confirmation explicit_user_confirmation. Any later bundle edit invalidates approval and requires confirmation again."
+    MESSAGE="[OpenMates Specification approval required] The session worktree is the proposal boundary. Do not deploy this specification.yml or examples.yml change until explicit user confirmation is recorded for the exact bundle hash. For a new Specification, quote the complete specification.yml in chat. For an existing Specification, quote every explicit specification.yml and examples.yml change in chat. Ask for explicit user confirmation, then run: python3 scripts/specifications.py approve ${BUNDLE} --session ${SESSION_ID} --confirmation explicit_user_confirmation --review-artifact <PDF_APPROVAL_JSON>. When the change only writes down what the owner already asked for or decided, approve it yourself instead with --confirmation owner_decision_on_record --owner-decision <receipt id or quote>, and name it in your push. Any later bundle edit invalidates approval and requires confirmation again."
     emit_context "$MESSAGE"
     ;;
   *.spec.ts|*.test.ts|*.spec.tsx|*.test.tsx|*.spec.js|*.test.js|test_*.py|*_test.py|*Tests.swift)
@@ -42,7 +42,7 @@ case "$REL" in
     case "$REL" in
       frontend/apps/web_app/tests/*.spec.ts)
         if ! PROOF_OUTPUT=$(python3 "$HOOK_ROOT/scripts/audit_playwright_proof_metadata.py" "$FILE" 2>&1); then
-          MESSAGE="[OpenMates proof-video backfill] Changed Playwright spec is missing proof-video metadata or an explicit not-required classification: ${REL}. Add defineVideoProof(...) with transcript/assertions/checkpoints/devices when the spec proves visible user behavior, or add a top-of-file comment like // proof-video: not_required reason=non_visual_setup. ${PROOF_OUTPUT}"
+          MESSAGE="[OpenMates proof-video backfill] Changed Playwright spec is missing proof-video metadata or an explicit not-required classification: ${REL}. Add defineVideoProof(...) with transcript/assertions/checkpoints/devices when the spec proves visible user behavior, or add a top-of-file comment like // proof-video: not_required reason=non_visual_setup. Voice and audio specs also record their sound with withProofAudio from ./helpers/proof-audio. ${PROOF_OUTPUT}"
           emit_context "$MESSAGE"
         fi
         ;;

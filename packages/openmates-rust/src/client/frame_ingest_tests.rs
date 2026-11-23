@@ -133,6 +133,27 @@ async fn call_and_queue_receipts_raise_messages_v_only_from_their_version_field(
 }
 
 #[tokio::test]
+async fn page_persisted_reply_confirmation_raises_the_turn_baseline() {
+    let mut c = known();
+    // The page stored the reply with messages_v 5; a confirmation without a
+    // version (duplicate delivery) is not applied.
+    let frames = [
+        json!({"type":"ai_response_storage_confirmed","payload":{"chat_id":CHAT,"message_id":"reply","task_id":"t","messages_v":5}}),
+        json!({"type":"ai_response_storage_confirmed","payload":{"chat_id":CHAT,"message_id":"reply","task_id":"already_processed"}}),
+    ];
+    let summary = c.ingest_socket_frames(&frames).await.unwrap();
+    assert_eq!(summary.ignored, 1);
+    assert_eq!(
+        c.chats[CHAT]["messages_v"], 5,
+        "the next voice turn starts from the stored reply"
+    );
+    assert!(
+        c.history.get(CHAT).is_none_or(Vec::is_empty),
+        "the confirmation carries no row"
+    );
+}
+
+#[tokio::test]
 async fn title_update_changes_the_row_and_metadata_version() {
     let mut c = known();
     let frame = json!({"event":"chat_title_updated","chat_id":CHAT,"data":{"encrypted_title":"t2"},"versions":{"metadata_v":7}});

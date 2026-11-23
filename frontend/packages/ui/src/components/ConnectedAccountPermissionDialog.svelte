@@ -22,11 +22,21 @@
     rejectConnectedAccountPermissionRequest
   } from '../services/chatSyncServiceHandlersConnectedAccounts';
 
+  import { callPermissionPrompt } from '../services/voiceCallPermissionPrompt';
+
+  // In a live call the tap is confirmed aloud ("Thanks, I'll continue").
+  function confirmTapInCall() {
+    const requestId = $currentConnectedAccountPermissionRequest?.requestId;
+    if (requestId) callPermissionPrompt.answered(requestId);
+  }
+
   async function approve() {
+    confirmTapInCall();
     await approveConnectedAccountPermissionRequest();
   }
 
   async function reject() {
+    confirmTapInCall();
     await rejectConnectedAccountPermissionRequest();
   }
 

@@ -1335,3 +1335,38 @@ def test_ordinary_child_ids_do_not_enter_the_registered_or_project_uuid5_namespa
     finally:
         active_verified_output_producer.reset(producer_token)
         active_recovery_output_context.reset(context_token)
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.media.parent-children-and-attribution
+@pytest.mark.asyncio
+async def test_task_failure_error_card_keeps_the_sealed_app_and_skill(monkeypatch):
+    """TASK-2115: cleanup only knows "unknown"; the error card still names images.generate."""
+    from unittest.mock import AsyncMock
+
+    service = EmbedService(FakeCacheService({}), object(), FakeEncryptionService())
+    sent = AsyncMock(return_value=True)
+    monkeypatch.setattr(service, "send_embed_data_to_client", sent)
+    monkeypatch.setattr(service, "_schedule_embed_persistence_fallback", lambda *_: None)
+    monkeypatch.setattr(service, "_get_cached_embed", AsyncMock(return_value={
+        "app_id": "images", "skill_id": "generate", "status": "processing", "query": "A stylised fox",
+    }))
+    result = await service.update_embed_status_to_error(
+        embed_id="embed-1", app_id="unknown", skill_id="unknown",
+        error_message="Task failed", chat_id="chat-1", message_id="message-1",
+        user_id="owner-1", user_id_hash="a" * 64, user_vault_key_id="vault-1", task_id="task-1",
+    )
+    assert result["status"] == "error"
+    published = sent.call_args.kwargs
+    assert published["status"] == "error"
+    assert (published["app_id"], published["skill_id"]) == ("images", "generate")
+    content = decode(published["content_toon"])
+    assert (content["app_id"], content["skill_id"], content["status"]) == ("images", "generate", "error")
+    assert content["query"] == "A stylised fox"
+
+
+# contract-test: direct surface=gui.web assertions=app-skills.media.parent-children-and-attribution
+def test_view_card_keeps_the_uploaded_image_reference():
+    """TASK-2115: the View card names its upload as source_embed_id, which survives sanitizing."""
+    assert EmbedService._sanitize_request_metadata({
+        "embed_id": "card-own-id", "source_embed_id": "upload-embed", "file_path": "image.jpg",
+    }) == {"source_embed_id": "upload-embed", "file_path": "image.jpg"}

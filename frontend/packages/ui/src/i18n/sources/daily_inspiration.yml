@@ -8,7 +8,7 @@
 # Do NOT prefix keys with "daily_inspiration." — that would double-nest them.
 
 label:
-  context: Label shown at the top of each Daily Inspiration banner (next to book icon)
+  context: Label of a Daily Inspiration card in the start-screen row and of the guest banner
   en: Daily inspiration
   de: Tägliche Inspiration
   zh: 每日灵感

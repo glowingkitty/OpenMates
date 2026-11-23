@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
   },
   unreadMessagesStore: {
     setUnread: vi.fn(),
+    reconcileWithServer: vi.fn(),
   },
   chatKeyManager: {
     removeKey: vi.fn(),
@@ -317,6 +318,35 @@ describe("handlePhase2RecentChatsImpl", () => {
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "phase_2_last_20_chats_ready" }),
     );
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-unread.persistence.cross-device
+  it("hands the server unread count, including 0, to the badge store", async () => {
+    const service = createService();
+    const chatDetails = (id: string, unread_count: number) => ({
+      chat_details: {
+        id,
+        encrypted_title: `${id}-title`,
+        encrypted_chat_key: `${id}-key`,
+        messages_v: 1,
+        title_v: 1,
+        unread_count,
+      },
+      server_message_count: 1,
+    });
+
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [chatDetails("read-elsewhere-chat", 0), chatDetails("unread-chat", 2)],
+        chat_count: 2,
+        total_chat_count: 2,
+        phase: "phase2",
+      },
+    );
+
+    expect(mocks.unreadMessagesStore.reconcileWithServer).toHaveBeenCalledWith("read-elsewhere-chat", 0);
+    expect(mocks.unreadMessagesStore.reconcileWithServer).toHaveBeenCalledWith("unread-chat", 2);
   });
 
   // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted

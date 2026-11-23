@@ -11,8 +11,10 @@ test.describe('Signed-out welcome header', () => {
 		for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
 			await page.setViewportSize(viewport);
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-			const banner = page.getByTestId('daily-inspiration-banner');
+			const banner = page.getByTestId('recent-chats-scroll-container');
+			await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
 			await expect(banner).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 			await expect(page.getByTestId('message-editor')).toBeVisible();
 			await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 			const bounds = await banner.boundingBox();
@@ -26,8 +28,10 @@ test.describe('Signed-out welcome header', () => {
 	test('reduced motion leaves ordinary inspirations readable', async ({ page }: { page: any }) => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('daily-inspiration-phrase')).toBeVisible();
+		await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+		await expect(page.getByTestId('start-row-inspiration-card').first()).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('start-row-inspiration-label').first()).toBeVisible();
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 	});
 });

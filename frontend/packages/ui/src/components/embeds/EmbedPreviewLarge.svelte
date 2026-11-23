@@ -98,6 +98,7 @@
     carouselIndex,
     carouselTotal,
     runRef = '',
+    carouselScope,
     bodyHidden = false,
   }: Props = $props();
 
@@ -112,12 +113,15 @@
     carouselIndex = next.carouselIndex;
     carouselTotal = next.carouselTotal;
     runRef = next.runRef ?? '';
+    carouselScope = next.carouselScope;
     bodyHidden = next.bodyHidden ?? false;
   }
 
   // ── Carousel state ──────────────────────────────────────────────────────
+  // Slides share state only within one rendering surface: the same run can be
+  // rendered by several message views at different widths.
   let runKey = $derived(
-    runRef && runRef.length > 0 ? runRef : embedRef,
+    `${carouselScope}:${runRef && runRef.length > 0 ? runRef : embedRef}`,
   );
   let carouselStore = $derived(getCarouselStore(runKey));
   let shellHeightStore = $derived(getShellHeightStore(runKey));

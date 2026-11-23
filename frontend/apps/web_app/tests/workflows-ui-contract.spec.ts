@@ -28,7 +28,7 @@ const PROOF_TEMPLATE_HOLD_MS = 2500;
 const WORKFLOW_TITLE_PREFIX = 'Workflow UI contract';
 const WORKFLOWS_UI_THUMBNAIL = defineTestThumbnail({
 	id: 'workflows-workspace',
-	focus: [{ testId: 'daily-inspiration-banner' }],
+	focus: [{ testId: 'workflows-workspace-center' }],
 	context: [{ testId: 'workflows-show-all' }, { testId: 'workflow-input-composer' }]
 });
 
@@ -421,13 +421,8 @@ test.describe('Workflows web UI contract', () => {
 
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible({ timeout: 30_000 });
-			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
-			const workflowInspiration = page.getByTestId('daily-inspiration-banner');
-			await expect(workflowInspiration.getByTestId('daily-inspiration-cta-text')).toHaveCount(0);
-			await expect(workflowInspiration).not.toHaveAttribute('role', 'button');
-			await expect(workflowInspiration).not.toHaveAttribute('tabindex', '0');
-			await workflowInspiration.click();
-			await workflowInspiration.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('');
 			await expect(page.getByTestId('workflows-workspace-background-icon')).toBeVisible();
 			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show my workflows');
@@ -443,26 +438,13 @@ test.describe('Workflows web UI contract', () => {
 			await expect(editorCard).toHaveAttribute('data-icon', 'cloud-rain');
 			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
 			if (!startScreenBox) throw new Error('Workflow start screen must be measurable.');
-			const [bannerBox, composerBox] = await Promise.all([
-				page.getByTestId('workflows-daily-inspiration-area').boundingBox(),
-				page.getByTestId('workflow-input-composer').boundingBox()
-			]);
-			if (!bannerBox || !composerBox) throw new Error('Workflow banner and composer must be measurable.');
-			const availableCardHeight = composerBox.y - (bannerBox.y + bannerBox.height);
-			const shouldUseCompactCards = startScreenBox.width < 550 || availableCardHeight < 420;
-			if (shouldUseCompactCards) {
-				await expect(editorCard).toHaveClass(/resume-chat-card/);
-				await expect(editorCard.locator('.resume-chat-kind-badge')).toHaveCount(0);
-				await expect(editorCard.locator('.resume-chat-summary')).toHaveCount(0);
-				await expect(editorCard.getByTestId('resume-chat-title')).toHaveCSS('white-space', 'nowrap');
-			} else {
-				await expect(editorCard).toHaveClass(/workspace-continue-card/);
-				await expect(editorCard).toHaveAttribute('style', /#CE5B06.*#8F220E/);
-			}
-			const inspirationBannerBox = await page.getByTestId('daily-inspiration-banner').boundingBox();
+			// The start screen has no banner and always uses the large card layout.
+			await expect(editorCard).toHaveClass(/workspace-continue-card/);
+			await expect(editorCard).not.toHaveClass(/resume-chat-card/);
+			await expect(editorCard).toHaveAttribute('style', /#CE5B06.*#8F220E/);
 			const centerBox = await page.getByTestId('workflows-workspace-center').boundingBox();
-			if (!inspirationBannerBox || !centerBox) throw new Error('Workflow banner and start content must be measurable.');
-			expect(centerBox.y).toBeGreaterThanOrEqual(inspirationBannerBox.y + inspirationBannerBox.height);
+			if (!centerBox) throw new Error('Workflow start content must be measurable.');
+			expect(centerBox.y).toBeGreaterThanOrEqual(startScreenBox.y);
 			await expectNoPageOverflow(page);
 			await captureTestThumbnail(page, testInfo, WORKFLOWS_UI_THUMBNAIL);
 			if (proof) {

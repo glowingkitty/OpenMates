@@ -888,7 +888,10 @@
         "text": "查看可视化"
       },
       "interactive_html_blocked": {
-        "text": "此可视化内容试图打开其他页面，已被阻止。"
+        "text": "此可视化内容试图打开另一个页面。聊天中不允许这样做，因此已暂停。"
+      },
+      "interactive_html_reload": {
+        "text": "重新加载可视化内容"
       },
       "search_repos": {
         "text": "搜索仓库",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "全部拒绝"
       },
+      "continue_without_memories": {
+        "text": "不使用记忆继续"
+      },
+      "call_countdown_label": {
+        "text": "在不使用记忆回答前的剩余时间"
+      },
       "entry_singular": {
         "text": "条目"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "继续上次的对话："
+        "text": "继续你最近的对话："
+      },
+      "active_title_single": {
+        "text": "你有 1 个正在进行的对话："
+      },
+      "active_title": {
+        "text": "你有 {count} 个正在进行的对话："
+      },
+      "active_card_label": {
+        "text": "进行中"
       },
       "guest_title": {
         "text": "探索一些示例对话："
@@ -4311,76 +4329,6 @@
         "text": "费米悖论探讨了为什么我们还没有发现外星文明存在的有力证据。探索可能的答案。"
       }
     },
-    "export": {
-      "phrase": {
-        "text": "保留你自己的备份。随时根据需要导出你的 OpenMates 数据。"
-      },
-      "title": {
-        "text": "导出你的 OpenMates 数据"
-      },
-      "description": {
-        "text": "备份聊天记录、设置、记忆等。"
-      },
-      "assistant_response": {
-        "text": "在账户设置中导出你的 OpenMates 数据副本。登录以访问你的加密账户数据。"
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "想要更强大的隐私控制？添加 OpenMates 应当隐藏的个人详情。"
-      },
-      "title": {
-        "text": "自定义 PII 检测"
-      },
-      "description": {
-        "text": "在调用模型前保护个人详情。"
-      },
-      "assistant_response": {
-        "text": "在调用模型前，选择要让 OpenMates 隐藏的个人详情。查看隐私设置以进行管理。"
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "需要更精准的回答？给你的 Mate 一个具体的任务。"
-      },
-      "title": {
-        "text": "专注模式"
-      },
-      "description": {
-        "text": "引导对话达成特定目标。"
-      },
-      "assistant_response": {
-        "text": "使用专注模式引导对话达成特定目标。在“应用”中探索可用模式。"
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "重复同样的话很乏味。保存你希望 Mate 记住的背景信息。"
-      },
-      "title": {
-        "text": "记忆"
-      },
-      "description": {
-        "text": "保存实用的偏好和背景信息。"
-      },
-      "assistant_response": {
-        "text": "将有用的偏好和背景信息保存为记忆，然后选择你的 Mate 可以使用的内容。"
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "想找点事做？探索你附近的活动。"
-      },
-      "title": {
-        "text": "查找本地活动"
-      },
-      "description": {
-        "text": "搜索课程、聚会和其他活动。"
-      },
-      "assistant_response": {
-        "text": "使用活动搜索查找附近的课程和聚会。选择地点和主题，看看周边有哪些活动。"
-      }
-    },
     "collective": {
       "title": {
         "text": "动物的集体行为"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "通过拉力与压力的平衡保持稳定的结构。"
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "可信来源引用"
-      },
-      "description": {
-        "text": "让助手检查来源并引用支持回答的原文。"
-      },
-      "phrase": {
-        "text": "需要核实回答？请 OpenMates 引用支持它的来源。"
-      },
-      "assistant_response": {
-        "text": "让助手检查来源并引用支持回答的原文。"
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "AI 图像检测"
-      },
-      "description": {
-        "text": "上传图像，直接在聊天中查看 AI 生成的迹象。"
-      },
-      "phrase": {
-        "text": "想知道图像是否由 AI 生成？上传后查看相关迹象。"
-      },
-      "assistant_response": {
-        "text": "上传图像，直接在聊天中查看 AI 生成的迹象。"
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "无痕聊天"
-      },
-      "description": {
-        "text": "当你不想保存历史记录时，开启临时聊天。"
-      },
-      "phrase": {
-        "text": "需要临时对话？让它不进入已保存的聊天记录。"
-      },
-      "assistant_response": {
-        "text": "当你不想保存历史记录时，开启临时聊天。"
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "隐私控制"
-      },
-      "description": {
-        "text": "在同一处管理个人数据隐藏、关联账户和自动删除。"
-      },
-      "phrase": {
-        "text": "提前了解 OpenMates 如何保护数据，以及有哪些可用设置。"
-      },
-      "assistant_response": {
-        "text": "在同一处管理个人数据隐藏、关联账户和自动删除。"
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "询问有关此文档的问题..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "要运行此内容，你的代码和文件会被发送到云沙盒提供商 E2B，并在美国的沙盒中运行。对于项目任务，整个项目以及用于打开它的密钥也会放入沙盒，密钥经过密封，只有该沙盒能够打开。任务结束后沙盒会被删除。"
+      },
+      "privacy_policy": {
+        "text": "隐私政策"
+      },
+      "own_machine_hint": {
+        "text": "或者在你自己的电脑上运行："
+      },
+      "allow": {
+        "text": "允许"
+      },
+      "own_machine": {
+        "text": "使用我自己的电脑"
+      },
+      "not_now": {
+        "text": "暂不"
+      },
+      "answered": {
+        "text": "你的回答："
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "你的账户未允许在 E2B 云沙盒中运行代码，因此没有启动任何内容。你可以在“设置 > 隐私”中更改，或使用远程访问命令在自己的电脑上运行。"
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "在 E2B 云沙盒中运行代码"
+      },
+      "description": {
+        "text": "允许时，你运行的代码和文件会发送到云沙盒提供商 E2B，并在美国处理。对于项目任务，这包括项目以及用于打开它的密钥，密钥经过密封，只有该沙盒能够打开。任务结束后沙盒会被删除。不允许时，不会发送任何内容。"
+      },
+      "status_allowed": {
+        "text": "已允许"
+      },
+      "status_declined": {
+        "text": "未允许"
+      },
+      "status_undecided": {
+        "text": "尚未决定"
+      },
+      "error": {
+        "text": "无法保存此设置。请重试。"
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "此次运行没有可用视频"
+        },
+        "with_setup": {
+          "text": "含准备 {duration}"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B（隔离代码沙箱）"
             },
             "description": {
-              "text": "E2B 在隔离沙箱中运行选定的嵌入代码和生成的应用预览。E2B 会接收你选择运行的代码或生成的应用文件及资产、运行时输入、预览日志以及运行和显示沙箱结果所需的执行输出。只有当你明确运行代码、创建自动启动短截图预览的生成应用，或启动/恢复应用实时预览时，才会发生此类共享。"
+              "text": "E2B 在隔离沙箱中运行选定的嵌入代码和生成的应用预览。E2B 会接收你选择运行的代码或生成的应用文件及资产、运行时输入、预览日志以及运行和显示沙箱结果所需的执行输出。只有当你明确运行代码、创建自动启动短截图预览的生成应用，或启动/恢复应用实时预览时，才会发生此类共享。 当智能体任务在云端项目中运行时，位于美国的 E2B 还会在任务期间接收该项目的全部文件，以及经过密封、只有该沙箱才能打开的项目密钥。沙箱在空闲 15 分钟后或最多 4 小时后删除（若你选择开启，最长 24 小时），并且从不暂停。"
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "截图太大。请尝试较小的窗口。"
       },
+      "screenshot_limit_reached": {
+        "text": "最多可附加 5 张截图。"
+      },
       "screenshot_preview_alt": {
         "text": "截图预览"
       },
@@ -21150,7 +21098,7 @@
       "text": "免费测试"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "不允许的电子邮件域名。"
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "记忆请求已超时，已在不使用记忆的情况下回答"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "语音通话使用 Mistral 转录、ElevenLabs v4 Turbo 语音、OpenMates 常规 AI 路由和按用量计费。"

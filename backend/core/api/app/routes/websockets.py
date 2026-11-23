@@ -83,6 +83,9 @@ from .handlers.websocket_handlers.project_focus_decision_handler import handle_p
 from .handlers.websocket_handlers.project_focus_catalog_handler import handle_project_focus_catalog_result
 from .handlers.websocket_handlers.project_create_result_handler import handle_project_create_result
 from backend.core.api.app.services.project_create_request_service import outbound_create_event
+from backend.core.api.app.services.plan_create_request_service import (
+    PLAN_CREATE_EVENT, PLAN_CREATE_RESULT_MESSAGE, handle_plan_create_result, outbound_plan_create_event,
+)
 from .handlers.websocket_handlers.workflow_metadata_warmup_handler import (
     accept_workflow_warmup_request, warm_workflow_metadata,
 )
@@ -142,6 +145,8 @@ from .handlers.websocket_handlers.suggested_followup_metadata_handler import han
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.connected_account_permission_confirmed_handler import handle_connected_account_permission_confirmed
+from .handlers.websocket_handlers.e2b_upload_consent_answer_handler import handle_e2b_upload_consent_answer
+from .handlers.websocket_handlers.project_sandbox_key_grant_handler import handle_project_sandbox_key_answer
 from .handlers.websocket_handlers.store_app_settings_memories_handler import handle_store_app_settings_memories_entry # Handler for storing app settings/memories entries to Directus
 from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
@@ -490,6 +495,10 @@ async def handle_personal_send_context_snapshot_v2(
             except Exception:
                 logger.warning("Personal privacy snapshot unavailable", exc_info=True)
                 error_code = "unavailable"
+    # Fixed category only (no ids or content): shows why a send, such as a spoken
+    # call turn, never reached the server (NRUV9).
+    logger.info("Personal send-context snapshot refused code=%s purpose=%s", error_code,
+                request["purpose"] if request else "invalid")
     result["error"] = {"code": error_code}
     await websocket.send_json({"type": "personal_send_context_snapshot_result", "payload": result})
 
@@ -777,6 +786,11 @@ def _trace_final_stream_delivery(
 # OFFLINE NOTIFICATIONS (PUSH + EMAIL) FOR OFFLINE USERS
 # =============================================================================
 
+# Post-processing normally finishes before the push (10 s of offline checks);
+# wait this much longer for a late summary, then fall back to the title or generic text.
+HEADLINE_WAIT_SECONDS = 8.0
+
+
 async def _check_user_offline_and_send_email(
     app: FastAPI,
     manager: ConnectionManager,
@@ -789,6 +803,7 @@ async def _check_user_offline_and_send_email(
     model_name: Optional[str] = None,
     category: Optional[str] = None,
     message_id: Optional[str] = None,
+    chat_title: Optional[str] = None,
 ) -> None:
     """
     Check if user is offline with retries, then notify via push notification and/or email.
@@ -877,6 +892,9 @@ async def _check_user_offline_and_send_email(
             chat_id=chat_id,
             response_preview=response_preview,
             message_id=message_id,
+            chat_title=chat_title,
+            mate_category=category,
+            task_id=task_id,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
@@ -889,6 +907,9 @@ async def _send_push_notification_if_enabled(
     chat_id: str,
     response_preview: str,
     message_id: Optional[str] = None,
+    chat_title: Optional[str] = None,
+    mate_category: Optional[str] = None,
+    task_id: Optional[str] = None,
 ) -> bool:
     """
     Look up user's push subscription from cache and dispatch push Celery task if enabled.
@@ -944,30 +965,60 @@ async def _send_push_notification_if_enabled(
         logger.debug(f"{log_prefix} AI response push notifications disabled in preferences")
         return False
 
-    # Build notification content
-    from backend.core.api.app.services.push_notification_service import notification_preview_text
+    # Chat metadata decides two things: hidden chats never get content in a
+    # notification, and the reply workspace comes from durable chat authority
+    # (never inferred from absent metadata or a client profile URL).
+    workspace = None
+    hidden = False
+    directus_service = getattr(app.state, "directus_service", None)
+    if directus_service is not None:
+        try:
+            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+            hidden = not isinstance(metadata, dict) or bool(metadata.get("is_hidden") or metadata.get("is_hidden_candidate"))
+            if message_id:
+                from backend.core.api.app.services.push_reply_context import reply_workspace
 
-    preview_text = notification_preview_text(response_preview, lang=cached_user.get("language") or "en")
-    push_title = "OpenMates"
-    push_body = preview_text if preview_text else "Your AI assistant has responded."
+                workspace = reply_workspace(metadata, user_id, chat_id)
+        except Exception:
+            # Unknown hidden state must not leak content: stay generic.
+            hidden = True
+            logger.warning("[PUSH_NOTIFY] Chat metadata unavailable; sending generic text without reply routing")
+
+    from backend.core.api.app.services.push_notification_service import notification_preview_text
+    from backend.core.api.app.services.push_notification_content import compose_push_content
+    from backend.core.api.app.services.notification_email_preferences import (
+        push_chat_title_enabled, push_preview_enabled,
+    )
+    from backend.core.api.app.services.notification_headline_handoff import lookup_vault_key_id, read_headline
+
+    language = str(cached_user.get("language") or "en")
+    # Title/summary are decided by the user's switches; the summary comes from the
+    # post-processing call, sealed in Redis (never a decrypted stored title).
+    headline = None
+    if not hidden and push_chat_title_enabled(push_prefs) and task_id:
+        try:
+            headline = await read_headline(
+                cache_service=cache_service, encryption_service=app.state.encryption_service,
+                vault_key_id=cached_user.get("vault_key_id") or await lookup_vault_key_id(cache_service, directus_service, user_id),
+                user_id=user_id, chat_id=chat_id, task_id=task_id, wait_seconds=HEADLINE_WAIT_SECONDS,
+            )
+        except Exception as exc:
+            logger.warning(f"{log_prefix} Notification summary unavailable ({type(exc).__name__}); using title or generic text")
+    mate_name = "Mate"
+    if chat_title and not headline:
+        from backend.core.api.app.services.translations import TranslationService
+        translated = TranslationService().get_nested_translation(f"mates.{mate_category or 'general_knowledge'}", language)
+        if isinstance(translated, str) and translated and not translated.startswith("mates."):
+            mate_name = translated
+    content = compose_push_content(
+        preferences=push_prefs, headline=headline, chat_title=chat_title, mate_name=mate_name, hidden=hidden,
+        preview_text=notification_preview_text(response_preview, lang=language) if push_preview_enabled(push_prefs) else "",
+    )
     push_url = f"/?chat={chat_id}"
     push_tag = f"ai-response-{chat_id}"
 
     if await has_active_human(cache_service, user_id, chat_id):
         return False
-
-    # Load workspace from durable chat authority, never infer Personal from
-    # absent metadata or use a client profile URL supplied in a push envelope.
-    workspace = None
-    directus_service = getattr(app.state, "directus_service", None)
-    if message_id and directus_service is not None:
-        try:
-            from backend.core.api.app.services.push_reply_context import reply_workspace
-
-            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-            workspace = reply_workspace(metadata, user_id, chat_id)
-        except Exception:
-            logger.warning("[PUSH_NOTIFY] Reply routing metadata unavailable; sending legacy alert")
 
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
@@ -976,8 +1027,8 @@ async def _send_push_notification_if_enabled(
             name='app.tasks.push_notification_task.send_push_notification',
             kwargs={
                 "subscription_json": subscription_json,
-                "title": push_title,
-                "body": push_body,
+                "title": content.title,
+                "body": content.body,
                 "url": push_url,
                 "tag": push_tag,
                 "chat_id": chat_id,
@@ -985,6 +1036,8 @@ async def _send_push_notification_if_enabled(
                 "user_id": user_id,
                 "message_id": message_id,
                 "workspace": workspace,
+                "chat_title": content.sealed_title,
+                "chat_context": content.context,
             },
             queue="push",
         )
@@ -1010,7 +1063,7 @@ def email_eligible_completion(payload: dict) -> bool:
 async def _send_offline_email_notification(
     app: FastAPI, user_id: str, chat_id: str, response_preview: str,
     message_id: str | None = None, sender_name: str = "Mate", chat_title: str | None = None,
-    mate_category: str | None = None, *, viewing_connection: bool,
+    mate_category: str | None = None, *, viewing_connection: bool, task_id: str | None = None,
 ) -> None:
     if not message_id:
         return
@@ -1036,6 +1089,7 @@ async def _send_offline_email_notification(
         encryption_service=app.state.encryption_service,
         user_id=user_id, chat_id=chat_id, message_id=message_id,
         sender_name=sender_name, preview=response_preview, title=chat_title, mate_category=mate_category,
+        task_id=task_id,
     )
 
 
@@ -1141,6 +1195,33 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type == "send_project_sandbox_key_request":
+                        # Frame goes to every device; the first one holding the Project key answers.
+                        for device_id in list(manager.get_connections_for_user(user_id) or {}):
+                            await manager.send_personal_message(
+                                {"type": "project_sandbox_key_request", "payload": payload}, user_id, device_id)
+                    elif event_type == "send_embed_revision_committed":
+                        # A hosted-sandbox commit: every device refreshes the file like after a device commit.
+                        for device_id in list(manager.get_connections_for_user(user_id) or {}):
+                            await manager.send_personal_message(
+                                {"type": "embed_revision_committed", "payload": payload}, user_id, device_id)
+                    elif event_type in ("send_e2b_upload_consent_request", "send_e2b_upload_consent_updated"):
+                        # request_e2b_upload_consent / e2b_upload_consent_updated to every device.
+                        # Mapped inline: the listener must not depend on module globals.
+                        consent_frame_type = (
+                            "request_e2b_upload_consent"
+                            if event_type == "send_e2b_upload_consent_request"
+                            else "e2b_upload_consent_updated"
+                        )
+                        for device_id in list(manager.get_connections_for_user(user_id) or {}):
+                            try:
+                                await manager.send_personal_message(
+                                    {"type": consent_frame_type, "payload": payload},
+                                    user_id,
+                                    device_id,
+                                )
+                            except Exception as e:
+                                logger.error(f"Redis Listener: FAILED to send {event_type} to device {device_id[:12]}...: {e}")
                     elif event_type == "send_connected_account_permission_request":
                         request_id = payload.get("request_id")
                         chat_id = payload.get("chat_id")
@@ -1163,6 +1244,34 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
+                    elif event_type == "send_voice_call_permission_prompt":
+                        # Spoken "needs your tap" lines of a call: static clip URLs only.
+                        clips = payload.get("clips")
+                        prompt_payload = {
+                            "chat_id": payload.get("chat_id"),
+                            "request_id": payload.get("request_id"),
+                            "voice_call_id": payload.get("voice_call_id"),
+                            "kind": payload.get("kind"),
+                            "clips": clips,
+                        }
+                        if (
+                            isinstance(prompt_payload["chat_id"], str) and isinstance(prompt_payload["request_id"], str)
+                            and prompt_payload["kind"] in {"memory", "approval"} and isinstance(clips, dict)
+                            and set(clips) <= {"request", "reminder", "thanks", "timeout"}
+                            and all(
+                                isinstance(url, str) and url.startswith("/audio/assistant-acknowledgements/")
+                                and ".." not in url
+                                for url in clips.values()
+                            )
+                        ):
+                            for device_id in list(manager.get_connections_for_user(user_id).keys()):
+                                await manager.send_personal_message(
+                                    {"type": "voice_call_permission_prompt", "payload": prompt_payload},
+                                    user_id,
+                                    device_id,
+                                )
+                        else:
+                            logger.warning("Redis Listener: Dropped malformed voice call permission prompt")
                     elif event_type == "send_connected_account_action_receipt":
                         chat_id = payload.get("chat_id")
                         action_id = payload.get("action_id")
@@ -1241,6 +1350,14 @@ async def listen_for_cache_events(app: FastAPI):
                         outbound = outbound_create_event(payload)
                         for device_id in (manager.get_connections_for_user(user_id) if outbound else []):
                             if manager.can_execute_project_create(user_id, device_id, outbound["chat_id"]):
+                                await manager.send_personal_message(
+                                    {"type": event_type, "payload": outbound}, user_id, device_id,
+                                )
+                    elif event_type == PLAN_CREATE_EVENT:
+                        # Any foreground device that advertises plan_create_requests may create the Plan.
+                        outbound = outbound_plan_create_event(payload)
+                        for device_id in (manager.get_connections_for_user(user_id) if outbound else []):
+                            if manager.can_execute_plan_create(user_id, device_id):
                                 await manager.send_personal_message(
                                     {"type": event_type, "payload": outbound}, user_id, device_id,
                                 )
@@ -1840,6 +1957,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             chat_title=redis_payload.get("chat_title"),
                             mate_category=redis_payload.get("category"),
                             viewing_connection=bool(final_viewer_devices),
+                            task_id=redis_payload.get("task_id"),
                         )
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Notify unless a foreground client is visibly viewing this chat.
@@ -1861,6 +1979,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     delay_seconds=5,
                                     model_name=redis_payload.get("model_name"),
                                     category=redis_payload.get("category"),
+                                    chat_title=redis_payload.get("chat_title"),
                                 )
                             )
                 else:
@@ -2091,6 +2210,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     client_payload = {
                         "chat_id": chat_id,
                         "message_id": ai_task_id, # AI's message ID
+                        # The running task, so every device can stop it and match its final.
+                        "task_id": ai_task_id,
                         "user_message_id": user_message_id,
                         "turn_id": redis_payload.get("turn_id"),
                         "category": category,
@@ -2158,6 +2279,14 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "source_metadata_v": redis_payload.get("source_metadata_v"),
                     }
 
+                    # Notification headline ("✅ summary") for the user's own open clients: the
+                    # in-app chat notice shows it instead of a reply excerpt. Absent when the
+                    # model gave no usable type/summary (the client then keeps its fallback).
+                    from backend.apps.ai.processing.notification_summary import headline_or_none
+                    headline = headline_or_none(redis_payload.get("notification_type"), redis_payload.get("notification_summary"))
+                    if headline:
+                        client_payload["notification_headline"] = headline
+
                     # OPE-265: Include updated title when post-processing detected conversation drift
                     updated_title = redis_payload.get("updated_chat_title")
                     if updated_title:
@@ -2166,6 +2295,21 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
                                                   client_payload, redis_payload.get("metadata_recovery_job"))
                     logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} follow-up suggestions")
+
+                    # Seal the notification type/summary for the push and email paths.
+                    # Optional enhancement: a failure leaves the generic notification text.
+                    if redis_payload.get("notification_summary"):
+                        from backend.core.api.app.services.notification_headline_handoff import stage_headline
+                        try:
+                            await stage_headline(
+                                cache_service=app.state.cache_service, directus_service=app.state.directus_service,
+                                encryption_service=app.state.encryption_service,
+                                user_id=user_id_uuid, chat_id=chat_id, task_id=task_id,
+                                notification_type=redis_payload.get("notification_type"),
+                                summary=redis_payload.get("notification_summary"),
+                            )
+                        except Exception as exc:
+                            logger.warning(f"AI Typing Listener: Could not stage notification headline ({type(exc).__name__}); generic text will be used")
 
                 # Handle assistant_answer_withdrawn: the client replaces the answer with the notice
                 elif internal_event_type == "assistant_answer_withdrawn":
@@ -3339,6 +3483,7 @@ async def websocket_endpoint(
                             if complete_task_inventory else None)
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_project_create_requests = "project_create_requests" in connection_capabilities
+    supports_plan_create_requests = "plan_create_requests" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
     supports_memory_write_jobs = "memory_write_jobs" in connection_capabilities
     supports_chat_orchestration_jobs = "chat_orchestration_jobs" in connection_capabilities
@@ -3391,6 +3536,7 @@ async def websocket_endpoint(
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
         supports_project_create_requests=supports_project_create_requests,
+        supports_plan_create_requests=supports_plan_create_requests,
         supports_remote_command_jobs=supports_remote_command_jobs,
         supports_memory_write_jobs=supports_memory_write_jobs,
         supports_chat_orchestration_jobs=supports_chat_orchestration_jobs,
@@ -4705,6 +4851,11 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                     cache_service=cache_service, directus_service=directus_service,
                 )
+            elif message_type == PLAN_CREATE_RESULT_MESSAGE:
+                await handle_plan_create_result(
+                    manager=manager, user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload, cache_service=cache_service,
+                )
             elif message_type == "focus_mode_rejected":
                 # Handle user rejection of focus mode during the countdown
                 # Triggered when user clicks the embed or presses ESC within 4 seconds
@@ -4939,6 +5090,24 @@ async def websocket_endpoint(
 
             elif message_type == "connected_account_permission_confirmed":
                 await handle_connected_account_permission_confirmed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type in ("project_sandbox_key_grant", "project_sandbox_key_decline"):
+                await handle_project_sandbox_key_answer(
+                    manager, cache_service, user_id, device_fingerprint_hash, payload,
+                    granted=message_type == "project_sandbox_key_grant", user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "e2b_upload_consent_answer":
+                await handle_e2b_upload_consent_answer(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

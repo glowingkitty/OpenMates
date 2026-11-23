@@ -9,13 +9,14 @@
   import { text } from '@repo/ui';
   import PlanStatusChip from '../embeds/plans/PlanStatusChip.svelte';
   import {
-    assumptionStatusTone, checkAggregateStatus, checkLabel, checkStatusTone, derivePlanApproval,
+    assumptionStatusTone, openChatById, checkAggregateStatus, checkLabel, checkStatusTone, derivePlanApproval,
     summarizeChecks, summarizeProgress, taskStatusTone, type PlanEmbedData,
   } from '../embeds/plans/planEmbedModel';
 
-  let { data, onOpenPlan }: {
+  let { data, onOpenPlan, onOpenChat = openChatById }: {
     data: PlanEmbedData;
     onOpenPlan?: (planId: string) => void;
+    onOpenChat?: (chatId: string) => void;
   } = $props();
   let approval = $derived(derivePlanApproval(data));
   let progress = $derived(summarizeProgress(data.tasks));
@@ -38,7 +39,9 @@
     <ul>
       {#each data.tasks as task (task.taskId)}
         <li data-testid="chat-active-plan-task" data-status={task.status}>
-          <span>{task.title}</span>
+          <span>{task.title}
+            {#if task.linkedSubChatId}{@const chatId = task.linkedSubChatId}<button type="button" class="chat-link" data-testid="chat-active-plan-task-open-chat" onclick={() => onOpenChat(chatId)}>{$text('plan_embeds.task.open_chat')}</button>{/if}
+          </span>
           <PlanStatusChip label={$text(`plan_embeds.status.task.${task.status}`)} tone={taskStatusTone(task.status)} testId="chat-active-plan-task-status" status={task.status} />
         </li>
       {/each}
@@ -65,7 +68,9 @@
     <ul>
       {#each data.assumptions as assumption (assumption.assumptionId)}
         <li data-testid="chat-active-plan-assumption" data-status={assumption.status}>
-          <span>{assumption.correctedText || assumption.text}</span>
+          <span>{assumption.correctedText || assumption.text}
+            {#if assumption.linkedSubChatId}{@const chatId = assumption.linkedSubChatId}<button type="button" class="chat-link" data-testid="chat-active-plan-assumption-open-chat" onclick={() => onOpenChat(chatId)}>{$text('plan_embeds.assumption.open_chat')}</button>{/if}
+          </span>
           <PlanStatusChip label={$text(`plan_embeds.status.assumption.${assumption.status}`)} tone={assumptionStatusTone(assumption.status)} testId="chat-active-plan-assumption-status" status={assumption.status} />
         </li>
       {/each}
@@ -83,5 +88,6 @@
   ul { display: grid; gap: var(--spacing-3); margin: 0; padding: 0; list-style: none; }
   li { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-5); padding: var(--spacing-4) var(--spacing-5); border-radius: var(--radius-4, 18px); background: var(--color-grey-10); }
   li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+  .chat-link { display: block; margin-top: var(--spacing-2); border: 0; padding: 0; background: none; color: var(--color-primary-start, var(--color-font-primary)); font: inherit; text-decoration: underline; cursor: pointer; }
   .open-plan { justify-self: start; border: 0; border-radius: 999px; background: var(--color-button-primary); color: var(--color-font-button); padding: 11px 16px; font: inherit; cursor: pointer; }
 </style>

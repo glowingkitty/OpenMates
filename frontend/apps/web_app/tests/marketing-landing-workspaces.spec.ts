@@ -56,7 +56,7 @@ test('public landing server-renders and opens real app workspaces', async ({ pag
   await expect(heroIcon.locator('.hero-ai-glyph svg path')).toHaveCount(1);
   const origin = new URL(page.url()).origin;
   for (const [testId, fragment, workspace] of [
-    ['landing-explore-apps', '#apps', 'apps-daily-inspiration-area'],
+    ['landing-explore-apps', '#apps', 'apps-workspace'],
     ['landing-explore-workflows', '#workflows', 'workflows-start-screen'],
   ] as const) {
     const link = page.getByTestId(testId);
@@ -74,8 +74,9 @@ test('public landing server-renders and opens real app workspaces', async ({ pag
     await expect(popup).toHaveURL(new RegExp(`/#${fragment.slice(1)}$`));
     await expect(popup.getByTestId(workspace)).toBeVisible({ timeout: 30_000 });
     if (fragment === '#workflows') {
-      await expect(popup.getByTestId('workflows-daily-inspiration-area')).toBeVisible();
-      await expect(popup.getByTestId('daily-inspiration-banner')).toBeVisible();
+      // TASK-1321: the Workflows start screen has no Daily Inspiration banner, also for guests.
+      await expect(popup.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
+      await expect(popup.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(popup.getByTestId('all-workflows-grid')).toHaveCount(0);
       const continuation = popup.getByTestId('workflows-workspace-continue');
       await expect(continuation).toBeVisible();

@@ -888,7 +888,10 @@
         "text": "Mostra visualizzazione"
       },
       "interactive_html_blocked": {
-        "text": "Questa visualizzazione ha tentato di aprire un'altra pagina ed è stata fermata."
+        "text": "Questa visualizzazione ha tentato di aprire un'altra pagina. Non è consentito in una chat, quindi è stata messa in pausa."
+      },
+      "interactive_html_reload": {
+        "text": "Ricarica visualizzazione"
       },
       "search_repos": {
         "text": "Cerca repo",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Rifiuta tutti"
       },
+      "continue_without_memories": {
+        "text": "Continua senza ricordi"
+      },
+      "call_countdown_label": {
+        "text": "Tempo rimasto prima di rispondere senza ricordi"
+      },
       "entry_singular": {
         "text": "voce"
       },
@@ -3747,7 +3756,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Riprendi da dove avevi lasciato:"
+        "text": "Continua le tue chat recenti:"
+      },
+      "active_title_single": {
+        "text": "Hai 1 chat attiva:"
+      },
+      "active_title": {
+        "text": "Hai {count} chat attive:"
+      },
+      "active_card_label": {
+        "text": "Attiva"
       },
       "guest_title": {
         "text": "Esplora alcune chat di esempio:"
@@ -4338,76 +4356,6 @@
         "text": "Il paradosso di Fermi si chiede perché non abbiamo trovato prove convincenti di civiltà extraterrestri. Esplora le possibili risposte."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Conserva il tuo backup. Esporta i tuoi dati OpenMates ogni volta che ne hai bisogno."
-      },
-      "title": {
-        "text": "Esporta i tuoi dati OpenMates"
-      },
-      "description": {
-        "text": "Esegui il backup di chat, impostazioni, ricordi e altro ancora."
-      },
-      "assistant_response": {
-        "text": "Esporta una copia dei tuoi dati OpenMates dalle impostazioni dell'account. Accedi per consultare i dati crittografati del tuo account."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Vuoi controlli sulla privacy più rigorosi? Aggiungi i dettagli personali che OpenMates dovrebbe nascondere."
-      },
-      "title": {
-        "text": "Rilevamento PII personalizzato"
-      },
-      "description": {
-        "text": "Proteggi i dettagli personali prima delle chiamate al modello."
-      },
-      "assistant_response": {
-        "text": "Scegli i dettagli personali che OpenMates deve nascondere prima di una chiamata al modello. Controlla le impostazioni sulla privacy per gestirli."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Hai bisogno di una risposta più mirata? Assegna al tuo mate un compito specifico."
-      },
-      "title": {
-        "text": "Modalità Focus"
-      },
-      "description": {
-        "text": "Guida una chat verso un obiettivo specifico."
-      },
-      "assistant_response": {
-        "text": "Usa una modalità focus per guidare una chat verso un obiettivo specifico. Esplora le modalità disponibili in App."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Ripetersi stanca. Salva il contesto che i tuoi mate dovrebbero ricordare."
-      },
-      "title": {
-        "text": "Ricordi"
-      },
-      "description": {
-        "text": "Salva preferenze e contesti utili."
-      },
-      "assistant_response": {
-        "text": "Salva preferenze e contesti utili come ricordi, poi scegli cosa possono usare i tuoi mate."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Cerchi qualcosa da fare? Scopri gli eventi vicino a te."
-      },
-      "title": {
-        "text": "Trova eventi locali"
-      },
-      "description": {
-        "text": "Cerca corsi, incontri e altri eventi."
-      },
-      "assistant_response": {
-        "text": "Usa la ricerca Eventi per trovare corsi e incontri locali. Scegli un luogo e un argomento per vedere cosa succede nelle vicinanze."
-      }
-    },
     "collective": {
       "title": {
         "text": "Comportamento collettivo degli animali"
@@ -4448,62 +4396,6 @@
       },
       "assistant_response": {
         "text": "Strutture stabilizzate dall’equilibrio tra tensione e compressione."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citazioni da fonti affidabili"
-      },
-      "description": {
-        "text": "Chiedi ai mate di verificare le fonti e citare i passaggi che sostengono una risposta."
-      },
-      "phrase": {
-        "text": "Vuoi verificare una risposta? Chiedi a OpenMates una citazione dalla fonte."
-      },
-      "assistant_response": {
-        "text": "Chiedi ai mate di verificare le fonti e citare i passaggi che sostengono una risposta."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Rilevamento di immagini IA"
-      },
-      "description": {
-        "text": "Carica un’immagine e osserva i segnali di generazione tramite IA nella chat."
-      },
-      "phrase": {
-        "text": "Un’immagine è stata generata con l’IA? Caricala ed esamina gli indizi."
-      },
-      "assistant_response": {
-        "text": "Carica un’immagine e osserva i segnali di generazione tramite IA nella chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Chat in incognito"
-      },
-      "description": {
-        "text": "Avvia chat temporanee quando non vuoi salvarle nella cronologia."
-      },
-      "phrase": {
-        "text": "Ti serve una conversazione temporanea? Tienila fuori dalla cronologia salvata."
-      },
-      "assistant_response": {
-        "text": "Avvia chat temporanee quando non vuoi salvarle nella cronologia."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Controlli sulla privacy"
-      },
-      "description": {
-        "text": "Gestisci dati personali nascosti, account collegati ed eliminazione automatica in un solo posto."
-      },
-      "phrase": {
-        "text": "Scopri come OpenMates protegge i tuoi dati prima di aver bisogno urgente dei controlli."
-      },
-      "assistant_response": {
-        "text": "Gestisci dati personali nascosti, account collegati ed eliminazione automatica in un solo posto."
       }
     }
   },
@@ -4717,6 +4609,56 @@
       },
       "ask_question": {
         "text": "Fare una domanda su questa documentazione..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Per eseguirlo, il tuo codice e i tuoi file vengono inviati a E2B, un fornitore di sandbox cloud, ed eseguiti lì, negli Stati Uniti. Per i lavori di Progetto, anche l'intero Progetto e la chiave che lo apre vengono messi nella sandbox, sigillati in modo che solo quella sandbox possa aprirli. La sandbox viene eliminata dopo."
+      },
+      "privacy_policy": {
+        "text": "Informativa sulla privacy"
+      },
+      "own_machine_hint": {
+        "text": "Oppure eseguilo sul tuo computer con:"
+      },
+      "allow": {
+        "text": "Consenti"
+      },
+      "own_machine": {
+        "text": "Usa il mio computer"
+      },
+      "not_now": {
+        "text": "Non ora"
+      },
+      "answered": {
+        "text": "La tua risposta:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "L'esecuzione di codice nella sandbox cloud di E2B non è consentita per il tuo account, quindi non è stato avviato nulla. Puoi cambiarlo in Impostazioni > Privacy oppure eseguirlo sul tuo computer con il comando di accesso remoto."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Esegui codice nella sandbox cloud di E2B"
+      },
+      "description": {
+        "text": "Se consentito, il codice e i file che esegui vengono inviati a E2B, un fornitore di sandbox cloud, ed elaborati negli Stati Uniti. Per i lavori di Progetto ciò include il Progetto e la chiave che lo apre, sigillati in modo che solo quella sandbox possa aprirli. La sandbox viene eliminata dopo. Se non consentito, non viene inviato nulla."
+      },
+      "status_allowed": {
+        "text": "Consentito"
+      },
+      "status_declined": {
+        "text": "Non consentito"
+      },
+      "status_undecided": {
+        "text": "Non ancora deciso"
+      },
+      "error": {
+        "text": "Impossibile salvare questa impostazione. Riprova."
       }
     }
   },
@@ -8397,6 +8339,9 @@
         },
         "no_video": {
           "text": "Nessun video disponibile per questa esecuzione"
+        },
+        "with_setup": {
+          "text": "{duration} con preparazione"
         }
       }
     },
@@ -12498,7 +12443,7 @@
               "text": "E2B (sandbox di codice isolata)"
             },
             "description": {
-              "text": "E2B esegue i codici incorporati selezionati e le anteprime delle applicazioni generate all'interno di sandbox isolate. E2B riceve il codice o i file e gli asset dell'applicazione generata che scegli di eseguire, gli input di runtime, i log di anteprima e l'output di esecuzione necessari per eseguire e visualizzare il risultato della sandbox. Questa condivisione avviene solo quando esegui esplicitamente il codice, crei un'applicazione generata che avvia automaticamente una breve anteprima dello screenshot o avvii/riprendi un'anteprima live dell'applicazione."
+              "text": "E2B esegue i codici incorporati selezionati e le anteprime delle applicazioni generate all'interno di sandbox isolate. E2B riceve il codice o i file e gli asset dell'applicazione generata che scegli di eseguire, gli input di runtime, i log di anteprima e l'output di esecuzione necessari per eseguire e visualizzare il risultato della sandbox. Questa condivisione avviene solo quando esegui esplicitamente il codice, crei un'applicazione generata che avvia automaticamente una breve anteprima dello screenshot o avvii/riprendi un'anteprima live dell'applicazione. Quando un lavoro dell'agente viene eseguito su un progetto cloud, E2B, negli Stati Uniti, riceve anche tutti i file del progetto e, sigillata in modo che solo quella sandbox possa aprirla, la chiave che apre il progetto, per tutta la durata del lavoro. La sandbox viene eliminata dopo 15 minuti di inattività o al massimo dopo 4 ore (fino a 24 ore se lo attivi) e non viene mai messa in pausa."
             }
           }
         },
@@ -19992,6 +19937,9 @@
       "screenshot_size_too_large": {
         "text": "Screenshot troppo grande. Prova una finestra più piccola."
       },
+      "screenshot_limit_reached": {
+        "text": "Puoi allegare fino a 5 screenshot."
+      },
       "screenshot_preview_alt": {
         "text": "Anteprima screenshot"
       },
@@ -21177,7 +21125,7 @@
       "text": "Prova gratis"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "Dominio e-mail non consentito."
@@ -21965,7 +21913,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Richiesta di ricordi scaduta, risposta senza ricordi"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Le chiamate usano trascrizione Mistral, voce ElevenLabs v4 Turbo, normale instradamento IA di OpenMates e fatturazione a consumo."

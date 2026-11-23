@@ -1,0 +1,302 @@
+schema_version: 2
+id: voice-calls-reliable-videos
+title: Web voice calls reliable and pleasant enough for product videos
+status: implementing
+goal: 'Web voice calls never go silent when they need the user, wait sensibly while the user thinks, accept typed, pasted
+  and uploaded input, sound calm and stay fairly priced. Order: (1) spoken tap requests and spoken answers after focus decisions,
+  shipped alone; (3+2) waiting state and pause detection; (4) typing, pasting and uploading in a call plus a per-chat special-terms
+  list; (5) sounds; (6) billing measured along the way. Approval stays a manual tap and client-side encryption is never weakened.
+
+  '
+specifications:
+- feature.video-call@18
+scope:
+  in:
+  - 'Part 1: needs-you chime, ready-made spoken request, reminder, confirmation and Memory self-cancel in calls; focus auto-confirm
+    and rejection continuations keep voice delivery; "Continue without memories" in text chats.'
+  - 'Part 3: waiting state from hard signals (input active, file picker, upload) and from the decision model; ready-made lines
+    ("okay, I''m waiting", "okay, go on", "sure, here it is again"); one combined turn; replay and resume of the stored last
+    answer without inference.'
+  - 'Part 2: pause detection with four verdicts (finished, still thinking, unsure, wait) built on Jev behind a swappable interface,
+    provider turn detection tuned first, a hold button in the call bar.'
+  - 'Part 4: composer sends, pastes and uploads during a call follow the ordinary path; a per-chat special-terms list for
+    speech recognition.'
+  - 'Part 5: soft skill-running loop, focus-activation chime, needs-you chime, all under the voice.'
+  - 'Part 6: billing measurement; decision checks never charged separately.'
+  out:
+  - Apple native speech and Apple parity of these behaviors (postponed by the owner).
+  - Voice commands for embeds or chat navigation (dropped by the owner).
+  - Approval by voice or automatic approval.
+  - Production deploy.
+decisions:
+- id: D-1
+  status: active
+  decision: Every ready-made call line (tap request, reminder, thanks, timeout, waiting, go on, repeat) is a pre-recorded
+    static clip per Mate voice and locale, generated once with the existing acknowledgement generator and served from /audio/assistant-acknowledgements/.
+    The server only names the clip URLs in a transient WebSocket event.
+  reason: No inference, no TTS characters and no credits per use; the event carries no request content.
+  decided_at: '2026-11-20T11:00:00Z'
+- id: D-2
+  status: active
+  decision: The call device owns the Memory countdown. After about 30 s without a tap it plays the timeout line, answers the
+    request through the ordinary reject path (continue without memories) and stores a presentation-only encrypted system event
+    that is never sent to the AI. Approval kinds other than Memory only remind; text chats never cancel.
+  reason: The only automatic outcome is the safe one, and the timeout is visible in the chat history like other call events
+    without a new server write path.
+  decided_at: '2026-11-20T11:00:00Z'
+- id: D-3
+  status: active
+  decision: The per-chat special-terms list is stored client-encrypted with the chat like other chat content. The call device
+    decrypts it and sends it in the call-start frame of the authenticated call WebSocket; the server holds it in memory for
+    that call only, passes it to speech recognition when the provider supports context biasing and never persists or logs
+    it.
+  reason: Same exposure as the call audio itself (transient, first-party), so encryption at rest is unchanged.
+  decided_at: '2026-11-20T11:00:00Z'
+- id: D-4
+  status: active
+  decision: Pause detection starts from the provider's own turn detection (eager end and end events, tuned thresholds), then
+    asks a fast decision model behind a swappable interface for one of four verdicts judged by meaning in any language (no
+    keyword lists). Waits by verdict about 0.5 s finished, 2 s unsure, up to 6 s still thinking; user speech stops the assistant
+    at once. The model follows TASK-4784 (Gemini Decision 1 vs Jev).
+  reason: Silence is only a trigger; a strict 250 ms end-to-submit is not reachable on the final turn-end path, so the check
+    runs speculatively on eager end.
+  decided_at: '2026-11-20T11:00:00Z'
+- id: D-5
+  status: active
+  decision: Decision checks during a call are never a separate charge; their cost per call minute is measured and absorbed
+    or folded into the per-minute call price. Ready-made lines and replays cost no credits.
+  reason: Owner brief, part 6.
+  decided_at: '2026-11-20T11:00:00Z'
+acceptance_criteria:
+- id: AC-1
+  text: In a live call a memory request plays the needs-you chime then a ready-made line in the answering Mate's voice; after
+    the tap a ready-made confirmation plays and the answer is spoken, also after a focus activation or rejection.
+  required: true
+  verification_ids:
+  - T-PYTEST
+  - T-VITEST
+  - T-E2E
+  scenario: S-1
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+- id: AC-2
+  text: In a call the memory request shows a countdown, is reminded aloud at about 15 s and at about 30 s continues without
+    memories with a spoken line and an encrypted "memory request timed out" chat event.
+  required: true
+  verification_ids:
+  - T-VITEST
+  - T-COMPONENT
+  - T-E2E
+  scenario: S-2
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+- id: AC-3
+  text: Text chats never cancel a memory request on their own and show a clear "Continue without memories" action.
+  required: true
+  verification_ids:
+  - T-COMPONENT
+  - T-VITEST
+  scenario: S-3
+  status: pending
+  coverage_status: covered
+  verification_scope: related_frontend
+tests:
+- id: T-PYTEST
+  type: pytest
+  file: backend/tests/test_voice_call_permission_prompt.py
+  execution_environment: isolated_github_ci
+  command: python3 scripts/ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_voice_call_permission_prompt.py
+    --spec backend/tests/test_app_settings_memories_continuation.py
+  covers:
+  - AC-1
+  target: isolated_github_ci
+  assertions:
+  - Prompt payload, shipped clips and spoken focus continuations as described in feature.video-call@18.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_voice_call_permission_prompt.py
+        --spec backend/tests/test_app_settings_memories_continuation.py
+      run_id: '44879270081'
+      subject_commit: f20dc0de721bd40fd13d55aae0dfb431fde7064b
+      timestamp: '2026-11-21T09:30:00Z'
+      execution_environment: isolated_github_ci
+- id: T-VITEST
+  type: vitest
+  file: frontend/packages/ui/src/services/__tests__/voiceCallPermissionPrompt.test.ts
+  execution_environment: isolated_github_ci
+  command: python3 scripts/ci_coordinator.py submit --mode vitest --no-prepared-builds --spec frontend/packages/ui/src/services/__tests__/voiceCallPermissionPrompt.test.ts
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  target: isolated_github_ci
+  assertions:
+  - Chime before line, reminder, self-cancel, tap confirmation, approval kinds never decide.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --mode vitest --no-prepared-builds --spec frontend/packages/ui/src/services/__tests__/voiceCallPermissionPrompt.test.ts
+      run_id: '44879276255'
+      subject_commit: f20dc0de721bd40fd13d55aae0dfb431fde7064b
+      timestamp: '2026-11-21T09:30:00Z'
+      execution_environment: isolated_github_ci
+- id: T-COMPONENT
+  type: playwright
+  file: frontend/apps/web_app/tests/components/memory-request-call-countdown.spec.ts
+  execution_environment: isolated_github_ci
+  command: python3 scripts/ci_coordinator.py submit --mode component --no-prepared-builds --spec components/memory-request-call-countdown.spec.ts
+  covers:
+  - AC-2
+  - AC-3
+  target: isolated_github_ci
+  assertions:
+  - Countdown bar only in a call; "Continue without memories" label; phone and laptop, both themes.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --mode component --no-prepared-builds --spec components/memory-request-call-countdown.spec.ts
+      run_id: '44879273204'
+      subject_commit: f20dc0de721bd40fd13d55aae0dfb431fde7064b
+      timestamp: '2026-11-21T09:30:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 78bd2c137a378ddf84e26a97ab3e13f5ca6e3a5c
+      profile: component
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/44879273204/artifacts/14697915052
+- id: T-E2E
+  type: playwright
+  file: frontend/apps/web_app/tests/voice-call.spec.ts
+  execution_environment: isolated_github_ci
+  command: python3 scripts/ci_coordinator.py submit --mode e2e --spec voice-call.spec.ts
+  covers:
+  - AC-1
+  - AC-2
+  target: isolated_github_ci
+  assertions:
+  - Memory request in a live call is spoken, counts down, is confirmed after the tap and self-cancels at 30 s.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --mode e2e --spec voice-call.spec.ts
+      run_id: '44879723646'
+      subject_commit: f20dc0de721bd40fd13d55aae0dfb431fde7064b
+      timestamp: '2026-11-21T09:30:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 78bd2c137a378ddf84e26a97ab3e13f5ca6e3a5c
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/44879723646/artifacts/14698510132
+scenarios:
+- id: S-1
+  title: Spoken memory request in a call
+  given:
+  - Maya is in a voice call and asks what to cook given her diet.
+  when:
+  - The turn needs her saved Memory and she taps Allow.
+  then:
+  - She hears the chime and the request, then the thanks, then the spoken answer.
+- id: S-2
+  title: Memory request times out in a call
+  given:
+  - A memory request with its countdown is shown during Maya's call.
+  when:
+  - She does not tap for 30 seconds.
+  then:
+  - A reminder plays at 15 s; at 30 s the call says it answers without memories, the chat shows the timed-out event and the
+    spoken answer follows.
+- id: S-3
+  title: Text chat continues without memories
+  given:
+  - A memory request is shown in a text chat.
+  when:
+  - Maya leaves it, later taps "Continue without memories".
+  then:
+  - It stays open until her tap; the answer comes without memories.
+tasks:
+- id: TASK-1
+  title: 'Part 1: spoken tap requests, in-call Memory countdown and spoken focus continuations'
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files:
+  - backend/apps/ai/assistant_speech/call_permission_prompt.py
+  - backend/apps/ai/processing/memory_permission_request.py
+  - backend/apps/ai/processing/main_processor.py
+  - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+  - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+  - backend/core/api/app/routes/websockets.py
+  - frontend/packages/ui/src/services/voiceCallPermissionPrompt.ts
+  - frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte
+  verification_ids:
+  - T-PYTEST
+  - T-VITEST
+  - T-COMPONENT
+  - T-E2E
+  dependencies: []
+  blockers: []
+  follow_up_tasks:
+  - 'Part 3+2: waiting state and pause detection (D-4), hold button.'
+  - 'Part 4: composer, paste and upload in calls; special-terms list (D-3).'
+  - 'Part 5: skill loop and focus chime.'
+  - 'Part 6: billing measurement (D-5).'
+  ownership:
+    files:
+    - docs/plans/voice-calls-reliable-videos/plan.yml
+    shared_files: []
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Restore voice delivery on focus continuations, publish pre-recorded prompt clips, client flow with countdown.
+  outcome: planned
+  recorded_at: '2026-11-20T11:00:00Z'
+implementation_state:
+  subject_commit: f20dc0de721bd40fd13d55aae0dfb431fde7064b
+handoff:
+  current_task_id: TASK-1
+  next_action: Part 1 deployed to dev (b3e9045); green-phase evidence recorded on f20dc0de.
+  command: python3 scripts/plan_verify.py docs/plans/voice-calls-reliable-videos/plan.yml --json
+  expected_outcome: Plan verification complete for TASK-1.
+  blocker: null
+  last_verified_commit: f20dc0de721bd40fd13d55aae0dfb431fde7064b
+approvals:
+  plan:
+    status: approved
+    approved_at: '2026-11-20T10:30:00Z'
+  specification:
+    status: approved
+    approved_at: '2026-11-21T12:16:23Z'

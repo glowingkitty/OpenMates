@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workspace-shell@4
+specification: feature.workspace-shell@5
 
 released_navigation:
   - id: released-desktop-tabs-visible
@@ -15,7 +15,7 @@ start_shells:
   - id: projects-and-workflows-start-shells
     given: A signed-in user opens the Apps, Projects, or Workflows start screen.
     when: The screen finishes loading.
-    then: It shows its own Daily Inspiration content, identity icon, Report Issue control, and bottom composer within the shared workspace shell.
+    then: Each shows its identity icon, Report Issue control, and bottom composer within the shared workspace shell. Projects also shows its own Daily Inspiration content; Apps and Workflows show no banner and centre their row in the freed space.
   - id: tasks-start-shell
     given: A signed-in user opens the Tasks workspace.
     when: The screen finishes loading.
@@ -70,11 +70,16 @@ plan_in_tasks:
 available_space_cards:
   - id: short-content-area-keeps-controls-visible
     assertion_ids: [workspace-shell.start.available-space-cards]
-    given: Alice opens Chats, Projects, and Workflows on a laptop where a tall Daily Inspiration banner leaves only a short area above the composer.
+    given: Alice opens Projects on a laptop where a tall Daily Inspiration banner leaves only a short area above the composer, then opens the signed-in Chats and Workflows start screens on the same laptop.
     when: Each continuation section appears.
-    then: All three use the same Chats-relative geometry and compact-card fit threshold, render compact cards, and keep their browsing controls visible between the cards and composer, without overlap or page overflow.
+    then: Projects uses the Chats-relative geometry and compact-card fit threshold, renders compact cards, and keeps its browsing controls visible between the cards and composer, without overlap or page overflow. Chats and Workflows have no banner and show large cards, with their browse actions as the last item of the row.
+  - id: signed-out-start-screens-match
+    assertion_ids: [workspace-shell.start.available-space-cards]
+    given: Sam is signed out and opens Chats, Apps and Workflows on a phone, a tablet and a laptop.
+    when: Each start screen appears.
+    then: None shows a banner; each shows "Hey there", one call to action and a row of equally sized large cards with the first card centred and the browse actions at the end of the row, followed by suggestions below it.
   - id: container-change-updates-card-size
     assertion_ids: [workspace-shell.start.available-space-cards]
-    given: Bob views a workspace with enough content space for large cards, then narrows its container or increases the inspiration banner height.
+    given: Bob views the Projects workspace with enough content space for large cards, then narrows its container or increases the inspiration banner height.
     when: The available area can no longer fit the large-card layout.
     then: The cards become compact even if the overall browser window height stays unchanged; expanding the available area restores large cards when they fit.

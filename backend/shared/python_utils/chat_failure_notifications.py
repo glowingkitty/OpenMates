@@ -9,11 +9,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import re
 import threading
 from typing import Any
 
 logger = logging.getLogger(__name__)
 EMAIL_TASK = "app.tasks.email_tasks.chat_failure_email_task.send_chat_failure_email"
+REQUEST_REF_PATTERN = re.compile(r"[A-Za-z0-9_.-]{1,128}")
 QUEUE_TIMEOUT_SECONDS = 1.0
 QUEUE_RETRY_POLICY = {
     "max_retries": 3,
@@ -98,6 +100,11 @@ def terminal_class(result: Any, error_marker: str) -> str:
     return "completed"
 
 
+def _development_request_ref(request_identity: str) -> str | None:
+    """Chat (or Celery task) id for the dev daily summary; the message id is dropped."""
+    ref = request_identity.split(":", 1)[0]
+    return ref if REQUEST_REF_PATTERN.fullmatch(ref) else None
+
 def _notification_payload(
     request_identity: str,
     *,
@@ -105,16 +112,24 @@ def _notification_payload(
     category: str,
 ) -> dict[str, str] | None:
     try:
-        if notification_environment() not in {"development", "production"}:
+        edition = notification_environment()
+        if edition not in {"development", "production"}:
             return None
         if stage not in STAGES or category not in CATEGORIES or not request_identity:
             logger.error("[CHAT_FAILURE_EMAIL] invalid_metadata")
             return None
-        return {
+        payload = {
             "failure_fingerprint": hashlib.sha256(request_identity.encode()).hexdigest(),
             "stage": stage,
             "category": category,
         }
+        if edition == "development":
+            # Only the dev daily summary lists chat ids; production payloads and
+            # instant emails stay free of identifiers.
+            request_ref = _development_request_ref(request_identity)
+            if request_ref:
+                payload["request_ref"] = request_ref
+        return payload
     except Exception:
         logger.error("[CHAT_FAILURE_EMAIL] queue_unavailable")
         return None

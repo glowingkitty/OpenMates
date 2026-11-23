@@ -63,6 +63,7 @@ class TaskStageService:
         team_id: str | None = None,
         position: int | None = None,
         link_to_chat: bool = True,
+        plan_id: str | None = None,
     ) -> dict[str, Any]:
         if team_id:
             raise ValueError("Creating Team tasks through AI task staging is not supported")
@@ -76,6 +77,7 @@ class TaskStageService:
                 "status": status,
                 "position": position,
                 "link_to_chat": link_to_chat,
+                **({"plan_id": plan_id} if plan_id else {}),
             },
             context=context,
             cache_service=self.cache_service,
@@ -106,6 +108,7 @@ class CreateSkill(BaseSkill):
         assignee: str | None = None,
         status: str = "todo",
         link_to_chat: bool = True,
+        plan_id: str | None = None,
         user_id: str | None = None,
         team_id: str | None = None,
         chat_id: str | None = None,
@@ -132,6 +135,7 @@ class CreateSkill(BaseSkill):
             for index, task_input in enumerate(task_inputs):
                 assignment = normalize_task_assignment(task_input.get("assignee"))
                 task_status = _safe_create_status(task_input.get("status"))
+                task_plan_id = str(task_input.get("plan_id") or plan_id or "") or None
                 staged = await stage_service.stage_create(
                     user_id=user_id,
                     chat_id=chat_id,
@@ -142,9 +146,10 @@ class CreateSkill(BaseSkill):
                     status=task_status,
                     position=base_position + index,
                     link_to_chat=task_input.get("link_to_chat", link_to_chat),
+                    **({"plan_id": task_plan_id} if task_plan_id else {}),
                     **({"team_id": team_id} if team_id else {}),
                 )
-                results.append(_task_embed_result(task_input, staged, task_status))
+                results.append(_task_embed_result(task_input, staged, task_status, task_plan_id))
             return CreateTasksResponse(success=True, results=results, result_count=len(results))
         except Exception as exc:
             logger.error("Task create skill failed: %s", exc, exc_info=True)
@@ -178,7 +183,9 @@ def _safe_create_status(value: Any) -> str:
     return status if status in TASK_CREATE_STATUS_VALUES else "todo"
 
 
-def _task_embed_result(task_input: dict[str, Any], staged: dict[str, Any], status: str) -> dict[str, Any]:
+def _task_embed_result(
+    task_input: dict[str, Any], staged: dict[str, Any], status: str, plan_id: str | None = None,
+) -> dict[str, Any]:
     assignee_type = staged.get("assignee_type") or normalize_task_assignment(task_input.get("assignee")).storage_assignee_type
     return {
         "type": "task",
@@ -191,5 +198,6 @@ def _task_embed_result(task_input: dict[str, Any], staged: dict[str, Any], statu
         "assignee": product_assignee_from_storage(assignee_type),
         "assignee_type": assignee_type,
         "task_update_job_id": staged.get("task_update_job_id"),
+        **({"plan_id": plan_id or staged.get("plan_id")} if (plan_id or staged.get("plan_id")) else {}),
         "pending_client_persistence": bool(staged.get("task_update_job_id")),
     }

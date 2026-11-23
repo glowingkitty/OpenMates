@@ -396,4 +396,18 @@ final class CodeEmbedContentParityTests: XCTestCase {
             XCTAssertNil(content.filename)
         }
     }
+
+    // TASK-1610: messages stored with the model mention and the file's embed fence on one line
+    // render the text and the embed, never raw JSON.
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.embed-references-never-raw
+    func testEmbedFenceAfterInlineMentionRendersAsEmbed() {
+        let markdown = "@ai-model:gemini-3.8-flash:google ```json\n{\"type\": \"image\", \"embed_id\": \"ea6cc310-1c03-4250-a642-a4051d99d6d1\"}\n```\n\nTurn this into a patch"
+        let blocks = MarkdownParser.parse(markdown)
+        XCTAssertEqual(blocks.first, .paragraph("@ai-model:gemini-3.8-flash:google"))
+        guard blocks.count > 1, case .embedGroup(let embeds) = blocks[1] else {
+            return XCTFail("expected an embed group after the mention, got \(blocks)")
+        }
+        XCTAssertEqual(embeds.map(\.value), ["ea6cc310-1c03-4250-a642-a4051d99d6d1"])
+        XCTAssertFalse(blocks.contains { if case .codeBlock = $0 { return true } else { return false } })
+    }
 }

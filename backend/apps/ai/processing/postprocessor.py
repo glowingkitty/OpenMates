@@ -15,13 +15,14 @@ from pydantic import BaseModel, Field
 import datetime
 
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
-from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL, utility_model_fallbacks
+from backend.apps.ai.utils.utility_model_fallbacks import UTILITY_TRANSLATION_MODEL, utility_model_fallbacks
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, noul_value, score_value
 from backend.apps.ai.processing.answer_safety import ANSWER_SAFETY_QUESTIONS, extract_answer_safety_scores
 from backend.apps.ai.processing.metadata_language import conversation_language_instruction, language_name
+from backend.apps.ai.processing.notification_summary import sanitize_notification_fields
 from backend.apps.ai.processing.task_proposals import (
     TaskProposal,
     TaskUpdateProposal,
@@ -323,6 +324,8 @@ class PostProcessingResult(BaseModel):
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
+    notification_type: Optional[str] = Field(None, description="done | question | info label for the push/email of the latest reply; None when unavailable")
+    notification_summary: Optional[str] = Field(None, description="One-line summary (about 90 characters, chat language) for push/email; set only together with notification_type")
     usage_telemetry: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False)
     recommendations: List[Dict[str, Any]] = Field(
         default_factory=list, repr=False,
@@ -494,6 +497,11 @@ async def handle_postprocessing(
         tool_properties.pop("top_recommended_apps_for_user", None)
         tool_required = [field for field in tool_required if field != "top_recommended_apps_for_user"]
         logger.info(f"[Task ID: {task_id}] [PostProcessor] App recommendations disabled for sub-chat")
+    if is_incognito or is_sub_chat:
+        # Never create content notifications for incognito chats or sub-chats.
+        for field in ("notification_type", "notification_summary"):
+            tool_properties.pop(field, None)
+        tool_required = [f for f in tool_required if f not in {"notification_type", "notification_summary"}]
     tool_parameters["required"] = tool_required
 
     # Build message history for post-processing LLM call
@@ -574,6 +582,7 @@ async def handle_postprocessing(
     language_lines.extend([
         f"- **new_chat_app_skill_suggestions** and **new_chat_general_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **chat_summary**: Generate in '{output_language}' (the conversation language).",
+        f"- **notification_summary**: Generate in '{output_language}' (the conversation language).",
         f"- **chat_tags**: Generate in '{output_language}' (the conversation language).",
         f"- **share_cta_text**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **updated_chat_title**: Generate in '{output_language}' (the conversation language), if needed.",
@@ -650,10 +659,10 @@ async def handle_postprocessing(
 
     # Use the low-latency utility model for optional metadata. Keeping this
     # post-answer call fast prevents CLI/task completion from waiting on a slow
-    # Mistral fallback chain after the assistant answer is already available.
+    # fallback chain after the assistant answer is already available.
     model_id = POSTPROCESSING_MODEL_ID
 
-    # Use independent Mistral recovery before the alternate Google server, with
+    # Use independent Mercury recovery before the alternate Google server, with
     # the same deadline and attempt count as foreground routing.
     postprocess_fallbacks = (
         utility_model_fallbacks(model_id, resolve_fallback_servers_from_provider_config(model_id))
@@ -767,6 +776,15 @@ async def handle_postprocessing(
         logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
         postproc_chat_summary = None
 
+    # Notification label and one-line summary: validated, never translated, and
+    # (None, None) for incognito chats, sub-chats or any unusable model output.
+    notification_type, notification_summary = (
+        (None, None) if is_incognito or is_sub_chat
+        else sanitize_notification_fields(llm_result.arguments)
+    )
+    if notification_type is None and not (is_incognito or is_sub_chat):
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] notification type/summary unusable; generic notification text will be used")
+
     raw_chat_tags = llm_result.arguments.get("chat_tags", [])
     postproc_chat_tags: List[str] = []
     if isinstance(raw_chat_tags, list):
@@ -869,6 +887,8 @@ async def handle_postprocessing(
         ),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
+        notification_type=notification_type,
+        notification_summary=notification_summary,
         usage_telemetry=llm_result.usage_telemetry,
         answer_safety_scores=jev_decisions.get("answer_safety_scores") if jev_decisions is not None else None,
         chat_tags=postproc_chat_tags,
@@ -1144,7 +1164,7 @@ async def translate_chat_summary(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = MISTRAL_UTILITY_MODEL
+    model_id = UTILITY_TRANSLATION_MODEL
     translation_fallbacks = _with_deepseek_utility_fallback(
         resolve_fallback_servers_from_provider_config(model_id)
     )
@@ -1218,7 +1238,7 @@ async def translate_new_chat_suggestions(
     - No conversation history (avoids language bleed)
     - Tight system prompt focused purely on translation
     - Function calling with a simple schema: { translated_suggestions: string[] }
-    - Mistral Small 4 utility model (mistral-small-latest)
+    - Gemini 3.5 Flash-Lite utility model (google/gemini-3.5-flash-lite)
     - Token cost: ~130 input + ~50 output tokens per message — negligible
 
     Args:
@@ -1304,7 +1324,7 @@ async def translate_new_chat_suggestions(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = MISTRAL_UTILITY_MODEL
+    model_id = UTILITY_TRANSLATION_MODEL
     translation_fallbacks = _with_deepseek_utility_fallback(
         resolve_fallback_servers_from_provider_config(model_id)
     )

@@ -56,7 +56,15 @@ export function bodyMayShowEmbed(embedRef: unknown, type: string | null | undefi
 export function bodyEmbedRefResolver(chatId: string | null | undefined): BodyEmbedRefResolver {
   return chatId?.startsWith("example-")
     ? (ref) => resolveExampleChatEmbedRef(ref, chatId)
-    : (ref) => resolveEmbedRefIndexEntry(ref);
+    : (ref) => resolveEmbedRefIndexEntry(ref) ?? embedIdReference(ref);
+}
+
+// A cloud Project file the reply wrote is linked by its embed id ([App.tsx](embed:<id>)): its
+// sealed content carries no embed_ref, so the link names the committed file embed directly.
+const EMBED_ID_REF_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function embedIdReference(ref: string): BodyEmbedRefEntry | null {
+  const id = ref.replace(/^embed:/, "").trim();
+  return EMBED_ID_REF_RE.test(id) ? { embedId: id.toLowerCase(), appId: null, skillId: null, type: null } : null;
 }
 
 /** Children known without any read: public example chats carry their graph. */

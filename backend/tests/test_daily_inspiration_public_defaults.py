@@ -1,117 +1,56 @@
-# backend/tests/test_daily_inspiration_public_defaults.py
-# Regression tests for public Daily Inspiration defaults.
-#
-# Public defaults are shown to signed-out visitors, so they must not include
-# settings deep links that only work after authentication. Static Wikipedia
-# fallbacks also need to avoid redirect-only titles that surprise users.
-
 from pathlib import Path
 
-from backend.apps.ai.daily_inspiration.feature_suggestions import (
-    GUEST_ONBOARDING_FEATURE_IDS,
-    build_feature_inspirations,
-    feature_requires_authentication,
+from backend.apps.ai.daily_inspiration.schemas import (
+    drop_unsupported_inspirations,
     has_complete_daily_inspiration_set,
 )
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-# contract-test: supporting surface=rest_api assertions=daily-inspiration.guest-isolated
-def test_guest_onboarding_features_are_not_daily_inspiration_tips() -> None:
-    route_source = (
-        REPO_ROOT / "backend/core/api/app/routes/default_inspirations.py"
-    ).read_text()
-    actionable_feature_ids = {
-        inspiration.feature.feature_id
-        for inspiration in build_feature_inspirations(count=20)
-        if inspiration.feature
-    }
-
-    assert GUEST_ONBOARDING_FEATURE_IDS == {
-        "openmates-intro",
-        "openmates-actionable-events",
-        "openmates-privacy-safety",
-        "openmates-mates-focus",
-        "openmates-provider-cross-platform",
-        "openmates-signup-cta",
-    }
-    assert actionable_feature_ids.isdisjoint(GUEST_ONBOARDING_FEATURE_IDS)
-    assert "feature.get(\"feature_id\") in GUEST_ONBOARDING_FEATURE_IDS" in route_source
-
-
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.encrypted-persistence
-def test_authenticated_persistence_rejects_legacy_quota_sets() -> None:
+def test_authenticated_persistence_requires_exactly_three_video_and_three_wiki() -> None:
     complete = [
         *({"content_type": "video"} for _ in range(3)),
         *({"content_type": "wiki"} for _ in range(3)),
-        *({"content_type": "feature"} for _ in range(4)),
     ]
 
     assert has_complete_daily_inspiration_set(complete) is True
     assert has_complete_daily_inspiration_set(complete[:-1]) is False
     assert has_complete_daily_inspiration_set(
+        complete + [{"content_type": "feature"} for _ in range(4)]
+    ) is False
+    assert has_complete_daily_inspiration_set(
         [{"content_type": "wiki"} for _ in range(4)]
-        + [{"content_type": "feature"} for _ in range(6)]
+        + [{"content_type": "feature"} for _ in range(2)]
     ) is False
 
 
-# Keep backend generation, public selection, and endpoint top-up on one quota contract.
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-def test_public_feature_inspirations_exclude_authenticated_only_tips() -> None:
-    inspirations = build_feature_inspirations(
-        count=10,
-        include_authenticated_only=False,
-    )
-
-    feature_ids = [inspiration.feature.feature_id for inspiration in inspirations if inspiration.feature]
-
-    assert "export-data" not in feature_ids
-    assert "custom-pii-detection" in feature_ids
-    assert "incognito-mode" not in feature_ids
-    assert "image-detection" in feature_ids
-    assert all(
-        inspiration.feature and inspiration.feature.requires_authentication is False
-        for inspiration in inspirations
-    )
-
-
-# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-def test_public_feature_inspirations_prioritize_product_video_tips() -> None:
-    inspirations = build_feature_inspirations(
-        count=4,
-        include_authenticated_only=False,
-    )
-
-    feature_ids = [inspiration.feature.feature_id for inspiration in inspirations if inspiration.feature]
-
-    assert feature_ids == [
-        "custom-pii-detection",
-        "events-search",
-        "web-video-skills",
-        "image-detection",
+def test_legacy_feature_records_are_filtered_out() -> None:
+    legacy = [
+        {"content_type": "video"},
+        {"content_type": "feature"},
+        {"content_type": "wiki"},
+        {},
     ]
+
+    kept = drop_unsupported_inspirations(legacy)
+
+    assert [item.get("content_type") for item in kept] == ["video", "wiki", None]
+    assert all(item.get("content_type") != "feature" for item in kept)
 
 
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.authenticated-fallback-content
-def test_authenticated_feature_inspirations_are_actionable() -> None:
-    inspirations = build_feature_inspirations(count=10)
-
-    features = [inspiration.feature for inspiration in inspirations if inspiration.feature]
-    feature_ids = [feature.feature_id for feature in features]
-
-    assert "export-data" in feature_ids
-    assert "focus-modes" in feature_ids
-    assert "memories" in feature_ids
-    assert "incognito-mode" in feature_ids
-    assert "openmates-signup-cta" not in feature_ids
-    assert all(feature.settings_path for feature in features)
+def test_feature_suggestions_module_is_removed() -> None:
+    assert not (
+        REPO_ROOT / "backend/apps/ai/daily_inspiration/feature_suggestions.py"
+    ).exists()
 
 
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,daily-inspiration.authenticated-fallback-content
-def test_daily_inspiration_quotas_share_the_ten_card_3_3_4_contract() -> None:
+def test_daily_inspiration_quotas_share_the_six_card_3_3_contract() -> None:
     personalized_source = (
         REPO_ROOT / "backend/core/api/app/tasks/daily_inspiration_tasks.py"
     ).read_text()
@@ -122,52 +61,14 @@ def test_daily_inspiration_quotas_share_the_ten_card_3_3_4_contract() -> None:
         REPO_ROOT / "backend/core/api/app/routes/default_inspirations.py"
     ).read_text()
 
-    assert 'DEFAULT_TYPE_QUOTAS = {"video": 3, "wiki": 3, "feature": 4}' in selector_source
+    assert 'DEFAULT_TYPE_QUOTAS = {"video": 3, "wiki": 3}' in selector_source
     assert "DAILY_VIDEO_COUNT = 3" in personalized_source
     assert "DAILY_WIKI_COUNT = 3" in personalized_source
-    assert "DAILY_FEATURE_COUNT = 4" in personalized_source
-    assert "DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT" in personalized_source
-    assert "_DEFAULT_FEATURE_COUNT = 4" in route_source
-    assert 'build_feature_inspirations(\n            _DEFAULT_FEATURE_COUNT,' in route_source
-    assert 'public:default_inspirations:v19:' in route_source
-    assert 'public:default_inspirations:v19:' in selector_source
-    assert "_limit_default_type(" in route_source
-
-
-# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-def test_feature_product_video_metadata_uses_default_base_url(monkeypatch) -> None:
-    monkeypatch.delenv("OPENMATES_PRODUCT_VIDEOS_BASE_URL", raising=False)
-    inspirations = build_feature_inspirations(
-        count=1,
-        include_authenticated_only=False,
-    )
-
-    direct_video = inspirations[0].direct_video
-    assert direct_video is not None
-    assert direct_video.mp4_url == (
-        "https://openmates-product-media.nbg1.your-objectstorage.com/"
-        "daily-inspiration/product-videos/v1/custom-pii-detection.mp4"
-    )
-    assert direct_video.teaser_url == "/daily-inspiration-videos/custom-pii-detection-teaser.webm"
-    assert direct_video.teaser_mp4_url == "/daily-inspiration-videos/custom-pii-detection-teaser.mp4"
-    assert direct_video.teaser_webp_url == "/daily-inspiration-videos/custom-pii-detection-teaser.webp"
-
-
-# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-def test_feature_product_video_metadata_allows_env_override(monkeypatch) -> None:
-    monkeypatch.setenv("OPENMATES_PRODUCT_VIDEOS_BASE_URL", "https://media.example.test/product-videos/")
-    inspirations = build_feature_inspirations(
-        count=1,
-        include_authenticated_only=False,
-    )
-
-    direct_video = inspirations[0].direct_video
-    assert direct_video is not None
-    assert direct_video.mp4_url == "https://media.example.test/product-videos/custom-pii-detection.mp4"
-
-# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-def test_unknown_legacy_feature_ids_default_to_authenticated_only() -> None:
-    assert feature_requires_authentication("unknown-legacy-feature") is True
+    assert "DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT" in personalized_source
+    assert "_DEFAULT_INSPIRATION_COUNT = 6" in route_source
+    assert "feature_suggestions" not in personalized_source + selector_source + route_source
+    assert 'public:default_inspirations:v20:' in route_source
+    assert 'public:default_inspirations:v20:' in selector_source
 
 
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults

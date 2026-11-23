@@ -1327,29 +1327,54 @@ view_visual:
   verified_by_human: [en, de]
 
 interactive_html_blocked:
-  context: Notice shown in place of a live HTML visual when it tried to navigate away and was stopped for safety
-  en: This visual tried to open another page and was stopped.
-  de: Diese Visualisierung wollte eine andere Seite öffnen und wurde gestoppt.
-  zh: 此可视化内容试图打开其他页面，已被阻止。
-  es: Esta visualización intentó abrir otra página y se detuvo.
-  fr: Ce visuel a tenté d'ouvrir une autre page et a été arrêté.
-  pt: Esta visualização tentou abrir outra página e foi interrompida.
-  ru: Эта визуализация пыталась открыть другую страницу и была остановлена.
-  ja: このビジュアルは別のページを開こうとしたため停止されました。
-  ko: 이 시각화가 다른 페이지를 열려고 해서 중지되었습니다.
-  it: Questa visualizzazione ha tentato di aprire un'altra pagina ed è stata fermata.
-  tr: Bu görsel başka bir sayfa açmaya çalıştı ve durduruldu.
-  vi: Hình ảnh trực quan này đã cố mở trang khác và đã bị dừng.
-  id: Visual ini mencoba membuka halaman lain dan dihentikan.
-  pl: Ta wizualizacja próbowała otworzyć inną stronę i została zatrzymana.
-  nl: Deze visual probeerde een andere pagina te openen en is gestopt.
-  ar: حاول هذا المرئي فتح صفحة أخرى وتم إيقافه.
-  hi: इस विज़ुअल ने दूसरा पेज खोलने की कोशिश की और इसे रोक दिया गया।
-  th: ภาพนี้พยายามเปิดหน้าอื่นและถูกหยุดไว้
-  cs: Tato vizualizace se pokusila otevřít jinou stránku a byla zastavena.
-  sv: Den här visualiseringen försökte öppna en annan sida och stoppades.
-  he: התצוגה החזותית ניסתה לפתוח דף אחר ונעצרה.
-  verified_by_human: [en, de]
+  context: Notice shown in place of a live HTML visual when it tried to load a different page inside the chat and was paused for safety; a Reload visual button follows in fullscreen
+  en: This visual tried to open a different page. That isn't allowed inside a chat, so it was paused.
+  de: Diese Visualisierung wollte eine andere Seite öffnen. Das ist im Chat nicht erlaubt, deshalb wurde sie angehalten.
+  zh: 此可视化内容试图打开另一个页面。聊天中不允许这样做，因此已暂停。
+  es: Esta visualización intentó abrir otra página. Eso no está permitido dentro de un chat, así que se pausó.
+  fr: Ce visuel a tenté d'ouvrir une autre page. Ce n'est pas autorisé dans un chat, il a donc été mis en pause.
+  pt: Esta visualização tentou abrir outra página. Isso não é permitido dentro de um chat, por isso foi pausada.
+  ru: Эта визуализация пыталась открыть другую страницу. В чате это запрещено, поэтому она приостановлена.
+  ja: このビジュアルは別のページを開こうとしました。チャット内では許可されていないため、一時停止しました。
+  ko: 이 시각화가 다른 페이지를 열려고 했습니다. 채팅 안에서는 허용되지 않아 일시 중지되었습니다.
+  it: Questa visualizzazione ha tentato di aprire un'altra pagina. Non è consentito in una chat, quindi è stata messa in pausa.
+  tr: Bu görsel farklı bir sayfa açmaya çalıştı. Sohbet içinde buna izin verilmediği için duraklatıldı.
+  vi: Hình ảnh trực quan này đã cố mở một trang khác. Điều đó không được phép trong cuộc trò chuyện nên nó đã bị tạm dừng.
+  id: Visual ini mencoba membuka halaman lain. Itu tidak diizinkan di dalam chat, jadi visual dijeda.
+  pl: Ta wizualizacja próbowała otworzyć inną stronę. Nie jest to dozwolone w czacie, więc została wstrzymana.
+  nl: Deze visual probeerde een andere pagina te openen. Dat mag niet binnen een chat, dus hij is gepauzeerd.
+  ar: حاول هذا المرئي فتح صفحة أخرى. هذا غير مسموح داخل المحادثة، لذلك تم إيقافه مؤقتًا.
+  hi: इस विज़ुअल ने दूसरा पेज खोलने की कोशिश की। चैट के अंदर इसकी अनुमति नहीं है, इसलिए इसे रोक दिया गया।
+  th: ภาพนี้พยายามเปิดหน้าอื่น ซึ่งไม่อนุญาตในแชท จึงถูกหยุดไว้ชั่วคราว
+  cs: Tato vizualizace se pokusila otevřít jinou stránku. V chatu to není povoleno, proto byla pozastavena.
+  sv: Den här visualiseringen försökte öppna en annan sida. Det är inte tillåtet i en chatt, så den pausades.
+  he: התצוגה החזותית ניסתה לפתוח דף אחר. זה אסור בתוך צ'אט, ולכן היא הושהתה.
+  verified_by_human: []
+
+interactive_html_reload:
+  context: Button below the paused-visual notice that loads the HTML visual again from the start
+  en: Reload visual
+  de: Visualisierung neu laden
+  zh: 重新加载可视化内容
+  es: Recargar visualización
+  fr: Recharger le visuel
+  pt: Recarregar visualização
+  ru: Перезагрузить визуализацию
+  ja: ビジュアルを再読み込み
+  ko: 시각화 다시 불러오기
+  it: Ricarica visualizzazione
+  tr: Görseli yeniden yükle
+  vi: Tải lại hình ảnh trực quan
+  id: Muat ulang visual
+  pl: Załaduj wizualizację ponownie
+  nl: Visual opnieuw laden
+  ar: إعادة تحميل المرئي
+  hi: विज़ुअल फिर से लोड करें
+  th: โหลดภาพใหม่
+  cs: Znovu načíst vizualizaci
+  sv: Läs in visualiseringen igen
+  he: טעינה מחדש של התצוגה החזותית
+  verified_by_human: []
 
 get_docs.how_to_use.1:
   context: Example instruction for get docs skill - explore API capabilities

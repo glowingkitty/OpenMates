@@ -57,6 +57,7 @@ pub(super) trait JobRunner {
         focus: &Focus,
         job: HostedFileJob,
         approved: bool,
+        ignored_read_approved: bool,
     ) -> HostedResult<Value>;
     /// Record a native Project commit authored by the assistant for `chat`.
     async fn commit(&mut self, focus: &Focus, chat: &str, message: String) -> HostedResult<Value>;
@@ -213,11 +214,42 @@ async fn snapshot_frames<R: JobRunner>(
 }
 
 impl FileJobState {
-    fn finish(&mut self, operation: &str) {
+    pub(super) fn finish(&mut self, operation: &str) {
         if self.finished.len() < MAX_FINISHED {
             self.finished.insert(operation.to_owned());
         }
     }
+}
+
+/// Fail-closed answer of a shell whose privacy layer could not be installed:
+/// claim an offered job (no content), then report the leased request as
+/// `failed` with `pii_mapping_unavailable` instead of staying silent, so the
+/// assistant learns within seconds that the file could not be read here.
+pub(super) fn privacy_unavailable_frames(
+    kind: &str,
+    event: &Value,
+    chat: &str,
+    state: &mut FileJobState,
+) -> Vec<(&'static str, Value)> {
+    let Some(job) = identity(event, chat) else {
+        return Vec::new();
+    };
+    let operation = job["operation_id"].as_str().unwrap_or_default().to_owned();
+    if state.finished.contains(&operation) {
+        return Vec::new();
+    }
+    if kind == "project_file_operation_available" {
+        return vec![("project_file_operation_claim", scope(job))];
+    }
+    if !valid_lease(job) {
+        return Vec::new();
+    }
+    state.finish(&operation);
+    vec![result_frame(
+        job,
+        "failed",
+        json!({"code": "pii_mapping_unavailable"}),
+    )]
 }
 
 /// A job frame with a valid identity (`protocol_version` 1, known operation,
@@ -239,7 +271,7 @@ fn identity<'a>(event: &'a Value, chat: &str) -> Option<&'a Value> {
     .then_some(event)
 }
 
-fn scope(job: &Value) -> Value {
+pub(super) fn scope(job: &Value) -> Value {
     json!({"protocol_version": 1, "operation_id": job["operation_id"],
         "chat_id": job["chat_id"], "project_id": job["project_id"]})
 }
@@ -251,6 +283,26 @@ fn result_frame(job: &Value, status: &str, body: Value) -> (&'static str, Value)
     payload["status"] = json!(status);
     payload["result"] = body;
     ("project_file_operation_result", payload)
+}
+
+/// [`error_frame`] for a hosted job that failed, plus a local notice naming
+/// the core error kind when the code alone (`client_execution_failed`) would
+/// hide it. The kind is a fixed variant name (no path, content or server text),
+/// so the shell may log it; it never goes on the wire.
+fn failed_frame(
+    job: &Value,
+    error: &HostedFileError,
+    state: &mut FileJobState,
+) -> (&'static str, Value) {
+    if let HostedFileError::Core(core) = error {
+        state.notices.push(format!(
+            "Project file {} failed: {} (core {:?})",
+            job["operation"].as_str().unwrap_or("job"),
+            error.code(),
+            core
+        ));
+    }
+    error_frame(job, error)
 }
 
 /// `waiting_for_executor` takes a bounded reason; others carry the safe code.
@@ -283,6 +335,15 @@ fn job_of(event: &Value) -> Option<HostedFileJob> {
         operation: serde_json::from_value(event["operation"].clone()).ok()?,
         arguments: event["arguments"].clone(),
     })
+}
+
+/// Restores placeholders with the chat's privacy layer (web) or, without one,
+/// with the plain mappings of [`restore_write`] (CLI, unchanged).
+fn restore_job(job: HostedFileJob, state: &FileJobState) -> Result<HostedFileJob> {
+    match &state.privacy {
+        Some(layer) => layer.restore(job),
+        None => restore_write(job, &state.mappings.0),
+    }
 }
 
 /// A created or updated Project file stores real details, like the web's
@@ -398,10 +459,16 @@ pub(super) async fn job_frames<R: JobRunner>(
     } else {
         job_of(job)
     };
-    let hosted = match hosted.map(|h| restore_write(h, &state.mappings.0)) {
+    let hosted = match hosted.map(|h| restore_job(h, state)) {
         Some(Err(error)) => {
             state.finish(&operation);
-            return Ok(vec![error_frame(job, &HostedFileError::Core(error))]);
+            // A privacy refusal keeps its own stable code (`pii_mapping_unavailable`,
+            // `pii_mapping_ambiguous`, ...) instead of `client_execution_failed`.
+            let refusal = match error {
+                Error::Unavailable { code, .. } => HostedFileError::Refused(code),
+                other => HostedFileError::Core(other),
+            };
+            return Ok(vec![error_frame(job, &refusal)]);
         }
         Some(Ok(h)) => Some(h),
         None => None,
@@ -439,13 +506,31 @@ pub(super) async fn job_frames<R: JobRunner>(
         Err(HostedFileError::Core(Error::Cancelled)) => return Err(Error::Cancelled),
         Err(error) => {
             state.finish(&operation);
-            return Ok(vec![error_frame(job, &error)]);
+            return Ok(vec![failed_frame(job, &error, state)]);
         }
     };
+    let interactive = state.approvals.interactive;
+    // Interactive shells: the user accepted exactly this proposal digest.
+    let preapproved = interactive
+        && proposal
+            .as_ref()
+            .is_some_and(|p| state.approvals.write_approved(&operation, &p.digest));
     if let Some(proposal) = proposal
         .as_ref()
-        .filter(|p| p.requires_approval && !state.approve_writes)
+        .filter(|p| p.requires_approval && !state.approve_writes && !preapproved)
     {
+        if interactive {
+            // Answer awaiting_approval only; the shell decides (see approvals).
+            let shown = serde_json::to_value(&proposal.mutation).map_err(Error::from)?;
+            state
+                .approvals
+                .prompt_write(job, scope(job), &proposal.digest, shown.clone());
+            return Ok(vec![result_frame(
+                job,
+                "awaiting_approval",
+                json!({"proposal_commitment": proposal.digest, "proposal": shown}),
+            )]);
+        }
         // Awaiting approval first (the server only accepts a reject from that
         // state), then the explicit decline; the file stays unchanged.
         state.finish(&operation);
@@ -473,12 +558,43 @@ pub(super) async fn job_frames<R: JobRunner>(
         .await;
         return remote_frames(job, &source, outcome, proposal.as_ref(), state, &operation);
     }
+    let read_key = (interactive && job["operation"] == "read_text")
+        .then(|| hosted.arguments["path"].as_str())
+        .flatten()
+        .map(|path| (path.to_owned(), super::approvals::read_key(job, path)));
+    let read_approved = read_key
+        .as_ref()
+        .is_some_and(|(_, key)| state.approvals.read_approved(key));
+    // A cloud-command batch has no single proposal; its diff cards come from
+    // the applied entries of the result (`record_batch_applied`).
+    let batch = (hosted.operation == crate::work::HostedFileOperation::ApplyChanges)
+        .then(|| hosted.clone());
     let outcome = crate::platform::time::timeout(
         remaining,
-        runner.execute(&focus, hosted, state.approve_writes),
+        runner.execute(
+            &focus,
+            hosted,
+            state.approve_writes || preapproved,
+            read_approved,
+        ),
     )
     .await;
+    if let (
+        Ok(Err(HostedFileError::Refused("ignored_path_requires_approval"))),
+        Some((path, key)),
+    ) = (&outcome, read_key)
+    {
+        state
+            .approvals
+            .prompt_read(job, scope(job), key, path.as_str());
+        return Ok(vec![result_frame(
+            job,
+            "awaiting_approval",
+            json!({"reason": "ignored_path_requires_approval", "path": path}),
+        )]);
+    }
     state.finish(&operation);
+    state.approvals.forget(&operation);
     let output = match outcome {
         Err(_) => {
             return Ok(vec![result_frame(
@@ -488,7 +604,7 @@ pub(super) async fn job_frames<R: JobRunner>(
             )]);
         }
         Ok(Err(HostedFileError::Core(Error::Cancelled))) => return Err(Error::Cancelled),
-        Ok(Err(error)) => return Ok(vec![error_frame(job, &error)]),
+        Ok(Err(error)) => return Ok(vec![failed_frame(job, &error, state)]),
         Ok(Ok(output)) => output,
     };
     let mut body = match output {
@@ -505,8 +621,27 @@ pub(super) async fn job_frames<R: JobRunner>(
         state
             .notices
             .push(applied_notice(&proposal.mutation, created));
+        state.approvals.record_applied(job, &proposal.mutation);
+    }
+    if let Some(batch) = &batch {
+        record_batch_applied(job, batch, &body, state);
     }
     Ok(vec![result_frame(job, "completed", Value::Object(body))])
+}
+
+/// Record one applied notice and local diff card per file a cloud command's
+/// `apply_changes` batch wrote (the shell shows them like assistant writes).
+fn record_batch_applied(
+    job: &Value,
+    batch: &HostedFileJob,
+    body: &serde_json::Map<String, Value>,
+    state: &mut FileJobState,
+) {
+    let result = Value::Object(body.clone());
+    for (mutation, created) in crate::work::applied_change_mutations(batch, &result) {
+        state.notices.push(applied_notice(&mutation, created));
+        state.approvals.record_applied(job, &mutation);
+    }
 }
 
 /// The result frames of a job relayed to a remote source. An offline or
@@ -568,6 +703,7 @@ fn remote_frames<T>(
         state
             .notices
             .push(applied_notice(&proposal.mutation, created));
+        state.approvals.record_applied(job, &proposal.mutation);
     }
     Ok(vec![result_frame(job, "completed", Value::Object(body))])
 }
@@ -609,11 +745,12 @@ impl JobRunner for Client {
         focus: &Focus,
         job: HostedFileJob,
         approved: bool,
+        ignored_read_approved: bool,
     ) -> HostedResult<Value> {
         let mut approve = move |_: &HostedFileMutation| Ok(approved);
         self.projects()
             .with_filters(filters(focus))
-            .execute_hosted_file_job(&focus.project_id, job, &mut approve, false)
+            .execute_hosted_file_job(&focus.project_id, job, &mut approve, ignored_read_approved)
             .await
     }
 
@@ -639,8 +776,10 @@ impl JobRunner for Client {
             Err(error) => return Err(error.into()),
         };
         Ok(
-            json!({"commit_id": commit.commit_id, "message": commit.message,
-            "file_count": commit.files.len()}),
+            // `short_id` is the 7-character form the Project Timeline shows; the
+            // tool description tells the model to quote only it to the user.
+            json!({"commit_id": commit.commit_id, "short_id": short_commit_id(&commit.commit_id),
+            "message": commit.message, "file_count": commit.files.len()}),
         )
     }
 
@@ -761,3 +900,8 @@ impl Client {
 #[cfg(test)]
 #[path = "project_file_jobs_tests.rs"]
 mod tests;
+
+/// First 7 characters of a commit id (the Timeline's short form).
+fn short_commit_id(commit_id: &str) -> String {
+    commit_id.chars().take(7).collect()
+}

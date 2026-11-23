@@ -132,16 +132,14 @@ def load_pool_review_helpers(review):
     from pathlib import Path
     from typing import Any, Dict
     from backend.apps.ai.daily_inspiration.media_coherence import canonical_wiki_review_source
-    from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requires_authentication
     path = Path(__file__).resolve().parents[1] / "core/api/app/tasks/default_inspiration_tasks.py"
-    names = {"_review_pool_entries", "_is_public_default_candidate", "_feature_metadata"}
+    names = {"_review_pool_entries", "_is_public_default_candidate"}
     nodes = [node for node in ast.parse(path.read_text()).body
              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in names]
     scope = {"json": json, "review_candidates": review, "Dict": Dict, "Any": Any,
              "canonical_wiki_review_source": canonical_wiki_review_source,
              "editorial_review_digest": editorial_review_digest,
-             "is_inspiration_media_coherent": is_inspiration_media_coherent,
-             "feature_requires_authentication": feature_requires_authentication}
+             "is_inspiration_media_coherent": is_inspiration_media_coherent}
     exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), "exec"), scope)
     return scope
 
@@ -191,9 +189,9 @@ async def test_missing_wiki_source_cannot_be_reviewed_as_generated_copy():
     no_edition = reviewed_wiki()
     no_edition["wiki_metadata"].pop("source_language")
     feature = {"content_type": "feature", "feature_metadata": {"feature_id": "custom-pii-detection", "requires_authentication": False}}
-    assert await scope["_review_pool_entries"]([missing, no_edition, feature], None, "test") == [feature]
+    assert await scope["_review_pool_entries"]([missing, no_edition, feature], None, "test") == []
     assert captured == []
-    assert scope["_is_public_default_candidate"](feature)
+    assert not scope["_is_public_default_candidate"](feature)
 
 
 @pytest.mark.parametrize('builder', [reviewed_japanese, reviewed_wiki])

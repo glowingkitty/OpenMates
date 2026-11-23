@@ -113,9 +113,19 @@ def test_unfinished_platform_features_are_default_disabled() -> None:
         "platform:projects",
         "platform:plans",
         "platform:teams",
-        "platform:workflows",
         "platform:tasks",
     }
+
+
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
+def test_released_workflows_and_event_search_are_on_by_default() -> None:
+    # Owner decision 22 Nov: Workflows and event search are released, so they are
+    # on through their own defaults, not through an enabled override.
+    workflows = next(definition for definition in PLATFORM_FEATURES if definition.id == "platform:workflows")
+    assert workflows.default_enabled is True
+    events_manifest = yaml.safe_load((BACKEND_CONFIG_DIR.parent / "apps" / "events" / "app.yml").read_text(encoding="utf-8"))
+    search = next(skill for skill in events_manifest["skills"] if skill["id"] == "search")
+    assert search.get("default_enabled", True) is True
 
 
 # contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
@@ -128,8 +138,10 @@ def test_release_config_disables_unreleased_surfaces_while_dev_enables_them() ->
 
     assert UNRELEASED_PLATFORM_FEATURES.isdisjoint(release_overrides["enabled"])
     assert UNRELEASED_PLATFORM_FEATURES | UNRELEASED_AI_APPS <= set(release_overrides["disabled"])
-    assert "platform:workflows" in release_overrides["enabled"]
-    assert "platform:workflows" not in release_overrides["disabled"]
+    # Released features need no override: neither listed as enabled nor disabled.
+    for released in ("platform:workflows", "skill:events:search"):
+        assert released not in (release_overrides.get("enabled") or [])
+        assert released not in release_overrides["disabled"]
     assert "app:workflows" not in release_overrides["disabled"]
     assert UNRELEASED_PLATFORM_FEATURES <= set(dev_overrides["enabled"])
     assert UNRELEASED_AI_APPS.isdisjoint(dev_overrides["disabled"])

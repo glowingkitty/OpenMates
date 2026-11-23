@@ -218,3 +218,33 @@ role.technical:
   en: "Technical Specification"
   de: "Technische Spezifikation"
   verified_by_human: []
+fullscreen.checking_chat:
+  context: "Button opening the sub-chat that checks an assumption"
+  en: "Checking chat"
+  de: "Prüf-Chat"
+  verified_by_human: []
+fullscreen.working_chat:
+  context: "Button opening the sub-chat working on a Task"
+  en: "Working chat"
+  de: "Arbeits-Chat"
+  verified_by_human: []
+fullscreen.plan_tasks:
+  context: "Heading of the Plan Tasks in a Specification"
+  en: "Plan Tasks"
+  de: "Aufgaben des Plans"
+  verified_by_human: []
+preview.plan_progress:
+  context: "Specification card line: assumptions being checked and Plan Tasks"
+  en: "{checking} assumptions being checked · {tasks} Tasks"
+  de: "{checking} Annahmen werden geprüft · {tasks} Aufgaben"
+  verified_by_human: []
+preview.plan_progress_one:
+  context: "Specification card line: exactly one assumption being checked and Plan Tasks"
+  en: "{checking} assumption being checked · {tasks} Tasks"
+  de: "{checking} Annahme wird geprüft · {tasks} Aufgaben"
+  verified_by_human: []
+preview.plan_tasks_only:
+  context: "Specification card line: Plan Tasks when no assumption is left open"
+  en: "{tasks} Tasks"
+  de: "{tasks} Aufgaben"
+  verified_by_human: []

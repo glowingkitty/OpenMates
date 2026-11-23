@@ -32,6 +32,8 @@
         type ProjectViewModel,
     } from '../../services/projectService';
     import FocusModePhases from './FocusModePhases.svelte';
+    import ProjectAppearanceSettings from './ProjectAppearanceSettings.svelte';
+    import { PROJECT_PRESENTATION_AVAILABLE } from '../../services/projectPresentationService';
     import ProjectFocusPolicySelector from './ProjectFocusPolicySelector.svelte';
     import RuleDocumentManager from '../projects/RuleDocumentManager.svelte';
     import { projectFocusPhases } from '../../types/focusPhases';
@@ -195,6 +197,12 @@
                 <SettingsDetailRow label="Write policy" value={writeMode ? writeModeLabel(writeMode) : 'Choose a policy'} />
                 <SettingsDetailRow label="Automated checks" value="Not configured" muted />
             </SettingsCard>
+            {#if PROJECT_PRESENTATION_AVAILABLE}
+                <ProjectAppearanceSettings
+                    project={selectedProject}
+                    onSaved={(updated) => { projects = projects.map((candidate) => candidate.project_id === updated.project_id ? updated : candidate); }}
+                />
+            {/if}
             {#if focusPhases.length}<FocusModePhases phases={focusPhases} />{/if}
             <SettingsConsentToggle
                 checked={autoSelection}

@@ -4,6 +4,7 @@
 import asyncio
 import importlib
 import inspect
+import itertools
 import logging
 from typing import Awaitable, Callable, Dict, Any, List, Optional, AsyncIterator, Tuple, TypeVar, Union
 import json
@@ -26,9 +27,15 @@ import yaml
 from backend.shared.app_packages.billing import is_installed_only_group
 from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
 from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
+from backend.shared.python_utils.voice_call_admission import paused_voice_delivery
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.processing.specialised_skill_preference import (
+    empty_specialised_result_note,
+    require_web_search_fallback,
+    specialised_first_instruction,
+)
 from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
@@ -38,7 +45,8 @@ from backend.apps.ai.processing.wellbeing_support import (
 )
 from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus
 from backend.apps.ai.processing.focus_layering import (
-    build_layer_precedence_section, deactivate_focus_tool, deactivation_result, resolve_focus_layers,
+    build_layer_precedence_section, deactivate_focus_tool, deactivation_result, layer_end_client_event,
+    resolve_focus_layers,
 )
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
@@ -228,9 +236,11 @@ from backend.apps.ai.processing.chat_orchestration_hooks import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     brand_naming_research_skill_scope,
+    DEEP_RESEARCH_FOCUS_ID,
     DelegatedPrimaryReadState,
     has_http_source_url,
     gate_tools_for_deep_research,
+    gate_tools_for_spec_handoff,
     resolve_deep_research_tool_choice,
     resolve_automatic_focus_proposal,
     should_expose_subchat_tool,
@@ -248,6 +258,7 @@ from backend.apps.ai.processing.orchestration_skill_gate import (
     is_root_turn_code_run,
     settle_blocked_placeholders,
 )
+from backend.apps.ai.sub_chat_focus_links import annotate_sub_chats
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
     MAX_AUTO_SUB_CHAT_CREDITS,
@@ -273,7 +284,7 @@ from backend.apps.ai.processing.skill_executor import (
     generate_skill_task_id,
     get_skill_timeout
 )
-from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError, SkillRequestRejected
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import (
     calculate_total_credits,
@@ -1249,6 +1260,28 @@ def _internal_llm_policy_payload(request_data: Any) -> Optional[Dict[str, Any]]:
 # retries the same model with clean evidence, then permits one configured alternate.
 # Neither recovery attempt can execute a skill.
 MAX_TOOL_CALL_ITERATIONS = 5
+# Extra iterations per turn for Project file tools run inline in the hosted sandbox and for
+# commands run in it (a device-path file operation instead pauses the turn and resumes with a
+# fresh budget). Sandbox commands within this allowance also skip the research skill budget.
+MAX_SANDBOX_FILE_ITERATIONS = 30
+
+
+def _resumed_sandbox_free_iterations(resume_checkpoint: dict | None, start_iteration: int) -> int:
+    """Inline sandbox iterations already granted before a same-turn resume (0 for a fresh turn)."""
+    if not resume_checkpoint:
+        return 0
+    value = resume_checkpoint.get("sandbox_free_iterations", 0)
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= min(
+            MAX_SANDBOX_FILE_ITERATIONS, start_iteration):
+        raise RequiredRecoveryOutputError("Same-turn provider checkpoint is invalid")
+    return value
+
+
+def _is_sandbox_free_iteration(executed_calls: int, sandbox_inline_calls: int, used: int) -> bool:
+    """True when every tool call this iteration ran in the hosted Project sandbox (inline file
+    tools, their deduplicated repeats, or sandbox commands) and the per-turn allowance is not
+    used up; such an iteration keeps the budget unchanged."""
+    return executed_calls > 0 and sandbox_inline_calls == executed_calls and used < MAX_SANDBOX_FILE_ITERATIONS
 MAX_ANSWER_ONLY_RECOVERY_ITERATIONS = 2
 
 # === SKILL CALL BUDGET LIMITS ===
@@ -1523,6 +1556,24 @@ def _get_skill_execution_args(
 # empty because Gemini 3 called 'web:search' and the strict string-match
 # allow-list rejected it even though 'web-search' was preselected.
 _TOOL_NAME_SEPARATORS = (":", "|", "_", ".")
+
+
+def _project_focus_card_identity(request_data: Any, focus_id: str) -> tuple[str, str] | None:
+    """Card name and app of a Project's own Focus (``project-focus:<project>:<item>``).
+
+    Such a Focus belongs to no app, so the app.yml lookup falls back to the raw id. Its title
+    comes from the Project Focus catalog the client sent for this turn, from which the Focus was
+    offered in the first place.
+    """
+    parts = focus_id.split(":")
+    if len(parts) != 3 or parts[0] != "project-focus":
+        return None
+    for item in getattr(request_data, "project_focus_catalog", None) or []:
+        if isinstance(item, dict) and item.get("id") == parts[2]:
+            title = str(item.get("title") or "").strip()[:200]
+            if title:
+                return title, "projects"
+    return None
 
 
 def _resolve_focus_mode_display_name(
@@ -3789,6 +3840,14 @@ async def _charge_skill_credits(
                     logger.error("%s Failed to release operation reservation %s", log_prefix, operation_id, exc_info=True)
 
 
+def _spec_handoff_phase_id(focus_phase_runtimes: list, active_focus_id: str | None) -> str | None:
+    """Current phase of the active built-in focus, used by the spec hand-off tool gate."""
+    for runtime in focus_phase_runtimes:
+        if runtime.state.focus_id == active_focus_id:
+            return runtime.state.phase_id
+    return None
+
+
 def _convert_timestamps_to_human_readable(value: Any) -> Any:
     """
     Recursively converts Unix timestamps in app settings/memories data to human-readable date strings.
@@ -3848,6 +3907,29 @@ def _convert_timestamps_to_human_readable(value: Any) -> Any:
         return [_convert_timestamps_to_human_readable(item) for item in value]
     else:
         return value
+
+
+async def _command_outcome_references(
+    request_data: Any, *, cache_service: Any, directus_service: Any, encryption_service: Any,
+    user_vault_key_id: str | None, task_id: str, log_prefix: str,
+) -> list[str]:
+    """Publish the pending Project app cards once; return their references.
+
+    Async continuations attach them before the stream starts; a same-turn resume
+    attaches them while restoring the batch results, so both call this.
+    """
+    references: list[str] = []
+    app_folders = getattr(request_data, "project_app_folders", None)
+    if app_folders:
+        request_data.project_app_folders = None
+        from backend.apps.ai.processing.project_app_preview_card import publish_project_app_cards
+
+        references.extend(await publish_project_app_cards(
+            request_data=request_data, folders=list(app_folders), cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        ))
+    return references
 
 
 async def handle_main_processing(
@@ -3965,9 +4047,13 @@ async def handle_main_processing(
                 except Exception:
                     pass
 
+                fm_app_id = focus_id.split('-', 1)[0] if '-' in focus_id else focus_id
+                project_focus_identity = _project_focus_card_identity(request_data, focus_id)
+                if project_focus_identity:
+                    focus_mode_display_name, fm_app_id = project_focus_identity
                 fm_embed_data = await embed_service.create_focus_mode_activation_embed(
                     focus_id=focus_id,
-                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    app_id=fm_app_id,
                     focus_mode_name=focus_mode_display_name,
                     chat_id=request_data.chat_id,
                     message_id=request_data.message_id,
@@ -4059,6 +4145,8 @@ async def handle_main_processing(
                     "team_id_hash": request_data.team_id_hash,
                     "team_workspace_type": request_data.team_workspace_type,
                     "team_object_id_hash": request_data.team_object_id_hash,
+                    # A call turn stays spoken after the focus decision.
+                    **paused_voice_delivery(request_data),
                 }
                 await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
@@ -4075,13 +4163,14 @@ async def handle_main_processing(
         # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
         try:
             from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+            from backend.shared.python_utils.focus_continuation_history import FOCUS_TIMER_QUEUE
             celery_app_instance.send_task(
                 'apps.ai.tasks.focus_mode_auto_confirm',
                 kwargs={
                     "chat_id": request_data.chat_id,
                     "request_id": fm_embed_id,
                 },
-                queue='app_ai',
+                queue=FOCUS_TIMER_QUEUE,
                 countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
             )
             logger.info(
@@ -4300,6 +4389,9 @@ async def handle_main_processing(
                     encryption_service=encryption_service,
                     user_vault_key_id=user_vault_key_id,
                     log_prefix=log_prefix,
+                    mates=all_mates_configs,
+                    answering_mate_id=preprocessing_results.selected_mate_id,
+                    output_language=preprocessing_results.output_language,
                 )
 
                 if request_id:
@@ -4457,6 +4549,13 @@ async def handle_main_processing(
         heard_context = build_voice_heard_context(getattr(request_data, "voice_heard_boundary", None), request_data.message_history)
         if heard_context:
             volatile_prompt_tail.append(heard_context)
+        from backend.shared.python_utils.voice_call_pasted import is_pasted, pasted_text_context
+
+        pasted_context = pasted_text_context(
+            cache_service is not None and await is_pasted(
+                cache_service, getattr(request_data, "voice_call_id", None), getattr(request_data, "message_id", None)))
+        if pasted_context:
+            volatile_prompt_tail.append(pasted_context)
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -4587,6 +4686,9 @@ async def handle_main_processing(
         else:
             logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
             preselected_skills = set()
+
+    # Stage two's own selection, before baseline and companion skills are merged.
+    stage_two_skills = set(preselected_skills or ())
 
     # HARDENING: Merge always_include_skills into preselected_skills unless the user
     # explicitly requested a specific tool/search surface. In that case use only the
@@ -4787,14 +4889,48 @@ async def handle_main_processing(
         else None
     )
     # Assistant-created Project: the activation card leads the resumed answer.
-    from backend.apps.ai.processing.project_focus_orchestration import created_project_activation_reference
+    from backend.apps.ai.processing.project_focus_orchestration import (
+        carried_created_project_reference, created_project_activation_reference,
+        focus_modes_after_project_creation,
+    )
     created_project_reference = await created_project_activation_reference(
         task_id=task_id, request_data=request_data, active_project_focus=active_project_focus,
         cache_service=cache_service, directus_service=directus_service,
         encryption_service=encryption_service, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
     )
     if created_project_reference:
+        # Kept on the request so the continuation snapshots of async skills
+        # started below carry it into every later rewrite of this reply.
+        request_data.created_project_card_reference = created_project_reference
+    elif getattr(request_data, "is_async_skill_continuation", False):
+        created_project_reference = carried_created_project_reference(request_data)
+    # A continuation rewrites this reply from empty: the earlier steps' cards
+    # (Run, Read files, file changes, created Project) lead it again, in order.
+    from backend.apps.ai.processing.carried_reply_references import (
+        load_reply_references, reference_block, reference_embed_id,
+    )
+
+    carried_embed_ids: set[str] = set()
+    continuation_message_id = getattr(request_data, "continuation_message_id", None)
+    # Only a continuation or same-turn resume rewrites an existing reply; a
+    # reply's first stream has nothing earlier to carry.
+    carried_references = await load_reply_references(
+        cache_service, user_id=request_data.user_id, chat_id=request_data.chat_id,
+        message_id=continuation_message_id or task_id,
+    ) if (continuation_message_id or getattr(request_data, "is_async_skill_continuation", False)) else []
+    for carried_reference in carried_references:
+        carried_embed_ids.add(carried_reference["embed_id"])
+        yield reference_block(carried_reference)
+    if created_project_reference and reference_embed_id(created_project_reference) not in carried_embed_ids:
         yield f"```json\n{created_project_reference}\n```\n\n"
+    # Chronological: the carried Run cards (with command, status and exit code)
+    # above, then what the commands changed and the built app, then the reply.
+    for outcome_reference in await _command_outcome_references(
+        request_data, cache_service=cache_service, directus_service=directus_service,
+        encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+        task_id=task_id, log_prefix=log_prefix,
+    ):
+        yield f"```json\n{outcome_reference}\n```\n\n"
     reference_preview = getattr(request_data, "project_file_reference_preview", None)
     if reference_preview is not None:
         # A continuation may publish only the result of its freshly authorized
@@ -4840,6 +4976,11 @@ async def handle_main_processing(
         )
         project_reference_setup_last = now
 
+    # Cloud Project chats write files as reply code fences that become the Project files.
+    from backend.apps.ai.processing.project_code_fence_commit import project_code_fence_mode
+    project_code_fences = bool(active_project_focus) and await project_code_fence_mode(
+        request_data, active_project_sources, directus_service)
+    request_data.project_code_fences = project_code_fences
     if active_project_focus:
         project_instruction_focus = parse_project_phase_focus(
             active_project_focus.get("instruction") or "", active_project_focus["focus_id"])
@@ -4852,7 +4993,8 @@ async def handle_main_processing(
             await project_runtime.load()
             focus_phase_runtimes.append(project_runtime)
             effective_project_focus["instruction"] = phase_prompt(project_instruction_focus, project_runtime.state)
-        project_phase_prompt_section = build_project_focus_prompt(effective_project_focus, active_project_sources)
+        project_phase_prompt_section = build_project_focus_prompt(
+            effective_project_focus, active_project_sources, code_fences=project_code_fences)
         prompt_parts.append(project_phase_prompt_section)
     mark_project_reference_setup("project_focus")
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
@@ -5084,6 +5226,14 @@ async def handle_main_processing(
             prompt_parts.append(proactive_skill_instruction)
             tool_only_prompt_parts.append(("app_skill", proactive_skill_instruction))
             research_only_prompt_parts.add(proactive_skill_instruction)
+        specialised_first = specialised_first_instruction(
+            stage_two_skills, preselected_skills or (), explicit_request=user_requested_skills_only,
+        )
+        if specialised_first:
+            prompt_parts.append(specialised_first)
+            tool_only_prompt_parts.append(("app_skill", specialised_first))
+            research_only_prompt_parts.add(specialised_first)
+            logger.info(f"{log_prefix} [SPECIALISED_FIRST] Specialised skills named before web search")
     else:
         # When no apps available, skip the proactive skill usage instruction
         # to avoid confusing the AI about capabilities it doesn't have
@@ -5217,6 +5367,10 @@ async def handle_main_processing(
     memory_runtime = None
     on_demand_memory_prompt = ""
     diagram_context_repair_used = False
+    # Visible answer text already streamed in this turn (any iteration).
+    # A separate flag: published_answer_text is the List[str] of published
+    # chunks and must stay a list (DBWDT).
+    answer_text_was_published = False
     if (agentic_context.first_party(request_data) and discovered_apps_metadata
             and (request_data.user_preferences or {}).get("apps_enabled") is not False
             and has_memory_catalog(discovered_apps_metadata, request_data)):
@@ -5448,20 +5602,27 @@ async def handle_main_processing(
     if enable_subchats_results:
         sub_chats_instruction = (
             "### Sub-Chats (Sub-Agents) Orchestration Instruction:\n"
-            "You have the unique ability to spawn one or multiple autonomous background sub-chats "
-            "to parallelize complex tasks (such as parallel web research, batch processing, comparative analysis, or dividing a long-form task into sections) "
-            "using the 'start_sub_chats' tool.\n"
-            "When the user asks a complex question that would benefit from parallel or distributed processing (e.g., comparing multiple items, batch looping, or deep multi-topic research), "
-            "you MUST call 'start_sub_chats' to delegate those tasks to sub-agents. Do not attempt to do everything in a single turn if it would benefit from sub-chats.\n"
-            "When spawning sub-chats, provide precise and focused prompts for each sub-chat so they can work independently and efficiently. "
-            "For Deep research, explicitly require web-read of primary sources for material quantitative, causal, and legal claims. "
-            "Give the independent verifier a numbered list of every material provisional quantitative, causal, intent, and legal-status claim with URLs. "
-            "Require the complete compact per-claim audit before prose: supported, qualified, contradicted, or unresolved; exact source URL; "
-            "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items remain unverified. "
+            "You can delegate work to autonomous background sub-chats with the 'start_sub_chats' tool. "
+            "Sub-chats keep this chat clean: each part runs in its own chat and only its result comes back here.\n"
+            "Delegate when the request is complex and splits into two or more independent, substantial parts that can each be "
+            "done separately, in any focus: several items to compare or process, several research angles, separate coding or "
+            "test tasks, several assumptions to check. Then you MUST call 'start_sub_chats' with one sub-chat per part instead "
+            "of doing all parts in this chat, and afterwards coordinate: summarise the results and ask the user only for the "
+            "decisions that remain. Do not delegate simple, short or single-answer requests, or parts that depend tightly on "
+            "each other; answer those directly.\n"
+            "Give each sub-chat a precise, self-contained prompt so it can work independently. Each sub-chat inherits this chat's "
+            "Project focus; set its focus_id only to add the one specific focus that part needs.\n"
             "If a sub-chat can answer independently, its final assistant response is automatically treated as its completion summary for the parent. "
             "Sub-chats should not call an end function just to finish. If a sub-chat needs clarification from the user, it MUST call 'ask_user_input' with the exact question instead of embedding a marker in normal text. "
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
         )
+        if request_data.active_focus_id == DEEP_RESEARCH_FOCUS_ID:
+            sub_chats_instruction += (
+                "\nFor Deep research, explicitly require web-read of primary sources for material quantitative, causal, and legal claims. "
+                "Give the independent verifier a numbered list of every material provisional quantitative, causal, intent, and legal-status claim with URLs. "
+                "Require the complete compact per-claim audit before prose: supported, qualified, contradicted, or unresolved; exact source URL; "
+                "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items remain unverified."
+            )
         prompt_parts.append(sub_chats_instruction)
         tool_only_prompt_parts.append(("start_sub_chats", sub_chats_instruction))
         research_only_prompt_parts.add(sub_chats_instruction)
@@ -5583,7 +5744,7 @@ async def handle_main_processing(
         )
 
     if project_file_tools_enabled and active_project_focus:
-        project_tools = build_project_file_tools()
+        project_tools = build_project_file_tools(code_fences=project_code_fences)
         available_tools_for_llm.extend(project_tools)
         logger.info("%s Added %s authorized Project file tool(s)", log_prefix, len(project_tools))
 
@@ -5633,6 +5794,8 @@ async def handle_main_processing(
     # An accepted specialist already supplies its instructions. Reoffering it
     # would restart the countdown on every continuation of the same user turn.
     relevant_focus_modes = [focus for focus in relevant_focus_modes if focus != request_data.active_focus_id]
+    relevant_focus_modes = focus_modes_after_project_creation(relevant_focus_modes, project_candidates,
+                                                              created_project_reference)
     if has_active_focus_mode:
         relevant_focus_modes = [focus for focus in relevant_focus_modes if focus in project_candidates or focus in private_candidates]
     # Whether the user explicitly specified this focus mode via @focus:app:id mention
@@ -5741,6 +5904,7 @@ async def handle_main_processing(
                 "You can specify a list of sub-chats, each with its own prompt. "
                 "Supports loops/templates where you specify a list of items and a prompt_template "
                 "containing '{x}' which will be replaced with each item from the list. "
+                "A sub-chat inherits this chat's Project focus; focus_id may add one specific focus, and link ties it to the Plan assumption or Task it investigates. "
                 "Use execution_mode='sequential' when child tasks could collide, must build on each other, or should run one after another. "
                 f"Start at most {MAX_AUTO_SUB_CHATS_PER_TURN} sub-chats without explicit user approval; "
                 f"larger batches require confirmation. Parallel batches can have at most {MAX_DIRECT_SUB_CHATS_PER_PARENT} direct sub-chats; sequential queues have no direct-child count limit."
@@ -5805,6 +5969,20 @@ async def handle_main_processing(
                                     "enum": ["each", "all"],
                                     "description": "Whether to report back after 'each' sub-chat completes or only after 'all' have completed. Default 'all'.",
                                     "default": "all"
+                                },
+                                "focus_id": {
+                                    "type": "string",
+                                    "description": "Optional one specific focus for this sub-chat, e.g. 'web-research', added on top of the Project focus the sub-chat inherits. Unknown ids are ignored."
+                                },
+                                "link": {
+                                    "type": "object",
+                                    "description": "Optional link to the Plan assumption or Task this sub-chat investigates.",
+                                    "properties": {
+                                        "kind": {"type": "string", "enum": ["assumption", "task"]},
+                                        "plan_id": {"type": "string", "description": "Plan UUID."},
+                                        "id": {"type": "string", "description": "Assumption id or Task id."}
+                                    },
+                                    "required": ["kind", "plan_id", "id"]
                                 }
                             },
                             "required": ["title", "category", "icon"]
@@ -5875,6 +6053,10 @@ async def handle_main_processing(
         logger.info(
             f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
         )
+
+    available_tools_for_llm = gate_tools_for_spec_handoff(
+        available_tools_for_llm, active_focus_id=request_data.active_focus_id,
+        chat_depth=chat_depth, phase_id=_spec_handoff_phase_id(focus_phase_runtimes, request_data.active_focus_id))
 
     if getattr(request_data, "is_anonymous", False):
         from backend.shared.python_utils.anonymous_skill_policy import filter_anonymous_tools
@@ -6260,9 +6442,13 @@ async def handle_main_processing(
                 except Exception:
                     pass
 
+                fm_app_id = focus_id.split('-', 1)[0] if '-' in focus_id else focus_id
+                project_focus_identity = _project_focus_card_identity(request_data, focus_id)
+                if project_focus_identity:
+                    focus_mode_display_name, fm_app_id = project_focus_identity
                 fm_embed_data = await embed_service.create_focus_mode_activation_embed(
                     focus_id=focus_id,
-                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    app_id=fm_app_id,
                     focus_mode_name=focus_mode_display_name,
                     chat_id=request_data.chat_id,
                     message_id=request_data.message_id,
@@ -6362,6 +6548,8 @@ async def handle_main_processing(
                     "team_id_hash": request_data.team_id_hash,
                     "team_workspace_type": request_data.team_workspace_type,
                     "team_object_id_hash": request_data.team_object_id_hash,
+                    # A call turn stays spoken after the focus decision.
+                    **paused_voice_delivery(request_data),
                 }
                 pending_context_stored = await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
@@ -6379,13 +6567,14 @@ async def handle_main_processing(
         try:
             from backend.core.api.app.tasks.celery_config import app as celery_app_instance
             from backend.apps.ai.tasks.focus_mode_auto_confirm_task import FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN
+            from backend.shared.python_utils.focus_continuation_history import FOCUS_TIMER_QUEUE
             celery_app_instance.send_task(
                 'apps.ai.tasks.focus_mode_auto_confirm',
                 kwargs={
                     "chat_id": request_data.chat_id,
                     "request_id": fm_embed_id,
                 },
-                queue='app_ai',
+                queue=FOCUS_TIMER_QUEUE,
                 countdown=0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
             )
             # Positive live eligibility is a transient event, never embed metadata.
@@ -6568,6 +6757,11 @@ async def handle_main_processing(
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    search_budget_refused_this_round = False  # Reset per round; set when the search budget refuses a call
+    # Specialised skills that found nothing and web-search runs of this turn: the next iteration
+    # must call web-search as the fallback unless web search already ran.
+    empty_specialised_skills: set[str] = set()
+    web_search_ran: set[str] = set()
     delegated_primary_read = DelegatedPrimaryReadState(
         enabled=bool((request_data.is_sub_chat or root_primary_read_required) and request_data.orchestration_id
                      and request_data.user_id_hash and not getattr(request_data, "is_anonymous", False)
@@ -6637,7 +6831,8 @@ async def handle_main_processing(
                         answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, section, 1)
                     active_focus_prompt_section = section
                 elif active_project_focus and runtime.state.focus_id == active_project_focus["focus_id"]:
-                    section = build_project_focus_prompt({**active_project_focus, "instruction": instruction}, active_project_sources)
+                    section = build_project_focus_prompt({**active_project_focus, "instruction": instruction},
+                                                         active_project_sources, code_fences=project_code_fences)
                     if project_phase_prompt_section:
                         full_system_prompt = full_system_prompt.replace(project_phase_prompt_section, section, 1)
                         answer_recovery_system_prompt = answer_recovery_system_prompt.replace(project_phase_prompt_section, section, 1)
@@ -6676,6 +6871,9 @@ async def handle_main_processing(
                 generated_names = {t.get("function", {}).get("name") for t in candidate_tools}
                 available_tools_for_llm = [t for t in available_tools_for_llm
                     if t.get("function", {}).get("name") not in generated_names] + selected
+                available_tools_for_llm = gate_tools_for_spec_handoff(
+                    available_tools_for_llm, active_focus_id=request_data.active_focus_id, chat_depth=chat_depth,
+                    phase_id=_spec_handoff_phase_id(focus_phase_runtimes, request_data.active_focus_id))
                 allowed_tool_names = set()
                 for tool in available_tools_for_llm:
                     name = str(tool.get("function", {}).get("name") or "")
@@ -6748,7 +6946,8 @@ async def handle_main_processing(
                 request_data.active_project_focus = fresh
                 request_data.current_project = ({key: fresh.get(key) for key in
                     ("project_id", "project_id_hash", "team_id", "team_id_hash")} if fresh else None)
-                project_phase_prompt_section = build_project_focus_prompt(fresh, active_project_sources) if fresh else None
+                project_phase_prompt_section = build_project_focus_prompt(
+                    fresh, active_project_sources, code_fences=project_code_fences) if fresh else None
                 if project_phase_prompt_section:
                     full_system_prompt += "\n\n" + project_phase_prompt_section
                     answer_recovery_system_prompt += "\n\n" + project_phase_prompt_section
@@ -6810,6 +7009,14 @@ async def handle_main_processing(
         current_message_history = await restore_ordered_tool_results(
             request_data, resume_checkpoint,
         )
+        # The restore attaches what this batch's commands changed and built; publish it
+        # now, after the step's Run cards, or the last step's cards would never appear.
+        for outcome_reference in await _command_outcome_references(
+            request_data, cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            task_id=task_id, log_prefix=log_prefix,
+        ):
+            yield f"```json\n{outcome_reference}\n```\n\n"
         generated_embed_refs = list(resume_checkpoint.get("generated_embed_refs") or [])
         generated_embed_aliases = dict(resume_checkpoint.get("generated_embed_aliases") or {})
         authored_inline_outputs = list(resume_checkpoint.get("authored_inline_outputs") or [])
@@ -6861,7 +7068,20 @@ async def handle_main_processing(
         answer_recovery._attempted_models = list(resume_checkpoint["answer_recovery"]["attempted_models"])
         steer_boundary_ready = True
 
-    for iteration in range(start_iteration, max_iterations_with_recovery):
+    # Iterations made only of Project file tools the hosted sandbox ran inline do not use the
+    # iteration budget: on the device path each file operation pauses the turn and its
+    # continuation starts a fresh budget, so a multi-file app fits either way. Bounded per turn.
+    # A same-turn resume (e.g. after a code-run) keeps the inline sandbox allowance already used,
+    # otherwise the physical resume iteration would be charged in full against the budget.
+    sandbox_free_iterations = _resumed_sandbox_free_iterations(resume_checkpoint, start_iteration)
+    # Hashes of file calls the sandbox ran inline in this run (not checkpointed: after a resume a
+    # repeated call is charged normally, the conservative side).
+    sandbox_inline_call_hashes: set[str] = set()
+    for iteration in itertools.count(start_iteration):
+        budget_iteration = iteration - sandbox_free_iterations
+        if budget_iteration >= max_iterations_with_recovery:
+            break
+        sandbox_inline_calls = 0
         # A queued steer may join this response only after the entire previous
         # tool batch has completed and before the next provider call is made.
         if steer_boundary_ready:
@@ -6890,7 +7110,7 @@ async def handle_main_processing(
                 logger.exception("%s Queued steer preflight was unavailable", log_prefix)
         if iteration == 0:
             mark_project_reference_setup("first_iteration")
-        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
+        logger.info(f"{log_prefix} LLM call iteration {iteration + 1} (budget {budget_iteration + 1}/{max_iterations_with_recovery}), total_skill_calls={total_skill_calls}")
         # Capture newly completed results before context fitting can drop older
         # tool turns. Recovery projects from this preserved evidence, never from
         # another model's already-truncated recovery request.
@@ -6899,12 +7119,12 @@ async def handle_main_processing(
         
         # The fifth and optional recovery calls are answer-only, regardless of
         # remaining skill budget or Deep research routing.
-        if iteration >= MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
+        if budget_iteration >= MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
             force_no_tools = True
             if not budget_warning_injected:
                 budget_warning_injected = True
             logger.info(
-                f"{log_prefix} [MAX_ITERATIONS] Last iteration ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}) - "
+                f"{log_prefix} [MAX_ITERATIONS] Last iteration ({budget_iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}) - "
                 f"forcing tool_choice='none' to ensure final answer is generated."
             )
         
@@ -6936,6 +7156,14 @@ async def handle_main_processing(
             iteration_tools, current_tool_choice = delegated_primary_read.select_tools(
                 iteration_tools, current_tool_choice, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
             )
+        if empty_specialised_skills and not web_search_ran and not force_no_tools:
+            iteration_tools, current_tool_choice = require_web_search_fallback(iteration_tools, current_tool_choice)
+            if current_tool_choice == "required":
+                logger.info(
+                    f"{log_prefix} [SPECIALISED_FIRST] Requiring web-search after "
+                    f"{sorted(empty_specialised_skills)} found nothing"
+                )
+            empty_specialised_skills.clear()
         iteration_allowed_tool_names = (
             {tool["function"]["name"] for tool in iteration_tools}
             if current_tool_choice == "required" and delegated_primary_read.enabled
@@ -8392,6 +8620,7 @@ async def handle_main_processing(
             break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+        answer_text_was_published = answer_text_was_published or bool(final_buffered_text_for_turn.strip())
         if diagram_context_guard.required_type and not tool_calls_for_this_turn:
             prose_repair = diagram_context_guard.reason == "unrequested_diagram"
             if not diagram_context_repair_used and (memory_runtime is not None or prose_repair):
@@ -8415,15 +8644,31 @@ async def handle_main_processing(
                     current_message_history.append({"role": "user", "content": correction})
                     logger.info("%s [DIAGRAM_CONTEXT] bounded repair reason=%s", log_prefix, diagram_context_guard.reason)
                     continue
-                except (ValueError, OSError, RuntimeError):
-                    logger.warning("%s [DIAGRAM_CONTEXT] required drawing guide unavailable", log_prefix)
-            for billing_event in await terminal_billing_usage_events():
-                yield billing_event
-            yield main_processing_failure("protocol_guard")
-            break
+                except (ValueError, OSError, RuntimeError) as guide_error:
+                    logger.warning(
+                        "%s [DIAGRAM_CONTEXT] required drawing guide unavailable type=%s reason=%s error=%s: %s",
+                        log_prefix, diagram_context_guard.required_type, diagram_context_guard.reason,
+                        type(guide_error).__name__, guide_error,
+                    )
+            if not (answer_text_was_published or published_answer_text):
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
+                yield main_processing_failure("protocol_guard")
+                break
+            # The answer is already visible (CG8JF). Only the withheld diagram
+            # is dropped; it never entered the stream or the history, so the
+            # turn completes with the published prose instead of an error.
+            logger.warning(
+                "%s [DIAGRAM_CONTEXT] withheld diagram dropped; completing with published text "
+                "type=%s reason=%s repair_used=%s",
+                log_prefix, diagram_context_guard.required_type, diagram_context_guard.reason,
+                diagram_context_repair_used,
+            )
         if native_prepared_context is not None:
             if (
-                iteration_native_output is not None and native_state is not None
+                # Raw native output still holds a dropped diagram; never replay it.
+                not diagram_context_guard.required_type
+                and iteration_native_output is not None and native_state is not None
                 and iteration_native_output.provider_prefix == native_prepared_context.get("provider_prefix")
                 and iteration_native_output.model_id == native_prepared_context.get("server_model_id")
                 and not protocol_guard.detected
@@ -8465,7 +8710,7 @@ async def handle_main_processing(
                 and not force_no_tools
                 and toon_result_retry_applies(protocol_guard, iteration_tools)
                 # The retry turn itself must still offer tools.
-                and iteration + 1 < MAX_TOOL_CALL_ITERATIONS - 1
+                and budget_iteration + 1 < MAX_TOOL_CALL_ITERATIONS - 1
             ):
                 # An imitated app result may stand for a real skill call the step
                 # still needs (e.g. Browse filling the user's answer): one retry
@@ -8496,7 +8741,7 @@ async def handle_main_processing(
             detected=protocol_guard.pseudo_tool_call,
             native_call_count=len(tool_calls_for_this_turn) + len(hallucinated_tool_calls_this_turn),
             visible_text=final_buffered_text_for_turn,
-            has_retry_iteration=iteration < max_iterations_with_recovery - 1,
+            has_retry_iteration=budget_iteration < max_iterations_with_recovery - 1,
         )
         if protocol_guard.pseudo_tool_call:
             logger.warning(
@@ -8539,7 +8784,7 @@ async def handle_main_processing(
                 and task_queue_result.get("requires_model_retry")
                 and not force_no_tools
                 and task_queue_guard_retries < TASK_QUEUE_GUARD_MAX_RETRIES
-                and iteration < MAX_TOOL_CALL_ITERATIONS - 1
+                and budget_iteration < MAX_TOOL_CALL_ITERATIONS - 1
             ):
                 task_queue_guard_retries += 1
                 continuation_event = build_task_queue_continuation_event(
@@ -8636,7 +8881,7 @@ async def handle_main_processing(
                     assistant_content=None,
                 )
 
-                has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
+                has_retry_iteration = budget_iteration < MAX_TOOL_CALL_ITERATIONS - 1
                 if has_retry_iteration:
                     if force_deep_research_delegation:
                         logger.warning(
@@ -9085,6 +9330,8 @@ async def handle_main_processing(
                     MAX_PARALLEL_APP_SKILL_EXECUTIONS,
                 )
 
+        # Set when the per-answer search budget refuses any call of this round.
+        search_budget_refused_this_round = False
         # Execute all tool calls (skills) in this turn
         for tool_call in tool_calls_for_this_turn:
             tool_name = explicit_task_app_skill_tool_name(tool_call.function_name, task_app_skill_mentions)
@@ -9377,10 +9624,11 @@ async def handle_main_processing(
                     current_message_history.append({
                         "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
                         "content": json.dumps({
-                            "status": "skipped", "reason": "This request's retrieval/enrichment query budget is used. Answer from existing evidence and state material unsearched gaps.",
+                            "status": "skipped", "reason": "This request's retrieval/enrichment query budget is used. No further searches are possible in this response. Answer now from existing evidence and state material unsearched gaps.",
                             "omitted_requests": omitted_answer_search_requests,
                         }),
                     })
+                    search_budget_refused_this_round = True
                     continue
 
                 # === SKILL CALL BUDGET CHECK ===
@@ -9532,10 +9780,34 @@ async def handle_main_processing(
                         })
                     }
                     current_message_history.append(tool_response_message)
+                    # Repeating a file call the sandbox already ran inline costs nothing either.
+                    if call_hash in sandbox_inline_call_hashes:
+                        sandbox_inline_calls += 1
                     continue  # Skip to next tool call
                 
+                # --- Hosted-Project code-run: route test runs, drop forged snapshots, pick the sandbox ---
+                # Decided before the budget counters: a command run in the hosted Project sandbox is
+                # bounded by the per-turn sandbox allowance, not by the research skill budget, since
+                # an agentic coding turn installs, builds and tests in several commands.
+                project_sandbox_command = False
+                if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
+                    from backend.apps.ai.processing import project_test_snapshot as _pts
+                    if active_project_focus:
+                        parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
+                    parsed_args = _pts.without_forged_snapshot(parsed_args)
+                    if _pts.is_cloud_command(parsed_args) and active_project_focus:
+                        from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_command
+                        if await sandbox_applies_to_command(
+                            user_id=request_data.user_id, focus=active_project_focus,
+                            directus_service=directus_service, log_prefix=log_prefix,
+                        ):
+                            parsed_args = _pts.use_project_sandbox(parsed_args)
+                            project_sandbox_command = sandbox_free_iterations < MAX_SANDBOX_FILE_ITERATIONS
+                            if project_sandbox_command:
+                                sandbox_inline_calls += 1
+
                 # Update budget counters (only for non-system tools)
-                if app_id != "system":
+                if app_id != "system" and not project_sandbox_command:
                     answer_search_queries = next_answer_search_queries
                     total_skill_calls += requests_in_this_call
                     logger.info(
@@ -9561,10 +9833,6 @@ async def handle_main_processing(
                 
                 # --- Hosted-Project code-run: the Project snapshot comes from the client ---
                 if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
-                    from backend.apps.ai.processing import project_test_snapshot as _pts
-                    if active_project_focus:
-                        parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
-                    parsed_args = _pts.without_forged_snapshot(parsed_args)
                     if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
                         _snapshot = await _pts.take_snapshot(
                             cache_service,
@@ -9723,6 +9991,42 @@ async def handle_main_processing(
                                         raise PermissionError("Project source is unavailable or not authorized")
                                     dispatch_focus["source_id"] = str(requested_source_id)
 
+                                from backend.apps.ai.processing.project_read_fanout import (
+                                    run_read_text_in_sandbox as run_project_tool_in_sandbox,
+                                )
+                                sandbox_result = await run_project_tool_in_sandbox(
+                                    request_data=request_data, operation=operation,
+                                    operation_arguments=operation_arguments, dispatch_focus=dispatch_focus,
+                                    cache_service=cache_service, directus_service=directus_service,
+                                    secrets_manager=secrets_manager, log_prefix=log_prefix,
+                                )
+                                if sandbox_result is not None:
+                                    # Hosted sandbox ran it inline: no pending operation, no continuation.
+                                    project_result = sandbox_result
+                                    if operation in {"read_text", "search"}:
+                                        # Inline reads publish the same "Read files" card a
+                                        # continuation read does (reference ids only, no content).
+                                        from backend.apps.ai.processing.project_file_references import (
+                                            publish_inline_project_file_reference,
+                                        )
+                                        inline_read_reference = await publish_inline_project_file_reference(
+                                            request_data=request_data, skill_id=skill_id,
+                                            operation_arguments=operation_arguments, envelope=sandbox_result,
+                                            cache_service=cache_service, directus_service=directus_service,
+                                            encryption_service=encryption_service,
+                                            user_vault_key_id=user_vault_key_id, task_id=task_id,
+                                            log_prefix=log_prefix,
+                                        )
+                                        if inline_read_reference:
+                                            yield f"```json\n{inline_read_reference}\n```\n\n"
+                                    current_message_history.append({
+                                        "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                                        "content": json.dumps(project_result),
+                                    })
+                                    completed_skill_calls[call_hash] = project_result
+                                    sandbox_inline_call_hashes.add(call_hash)
+                                    sandbox_inline_calls += 1
+                                    continue
                                 awaiting_before_operation = bool(request_data.awaiting_async_skill_continuation)
                                 await cache_async_skill_continuation_context(
                                     cache_service=cache_service,
@@ -9881,6 +10185,14 @@ async def handle_main_processing(
                                 logger.info(f"{log_prefix} [FOCUS_MODE] Dispatched Celery task to clear focus_id in Directus")
                             except Exception as cache_error:
                                 logger.error(f"{log_prefix} [FOCUS_MODE] Error clearing cache: {cache_error}", exc_info=True)
+                        layer_end_event = layer_end_client_event(deactivated_layers, request_data.chat_id)
+                        if layer_end_event and cache_service:
+                            # The clients still show the ended layer until they hear the
+                            # base is the active focus again.
+                            redis_client = await cache_service.client
+                            await redis_client.publish(f"user_cache_events:{request_data.user_id}",
+                                                       json.dumps(layer_end_event))
+                            logger.info(f"{log_prefix} [FOCUS_MODE] Published Project base focus after layer end")
                         
                         tool_result_content_str = json.dumps(deactivation_result(deactivated_layers) or {
                             "status": "deactivated",
@@ -9978,6 +10290,11 @@ async def handle_main_processing(
                                         "message": "Delegate exactly three distinct research angles in parallel and wait for all reports. Source verification is dispatched separately by the server."}),
                                 })
                                 continue
+                        await annotate_sub_chats(
+                            spawned_sub_chats, request_data=request_data,
+                            directus_service=directus_service, cache_service=cache_service,
+                            log_prefix=log_prefix,
+                        )
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
                         capacity_result = validate_sub_chat_capacity(
                             existing_sub_chat_count,
@@ -10609,7 +10926,10 @@ async def handle_main_processing(
                                 f"{log_prefix} Connected-account permission required for "
                                 f"{app_id}.{skill_id}: {permission_error}"
                             )
-                            if getattr(request_data, "is_connected_account_permission_continuation", False):
+                            # Only a connected-account answer turns a new request into a denial; an E2B consent
+                            # continuation reuses the flag for resume behavior and must still ask.
+                            if (getattr(request_data, "is_connected_account_permission_continuation", False)
+                                    and not getattr(request_data, "is_e2b_upload_consent_continuation", False)):
                                 current_message_history.append({
                                     "tool_call_id": tool_call_id,
                                     "role": "tool",
@@ -10643,6 +10963,19 @@ async def handle_main_processing(
                                 preprocessing_resume_ref=getattr(request_data, "preprocessing_resume_ref", None),
                             )
                             if request_id:
+                                # A call turn says out loud that it waits for the user's tap.
+                                from backend.apps.ai.assistant_speech.call_permission_prompt import (
+                                    build_call_permission_prompt, publish_call_permission_prompt,
+                                )
+                                await publish_call_permission_prompt(
+                                    cache_service=cache_service, user_id=request_data.user_id, log_prefix=log_prefix,
+                                    payload=build_call_permission_prompt(
+                                        request_data=request_data, mates=all_mates_configs,
+                                        mate_id=preprocessing_results.selected_mate_id or request_data.mate_id,
+                                        language=preprocessing_results.output_language,
+                                        request_id=request_id, kind="approval",
+                                    ),
+                                )
                                 yield {"__awaiting_connected_account_permission__": True, "request_id": request_id}
                                 return
                             current_message_history.append({
@@ -10674,6 +11007,46 @@ async def handle_main_processing(
                                 "content": json.dumps(connected_account_exchange_failure_payload(
                                     exchange_error, app_id=app_id, skill_id=skill_id,
                                 )),
+                            })
+                            continue
+
+                    if (app_id, skill_id) == ("code", "run") and skill_arguments.get("target") != "remote_source":
+                        # E2B upload consent: nothing is sent to E2B before the account allowed it.
+                        from backend.apps.ai.processing.e2b_upload_consent_request import (
+                            declined_tool_result,
+                            gate_e2b_upload_before_skill,
+                        )
+
+                        e2b_gate = await gate_e2b_upload_before_skill(
+                            request_data=request_data,
+                            cache_service=cache_service,
+                            encryption_service=encryption_service,
+                            directus_service=directus_service,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                        )
+                        if e2b_gate.kind != "allowed":
+                            if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                failed_embed_ids.update(await settle_blocked_placeholders(
+                                    placeholder_embed_data,
+                                    embed_service=EmbedService(
+                                        cache_service=cache_service,
+                                        directus_service=directus_service,
+                                        encryption_service=encryption_service,
+                                    ),
+                                    app_id=app_id, skill_id=skill_id, request_data=request_data,
+                                    user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                ))
+                        if e2b_gate.kind == "paused":
+                            yield {"__awaiting_e2b_upload_consent__": True, "request_id": e2b_gate.request_id}
+                            return
+                        if e2b_gate.kind == "declined":
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps(declined_tool_result(app_id, skill_id)),
                             })
                             continue
 
@@ -10897,7 +11270,9 @@ async def handle_main_processing(
                 except RequiredRecoveryOutputError:
                     raise
                 except Exception as skill_error:
-                    if same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS:
+                    # A request refused at validation dispatched nothing: the model gets it as a tool error.
+                    if (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS
+                            and not isinstance(skill_error, SkillRequestRejected)):
                         # A producer may already have accepted an earlier item. Retrying or
                         # synthesizing an ordinary tool error could dispatch it twice or
                         # let the provider continue without tracking the live job.
@@ -11540,9 +11915,20 @@ async def handle_main_processing(
                             else None
                         )
 
+                        _fallback_note = empty_specialised_result_note(
+                            tool_name, allowed_tool_names, filtered_results_with_refs,
+                        )
+                        if _fallback_note:
+                            empty_specialised_skills.add(tool_name)
+                            logger.info(f"{log_prefix} [SPECIALISED_FIRST] '{tool_name}' found nothing; web search named as fallback")
+                        if tool_name == "web-search":
+                            web_search_ran.add(tool_name)
+
                         if len(filtered_results_with_refs) == 1 and not shopping_visual_metadata:
                             # Single result - flatten and encode filtered result as TOON for LLM inference
                             flattened_result = _flatten_for_toon_tabular(filtered_results_with_refs[0])
+                            if _fallback_note:
+                                flattened_result["fallback_hint"] = _fallback_note
                             if _sq_hint:
                                 flattened_result["source_quote_hint"] = _sq_hint
                             flattened_result["embed_ref_hint"] = _ref_hint
@@ -11554,6 +11940,8 @@ async def handle_main_processing(
                             # Flattening enables TOON to use tabular format for uniform objects
                             flattened_results = [_flatten_for_toon_tabular(result) for result in filtered_results_with_refs]
                             toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(filtered_results_with_refs)}
+                            if _fallback_note:
+                                toon_wrapper["fallback_hint"] = _fallback_note
                             if shopping_visual_metadata:
                                 toon_wrapper.update(_flatten_for_toon_tabular(shopping_visual_metadata))
                             if _sq_hint:
@@ -12282,8 +12670,11 @@ async def handle_main_processing(
                             if _mm_file_path and _mm_file_path_index:
                                 _mm_original_embed_id = _mm_file_path_index.get(_mm_file_path)
                                 if _mm_original_embed_id:
+                                    # "embed_id" is reserved for the card's own id and is
+                                    # stripped from request metadata, so the upload is named
+                                    # source_embed_id (TASK-2115: View card lost its image).
                                     mm_request_metadata = {
-                                        "embed_id": _mm_original_embed_id,
+                                        "source_embed_id": _mm_original_embed_id,
                                         "file_path": _mm_file_path,
                                     }
                                     logger.info(
@@ -12792,9 +13183,15 @@ async def handle_main_processing(
             yield {"__voice_skill_phase__": "finished", "skills": voice_skill_ids}
 
         if async_batch_jobs:
+            # A pass made only of hosted-sandbox commands and inline sandbox file calls keeps the
+            # budget unchanged, like an inline file pass; the resume carries the allowance used.
+            if _is_sandbox_free_iteration(len(tool_calls_for_this_turn), sandbox_inline_calls,
+                                          sandbox_free_iterations):
+                sandbox_free_iterations += 1
             checkpoint = {
                 "version": 1, "turn_id": request_data.message_id,
                 "next_iteration": iteration + 1,
+                "sandbox_free_iterations": sandbox_free_iterations,
                 "current_message_history": current_message_history,
                 "jobs": async_batch_jobs,
                 "current_model_index": current_model_index,
@@ -12861,7 +13258,7 @@ async def handle_main_processing(
         if agentic_context.first_party(request_data):
             from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
             await mark_response_summary_active(request_data, task_id)
-        if agentic_context.first_party(request_data) and iteration + 1 < max_iterations_with_recovery:
+        if agentic_context.first_party(request_data) and budget_iteration + 1 < max_iterations_with_recovery:
             authority = DirectionAuthority(request_data.user_id, request_data.chat_id,
                                            authoritative_context_turn_id(request_data), agentic_context.goal_revision(request_data.message_history))
             actions = [{"id": message.get("tool_call_id", str(index)), "kind": message.get("role"),
@@ -12887,20 +13284,35 @@ async def handle_main_processing(
             if assessment.outcome == "material_drift":
                 pending_direction = context, assessment
 
+        if _is_sandbox_free_iteration(len(tool_calls_for_this_turn), sandbox_inline_calls,
+                                      sandbox_free_iterations):
+            sandbox_free_iterations += 1
+            steer_boundary_ready = True
+            continue
+
         # === MAX ITERATIONS HANDLING ===
         # If we're on the second-to-last iteration and the LLM is still requesting tools,
         # force the next (final) iteration to generate an answer without tools.
         # This ensures the user ALWAYS gets an answer based on gathered information.
-        if iteration == MAX_TOOL_CALL_ITERATIONS - 2:
+        if search_budget_refused_this_round and not force_no_tools:
+            # A refused search cannot succeed on retry; another tool round would
+            # only stream one more lead-in sentence before being refused again.
+            force_no_tools = True
+            budget_warning_injected = True
+            logger.info(
+                f"{log_prefix} [SKILL_BUDGET] Search budget refused a call - "
+                f"next iteration is answer-only."
+            )
+        if budget_iteration == MAX_TOOL_CALL_ITERATIONS - 2:
             # We're on the second-to-last iteration - force the final iteration to answer
             force_no_tools = True
             if not budget_warning_injected:
                 budget_warning_injected = True  # Also inject budget warning
             logger.info(
-                f"{log_prefix} [MAX_ITERATIONS] Approaching max iterations ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}). "
+                f"{log_prefix} [MAX_ITERATIONS] Approaching max iterations ({budget_iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}). "
                 f"Next iteration will force tool_choice='none' to generate final answer."
             )
-        elif iteration == MAX_TOOL_CALL_ITERATIONS - 1:
+        elif budget_iteration == MAX_TOOL_CALL_ITERATIONS - 1:
             # We're on the last iteration - if we still have tool calls, that's unexpected
             # (because we should have forced no tools in the previous iteration)
             # Log this as a warning but don't show error to user - we already have tool results

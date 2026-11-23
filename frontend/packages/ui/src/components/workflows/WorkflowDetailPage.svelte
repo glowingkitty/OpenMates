@@ -7,6 +7,7 @@
   - 'provisional': a read-only preview (AI authoring, guest template); only Close.
 -->
 <script lang="ts">
+  import { tick } from 'svelte';
   import { text } from '../../i18n/translations';
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
   import { headerOverlayControls } from '../../actions/headerOverlayControls';
@@ -65,6 +66,20 @@
     const minutes = Math.round((createdAt * 1000 - Date.now()) / 60000);
     return `${tr('created')} ${new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(Math.abs(minutes) < 60 ? minutes : Math.round(minutes / 1440), Math.abs(minutes) < 60 ? 'minute' : 'day')}`;
   }
+  let descriptionExpanded = $state(false); let descriptionOverflows = $state(false); let descriptionEl = $state<HTMLElement | null>(null);
+  function measureDescription(): void {
+    const el = descriptionEl; if (!el) { descriptionOverflows = false; return; }
+    if (descriptionExpanded) return;
+    descriptionOverflows = el.scrollHeight > el.clientHeight + 1;
+  }
+  $effect(() => {
+    void props.description; void descriptionEl;
+    descriptionExpanded = false;
+    void tick().then(measureDescription);
+    const el = descriptionEl; if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measureDescription); observer.observe(el);
+    return () => observer.disconnect();
+  });
   function editIdentity(): void { draftTitle = props.title; draftDescription = props.description; editing = true; }
 </script>
 
@@ -106,7 +121,12 @@
     <button type="button" class="toggle" role="switch" aria-checked={enabled} aria-label={tr('workflow_on')} data-testid="toggle-workflow" disabled={!saved || saved.saving || (!saved.enabled && !saved.canEnable)} onclick={() => void saved?.onToggleEnabled()}>
       <span class="workflow-icon icon-workflow size-16" aria-hidden="true"></span><span data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{tr(enabled ? 'workflow_on' : 'workflow_off')}</span><i class:enabled></i>
     </button>
-    {#if props.state === 'provisional' && props.description}<p data-testid="workspace-detail-description">{props.description}</p>{:else if saved && !editing}<button type="button" class="identity-edit description-edit" onclick={editIdentity}><p data-testid="workspace-detail-description">{props.description || tr('add_description')}</p></button>{/if}
+    {#if (props.state === 'provisional' && props.description) || (saved && !editing)}
+      <div class="description-block">
+        {#if saved}<button type="button" class="identity-edit description-edit" onclick={editIdentity}><p bind:this={descriptionEl} class="description" class:clamped={!descriptionExpanded} data-testid="workspace-detail-description">{props.description || tr('add_description')}</p></button>{:else}<p bind:this={descriptionEl} class="description" class:clamped={!descriptionExpanded} data-testid="workspace-detail-description">{props.description}</p>{/if}
+        {#if descriptionOverflows || descriptionExpanded}<button type="button" class="description-toggle" class:expanded={descriptionExpanded} data-testid="workflow-description-toggle" aria-expanded={descriptionExpanded} aria-label={tr(descriptionExpanded ? 'description_collapse' : 'description_expand')} onclick={() => { descriptionExpanded = !descriptionExpanded; if (!descriptionExpanded) void tick().then(measureDescription); }}><svg viewBox="0 0 12 8" width="14" height="10" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>{/if}
+      </div>
+    {/if}
   </div>
   {#if saved}<span class="metadata" data-testid="workflow-detail-metadata">{metadata(saved)}</span>{/if}
   {#if saved?.lastStartedRunId}<span class="run-started" data-testid="workflow-run-started" data-run-id={saved.lastStartedRunId}>{tr('run_started')}</span>{/if}
@@ -125,14 +145,26 @@
   .workflow-icon { display:inline-block; flex:0 0 auto; background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
   .icon-play { --workflow-icon:var(--icon-url-play); }.icon-workflow { --workflow-icon:var(--icon-url-workflow); }
   .size-16 { width:16px;height:16px; }.size-20 { width:20px;height:20px; }
-  .workflow-detail-header { position:relative; min-height:19rem; font-size:var(--font-size-p); box-sizing:border-box; border-radius:0 0 1rem 1rem; color:var(--color-font-button); background:linear-gradient(135deg,var(--workflow-gradient-start),var(--workflow-gradient-end)); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4.8rem 4rem 3.6rem; }
+  .workflow-detail-header { position:relative; height:22rem; overflow:hidden; font-size:var(--font-size-p); box-sizing:border-box; border-radius:0 0 1rem 1rem; color:var(--color-font-button); background:linear-gradient(135deg,var(--workflow-gradient-start),var(--workflow-gradient-end)); display:flex; flex-direction:column; align-items:center; justify-content:safe center; padding:4.4rem 4rem 1.75rem; }
+  /* Fixed-height header: children keep their size so the clamp, never overlap, absorbs long text. */
+  .workflow-detail-header > * { flex-shrink:0; }
   .header-toolbar { position:sticky; top:15px; height:0; margin:0 15px; z-index:var(--z-index-raised-3); pointer-events:none; }
   .new-chat-button-wrapper { background-color:var(--color-grey-10); border-radius:40px; padding:var(--spacing-4); box-shadow:var(--shadow-md); display:flex; align-items:center; justify-content:center; cursor:pointer; pointer-events:auto; }
   .kicker { position:absolute; top:1.25rem; font-size:var(--font-size-small); font-weight:650; }
-  .identity { display:grid; justify-items:center; gap:.6rem; width:100%; }
+  .identity { display:grid; justify-items:center; gap:.45rem; width:100%; }
   .identity-edit { padding:0; background:transparent; border:0; color:inherit; font:inherit; cursor:pointer; text-align:center; max-width:100%; }
+  /* The global button rule fixes height at 41px; the editable description must size to its (clamped) text. */
+  .description-edit { display:block; height:auto; min-width:0; margin-right:0; }
+  /* Editable title/description are text, not buttons: no global hover scale or orange fill. */
+  .identity-edit:hover, .identity-edit:active, .identity-edit:focus-visible { background:transparent; scale:1; filter:none; }
   h1 { margin:.15rem 0 0; color:inherit; font-size:var(--font-size-h2-mobile); line-height:1.3; overflow-wrap:anywhere; }
   .description-edit { max-width:26rem; } p { margin:.2rem 0 0; font-size:var(--font-size-p); line-height:1.4; opacity:.95; }
+  .description-block { display:grid; justify-items:center; gap:.1rem; width:100%; min-width:0; }
+  .description-block .description-edit { max-width:26rem; }
+  p.description.clamped { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden; text-overflow:ellipsis; }
+  .workflow-detail-header:has(.description-toggle.expanded) { overflow-y:auto; }
+  .description-toggle { display:grid; place-items:center; width:2rem; height:1.5rem; padding:0; border:0; background:transparent; color:inherit; cursor:pointer; }
+  .description-toggle svg { transition:transform .2s; } .description-toggle.expanded svg { transform:rotate(180deg); }
   .metadata { position:absolute; bottom:1rem; font-size:var(--font-size-small); opacity:.8; }
   .toggle { display:flex; align-items:center; gap:.4rem; margin:0; padding:.25rem .4rem .25rem .6rem; min-height:2rem; border:0; border-radius:2rem; font:inherit; font-size:var(--font-size-small); font-weight:650; background:var(--color-primary); color:var(--color-font-button); cursor:pointer; box-shadow:var(--shadow-sm); }
   .toggle i { position:relative; width:2rem; height:1.2rem; border-radius:1rem; background:color-mix(in srgb,var(--color-font-button) 35%,transparent); }
@@ -146,6 +178,6 @@
   .save { justify-self:center; border:0; border-radius:.7rem; padding:.4rem 1.2rem; background:var(--color-button-primary); color:var(--color-font-button); cursor:pointer; }
   .run-started { position:absolute; bottom:2.1rem; font-size:var(--font-size-small); }
   button:focus-visible,input:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
-  @media(max-width:730px) { .workflow-detail-header { min-height:19rem; padding:4.9rem 1.25rem 3.6rem; } .kicker { top:3.4rem; } h1 { font-size:var(--font-size-xl); } .description-edit { max-width:23rem; } .workflow-tabs { margin-top:1.25rem; } }
-  @media(prefers-reduced-motion:reduce) { .toggle i::after { transition:none; } }
+  @media(max-width:730px) { .workflow-detail-header { height:22rem; padding:4.9rem 1.25rem 1.75rem; } .kicker { top:3.4rem; } h1 { font-size:var(--font-size-xl); } .description-edit { max-width:23rem; } .workflow-tabs { margin-top:1.25rem; } }
+  @media(prefers-reduced-motion:reduce) { .toggle i::after, .description-toggle svg { transition:none; } }
 </style>

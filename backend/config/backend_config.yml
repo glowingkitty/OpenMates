@@ -16,11 +16,9 @@
 # Admin overrides. `enabled` is only needed to opt into features that ship with
 # default_enabled: false. `disabled` can disable default-on features.
 feature_overrides:
-  enabled:
-    - "platform:workflows"
-    # Event search: official schedules plus public web pages (web search and page
-    # extraction). No operator-installed providers are part of this deployment.
-    - "skill:events:search"
+  # Released features are on through their own defaults (owner decision 22 Nov:
+  # Workflows and event search are released), so production needs no enabled override.
+  enabled: []
   disabled:
     # Unreleased product surfaces remain available through backend_config.dev.yml.
     - "platform:teams"

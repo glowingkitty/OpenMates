@@ -15,8 +15,8 @@ use zeroize::Zeroizing;
 
 mod api;
 mod apply_changes;
-mod io;
-mod job;
+pub(crate) mod io;
+pub(crate) mod job;
 mod moves;
 mod patch_repair;
 mod policy;
@@ -28,6 +28,7 @@ use super::hosted_base::{
 };
 pub use api::{HostedApproval, HostedProposal};
 pub use job::{HostedFileJob, HostedFileOperation};
+pub(crate) use apply_changes::applied_change_mutations;
 pub use restore::ProjectCommitRestoreResult;
 
 /// Largest hosted text file (UTF-8 bytes), also the mutation body limit.

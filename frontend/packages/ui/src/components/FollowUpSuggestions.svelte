@@ -16,6 +16,8 @@
     disabled = false,
     dismissOnClick = true,
     plainText = false,
+    singleLine = false,
+    align = 'end',
     onSuggestionClick,
   }: {
     suggestions: string[];
@@ -25,6 +27,10 @@
     dismissOnClick?: boolean;
     /** Public wiki questions are already plain text; preserve their exact wording. */
     plainText?: boolean;
+    /** Start screens: one line per suggestion, cut with an ellipsis, so the centred block keeps its height. */
+    singleLine?: boolean;
+    /** 'end' right-aligns the lines (default, in-chat follow-ups); 'start' left-aligns them (start screens). */
+    align?: 'end' | 'start';
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
@@ -135,6 +141,8 @@
   <div
     class="suggestions-wrapper"
     class:is-dismissing={isDismissing}
+    class:single-line={singleLine}
+    class:align-start={align === 'start'}
     data-testid="suggestions-wrapper"
     transition:fade={{ duration: 200 }}
   >
@@ -144,6 +152,7 @@
         class="suggestion-item"
         data-testid="follow-up-suggestion-item"
         disabled={isDismissing || disabled}
+        title={singleLine ? suggestion.body : undefined}
         onmousedown={(event) => {
           event.preventDefault();
         }}
@@ -153,7 +162,7 @@
           handleSuggestionClick(suggestion.body);
         }}
       >
-        <span class="suggestion-text">
+        <span class="suggestion-text" data-testid="follow-up-suggestion-text">
           {#if typeof highlighted === 'string'}
             {highlighted}
           {:else}
@@ -242,6 +251,27 @@
 
   .suggestion-text .text-match {
     font-weight: 700;
+  }
+
+  .suggestions-wrapper.single-line .suggestion-item {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .suggestions-wrapper.single-line .suggestion-text {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .suggestions-wrapper.align-start {
+    align-items: flex-start;
+  }
+
+  .suggestions-wrapper.align-start .suggestion-item {
+    justify-content: flex-start;
+    text-align: left;
   }
 
   @keyframes fadeIn {

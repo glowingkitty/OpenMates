@@ -232,6 +232,51 @@ class ProjectWriteAuthorizationService:
             return None
         return {**binding, "specialist_focus_id": specialist_id}
 
+    async def inherit_focus_for_sub_chat(
+        self,
+        *,
+        user_id: str,
+        parent_chat_id: str,
+        child_chat_id: str,
+        specialist_focus_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Give a sub-chat the parent's active Project base focus.
+
+        Returns the child's verified binding, or None when the parent has no
+        active binding. The child must be a stored sub-chat of the parent in the
+        same owner/Team scope. A Project specialist is copied only when it is
+        exactly the parent's currently accepted specialist.
+        """
+        parent = await self.get_active_focus(user_id=user_id, chat_id=parent_chat_id)
+        if not parent:
+            return None
+        team_id = parent.get("team_id") if isinstance(parent.get("team_id"), str) else None
+        child_chat = await self._require_chat_access(user_id, child_chat_id, team_id)
+        if not child_chat.get("is_sub_chat") or child_chat.get("parent_id") != parent_chat_id:
+            raise ProjectWriteAuthorizationError("SUB_CHAT_PARENT_MISMATCH", status_code=404)
+        binding = {
+            key: value for key, value in parent.items()
+            if key not in {"specialist_focus_id", "activation_request_id", "activation_message_id"}
+        }
+        binding.update(
+            activation_id=str(uuid.uuid4()),
+            parent_activation_id=parent.get("activation_id"),
+            activated_at=int(time.time()),
+        )
+        if not await self.cache_service.set(
+            self._focus_key(user_id, child_chat_id), binding, ttl=PROJECT_FOCUS_TTL_SECONDS,
+        ):
+            raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
+        if specialist_focus_id and specialist_focus_id == parent.get("specialist_focus_id"):
+            specialist = await self.cache_service.get(self._specialist_key(user_id, parent_chat_id))
+            if isinstance(specialist, dict):
+                copied = {**specialist, "base_activation_id": binding["activation_id"]}
+                if not await self.cache_service.set(
+                    self._specialist_key(user_id, child_chat_id), copied, ttl=PROJECT_FOCUS_TTL_SECONDS,
+                ):
+                    raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
+        return await self.get_active_focus(user_id=user_id, chat_id=child_chat_id)
+
     async def deactivate_focus(self, *, user_id: str, chat_id: str) -> bool:
         from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
 
@@ -394,6 +439,61 @@ class ProjectWriteAuthorizationService:
         ):
             raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_CACHE_UNAVAILABLE", status_code=503)
         return approval
+
+    @staticmethod
+    def _sandbox_auth_key(user_id: str, chat_id: str, project_id: str, operation_id: str) -> str:
+        return f"project_sandbox_write_auth:v1:{_hash(user_id)}:{chat_id}:{_hash(project_id)}:{_hash(operation_id)}"
+
+    async def authorize_sandbox_write(
+        self, *, user_id: str, chat_id: str, project_id: str, operation_id: str,
+        proposal_digest: str, team_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Record, server-side, that the hosted sandbox job of this chat may commit one revision.
+
+        Runs the same chat/Project/focus/role checks as the device path. Only the
+        ``apply_and_show`` write mode applies: ``always_ask`` needs a user approval
+        the sandbox job cannot give, so it is refused. The record is bound to
+        user, chat, Project, operation and digest, and is consumed once by
+        ``consume_sandbox_write``; the device-path checks are unchanged.
+        """
+        _validate_write_binding(operation_id, proposal_digest)
+        decision = await self._current_write_decision(
+            user_id=user_id, chat_id=chat_id, project_id=project_id, team_id=team_id)
+        if decision["write_mode"] != "apply_and_show":
+            raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_REQUIRED", status_code=409)
+        record = {
+            "operation_id": operation_id, "proposal_digest": proposal_digest, "chat_id": chat_id,
+            "project_id_hash": _hash(project_id), "team_id_hash": _hash(team_id) if team_id else None,
+            "focus_id_hash": decision["focus_id_hash"],
+            "settings_revision": decision["settings_revision"], "authorized_at": int(time.time()),
+        }
+        if not await self.cache_service.set(
+            self._sandbox_auth_key(user_id, chat_id, project_id, operation_id), record,
+            ttl=PROJECT_WRITE_APPROVAL_TTL_SECONDS,
+        ):
+            raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_CACHE_UNAVAILABLE", status_code=503)
+        return decision
+
+    async def consume_sandbox_write(
+        self, *, user_id: str, chat_id: str, project_id: str, operation_id: str,
+        proposal_digest: str, team_id: str | None = None,
+    ) -> None:
+        """Consume the record of ``authorize_sandbox_write`` right before the durable commit."""
+        _validate_write_binding(operation_id, proposal_digest)
+        decision = await self._current_write_decision(
+            user_id=user_id, chat_id=chat_id, project_id=project_id, team_id=team_id)
+        record = await self.cache_service.get_and_delete(
+            self._sandbox_auth_key(user_id, chat_id, project_id, operation_id))
+        if (
+            not isinstance(record, dict)
+            or record.get("proposal_digest") != proposal_digest
+            or record.get("chat_id") != chat_id
+            or record.get("project_id_hash") != _hash(project_id)
+            or record.get("team_id_hash") != (_hash(team_id) if team_id else None)
+            or record.get("focus_id_hash") != decision["focus_id_hash"]
+            or record.get("settings_revision") != decision["settings_revision"]
+        ):
+            raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_REQUIRED", status_code=409)
 
     async def _current_write_decision(
         self,

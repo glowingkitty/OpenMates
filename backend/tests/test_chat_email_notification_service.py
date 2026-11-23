@@ -16,6 +16,9 @@ from backend.core.api.app.services import chat_email_notification_service as ser
 def test_private_team_chat_link_has_encoded_context_without_content():
     subject, context = service.message_email_content("Team user", "chat/id", team_id="team/id")
     assert subject == "Team user messaged you in OpenMates."
+    titled_subject, titled = service.message_email_content("Mate", "chat/id", title="Garden planning notes", preview="Synthetic answer")
+    assert titled_subject == "Mate in Garden planning notes"
+    assert titled["notification_text"] == "Mate in Garden planning notes"
     assert context["chat_url"].endswith("/#chat-id=chat%2Fid&team-id=team%2Fid")
     assert context["chat_title"] == context["response_preview"] == ""
     assert "token=" not in context["chat_url"] and "key=" not in context["chat_url"]
@@ -330,3 +333,61 @@ def test_production_completion_gate_excludes_intermediate_and_workflow_events(ov
     namespace = {}
     exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
     assert namespace['email_eligible_completion']({'is_final_chunk': True, 'full_content_so_far': 'visible answer', **override}) is eligible
+
+
+def _opt_in(fixture):
+    fixture.user["email_notification_preferences"]["includeContent"] = True
+    fixture.user["email_notification_preference_choices"]["includeContent"] = {"source": "user", "value": True}
+
+
+async def _dispatch_subject(fixture, monkeypatch, headline):
+    read = AsyncMock(return_value=headline)
+    monkeypatch.setattr("backend.core.api.app.services.notification_headline_handoff.read_headline", read)
+    seen = {}
+
+    async def guarded_send(**kwargs):
+        assert await kwargs["before_send"]() is True
+        seen.update(subject=kwargs["send_options"]["subject"], context=dict(kwargs["context"]))
+        return True, "sent"
+    monkeypatch.setattr(sys.modules["backend.core.api.app.services.email_delivery_guard"], "send_email_once", guarded_send)
+    assert await service.dispatch_chat_email(fixture.task, user_id="user-a", chat_id="chat-a", message_id="message-a") == "sent"
+    return seen, read
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.content.privacy-boundary,notifications.delivery.email-enabled
+@pytest.mark.asyncio
+async def test_opted_in_email_uses_summary_subject_with_title_preview_and_link(fixture, monkeypatch):
+    _opt_in(fixture)
+    assert await queue(fixture, title="Garden planning notes", preview="The beds are planned.", task_id="task-a")
+    ready(fixture)
+    seen, read = await _dispatch_subject(fixture, monkeypatch, "✅ Added 4 models, 3 tests pass")
+    assert seen["subject"] == "✅ Added 4 models, 3 tests pass"
+    assert seen["context"]["chat_title"] == "Garden planning notes" and seen["context"]["chat_title_in_body"] is True
+    assert "The beds are planned." in seen["context"]["response_preview"]
+    assert "#chat-id=chat-a" in seen["context"]["chat_url"]
+    assert read.await_args.kwargs["task_id"] == "task-a"
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.content.privacy-boundary,notifications.delivery.email-enabled
+@pytest.mark.asyncio
+async def test_default_email_stays_generic_and_never_reads_the_summary(fixture, monkeypatch):
+    assert await queue(fixture, title="Garden planning notes", preview="The beds are planned.", task_id="task-a")
+    ready(fixture)
+    seen, read = await _dispatch_subject(fixture, monkeypatch, "✅ Secret detail")
+    assert seen["subject"] == "Mate messaged you in OpenMates."
+    assert not seen["context"]["response_preview"] and not seen["context"]["chat_title_in_body"]
+    read.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.content.privacy-boundary,notifications.delivery.email-enabled
+@pytest.mark.asyncio
+async def test_hidden_chat_email_stays_generic_even_when_opted_in(fixture, monkeypatch):
+    _opt_in(fixture)
+    assert await queue(fixture, title="Garden planning notes", preview="The beds are planned.", task_id="task-a")
+    ready(fixture)
+    fixture.directus.chat.get_chat_metadata.return_value = {
+        **fixture.directus.chat.get_chat_metadata.return_value, "is_hidden": True}
+    seen, read = await _dispatch_subject(fixture, monkeypatch, "✅ Secret detail")
+    assert seen["subject"].endswith("messaged you in OpenMates.")
+    assert not seen["context"]["response_preview"]
+    read.assert_not_awaited()

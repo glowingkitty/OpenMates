@@ -42,6 +42,7 @@
     extractDocumentFilename,
     generateFilenameFromTitle
   } from './docsEmbedContent';
+  import { displayPIIEmbedText, embedTextHasPIIDisplay } from '../../../services/piiEmbedDisplay';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
@@ -268,16 +269,13 @@
    * Apply PII masking to the raw HTML string before sanitizing.
    */
   let piiProcessedHtml = $derived.by(() => {
-    if (!hasPII || !htmlContent) return htmlContent;
-    if (piiRevealed) {
-      return restorePIIInText(htmlContent, allPIIMappings);
-    } else {
-      return replacePIIOriginalsWithPlaceholders(htmlContent, allPIIMappings);
-    }
+    return displayPIIEmbedText(htmlContent, allPIIMappings, piiRevealed);
   });
 
   // Sanitize HTML content for safe rendering (DOMPurify)
   let sanitizedHtml = $derived(sanitizeDocumentHtml(piiProcessedHtml));
+  // Server page images show privacy placeholders verbatim; such documents render from HTML.
+  let htmlHasPII = $derived(embedTextHasPIIDisplay(htmlContent, allPIIMappings));
 
   // Extract title from content if not provided
   let displayTitle = $derived.by(() => {
@@ -808,7 +806,7 @@
   {#snippet content()}
     {#if editing}
       <DocsEditor bind:this={docsEditor} bind:saving={docsSaving} html={latestHtmlContent} onSave={saveEditedDocument} onCancel={() => { editing = false; }} />
-    {:else if Object.keys(displayedArtifactPageUrls).length > 0}
+    {:else if Object.keys(displayedArtifactPageUrls).length > 0 && !htmlHasPII}
       <div class="doc-viewer-canvas" data-testid="doc-artifact-pages" data-download-ready={preparedDocxDownloadUrl ? 'true' : 'false'}>
         <div
           class="doc-canvas-scroll"

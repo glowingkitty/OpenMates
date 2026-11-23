@@ -7,6 +7,7 @@
     cameraStream: MediaStream | null;
     cameraEnabled: boolean;
     cameraFacing: VoiceCallCameraFacing;
+    screenSharing: boolean;
     expanded: boolean;
     displayedMedia: VoiceCallDisplayedMedia | null;
     mediaCount?: number;
@@ -17,7 +18,7 @@
     onPrevious: () => void;
     onNext: () => void;
   }
-  let { cameraStream, cameraEnabled, cameraFacing, expanded, displayedMedia,
+  let { cameraStream, cameraEnabled, cameraFacing, screenSharing, expanded, displayedMedia,
     mediaCount = 0, mediaIndex = 0,
     onExpandedChange, onShowCamera, onFlipCamera, onPrevious, onNext }: Props = $props();
   let cameraVideo = $state<HTMLVideoElement>();
@@ -42,7 +43,7 @@
     {#if cameraEnabled}
       <div class="camera" class:inset={!!displayedMedia} data-testid="voice-call-camera-preview">
         <!-- Camera remains a native video stream even while a generated result is displayed. -->
-        <video bind:this={cameraVideo} autoplay muted playsinline class:mirror={cameraFacing === 'user'} aria-label={$text('voicecall.camera_preview')}></video>
+        <video bind:this={cameraVideo} autoplay muted playsinline class:mirror={cameraFacing === 'user' && !screenSharing} aria-label={$text(screenSharing ? 'voicecall.screen_share_preview' : 'voicecall.camera_preview')}></video>
         {#if displayedMedia}
           <button class="camera-return" type="button" data-testid="voice-call-show-camera" aria-label={$text('voicecall.show_camera')} onclick={onShowCamera}></button>
         {/if}
@@ -66,7 +67,7 @@
         </nav>
       {/if}
     {/if}
-    {#if cameraEnabled}
+    {#if cameraEnabled && !screenSharing}
       <button class="round flip" type="button" data-testid="voice-call-camera-flip" aria-label={$text('voicecall.flip_camera')} onclick={onFlipCamera}><span class="call-media-icon camera-icon" aria-hidden="true"></span></button>
     {/if}
     <button class="round expand" type="button" data-testid="voice-call-media-expand" aria-label={$text(expanded ? 'voicecall.minimize' : 'voicecall.expand')} aria-expanded={expanded} onclick={() => onExpandedChange(!expanded)}><span class="call-media-icon up" class:down={!expanded} aria-hidden="true"></span></button>

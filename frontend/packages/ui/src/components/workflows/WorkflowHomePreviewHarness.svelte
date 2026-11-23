@@ -10,6 +10,7 @@
   import { text } from '../../i18n/translations';
   import { workspacePaneMotion } from '../../utils/workspacePaneMotion';
 
+
   let { greetingName = 'there', empty = false, guest = false }: { greetingName?: string; empty?: boolean; guest?: boolean } = $props();
   let value = $state('');
   let signupRequested = $state(false);
@@ -71,6 +72,7 @@
   backTestId="workflows-back-to-recent" searchTestId="workflows-search"
   onShowAll={guest ? undefined : () => { browseMode = 'workflows'; }} onBrowse={() => { browseMode = 'templates'; }} onBackToRecent={() => { browseMode = 'home'; }}
   onSearchAll={guest ? undefined : () => {}} onActionItem={() => {}}
+  startSuggestions={{ items: [1, 2, 3].map(index => $text(`workflows.home.suggestion_${index}`)), onClick: (suggestion) => { value = suggestion; } }}
   onContinueItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
   onAllItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
 >

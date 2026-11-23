@@ -1,11 +1,14 @@
 /** Quiet, local-only confirmations; never routed into call PCM or playback. */
-export type VoiceCallCue = 'connected' | 'muted' | 'unmuted' | 'ended';
+export type VoiceCallCue = 'connected' | 'muted' | 'unmuted' | 'ended' | 'needs_you';
 interface CueNote { frequency: number; offset: number; duration: number }
 export const VOICE_CALL_CUE_NOTES: Readonly<Record<VoiceCallCue, readonly CueNote[]>> = {
   connected: [{ frequency: 523.25, offset: 0, duration: 0.07 }, { frequency: 783.99, offset: 0.09, duration: 0.09 }],
   muted: [{ frequency: 440, offset: 0, duration: 0.06 }, { frequency: 329.63, offset: 0.09, duration: 0.06 }],
   unmuted: [{ frequency: 659.25, offset: 0, duration: 0.06 }, { frequency: 880, offset: 0.09, duration: 0.06 }],
   ended: [{ frequency: 392, offset: 0, duration: 0.055 }, { frequency: 293.66, offset: 0.075, duration: 0.055 }, { frequency: 196, offset: 0.15, duration: 0.075 }],
+  // "Needs you": a request waits for a tap. Three soft rising notes, played
+  // before the spoken line so the user can already reach for the screen.
+  needs_you: [{ frequency: 587.33, offset: 0, duration: 0.08 }, { frequency: 739.99, offset: 0.12, duration: 0.08 }, { frequency: 987.77, offset: 0.24, duration: 0.14 }],
 };
 const CUE_PEAK = 0.035;
 const ATTACK = 0.008;

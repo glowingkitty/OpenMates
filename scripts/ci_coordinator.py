@@ -176,6 +176,61 @@ def partition_source_specs(specs: list[str], source: str, source_root: Path):
     return partition(specs, manifest=source_coverage_manifest(source, source_root))
 
 
+PREPARED_RUST_CORE = "prepared-rust-core"
+
+
+def prepared_web_rust_core(job: dict) -> bool:
+    """True when the job's stored preparation key carries the web Rust core bit.
+
+    Derived from the stored key (never from the switch) so a switch change
+    between submit and dispatch cannot mismatch the key the workflow rebuilds.
+    """
+    key = str(job.get("preparation_key") or "")
+    if not key or not job.get("web_rust_core"):
+        return False
+    try:
+        from scripts.ci_artifacts import preparation_key
+    except ModuleNotFoundError:
+        from ci_artifacts import preparation_key
+    cli, upload = bool(job.get("prepare_cli")), bool(job.get("prepare_upload"))
+    for native in (False, True):
+        if native and (not cli or upload):
+            continue
+        try:
+            candidate = preparation_key(
+                job["source"],
+                include_cli=cli,
+                include_upload=upload,
+                include_native_cli=native,
+                include_web_rust_core=True,
+            )
+        except ValueError:
+            return False
+        if candidate == key:
+            return True
+    return False
+
+
+def _speedups_input(job: dict) -> dict:
+    """`ci_speedups` workflow input for this job's owner (scripts/ci_speedups.py); none when all are off.
+
+    `prepared-rust-core` is set exactly when the job's preparation key carries the
+    web Rust core bit (whatever the switch says now), so workflow and key always agree.
+    """
+    try:
+        from scripts import ci_speedups
+    except ModuleNotFoundError:
+        import ci_speedups
+    names = set(ci_speedups.enabled(str(job.get("owner") or "")))
+    # The stored key decides alone: a switch read elsewhere or changed after submit
+    # must never make the workflow build something other than what the key promises.
+    names.discard(PREPARED_RUST_CORE)
+    if prepared_web_rust_core(job):
+        names.add(PREPARED_RUST_CORE)
+    value = ",".join(sorted(names))
+    return {"ci_speedups": value} if value else {}
+
+
 class GitHubError(RuntimeError):
     def __init__(self, message: str, retry_at: float):
         super().__init__(message)
@@ -413,6 +468,7 @@ class GitHub:
                         else {}
                     ),
                     "proof_video_profile": job.get("proof_profile", ""),
+                    **_speedups_input(job),
                     **(
                         {"web_rust_core": "true"}
                         if job.get("web_rust_core")
@@ -618,7 +674,7 @@ class Queue:
         web_rust_core: bool = False,
         force_e2b: bool = False,
     ) -> dict:
-        if web_rust_core and mode not in WEB_RUST_CORE_MODES:
+        if web_rust_core and mode not in WEB_RUST_CORE_MODES + ("prepare",):
             raise ValueError("Web Rust core option requires --mode e2e or component")
         if force_e2b and (
             mode not in E2B_FORCE_MODES or owner == DAILY_OWNER
@@ -1770,12 +1826,23 @@ def enqueue_submission(
             and not include_upload
             and source_eligible(source_root, source)
         )
+        try:
+            from scripts import ci_speedups
+        except ModuleNotFoundError:
+            import ci_speedups
+        # Decided once here and frozen in the key; dispatch re-derives it from the key.
+        prepared_rust_core = (
+            mode == "e2e"
+            and web_rust_core
+            and PREPARED_RUST_CORE in ci_speedups.enabled(owner)
+        )
         preparation = {
             "key": preparation_key(
                 source,
                 include_cli=include_cli,
                 include_upload=include_upload,
                 include_native_cli=include_native_cli,
+                include_web_rust_core=prepared_rust_core,
             ),
             "harness_commit": harness_commit(source_root),
             "cli": include_cli,
@@ -1789,6 +1856,7 @@ def enqueue_submission(
             nonce,
             candidate=candidate,
             preparation=preparation,
+            web_rust_core=prepared_rust_core,
         )
         preparation = {**preparation, "id": producer["id"]}
     jobs = [
@@ -1896,6 +1964,29 @@ def print_receipt(value, *, as_json=False):
                     print(f"  {key}: {str(item)[:200]}")
 
 
+def print_set_summary(keys, states, receipts, *, as_json=False):
+    """One report for a waited set: a line per job, receipts of the finished ones."""
+    if as_json:
+        print(json.dumps(receipts, indent=2, default=str))
+        return
+    counts = {}
+    for state in states:
+        counts[state] = counts.get(state, 0) + 1
+    print("CI set: " + ", ".join(f"{count} {state}" for state, count in sorted(counts.items())))
+    for key, state, row in zip(keys, states, receipts):
+        specs = row.get("specs") or row.get("tests") or ""
+        print(f"- {key[:12]} {row.get('mode', '')} {state} {str(specs)[:120]}")
+    failed = [key for key, state in zip(keys, states) if state in ("failure", "cancelled", "attention")]
+    if failed:
+        print("All failures with rerun arguments: python3 scripts/ci_coordinator.py failures " + " ".join(failed))
+    pending = [key for key, state in zip(keys, states) if state not in TERMINAL and state != "attention"]
+    if pending:
+        print("Still running: python3 scripts/ci_coordinator.py wait " + " ".join(pending))
+    for row in receipts:
+        if row.get("state") in TERMINAL or row.get("state") == "attention":
+            print_receipt(row, as_json=False)
+
+
 def wait_for_job(
     queue, key, *, timeout=7200, poll=10, clock=time.monotonic, sleep=time.sleep
 ):
@@ -1916,6 +2007,45 @@ def wait_for_job(
         sleep(min(poll, remaining))
 
 
+def wait_for_jobs(
+    queue,
+    keys,
+    *,
+    timeout=7200,
+    poll=10,
+    first_failure=False,
+    clock=time.monotonic,
+    sleep=time.sleep,
+):
+    """Wait for a set of jobs and return once: all final, or the first failure when asked.
+
+    One wait per set means one notification per set for the chat that waits.
+    Returns rows in the order of `keys`; unfinished rows at the deadline (or
+    after an early failure return) keep their live state.
+    """
+    if timeout <= 0 or poll <= 0:
+        raise ValueError("Timeout and poll must be positive")
+    deadline = clock() + timeout
+    while True:
+        rows = []
+        for key in keys:
+            found = queue.status(key)
+            if not found:
+                raise ValueError(f"Unknown CI request {key}")
+            rows.append(found[0])
+        final = [row["state"] in TERMINAL or row["state"] == "attention" for row in rows]
+        failed = any(done and row["state"] != "success" for done, row in zip(final, rows))
+        if all(final) or (first_failure and failed):
+            return rows
+        remaining = deadline - clock()
+        if remaining <= 0:
+            return [
+                row if done else {**row, "state": "timeout", "last_state": row["state"]}
+                for done, row in zip(final, rows)
+            ]
+        sleep(min(poll, remaining))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -1923,6 +2053,11 @@ def main():
     submit.add_argument("--session", required=True)
     submit.add_argument("--source", required=True)
     submit.add_argument("--spec", "--test-target", action="append", default=[])
+    submit.add_argument(
+        "--after-triage",
+        default="",
+        help="the diagnosed cause, required to run a target again after it failed twice in a row (scripts/ci_triage_gate.py)",
+    )
     submit.add_argument(
         "--keep-queued-generations",
         action="store_true",
@@ -2033,7 +2168,14 @@ def main():
     wait = sub.add_parser(
         "wait", help="Wait for a cached job result without agent polling"
     )
-    wait.add_argument("id")
+    wait.add_argument(
+        "ids", nargs="+", metavar="id",
+        help="one or more job ids; several ids are waited on as one set with one report",
+    )
+    wait.add_argument(
+        "--first-failure", action="store_true",
+        help="with several ids, return as soon as one job fails (the rest keep running)",
+    )
     wait.add_argument("--timeout", type=float, default=7200)
     wait.add_argument("--poll", type=float, default=10)
     for command in (submit, priority, cancel, release, status, result, verify, health, wait, failures):
@@ -2086,6 +2228,15 @@ def main():
         except ModuleNotFoundError:
             from ci_candidate import load as load_candidate
         candidate = load_candidate(root, args.source, require_fresh=True)
+        try:
+            from scripts import ci_triage_gate
+        except ModuleNotFoundError:
+            import ci_triage_gate
+        try:
+            ci_triage_gate.check(queue.path, args.session, args.mode, args.spec, args.after_triage)
+        except ValueError as refusal:
+            print(str(refusal), file=sys.stderr)
+            return 2
         capacity_configuration = None
         if (
             args.capacity_profile
@@ -2202,22 +2353,34 @@ def main():
             temporary.replace(target)
         print_receipt(checkpoint, as_json=args.json)
     elif args.action == "wait":
-        row = wait_for_job(queue, args.id, timeout=args.timeout, poll=args.poll)
-        terminal_state = row["state"]
-        if row["state"] == "success":
-            from ci_results import fetch
+        if len(args.ids) == 1:
+            rows = [wait_for_job(queue, args.ids[0], timeout=args.timeout, poll=args.poll)]
+        else:
+            rows = wait_for_jobs(
+                queue, args.ids, timeout=args.timeout, poll=args.poll,
+                first_failure=args.first_failure,
+            )
+        states = [row["state"] for row in rows]
+        receipts = []
+        for key, row in zip(args.ids, rows):
+            if row["state"] == "success":
+                from ci_results import fetch
 
-            # A green workflow is not sufficient: validate exact-source artifacts once.
-            row = queue.result(GitHub(root), args.id, root, fetch)
-        elif row["state"] in ("failure", "cancelled") and row.get("run_id"):
-            # Failed attempts can also have useful recordings. Keep the verdict
-            # and expose retrieval without making an absent artifact hide it.
-            row = {
-                **row,
-                "result_command": f"python3 scripts/ci_coordinator.py result {args.id}",
-            }
-        print_receipt(row, as_json=args.json)
-        return 0 if terminal_state == "success" else 1
+                # A green workflow is not sufficient: validate exact-source artifacts once.
+                row = queue.result(GitHub(root), key, root, fetch)
+            elif row["state"] in ("failure", "cancelled") and row.get("run_id"):
+                # Failed attempts can also have useful recordings. Keep the verdict
+                # and expose retrieval without making an absent artifact hide it.
+                row = {
+                    **row,
+                    "result_command": f"python3 scripts/ci_coordinator.py result {key}",
+                }
+            receipts.append(row)
+        if len(receipts) == 1:
+            print_receipt(receipts[0], as_json=args.json)
+        else:
+            print_set_summary(args.ids, states, receipts, as_json=args.json)
+        return 0 if all(state == "success" for state in states) else 1
     elif args.action == "failures":
         from ci_failures import collect, render
         from ci_results import fetch

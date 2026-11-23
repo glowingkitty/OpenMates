@@ -450,6 +450,36 @@
   max-width: 160px;
 }
 
+/* Project | layered focus: the Project part shrinks first so the layer stays readable. */
+.focus-pill-label.layered {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(380px, 64vw);
+  text-overflow: clip;
+}
+
+.focus-pill-label.layered > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-pill-label.layered > .focus-pill-base {
+  flex: 0 1 auto;
+  min-width: 4ch;
+}
+
+.focus-pill-label.layered > .focus-pill-separator {
+  flex: 0 0 auto;
+  white-space: pre;
+}
+
+/* The layered focus never shrinks; it truncates only when it alone is wider than the label. */
+.focus-pill-label.layered > .focus-pill-layer {
+  flex: 0 0 auto;
+  max-width: calc(100% - 6ch);
+}
+
 /* Trailing "focus on" label — slightly dimmed to keep focus name prominent */
 .focus-pill-on-text {
   flex-shrink: 0;

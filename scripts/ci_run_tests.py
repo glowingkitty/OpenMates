@@ -65,7 +65,9 @@ API = "http://localhost:8000"
 APP = "http://localhost:5173"
 # Real signup endpoint permits five email requests per minute per runner IP.
 SIGNUP_INTERVAL_SECONDS = 15
-FIXTURE_CREDITS = 1000
+# Real-inference specs pay real multi-turn chats (one focus-mode run spends
+# about 1,250 credits), so their accounts start with more; replayed specs keep 1,000.
+FIXTURE_CREDITS = 10000 if os.environ.get("OPENMATES_CI_REAL_INFERENCE") == "1" else 1000
 _last_signup_started = None
 CAPACITY_EPOCH_SPECS = frozenset(
     {
@@ -169,6 +171,7 @@ MARKER_CHAT_EPOCH_SPECS = frozenset(
         "connection-resilience.spec.ts",
         "chat-saved-followup-admission.spec.ts",
         "chat-reload-followup-send.spec.ts",
+        "chat-finished-turn-resend.spec.ts",
         "skill-web-search.spec.ts",
         "native-cache-selected-tools.spec.ts",
     }
@@ -427,6 +430,7 @@ def reject_inherited_accounts():
         "TEST_ACCOUNT",
         "OPENMATES_TEST_ACCOUNT_",
         "E2E_SIGNUP_INVITE_CODE",
+        "E2E_SIGNUP_GIFTED_INVITE_CODE",
         "OPENMATES_CLI_SIGNUP_",
     )
     if any(key.startswith(prefixes) for key in os.environ):
@@ -1535,6 +1539,20 @@ def provision_account(
         token,
     )
     mapped["E2E_SIGNUP_INVITE_CODE"] = fixture_invite
+    # One invite with gifted credits per provisioned set (two uses: the signup
+    # case and its Playwright retry each sign up a fresh account). Isolated CI
+    # runs the self-hosted edition (no billing routes, so no gift cards); a fresh
+    # signup with this invite accepts its gift through the product's own
+    # /v1/auth/accept-gift, so paid features (voice calls) work without patching
+    # balances. Only the disposable database holds it.
+    gifted_chars = secrets.token_hex(6).upper()
+    gifted_invite = f"{gifted_chars[:4]}-{gifted_chars[4:8]}-{gifted_chars[8:]}"
+    request(
+        "http://localhost:8055/items/invite_codes",
+        {"code": gifted_invite, "remaining_uses": 2, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
+        token,
+    )
+    mapped["E2E_SIGNUP_GIFTED_INVITE_CODE"] = gifted_invite
     mapped["OPENMATES_CLI_SIGNUP_INVITE_CODE"] = fixture_invite
     mapped["OPENMATES_STATE_DIR"] = env["OPENMATES_STATE_DIR"]
     accept_fixture_credits(mapped)

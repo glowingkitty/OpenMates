@@ -626,11 +626,41 @@ describe("request-owned embed errors", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("treats a refused embed read as a missing embed, not a Server error notice (JP9NV)", () => {
+    const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
+    defaultError()({ message: "Embed not found", status: 404, code: "embed_not_found", embed_id: "embed-1" });
+    expect(toast).not.toHaveBeenCalled();
+    defaultError()({ message: "Failed to load embed" });
+    expect(toast).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("does not hide unrelated protocol errors carrying an owned request id", () => {
     const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
     const release = webSocketService.ownEmbedProtocolRequest("embed-request", vi.fn());
     defaultError()({ request_id: "embed-request", code: "other_error", message: "Unexpected failure." });
     release();
     expect(toast).toHaveBeenCalledOnce();
+  });
+});
+
+describe("turn-owned errors", () => {
+  const defaultError = () => (webSocketService as unknown as {
+    messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+  }).messageHandlers.get("error")![0];
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+  it("keeps a voice turn's rejected preflight out of the Server error notice while the call owns it", () => {
+    const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
+    const rejection = { code: "version_conflict", message: "Encrypted chat preflight was rejected.", turn_id: "turn-1" };
+    const release = webSocketService.ownTurnErrors("turn-1");
+    defaultError()(rejection);
+    expect(toast).not.toHaveBeenCalled();
+    defaultError()({ ...rejection, turn_id: "turn-2" });
+    expect(toast).toHaveBeenCalledTimes(1);
+    release();
+    release();
+    defaultError()(rejection);
+    expect(toast).toHaveBeenCalledTimes(2);
   });
 });

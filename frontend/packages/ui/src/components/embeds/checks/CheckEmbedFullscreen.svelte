@@ -13,6 +13,8 @@
   import CheckSourceRow from './CheckSourceRow.svelte';
   import { text } from '../../../i18n/translations';
   import { groupSources } from './checkGrouping';
+  import LinkedTaskRows from '../specifications/LinkedTaskRows.svelte';
+  import { tasksForRequirementIds, type SpecPlanTask } from '../specifications/specPlanLinks';
   import type { CheckView, HumanDecision } from './checkTypes';
 
   interface Props {
@@ -35,15 +37,19 @@
     showActions?: boolean;
     /** Draft-only actions (e.g. Save to Project) shown under the header row. */
     draftActions?: Snippet;
+    /** Tasks of the Plan this Check belongs to; those naming a covered requirement are listed. */
+    planTasks?: SpecPlanTask[];
+    onOpenChat?: (chatId: string) => void;
   }
 
   let {
     check, onClose, onRun, onCancel, onConfirm, onSelectRun, onOpenTestResult, embedId,
     hasPreviousEmbed = false, hasNextEmbed = false, onNavigatePrevious, onNavigateNext, navigateDirection,
-    showChatButton = false, onShowChat, showActions = true, draftActions,
+    showChatButton = false, onShowChat, showActions = true, draftActions, planTasks = [], onOpenChat = () => {},
   }: Props = $props();
 
   let statusLabel = $derived($text(`checks.status.${check.aggregate}`));
+  let relatedTasks = $derived(tasksForRequirementIds(planTasks, check.covered_claims));
   let groups = $derived(groupSources(check));
   let runs = $derived([...check.runs].sort((a, b) => b.started_at.localeCompare(a.started_at)));
   let active = $derived(check.aggregate === 'running' || check.aggregate === 'queued');
@@ -95,6 +101,12 @@
         <section data-testid="check-claims">
           <h3>{$text('checks.claims')}</h3>
           <ul>{#each check.covered_claims as claim (claim)}<li>{claim}</li>{/each}</ul>
+        </section>
+      {/if}
+      {#if relatedTasks.length > 0}
+        <section data-testid="check-plan-tasks">
+          <h3>{$text('checks.plan_tasks')}</h3>
+          <LinkedTaskRows tasks={relatedTasks} rowTestId="check-task-row" buttonTestId="check-task-open-chat" {onOpenChat} />
         </section>
       {/if}
       {#if check.requires_deterministic}

@@ -1060,6 +1060,29 @@ async def test_existing_reference_may_name_a_skill_result_card(authored_service)
     assert h.record(carrier)["status"] == "finished"
 
 
+# contract-test: direct surface=rest_api assertions=authored-results.followups.reuse-or-version
+@pytest.mark.parametrize("written", ["embed:{ref}", " {ref} ", "`embed:{ref}`", "<embed:{ref}>"])
+@pytest.mark.asyncio
+async def test_existing_reference_copied_in_link_form_still_resolves(authored_service, written):
+    """Regression LF4MY: a ref copied as `embed:<ref>` left an empty error card."""
+    h = authored_service
+    reference = await _skill_connection(h)
+    carrier = await h.create()
+    assert await h.update(carrier, raw=_followup_source({"id": "fastest", "existing": written.format(ref=reference)}))
+    assert (await h.content(carrier))["member_ids"] == [SKILL_CONNECTION]
+    assert h.record(carrier)["status"] == "finished"
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.asyncio
+async def test_unknown_existing_reference_is_never_guessed(authored_service):
+    h = authored_service
+    await _skill_connection(h)
+    carrier = await h.create()
+    assert await h.update(carrier, raw=_followup_source({"id": "fastest", "existing": "embed:train-9999-zzz"}))
+    assert h.record(carrier)["status"] == "error"
+
+
 # contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
 @pytest.mark.asyncio
 async def test_existing_cards_prompt_still_lists_only_authored_cards(authored_service):

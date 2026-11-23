@@ -6,7 +6,14 @@ icon_image: |
   event.svg
 category: personal
 last_updated: "2026-03-08"
-instructions: []
+instructions:
+  - for_skills:
+      - search
+    instruction: |-
+      Answering with events-search results: for every event you name, state its start date (and end date when
+      the result has one) and its city or venue in the answer text, copied from the result fields date_start,
+      date_end and venue. The cards alone do not replace the dates. If a result has no usable date, say that the
+      date is unconfirmed instead of guessing.
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search
@@ -31,14 +38,14 @@ embed_types:
     i18n_namespace: embeds.events.search
 skills:
   - id: search
-    default_enabled: false
     anonymous_access: inline
     name_translation_key: events.search
     description_translation_key: events.search.description
     icon_image: search.svg
     preprocessor_hint: >-
-      Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a
-      country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3
+      Find events and conferences and when and where they happen, anywhere; prefer this over web search. Use for
+      upcoming events in a city, a country, a region such as Europe, or worldwide, for the largest or best-known
+      conference on a topic, and for the dates of a named conference. Results come from public web pages and, for GPN24, 39C3, 38C3
       and 37C3, from their official schedules (set conference only for those). Without a city give only a topic
       query. Include past_events only when requested. Never retry another source or fall back to web search.
     class_path: |
@@ -221,7 +228,10 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                description: "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
+                description: >-
+                  Leave as auto (the default), which searches public web pages and every available source.
+                  pretalx, GPN24, 39C3, 38C3 and 37C3 are only those four official schedules; never set them for any
+                  other conference, because they search nothing else.
                 enum:
                   - auto
                   - pretalx

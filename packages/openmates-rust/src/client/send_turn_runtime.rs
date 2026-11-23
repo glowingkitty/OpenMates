@@ -25,6 +25,7 @@ pub(in crate::client) trait SavedTurnClientPhases:PhasePlatform {
     fn project_routing_catalog<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Vec<Value>>;
     fn subchat_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,task:&'a str,updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,Vec<(String,Value)>>;
     fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],mappings:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>;
+    fn e2b_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,key:&'a [u8;32],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:E2bConsentPolicy)->TurnPhaseFuture<'a,Option<SendE2bConsentRequest>>;
     fn replay_outputs<'a>(&'a mut self,ws:&'a mut Socket,outputs:&'a BTreeMap<String,Value>,root:Option<(&'a str,&'a [u8;32])>)->TurnPhaseFuture<'a,usize>;
     fn persist_stream_artifacts<'a>(&'a mut self,ws:&'a mut Socket,chat:&'a str,message:&'a str,key:&'a [u8;32],task:&'a str,embeds:&'a BTreeMap<String,Value>,checkpoints:&'a [Value])->TurnPhaseFuture<'a,Vec<Item>>;
     fn open_chat_live<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Chat>;
@@ -43,6 +44,7 @@ impl SavedTurnClientPhases for BorrowedTurnPhases<'_>{
     fn project_routing_catalog<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Vec<Value>>{Box::pin(self.client.project_routing_catalog(id))}
     fn subchat_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,task:&'a str,updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,Vec<(String,Value)>>{Box::pin(self.client.subchat_consent(ws,event,chat,task,updates,cancel,policy))}
     fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],mappings:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>{Box::pin(self.client.memory_consent(ws,event,chat,message,key,memories,mappings,updates,cancel,policy))}
+    fn e2b_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,key:&'a [u8;32],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:E2bConsentPolicy)->TurnPhaseFuture<'a,Option<SendE2bConsentRequest>>{Box::pin(self.client.send_e2b_consent(ws,event,chat,key,updates,cancel,policy))}
     fn replay_outputs<'a>(&'a mut self,ws:&'a mut Socket,outputs:&'a BTreeMap<String,Value>,root:Option<(&'a str,&'a [u8;32])>)->TurnPhaseFuture<'a,usize>{Box::pin(self.client.replay_outputs(ws,outputs,root))}
     fn persist_stream_artifacts<'a>(&'a mut self,ws:&'a mut Socket,chat:&'a str,message:&'a str,key:&'a [u8;32],task:&'a str,embeds:&'a BTreeMap<String,Value>,checkpoints:&'a [Value])->TurnPhaseFuture<'a,Vec<Item>>{Box::pin(self.client.persist_stream_artifacts(ws,chat,message,key,task,embeds,checkpoints))}
     fn open_chat_live<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Chat>{Box::pin(self.client.open_chat_live(id))}
@@ -86,7 +88,7 @@ async fn adopt_turn_embeds<P: SavedTurnClientPhases>(
     rows: &BTreeMap<String, Value>,
     observed: &mut SendObservations,
 ) -> Result<()> {
-    #[cfg(all(feature = "workflow-yaml", unix))]
+    #[cfg(feature = "workflow-yaml")]
     match crate::client::project_embed_adoption::turn_adoption_event(rows) {
         Ok(Some(event)) => {
             phases
@@ -238,6 +240,12 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         chat_id: id.into(),
                         message_id: message.into(),
                     }).await?;
+            }
+            if let Some(assistant_id) = super::finished_turn::finished_assistant_id(&kind, &p, id, message, turn) {
+                // Resent turn that already finished: no stream or claim will follow.
+                let outcome = super::finished_turn::complete_finished_turn(phases, turn_scope, id, message,
+                    assistant_id, generation, updates, cancel, observed.into_inner()).await?;
+                return Ok(outcome);
             }
             let same = belongs_to_turn(&p, id, message, turn);
             if same {
@@ -422,6 +430,21 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     return Err(super::send::refusal_trace::protocol_at!());
                 }
                 observed.memories.push(record);
+            }
+            if crate::client::send_e2b_consent::is_request_frame(&kind)
+                && crate::client::send_e2b_consent::admit_e2b_request(&p, id, &mut consent_requests)
+            {
+                // Persisted always; answered by policy or surfaced to the caller. The
+                // server continues the paused turn after an answer.
+                if let Some(request) = phases
+                    .e2b_consent(ws, &p, id, key, updates, cancel, options.e2b_consent)
+                    .await?
+                {
+                    if observed.e2b_consent_requests.len() >= 64 {
+                        return Err(super::send::refusal_trace::protocol_at!());
+                    }
+                    observed.e2b_consent_requests.push(request);
+                }
             }
             if kind == "ai_task_initiated"
                 && text(&p, "chat_id") == id

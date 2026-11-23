@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Tool-call budget for sub-agents (PreToolUse and SubagentStop hook backend).
+"""Tool-call warnings for sub-agents (PreToolUse hook backend).
 
 Reads the hook JSON from stdin. Main-chat calls (no ``agent_id``) are ignored.
-Exit 0 allows (optionally printing additionalContext JSON); exit 2 blocks.
-The outer boundary fails open: a budget bug must never stall an agent.
+It never blocks (owner, 22 Nov: no hard caps on sub-agents; long lanes such as
+the Rust migration need them). From the warning threshold on, every few calls it
+reminds the agent to hand back a short summary and let the parent start a fresh
+lane. Unusual usage across a chat is reported to the owner by
+scripts/chat_usage_watch.py instead. The boundary fails open.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from pathlib import Path
 
 EXEMPT_TYPES = {"ci-runner"}
 STATE_MAX_AGE_SECONDS = 2 * 86400
-EXTRA_LEG_CALLS = 15
+WARN_EVERY = 10
 
 
 def _int_env(name: str, default: int) -> int:
@@ -55,40 +58,23 @@ def run(payload: dict) -> int:
     agent_id = payload.get("agent_id")
     if not agent_id or payload.get("agent_type") in EXEMPT_TYPES:
         return 0
+    if payload.get("hook_event_name") == "SubagentStop":
+        return 0
     warn = _int_env("OPENMATES_SUBAGENT_WARN_CALLS", 50)
-    hard = _int_env("OPENMATES_SUBAGENT_MAX_CALLS", 70)
     directory = Path(os.environ.get("OPENMATES_SUBAGENT_BUDGET_DIR", "/tmp/claude-subagent-budget"))
     directory.mkdir(parents=True, exist_ok=True)
     _cleanup(directory)
     key = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{payload.get('session_id', 'x')}__{agent_id}")
     state = directory / f"{key}.json"
-    stopping = payload.get("hook_event_name") == "SubagentStop"
     with (directory / f"{key}.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        count = _load(state)
-        if stopping:
-            if count >= hard:
-                _save(state, max(0, hard - EXTRA_LEG_CALLS))
-            return 0
-        if count >= hard:
-            blocked = True
-        else:
-            blocked = False
-            count += 1
-            _save(state, count)
-    if blocked or count >= hard:
-        print(
-            f"Sub-agent budget reached ({hard} tool calls). Do not call more tools. "
-            "Hand back now: outcome, files changed, state of unfinished edits, "
-            "pending CI job ids, exact next step.",
-            file=sys.stderr,
-        )
-        return 2
-    if count >= warn and (count - warn) % 5 == 0:
+        count = _load(state) + 1
+        _save(state, count)
+    if count >= warn and (count - warn) % WARN_EVERY == 0:
         message = (
-            f"Sub-agent budget: {count} of {hard} tool calls used. Finish the current step "
-            "and hand back with outcome, files changed, checks run, pending CI job ids and "
-            "the exact next step. The parent starts a fresh lane for the rest."
+            f"Sub-agent note: {count} tool calls so far. If the deliverable is done or the rest is a "
+            "separate step, hand back now with a short summary (outcome, files changed, checks run, "
+            "pending CI job ids, exact next step; no raw logs) so the parent can start a fresh lane."
         )
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse", "additionalContext": message}}))

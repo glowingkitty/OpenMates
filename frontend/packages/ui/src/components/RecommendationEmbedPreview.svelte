@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/RecommendationEmbedPreview.svelte
      One chat recommendation rendered as an embed preview card (UnifiedEmbedPreview,
      presentation only: no embed record, sync or context menu). Memory items use the
-     insight icon of saved memories; workflow items use the Workflows app identity; Project focus items the Projects app identity.
+     insight icon of saved memories; Project focus items the Projects app identity.
      Clicking the card opens the same draft as the Create/Update button below it.
      Spec: app-memories.suggestions.post-processor
 -->
@@ -18,7 +18,6 @@
 
   const IDENTITY = {
     memory: { appId: 'openmates', icon: 'insight', label: 'recommendations.type_memory' },
-    workflow: { appId: 'workflows', icon: 'workflow', label: 'recommendations.type_workflow' },
     focus: { appId: 'projects', icon: 'project', label: 'recommendations.type_focus' },
   } as const;
   let identity = $derived(IDENTITY[item.kind]);

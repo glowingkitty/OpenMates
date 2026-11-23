@@ -891,7 +891,10 @@
         "text": "Visualisierung anzeigen"
       },
       "interactive_html_blocked": {
-        "text": "Diese Visualisierung wollte eine andere Seite öffnen und wurde gestoppt."
+        "text": "Diese Visualisierung wollte eine andere Seite öffnen. Das ist im Chat nicht erlaubt, deshalb wurde sie angehalten."
+      },
+      "interactive_html_reload": {
+        "text": "Visualisierung neu laden"
       },
       "search_repos": {
         "text": "Repos suchen",
@@ -1526,7 +1529,7 @@
           "text": "Text suchen"
         },
         "read": {
-          "text": "Projektdatei lesen",
+          "text": "Dateien lesen",
           "description": {
             "text": "Eine Datei aus einem verschlüsselten Projekt über einen verbundenen Client lesen."
           }
@@ -2804,7 +2807,7 @@
       "text": "{skills} Skills · {focusModes} Fokus-Modi"
     },
     "home_prompt": {
-      "text": "Welche App möchtest du verwenden?"
+      "text": "Entdecke die Apps, die OpenMates nutzen kann"
     },
     "home_greeting": {
       "text": "Hey {name}!"
@@ -3526,6 +3529,12 @@
       },
       "reject_all": {
         "text": "Alle ablehnen"
+      },
+      "continue_without_memories": {
+        "text": "Ohne Erinnerungen fortfahren"
+      },
+      "call_countdown_label": {
+        "text": "Zeit, bis ohne Erinnerungen geantwortet wird"
       },
       "entry_singular": {
         "text": "Eintrag"
@@ -4936,7 +4945,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Dort fortfahren, wo du aufgehört hast:"
+        "text": "Mach mit deinen letzten Chats weiter:"
+      },
+      "active_title_single": {
+        "text": "Du hast 1 aktiven Chat:"
+      },
+      "active_title": {
+        "text": "Du hast {count} aktive Chats:"
+      },
+      "active_card_label": {
+        "text": "Aktiv"
       },
       "guest_title": {
         "text": "Entdecke einige Beispiel-Chats:"
@@ -5343,6 +5361,9 @@
       "no_project": {
         "text": "Verschiebe diesen Chat in ein Projekt, um die Prüfung dort zu speichern."
       }
+    },
+    "plan_tasks": {
+      "text": "Zugehörige Aufgaben"
     }
   },
   "common": {
@@ -5744,76 +5765,6 @@
         "text": "Das Fermi-Paradoxon fragt, warum wir keine überzeugenden Beweise für außerirdische Zivilisationen gefunden haben. Entdecke mögliche Antworten."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Behalte dein eigenes Backup. Exportiere deine OpenMates-Daten, wann immer du sie brauchst."
-      },
-      "title": {
-        "text": "Exportiere deine OpenMates-Daten"
-      },
-      "description": {
-        "text": "Sichere Chats, Einstellungen, Erinnerungen und mehr."
-      },
-      "assistant_response": {
-        "text": "Exportiere eine Kopie deiner OpenMates-Daten in den Kontoeinstellungen. Melde dich an, um auf deine verschlüsselten Kontodaten zuzugreifen."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Willst du mehr Kontrolle über deine Privatsphäre? Füge persönliche Details hinzu, die OpenMates verbergen soll."
-      },
-      "title": {
-        "text": "Eigene PII-Erkennung"
-      },
-      "description": {
-        "text": "Schütze persönliche Details vor Modellaufrufen."
-      },
-      "assistant_response": {
-        "text": "Wähle persönliche Details aus, die OpenMates vor einem Modellaufruf verbergen soll. Verwalte sie in den Privatsphäre-Einstellungen."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Brauchst du eine gezieltere Antwort? Gib deinem Mate eine spezifische Aufgabe."
-      },
-      "title": {
-        "text": "Fokus-Modi"
-      },
-      "description": {
-        "text": "Lenke einen Chat auf ein bestimmtes Ziel."
-      },
-      "assistant_response": {
-        "text": "Nutze einen Fokus-Modus, um einen Chat auf ein bestimmtes Ziel zu lenken. Entdecke verfügbare Modi in den Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Sich ständig zu wiederholen, nervt. Speichere Kontext, den sich deine Mates merken sollen."
-      },
-      "title": {
-        "text": "Erinnerungen"
-      },
-      "description": {
-        "text": "Speichere nützliche Präferenzen und Kontext."
-      },
-      "assistant_response": {
-        "text": "Speichere nützliche Präferenzen und Kontext als Erinnerungen und wähle dann aus, was deine Mates verwenden dürfen."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Suchst du etwas zu unternehmen? Entdecke Veranstaltungen in deiner Nähe."
-      },
-      "title": {
-        "text": "Lokale Veranstaltungen finden"
-      },
-      "description": {
-        "text": "Suche nach Kursen, Treffen und weiteren Veranstaltungen."
-      },
-      "assistant_response": {
-        "text": "Nutze die Events-Suche, um Kurse und Treffen in deiner Nähe zu finden. Wähle einen Ort und ein Thema, um passende Veranstaltungen zu entdecken."
-      }
-    },
     "collective": {
       "title": {
         "text": "Kollektives Verhalten bei Tieren"
@@ -5854,62 +5805,6 @@
       },
       "assistant_response": {
         "text": "Tensegritätsstrukturen verbinden einzelne Druckelemente durch ein durchgehendes Netz unter Spannung. Dadurch wirken sie erstaunlich leicht und bleiben dennoch stabil. Entdecke, warum dieses Prinzip Kunst, Architektur und Biologie beschäftigt."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Zitate aus verlässlichen Quellen"
-      },
-      "description": {
-        "text": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen."
-      },
-      "phrase": {
-        "text": "Du möchtest eine Antwort überprüfen? Bitte OpenMates um ein Zitat aus der Quelle."
-      },
-      "assistant_response": {
-        "text": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "KI-Bilder erkennen"
-      },
-      "description": {
-        "text": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat."
-      },
-      "phrase": {
-        "text": "Wurde ein Bild mit KI erzeugt? Lade es hoch und prüfe die Hinweise."
-      },
-      "assistant_response": {
-        "text": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Inkognito-Chats"
-      },
-      "description": {
-        "text": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden."
-      },
-      "phrase": {
-        "text": "Du brauchst einen vorübergehenden Chat? Halte ihn aus deinem gespeicherten Verlauf heraus."
-      },
-      "assistant_response": {
-        "text": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Datenschutzeinstellungen"
-      },
-      "description": {
-        "text": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort."
-      },
-      "phrase": {
-        "text": "Prüfe in Ruhe, wie OpenMates deine Daten schützt und welche Einstellungen du nutzen kannst."
-      },
-      "assistant_response": {
-        "text": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort."
       }
     }
   },
@@ -6172,6 +6067,56 @@
       },
       "ask_question": {
         "text": "Frage zu dieser Dokumentation stellen..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Um das auszuführen, werden dein Code und deine Dateien an E2B gesendet, einen Cloud-Sandbox-Anbieter, und dort in den USA ausgeführt. Bei Projekt-Aufgaben werden auch das ganze Projekt und der Schlüssel, der es öffnet, in die Sandbox gelegt, versiegelt, sodass nur diese Sandbox ihn öffnen kann. Die Sandbox wird danach gelöscht."
+      },
+      "privacy_policy": {
+        "text": "Datenschutzerklärung"
+      },
+      "own_machine_hint": {
+        "text": "Oder führe es auf deinem eigenen Rechner aus mit:"
+      },
+      "allow": {
+        "text": "Erlauben"
+      },
+      "own_machine": {
+        "text": "Meinen eigenen Rechner nutzen"
+      },
+      "not_now": {
+        "text": "Nicht jetzt"
+      },
+      "answered": {
+        "text": "Deine Antwort:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Code im E2B-Cloud-Sandbox auszuführen ist für dein Konto nicht erlaubt, deshalb wurde nichts gestartet. Du kannst das unter Einstellungen > Datenschutz ändern oder es mit dem Remote-Access-Befehl auf deinem eigenen Rechner ausführen."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Code in der E2B-Cloud-Sandbox ausführen"
+      },
+      "description": {
+        "text": "Wenn erlaubt, werden der Code und die Dateien, die du ausführst, an E2B gesendet, einen Cloud-Sandbox-Anbieter, und in den USA verarbeitet. Bei Projekt-Aufgaben gehören dazu das Projekt und der Schlüssel, der es öffnet, versiegelt, sodass nur diese Sandbox ihn öffnen kann. Die Sandbox wird danach gelöscht. Wenn nicht erlaubt, wird nichts gesendet."
+      },
+      "status_allowed": {
+        "text": "Erlaubt"
+      },
+      "status_declined": {
+        "text": "Nicht erlaubt"
+      },
+      "status_undecided": {
+        "text": "Noch nicht entschieden"
+      },
+      "error": {
+        "text": "Diese Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut."
       }
     }
   },
@@ -9743,6 +9688,12 @@
         "count": {
           "text": "{count} Dateiverweise"
         },
+        "count_singular": {
+          "text": "{count} Dateiverweis"
+        },
+        "more": {
+          "text": "+{count} weitere"
+        },
         "empty": {
           "text": "Keine Dateiverweise gefunden"
         },
@@ -10596,6 +10547,9 @@
         },
         "no_video": {
           "text": "Für diesen Lauf ist kein Video verfügbar"
+        },
+        "with_setup": {
+          "text": "{duration} mit Einrichtung"
         }
       }
     },
@@ -15079,7 +15033,7 @@
               "text": "E2B (isolierte Code-Sandbox)"
             },
             "description": {
-              "text": "E2B führt ausgewählte Code-Einbettungen, Vorschauen generierter Anwendungen und Remotion-Video-Renderings in isolierten Sandboxes aus. E2B erhält den Code oder die generierten Anwendungs-/Remotion-Dateien und Assets, die zum Ausführen oder Rendern des Ergebnisses benötigt werden, Laufzeiteingaben, Vorschau-/Render-Logs und die zur Anzeige des Sandbox-Ergebnisses erforderliche Ausgabe. Diese Weitergabe erfolgt, wenn du explizit Code ausführst, eine generierte Anwendung erstellst, die automatisch eine kurze Screenshot-Vorschau startet, eine Live-Vorschau einer Anwendung startest/fortsetzt oder wenn ein Remotion-Video-Rendering automatisch startet, nachdem der Assistent einen expliziten Remotion-Codeblock geschlossen hat."
+              "text": "E2B führt ausgewählte Code-Einbettungen, Vorschauen generierter Anwendungen und Remotion-Video-Renderings in isolierten Sandboxes aus. E2B erhält den Code oder die generierten Anwendungs-/Remotion-Dateien und Assets, die zum Ausführen oder Rendern des Ergebnisses benötigt werden, Laufzeiteingaben, Vorschau-/Render-Logs und die zur Anzeige des Sandbox-Ergebnisses erforderliche Ausgabe. Diese Weitergabe erfolgt, wenn du explizit Code ausführst, eine generierte Anwendung erstellst, die automatisch eine kurze Screenshot-Vorschau startet, eine Live-Vorschau einer Anwendung startest/fortsetzt oder wenn ein Remotion-Video-Rendering automatisch startet, nachdem der Assistent einen expliziten Remotion-Codeblock geschlossen hat. Wenn ein Agent-Job in einem Cloud-Projekt läuft, erhält E2B in den USA zusätzlich alle Dateien des Projekts und, versiegelt, sodass nur diese Sandbox es öffnen kann, den Schlüssel zum Öffnen des Projekts, solange der Job läuft. Die Sandbox wird nach 15 Minuten Inaktivität oder spätestens nach 4 Stunden gelöscht (bei Aktivierung bis zu 24 Stunden) und nie pausiert."
             }
           }
         },
@@ -17486,6 +17440,9 @@
       "ready": {
         "text": "Dein Projektergebnis ist bereit."
       },
+      "ready_named": {
+        "text": "Dein Ergebnis in {project} ist bereit."
+      },
       "view": {
         "text": "Ergebnis ansehen"
       },
@@ -17609,12 +17566,26 @@
     },
     "assumption": {
       "open_chat": {
-        "text": "Prüf-Chat öffnen"
+        "text": "Prüf-Chat"
       }
     },
     "task": {
+      "open_chat": {
+        "text": "Arbeits-Chat"
+      },
       "open": {
         "text": "Aufgabe öffnen"
+      }
+    },
+    "sub_chat": {
+      "checks": {
+        "text": "Prüft: {text}"
+      },
+      "works_on": {
+        "text": "Arbeitet an: {title}"
+      },
+      "back": {
+        "text": "Zurück zum Haupt-Chat"
       }
     },
     "plan": {
@@ -17771,6 +17742,17 @@
     },
     "workspace_entry_range": {
       "text": "{start}–{end} von {total} Einträgen"
+    },
+    "home": {
+      "suggestion_1": {
+        "text": "Küchenrenovierung"
+      },
+      "suggestion_2": {
+        "text": "Spanischunterricht"
+      },
+      "suggestion_3": {
+        "text": "Sommerreise nach Portugal"
+      }
     }
   },
   "recommendations": {
@@ -20988,6 +20970,21 @@
         "new_messages": {
           "text": "Neue Nachrichten"
         },
+        "push_include_chat_title": {
+          "text": "Zusammenfassung und Chat-Titel anzeigen"
+        },
+        "push_include_chat_title_desc": {
+          "text": "Zeigt in App-Benachrichtigungen eine einzeilige Zusammenfassung der Antwort, zum Beispiel \"✅ Gartenbeete geplant\", und den Chat-Titel. Beides wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können es nicht lesen. Ausschalten, damit Benachrichtigungen allgemein bleiben."
+        },
+        "push_include_preview": {
+          "text": "Anfang der Antwort anzeigen"
+        },
+        "push_include_preview_desc": {
+          "text": "Fügt App-Benachrichtigungen die ersten Zeilen der Antwort hinzu. Sie werden für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können sie nicht lesen. Standardmäßig aus."
+        },
+        "missed_warning": {
+          "text": "E-Mail- und Push-Benachrichtigungen sind beide ausgeschaltet. Du könntest wichtige Antworten und Updates verpassen. Schalte eine der beiden ein, um informiert zu bleiben."
+        },
         "new_messages_desc": {
           "text": "Wenn ein Assistent eine Antwort abgeschlossen hat"
         },
@@ -21046,10 +21043,10 @@
           "text": "Eine tägliche E-Mail zu geplanten Workflow-Aktivitäten; Chat-Nachrichten folgen den normalen Chat-Einstellungen."
         },
         "email_include_content": {
-          "text": "Private Titel und Vorschauen einschließen"
+          "text": "Antwortinhalt in E-Mails anzeigen"
         },
         "email_include_content_desc": {
-          "text": "Erlaube Chat-Titel und Nachrichtenvorschauen in E-Mails. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du Inhalte ausdrücklich ausblendest, werden auch diese Namen verborgen. Dein E-Mail-Anbieter kann enthaltene Inhalte lesen."
+          "text": "Standardmäßig aus: E-Mails sagen dann nur, dass eine Antwort bereit ist. Wenn an, ist der Betreff eine einzeilige Zusammenfassung der Antwort, und die E-Mail zeigt den Chat-Titel, die ersten Zeilen der Antwort und einen Link zum Öffnen des Chats. Dieser Inhalt wird dann als Klartext über den E-Mail-Anbieter übertragen und bleibt in deinem Postfach. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du dies ausschaltest, werden auch diese Namen verborgen."
         },
         "email_webhooks": {
           "text": "Webhook-Chats"
@@ -24152,6 +24149,9 @@
       "screenshot_size_too_large": {
         "text": "Screenshot zu groß. Bitte versuchen Sie ein kleineres Fenster."
       },
+      "screenshot_limit_reached": {
+        "text": "Du kannst bis zu 5 Screenshots anhängen."
+      },
       "screenshot_preview_alt": {
         "text": "Screenshot-Vorschau"
       },
@@ -26024,7 +26024,7 @@
       "text": "Kostenlos testen"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."
@@ -26820,6 +26820,15 @@
       },
       "proof": {
         "text": "{passed} belegt · {open} offen · {stale} veraltet"
+      },
+      "plan_progress": {
+        "text": "{checking} Annahmen werden geprüft · {tasks} Aufgaben"
+      },
+      "plan_progress_one": {
+        "text": "{checking} Annahme wird geprüft · {tasks} Aufgaben"
+      },
+      "plan_tasks_only": {
+        "text": "{tasks} Aufgaben"
       }
     },
     "fullscreen": {
@@ -26840,6 +26849,15 @@
       },
       "related": {
         "text": "Verknüpfte Spezifikationen"
+      },
+      "checking_chat": {
+        "text": "Prüf-Chat"
+      },
+      "working_chat": {
+        "text": "Arbeits-Chat"
+      },
+      "plan_tasks": {
+        "text": "Aufgaben des Plans"
       }
     },
     "revisions": {
@@ -27540,6 +27558,15 @@
     },
     "ended": {
       "text": "Du hast einen Sprachanruf beendet"
+    },
+    "memory_request_timed_out": {
+      "text": "Erinnerungsanfrage abgelaufen, ohne Erinnerungen beantwortet"
+    },
+    "waiting_start": {
+      "text": "Okay, ich warte."
+    },
+    "waiting_resume": {
+      "text": "Okay, sprich weiter."
     }
   },
   "voicecall": {
@@ -27749,6 +27776,27 @@
     },
     "connecting_short": {
       "text": "Verbindung wird hergestellt…"
+    },
+    "waiting": {
+      "text": "Wartet auf dich"
+    },
+    "waiting_start": {
+      "text": "Okay, ich warte."
+    },
+    "waiting_resume": {
+      "text": "Okay, sprich weiter."
+    },
+    "screen_sharing": {
+      "text": "Du teilst deinen Bildschirm"
+    },
+    "screen_share_stop": {
+      "text": "Beenden"
+    },
+    "screen_share_preview": {
+      "text": "Vorschau des geteilten Bildschirms"
+    },
+    "screen_failed": {
+      "text": "Die Bildschirmfreigabe ist nicht verfügbar. Bitte versuche es erneut."
     }
   },
   "waiting_list": {
@@ -27878,6 +27926,12 @@
       "ai_check_status": {
         "text": "Speicherstatus prüfen"
       },
+      "description_expand": {
+        "text": "Ganze Beschreibung anzeigen"
+      },
+      "description_collapse": {
+        "text": "Beschreibung verkürzen"
+      },
       "ai_create_submit": {
         "text": "Workflow erstellen"
       },
@@ -27964,6 +28018,15 @@
       },
       "guest_subtitle": {
         "text": "Entdecke die Workflow-Automatisierungen:"
+      },
+      "suggestion_1": {
+        "text": "Fasse jeden Morgen neue E-Mails meines Teams zusammen"
+      },
+      "suggestion_2": {
+        "text": "Sag mir Bescheid, wenn ein Produkt auf meiner Wunschliste günstiger wird"
+      },
+      "suggestion_3": {
+        "text": "Schicke mir jeden Freitag eine Zusammenfassung meines Kalenders für die nächste Woche"
       },
       "show_all": {
         "text": "Meine Workflows anzeigen"

@@ -47,7 +47,7 @@ class TaskLockBusyError(RuntimeError):
 
 USER_TASK_FIELDS = (
     "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_identity,assignee_hash,"
-    "primary_chat_id,hashed_primary_chat_id,external_chat_provider,external_chat_lookup_hash,linked_project_hashes,label_hashes,parent_task_id,"
+    "primary_chat_id,linked_sub_chat_id,hashed_primary_chat_id,external_chat_provider,external_chat_lookup_hash,linked_project_hashes,label_hashes,parent_task_id,"
     "plan_id,task_type,verification_id,source_plan_id,source_learning_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
     "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"

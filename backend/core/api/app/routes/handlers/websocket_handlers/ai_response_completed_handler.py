@@ -395,15 +395,23 @@ async def handle_ai_response_completed(
                 f"Durably persisted AI response {message_id} for chat {chat_id}"
             )
 
-            # Send confirmation to client
+            # Send confirmation to client. It carries the messages_v this reply
+            # stored, so a client core that did not compute it (voice turns are
+            # built by the Rust core while the page persists the reply) moves
+            # its baseline forward before the next turn instead of being
+            # refused with version_conflict.
+            confirmation = {
+                "message_id": message_id,
+                "chat_id": chat_id,
+                "task_id": DURABLE_PERSISTENCE_TASK_ID,
+            }
+            stored_messages_v = versions.get("messages_v") if isinstance(versions, dict) else None
+            if isinstance(stored_messages_v, int) and not isinstance(stored_messages_v, bool) and stored_messages_v > 0:
+                confirmation["messages_v"] = stored_messages_v
             await manager.send_personal_message(
                 {
                     "type": "ai_response_storage_confirmed",
-                    "payload": {
-                        "message_id": message_id,
-                        "chat_id": chat_id,
-                        "task_id": DURABLE_PERSISTENCE_TASK_ID
-                    }
+                    "payload": confirmation,
                 },
                 user_id,
                 device_fingerprint_hash

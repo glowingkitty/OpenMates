@@ -28,7 +28,7 @@ async function createSmallChat(page: any, log: any, screenshot: any): Promise<st
 }
 
 test.describe('Chat settings Tasks parity', () => {
-	// contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
+	// contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.chat.settings-only
 	test('creates chat-linked tasks and syncs settings, preview, and central board', async ({ page }) => {
 		test.slow();
 		test.setTimeout(240_000);
@@ -75,9 +75,9 @@ test.describe('Chat settings Tasks parity', () => {
 		]);
 		await expect(settingsMenu.getByTestId('chat-settings-task-progress')).toContainText(/50% complete/i, { timeout: 30_000 });
 
-		await expect(page.getByTestId('active-chat-task-preview')).toBeVisible({ timeout: 30_000 });
-		await expect(page.getByTestId('active-chat-task-preview')).toContainText(/Task/i);
-		await expect(page.getByTestId('active-chat-task-preview')).toContainText(secondTaskTitle);
+		// Chat Tasks live only in chat settings: the active chat has no top-of-chat task overlay (TASK-1321).
+		await expect(page.getByTestId('active-chat-task-preview')).toHaveCount(0);
+		await expect(page.getByTestId('active-chat-plan-preview')).toHaveCount(0);
 
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });

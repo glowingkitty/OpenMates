@@ -888,7 +888,10 @@
         "text": "Visa visualisering"
       },
       "interactive_html_blocked": {
-        "text": "Den här visualiseringen försökte öppna en annan sida och stoppades."
+        "text": "Den här visualiseringen försökte öppna en annan sida. Det är inte tillåtet i en chatt, så den pausades."
+      },
+      "interactive_html_reload": {
+        "text": "Läs in visualiseringen igen"
       },
       "search_repos": {
         "text": "Sök repon",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Avvisa alla"
       },
+      "continue_without_memories": {
+        "text": "Fortsätt utan minnen"
+      },
+      "call_countdown_label": {
+        "text": "Tid kvar innan svaret ges utan minnen"
+      },
       "entry_singular": {
         "text": "post"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Fortsätt där du slutade:"
+        "text": "Fortsätt dina senaste chattar:"
+      },
+      "active_title_single": {
+        "text": "Du har 1 aktiv chatt:"
+      },
+      "active_title": {
+        "text": "Du har {count} aktiva chattar:"
+      },
+      "active_card_label": {
+        "text": "Aktiv"
       },
       "guest_title": {
         "text": "Utforska några exempelchattar:"
@@ -4311,76 +4329,6 @@
         "text": "Fermiparadoxen frågar varför vi inte har hittat några övertygande bevis på utomjordiska civilisationer. Utforska möjliga svar."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Behåll din egen säkerhetskopia. Exportera dina OpenMates-data när du behöver det."
-      },
-      "title": {
-        "text": "Exportera dina OpenMates-data"
-      },
-      "description": {
-        "text": "Säkerhetskopiera chattar, inställningar, minnen med mera."
-      },
-      "assistant_response": {
-        "text": "Exportera en kopia av dina OpenMates-data från kontoinställningarna. Logga in för att komma åt dina krypterade kontodata."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Vill du ha starkare integritetskontroller? Lägg till personuppgifter som OpenMates ska dölja."
-      },
-      "title": {
-        "text": "Anpassad PII-identifiering"
-      },
-      "description": {
-        "text": "Skydda personuppgifter före modellanrop."
-      },
-      "assistant_response": {
-        "text": "Välj personuppgifter som OpenMates ska dölja före ett modellanrop. Gå till integritetsinställningarna för att hantera dem."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Behöver du ett mer fokuserat svar? Ge din mate en specifik uppgift."
-      },
-      "title": {
-        "text": "Fokuslägen"
-      },
-      "description": {
-        "text": "Styr en chatt mot ett specifikt mål."
-      },
-      "assistant_response": {
-        "text": "Använd ett fokusläge för att styra en chatt mot ett specifikt mål. Utforska tillgängliga lägen i Appar."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Det blir tjatigt att upprepa sig. Spara sammanhang som dina mates bör komma ihåg."
-      },
-      "title": {
-        "text": "Minnen"
-      },
-      "description": {
-        "text": "Spara användbara preferenser och sammanhang."
-      },
-      "assistant_response": {
-        "text": "Spara användbara preferenser och sammanhang som minnen, och välj sedan vad dina mates får använda."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Letar du efter något att göra? Upptäck evenemang nära dig."
-      },
-      "title": {
-        "text": "Hitta lokala evenemang"
-      },
-      "description": {
-        "text": "Sök efter kurser, träffar och andra evenemang."
-      },
-      "assistant_response": {
-        "text": "Använd evenemangssökning för att hitta kurser och träffar nära dig. Välj plats och ämne för att se vad som händer i närheten."
-      }
-    },
     "collective": {
       "title": {
         "text": "Kollektivt djurbeteende"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "Konstruktioner som stabiliseras av balansen mellan drag och tryck."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citat från tillförlitliga källor"
-      },
-      "description": {
-        "text": "Be dina mates granska källor och citera raderna som stöder ett svar."
-      },
-      "phrase": {
-        "text": "Vill du kontrollera ett svar? Be OpenMates citera källan."
-      },
-      "assistant_response": {
-        "text": "Be dina mates granska källor och citera raderna som stöder ett svar."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Identifiera AI-bilder"
-      },
-      "description": {
-        "text": "Ladda upp en bild och granska tecken på AI-generering direkt i chatten."
-      },
-      "phrase": {
-        "text": "Undrar du om en bild skapats med AI? Ladda upp den och granska tecknen."
-      },
-      "assistant_response": {
-        "text": "Ladda upp en bild och granska tecken på AI-generering direkt i chatten."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Inkognitochattar"
-      },
-      "description": {
-        "text": "Starta tillfälliga chattar när du inte vill spara dem i historiken."
-      },
-      "phrase": {
-        "text": "Behöver du ett tillfälligt samtal? Håll det utanför din sparade chatthistorik."
-      },
-      "assistant_response": {
-        "text": "Starta tillfälliga chattar när du inte vill spara dem i historiken."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Sekretessinställningar"
-      },
-      "description": {
-        "text": "Hantera dolda personuppgifter, anslutna konton och automatisk radering på ett ställe."
-      },
-      "phrase": {
-        "text": "Se hur OpenMates skyddar dina uppgifter innan du behöver inställningarna akut."
-      },
-      "assistant_response": {
-        "text": "Hantera dolda personuppgifter, anslutna konton och automatisk radering på ett ställe."
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "Fråga om den här dokumentationen..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "För att köra detta skickas din kod och dina filer till E2B, en leverantör av molnsandlådor, och körs där, i USA. För Projektjobb läggs även hela Projektet och nyckeln som öppnar det i sandlådan, förseglad så att bara den sandlådan kan öppna den. Sandlådan raderas efteråt."
+      },
+      "privacy_policy": {
+        "text": "Integritetspolicy"
+      },
+      "own_machine_hint": {
+        "text": "Eller kör det på din egen dator med:"
+      },
+      "allow": {
+        "text": "Tillåt"
+      },
+      "own_machine": {
+        "text": "Använd min egen dator"
+      },
+      "not_now": {
+        "text": "Inte nu"
+      },
+      "answered": {
+        "text": "Ditt svar:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Att köra kod i molnsandlådan E2B är inte tillåtet för ditt konto, så ingenting startades. Du kan ändra det under Inställningar > Integritet, eller köra det på din egen maskin med kommandot för fjärråtkomst."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Kör kod i molnsandlådan E2B"
+      },
+      "description": {
+        "text": "När det är tillåtet skickas koden och filerna du kör till E2B, en leverantör av molnsandlådor, och behandlas i USA. För Projektjobb ingår Projektet och nyckeln som öppnar det, förseglad så att bara den sandlådan kan öppna den. Sandlådan raderas efteråt. När det inte är tillåtet skickas ingenting."
+      },
+      "status_allowed": {
+        "text": "Tillåtet"
+      },
+      "status_declined": {
+        "text": "Inte tillåtet"
+      },
+      "status_undecided": {
+        "text": "Inte avgjort än"
+      },
+      "error": {
+        "text": "Det gick inte att spara den här inställningen. Försök igen."
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "Ingen video tillgänglig för den här körningen"
+        },
+        "with_setup": {
+          "text": "{duration} med förberedelse"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B (isolerad kodsandlåda)"
             },
             "description": {
-              "text": "E2B kör valda kodinbäddningar och genererade applikationsförhandsvisningar i isolerade sandlådor. E2B tar emot koden eller de genererade applikationsfilerna och tillgångarna du väljer att köra, indata för körtid, förhandsvisningsloggar och utdata som behövs för att köra och visa sandlåderesultatet. Denna delning sker endast när du uttryckligen kör kod, skapar en genererad applikation som automatiskt startar en kort skärmbildsförhandsvisning, eller startar/återupptar en live-förhandsvisning av en applikation."
+              "text": "E2B kör valda kodinbäddningar och genererade applikationsförhandsvisningar i isolerade sandlådor. E2B tar emot koden eller de genererade applikationsfilerna och tillgångarna du väljer att köra, indata för körtid, förhandsvisningsloggar och utdata som behövs för att köra och visa sandlåderesultatet. Denna delning sker endast när du uttryckligen kör kod, skapar en genererad applikation som automatiskt startar en kort skärmbildsförhandsvisning, eller startar/återupptar en live-förhandsvisning av en applikation. När ett agentjobb körs på ett molnprojekt tar E2B i USA också emot alla projektets filer och, förseglad så att bara den sandlådan kan öppna den, nyckeln som öppnar projektet, så länge jobbet pågår. Sandlådan raderas efter 15 minuters inaktivitet eller senast efter 4 timmar (upp till 24 timmar om du väljer det) och pausas aldrig."
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "Skärmbild för stor. Försök med ett mindre fönster."
       },
+      "screenshot_limit_reached": {
+        "text": "Du kan bifoga upp till 5 skärmbilder."
+      },
       "screenshot_preview_alt": {
         "text": "Förhandsgranskning av skärmbild"
       },
@@ -21150,7 +21098,7 @@
       "text": "Testa gratis"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "E-postdomän är inte tillåten."
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Begäran om minnen gick ut, besvarad utan minnen"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Samtal använder Mistral-transkribering, ElevenLabs v4 Turbo-röst, OpenMates vanliga AI-routning och användningsbaserad debitering."

@@ -123,6 +123,9 @@ export function reportVoiceCallTurnDelivery(
   failure?: VoiceCallDeliveryFailure,
 ): void {
   if (typeof window === 'undefined') return;
+  // Reasons are fixed categories (never content), so issue reports can show
+  // why a spoken turn never reached the server (NRUV9).
+  if (phase === 'refused' || phase === 'failed') console.warn(`[VoiceCall] Turn delivery ${phase}:`, reason ?? 'unknown');
   window.dispatchEvent(new CustomEvent('voiceCallTurnDelivery', { detail: {
     callId: turn.callId, chatId: turn.chatId, turnId: turn.turnId, phase,
     ...(reason ? { reason } : {}), ...(failure ? { failure } : {}),

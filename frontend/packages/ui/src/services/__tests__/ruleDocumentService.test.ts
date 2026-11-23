@@ -4,7 +4,13 @@ import { webcrypto } from 'node:crypto';
 const mocks = vi.hoisted(() => ({
   activeFocus: vi.fn(), getProject: vi.fn(), contents: vi.fn(), settings: vi.fn(),
   readHead: vi.fn(), removeEmbed: vi.fn(), receipt: vi.fn(), approve: vi.fn(), decrypt: vi.fn(), encrypt: vi.fn(),
+  executeOverride: null as null | ((...args: unknown[]) => Promise<unknown>),
 }));
+vi.mock('../hostedProjectFileExecutor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../hostedProjectFileExecutor')>();
+  return { ...actual, executeHostedProjectFileJob: (...args: Parameters<typeof actual.executeHostedProjectFileJob>) =>
+    mocks.executeOverride ? mocks.executeOverride(...args) : actual.executeHostedProjectFileJob(...args) };
+});
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
 vi.mock('../../stores/authStore', async () => {
   const { writable } = await import('svelte/store');
@@ -146,6 +152,29 @@ describe('encrypted private Rule transport', () => {
       document: guide, metadata: {} })).rejects.toThrow('project_document_approval_required');
     expect(mocks.approve).not.toHaveBeenCalled();
     expect(mocks.readHead).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=focus-modes.project-recommendation-catalog
+  it('stores an approval for an approved always-ask save but none for an apply-and-show Project', async () => {
+    mocks.activeFocus.mockResolvedValue(focus);
+    mocks.contents.mockResolvedValue({ folders: [], items: [] });
+    mocks.approve.mockRejectedValue(new Error('approval-posted'));
+    mocks.settings.mockResolvedValue({ settings: {}, writeMode: 'always_ask' });
+    const save = () => saveProjectMarkdownDocument({ chatId: 'chat-1', projectId: 'p1', path: '.openmates/focuses/new/SKILL.md',
+      document: guide, metadata: {}, saveApproved: true });
+    await expect(save()).rejects.toThrow('approval-posted');
+    expect(mocks.approve).toHaveBeenCalledTimes(1);
+
+    mocks.approve.mockClear();
+    mocks.settings.mockResolvedValue({ settings: {}, writeMode: 'apply_and_show' });
+    // The server answers 409 PROJECT_WRITE_APPROVAL_NOT_REQUIRED to an approval here, so none is sent.
+    mocks.executeOverride = async () => { throw new Error('write-executed'); };
+    try {
+      await expect(save()).rejects.toThrow('write-executed');
+    } finally {
+      mocks.executeOverride = null;
+    }
+    expect(mocks.approve).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped

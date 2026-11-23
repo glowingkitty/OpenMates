@@ -1828,6 +1828,26 @@ async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
 	}
 }
 
+/**
+ * Record the account's earlier "allowed" E2B upload decision so specs that run
+ * code or start previews in the cloud work. Realistic precondition: the user
+ * allowed it before; the consent dialog itself is covered by
+ * e2b-upload-consent.spec.ts. Call once after login.
+ */
+async function allowE2bUpload(page: any): Promise<void> {
+	const apiBase = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+	const response = await page.request.put(`${apiBase}/v1/settings/e2b-upload-consent`, {
+		data: { decision: 'allowed' }
+	});
+	if (response.status() !== 200) {
+		throw new Error(`allowE2bUpload: expected 200, got ${response.status()}`);
+	}
+	const body = await response.json();
+	if (body.decision !== 'allowed') {
+		throw new Error(`allowE2bUpload: decision is ${JSON.stringify(body.decision)}`);
+	}
+}
+
 module.exports = {
 	declareTestState,
 	createIsolatedBrowserContext,
@@ -1835,6 +1855,7 @@ module.exports = {
 	focusMessageEditor,
 	extractLiveTestMarker,
 	loginToTestAccount,
+	allowE2bUpload,
 	submitPasswordAndHandleOtp,
 	openSignupInterface,
 	isSignupInterfaceVisible,

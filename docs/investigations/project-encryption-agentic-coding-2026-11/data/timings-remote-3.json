@@ -1,0 +1,28 @@
+[
+ {
+  "mode": "remote",
+  "large": 0,
+  "task": "multi_file_feature",
+  "project_id": "51857864-f6be-494e-a339-0ea964d319f2",
+  "chat_id": null,
+  "status": null,
+  "exit": 124,
+  "start": 1795192231.3941574,
+  "end": 1795193191.51784,
+  "wall_s": 960.12,
+  "stderr_tail": "harness timeout after 960 s"
+ },
+ {
+  "mode": "remote",
+  "large": 0,
+  "task": "test_fix_loop",
+  "project_id": "51857864-f6be-494e-a339-0ea964d319f2",
+  "chat_id": "801e137d-a182-402c-9ec2-fb33bd77d31d",
+  "status": "waiting_for_user",
+  "exit": 0,
+  "start": 1795193191.5188892,
+  "end": 1795193234.1451988,
+  "wall_s": 42.63,
+  "stderr_tail": "sed\nUncertainty: The specific behavior and side effects depend entirely on what test files exist inside the `tests` directory\nCommand argv: [\"python\",\"-m\",\"unittest\",\"discover\",\"-s\",\"tests\",\"-t\",\".\"]\nWorking directory: .\nMode: foreground\nDeadline: 600000 ms\nApproval: explicit one-run approval required\nSource access: read_only\nWritable profiles: none\nNetwork profile: none\nCredential profiles: none\n"
+ }
+]

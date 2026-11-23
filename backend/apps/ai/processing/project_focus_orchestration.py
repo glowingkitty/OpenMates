@@ -62,6 +62,8 @@ async def request_project_creation(*, task_id: str, directus_service: Any, reque
         chat_id=request_data.chat_id, message_id=request_data.message_id,
         team_id=request_data.team_id, origin="preprocessor", kind=proposal["kind"],
         location=proposal.get("location", "cloud"), machine_hint=proposal.get("machine_hint", ""),
+        description=proposal.get("description", ""), icon=proposal.get("icon", ""),
+        category=proposal.get("category", ""),
     )
     await cache_async_skill_continuation_context(
         cache_service=cache_service, async_task_id=action["request_id"], request_data=request_data,
@@ -205,3 +207,42 @@ async def created_project_activation_reference(*, task_id: str, request_data: An
         logger.warning("%s Created Project activation card could not be created", log_prefix)
         return None
     return embed["embed_reference"]
+
+
+def focus_modes_after_project_creation(focus_modes: list[str], project_candidates: dict[str, Any],
+                                       created_project_reference: str | None) -> list[str]:
+    """The focus modes a reply may still propose once it created and focused its own Project.
+
+    Such a reply never offers another Project: recipe proof 22 Nov, the model also activated
+    an earlier "Recipe Web App" Project, so one reply held two activations, the header lost
+    both names and the "Created ... project" event its marker.
+    """
+    if not created_project_reference:
+        return focus_modes
+    return [focus for focus in focus_modes if focus not in project_candidates]
+
+
+def carried_created_project_reference(request_data: Any) -> str | None:
+    """The created-Project card of an earlier continuation of this reply, or None.
+
+    ``created_project_activation_reference`` consumes the creation record, so
+    only the first continuation creates the card. An async skill started by that
+    continuation (file writes, test runs, commits) resumes in a later
+    continuation that rewrites the same reply; without this the card vanished
+    from the finished message. The server set the field itself; it is still
+    re-emitted only as a well-formed created-Project activation reference.
+    """
+    raw = getattr(request_data, "created_project_card_reference", None)
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        reference = json.loads(raw)
+    except ValueError:
+        logger.warning("Carried created Project card reference is not JSON; not shown")
+        return None
+    if (not isinstance(reference, dict) or reference.get("type") != "focus_mode_activation"
+            or reference.get("project_created") is not True
+            or not isinstance(reference.get("embed_id"), str) or not reference["embed_id"]):
+        logger.warning("Carried created Project card reference has an unexpected shape; not shown")
+        return None
+    return raw

@@ -49,7 +49,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
-import { claimChatMessageNotification, isFinalizedChatMessage } from "./chatMessageNotificationReceipt";
+import { claimChatMessageNotification, isFinalizedChatMessage, noteChatMessageCard } from "./chatMessageNotificationReceipt";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import { get } from "svelte/store";
 import { draftEditorUIState } from "./drafts/draftState";
@@ -458,9 +458,13 @@ async function notifyBackgroundAssistantBroadcast(
     !expectedIdentity || expectedIdentity !== getWorkspaceCacheIdentity() ||
     message.role !== "assistant" ||
     chat.is_sub_chat ||
-    chat.parent_id ||
-    isChatVisiblyActive(chatId)
+    chat.parent_id
   ) {
+    return;
+  }
+  if (isChatVisiblyActive(chatId)) {
+    // Seen on screen: a later re-delivery of this reply is not announced.
+    claimChatMessageNotification(get(userProfile).user_id || "", chatId, message.message_id);
     return;
   }
 
@@ -489,6 +493,7 @@ async function notifyBackgroundAssistantBroadcast(
   if (expectedIdentity !== getWorkspaceCacheIdentity() || ownerID !== (get(userProfile).user_id || "") ||
       isChatVisiblyActive(chatId) || !claimChatMessageNotification(ownerID, chatId, message.message_id)) return;
   unreadMessagesStore.incrementUnread(chatId, message.message_id);
+  noteChatMessageCard("chat-update", chatId);
   notificationStore.chatMessage(
     chatId,
     chatTitle,

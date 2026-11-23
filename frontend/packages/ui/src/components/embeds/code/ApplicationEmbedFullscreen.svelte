@@ -24,12 +24,14 @@
     getApplicationPreviewStatus,
     openApplicationPreviewSession,
     startApplicationPreview,
+    projectSandboxPreviewTarget,
     stopApplicationPreview,
     updateCachedApplicationPreviewSessionStatus,
     type ApplicationPreviewStatus,
     type ApplicationPreviewStatusValue,
   } from '../../../services/applicationPreviewService';
   import { downloadApplicationProjectZip } from '../../../services/zipExportService';
+  import E2bConsentRunHost from '../../E2bConsentRunHost.svelte';
   import { notificationStore } from '../../../stores/notificationStore';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
@@ -87,6 +89,8 @@
   let framework = $derived(typeof dc.framework === 'string' ? dc.framework : '');
   let runtime = $derived(typeof dc.runtime === 'string' ? dc.runtime : '');
   let fileRefs = $derived(Array.isArray(dc.file_refs) ? dc.file_refs as FileRef[] : []);
+  // A Project app runs from the chat's Project sandbox: it has a folder instead of chat files.
+  let projectTarget = $derived(projectSandboxPreviewTarget(dc));
   let initialScreenshotUrl = $derived(typeof dc.latest_screenshot_url === 'string' ? dc.latest_screenshot_url : '');
   let initialScreenshotRef = $derived((dc.latest_screenshot && typeof dc.latest_screenshot === 'object') ? dc.latest_screenshot as ScreenshotRef : undefined);
   let sessionId = $state<string | null>(null);
@@ -248,8 +252,10 @@
     previewEvents = [];
     previewStatus = 'starting';
     try {
-      const sharedContext = await buildApplicationPreviewSharedContext(previewEmbedId, applicationContent, requestChatId);
-      const response = await startApplicationPreview(requestChatId, previewEmbedId, sharedContext);
+      const response = projectTarget
+        ? await startApplicationPreview(requestChatId, previewEmbedId, { projectSandbox: projectTarget })
+        : await startApplicationPreview(requestChatId, previewEmbedId,
+          await buildApplicationPreviewSharedContext(previewEmbedId, applicationContent, requestChatId));
       sessionId = response.session_id;
       previewUrl = response.preview_url;
       previewStatus = getCachedApplicationPreviewSession(requestChatId, previewEmbedId)?.status ?? response.status;
@@ -348,7 +354,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
-  onDownload={handleDownloadProject}
+  onDownload={projectTarget ? undefined : handleDownloadProject}
 >
   {#snippet embedHeaderCta()}
     <div class="preview-actions">
@@ -419,6 +425,12 @@
         <section class="files-section" data-testid="application-preview-files">
           <h3>{$text('embeds.application_files')}</h3>
           <div class="file-list">
+            {#if projectTarget}
+              <!-- A Project app lives in the Project sandbox: name its folder, its files stay in the Project. -->
+              <div class="file-row" data-testid="application-preview-project-folder">
+                <span class="file-path">{typeof dc.project_name === 'string' ? dc.project_name : ''}{projectTarget.cwd ? ` / ${projectTarget.cwd}` : ''}</span>
+              </div>
+            {/if}
             {#each fileRefs as file}
               <div class="file-row">
                 <span class="file-path">{file.path}</span>
@@ -431,6 +443,8 @@
     </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+<E2bConsentRunHost />
 
 <style>
   .preview-actions {

@@ -1,0 +1,23 @@
+# User-level collector (systemd --user), runs without root as the operator.
+# Replace @OPENMATES_ROOT@ (canonical checkout) and install to
+# ~/.config/systemd/user/openmates-host-collector.service. Needs
+# SECURITY_HOST_COLLECTOR_BIND=<collector-private-ip>:<port> (port >= 1024) in
+# @OPENMATES_ROOT@/.env; the collector refuses non-private addresses. A user
+# unit cannot set IPAddressDeny, so the root step must firewall the port to the
+# server private addresses on the private interface only.
+[Unit]
+Description=OpenMates host report collector (private network only, user level)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@OPENMATES_ROOT@
+ExecStart=/usr/bin/python3 -I @OPENMATES_ROOT@/scripts/security_monitoring/host_collector.py serve
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target

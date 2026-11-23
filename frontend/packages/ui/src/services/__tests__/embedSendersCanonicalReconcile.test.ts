@@ -140,6 +140,11 @@ vi.mock("../websocketService", () => ({ webSocketService: {
   }),
 } }));
 
+vi.mock("../../stores/notificationStore", () => ({ notificationStore: {
+  addNotificationWithOptions: vi.fn(), removeNotificationsByDedupeKey: vi.fn(),
+} }));
+
+import { notificationStore } from "../../stores/notificationStore";
 import { flushPendingEmbedOperations, sendStoreEmbedImpl, sendStoreEmbedOperationImpl } from "../embedSenders";
 
 const payload = {
@@ -186,6 +191,35 @@ beforeEach(() => {
 });
 
 describe("canonical embed conflict reconciliation", () => {
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+  it("reuses the queued save when the server replays an AI result after a page reload", async () => {
+    vi.mocked(notificationStore.addNotificationWithOptions).mockClear();
+    // Before the reload the result was queued while the socket was down.
+    const offline = { webSocketConnected_FOR_SENDERS_ONLY: false } as never;
+    const first = await sendStoreEmbedOperationImpl(offline, payload, keys, undefined, "stream-completion");
+    expect(first.status).toBe("waiting");
+    // After the reload the replay rebuilds a head that no longer matches the stored one.
+    const replay = { ...payload, encrypted_content: "cipher:body:replay", hashed_message_id: "hash:message-2" };
+    const second = await sendStoreEmbedOperationImpl(service, replay, keys, undefined, "stream-completion");
+    expect(second).toMatchObject({ status: "adopted", operation_id: first.operation_id });
+    expect(state.queued.size).toBe(0);
+    expect(notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+  it("keeps a conflicting AI result save as evidence without asking the user to review it", async () => {
+    vi.mocked(notificationStore.addNotificationWithOptions).mockClear();
+    state.canonicalParent = "other-parent";
+    const result = await sendStoreEmbedOperationImpl(service, payload, keys, undefined, "stream-completion");
+    expect(result).toMatchObject({ status: "conflict", failure_code: "embed_identity_or_version_conflict" });
+    expect(Array.from(state.queued.values())[0]).toMatchObject({ state: "conflict", store_embed_payload: payload });
+    expect(notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
+    // A user-made save in the same state still asks for review.
+    state.queued.clear();
+    await sendStoreEmbedOperationImpl(service, payload, keys);
+    expect(notificationStore.addNotificationWithOptions).toHaveBeenCalledTimes(1);
+  });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
   it("preserves bootstrap wrapper ciphertext through original v1 completion and sealed v2 reconciliation", async () => {

@@ -42,4 +42,36 @@ impl Client {
         let bytes: [u8; 32] = plain.as_slice().try_into().map_err(|_| Error::Crypto)?;
         Ok(zeroize::Zeroizing::new(bytes))
     }
+    /// Wraps a fresh 32-byte object key under the master key in the server
+    /// wrapper format (IV || ciphertext || tag, empty AAD) that web and native
+    /// readers accept. The browser binding encrypts inside WebCrypto, so the
+    /// web Worker's non-extractable master works; checked again after the await.
+    ///
+    /// # Errors
+    /// `Crypto` on an encryption failure; `Cancelled` when the credentials
+    /// changed during the wrap.
+    pub(crate) async fn work_wrap_with_master(&self, plaintext: &[u8]) -> Result<String> {
+        let binding = self.master_binding()?;
+        let wrapped = match &binding {
+            MasterBinding::Native(key) => {
+                crypto::server_fields::encrypt_bytes(plaintext, key, &[])?
+            }
+            MasterBinding::Browser(master) => master.encrypt_server_bytes(plaintext).await?,
+        };
+        binding.check(self)?;
+        Ok(wrapped)
+    }
+
+    /// The master key bytes for the private slug lookup index, when this shell
+    /// holds them. The web Worker's master is non-extractable, so it gets
+    /// `None` and creates Projects without a slug, like the web's own create.
+    ///
+    /// # Errors
+    /// `Authentication`/`Expired` without credentials.
+    pub(crate) fn work_slug_lookup_master(&self) -> Result<Option<Key>> {
+        Ok(match self.master_binding()? {
+            MasterBinding::Native(key) => Some(key),
+            MasterBinding::Browser(_) => None,
+        })
+    }
 }

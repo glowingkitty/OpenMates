@@ -1,0 +1,35 @@
+schema_version: 2
+profile: concise
+id: apple-iphone-stability-performance
+title: Apple iPhone app stable and fast, with problems caught automatically
+status: implementing
+goal: >
+  The native iPhone app stays connected and feels fast (chat open, scrolling,
+  closing a chat), and the Apple workflow catches reconnects, slow screens and
+  hangs automatically instead of the owner finding them by hand. On-device
+  metadata diagnostics are the main source of truth, CI performance flows with
+  limits guard regressions, and the remaining web/Apple UI differences the owner
+  listed are removed.
+specifications:
+  - feature.issue-reporting@1
+  - feature.auth@1
+scope:
+  - "Step 1 (done, dev f1f6e91): foreground and in-use recovery restore the network authority and the main WebSocket; refused connects never sit in connecting."
+  - "Step 2: Apple diagnostics. Administrators forward all-level metadata diagnostics to the admin log stream by default (web parity, POST /v1/admin/client-logs); other users keep warn/error default telemetry with the existing opt-out and opt in to all levels with the existing Share Debug Logs session. A rolling in-memory buffer is sent in background batches and attached to every issue report. Recorded metadata: load and chat-open timings, reconnect reasons and timings, error codes, frame hitches, main-thread stalls, memory, and MetricKit hang, crash and launch scalars."
+  - "Step 3: CI performance XCUITests on the macos-26 runner (chat open time, scroll hitch rate, reconnect count, tap reaction time) with a limit per metric that fails the run; the same flows on web with timings and screenshots side by side and a list of every web/Apple difference. Real-account runs use the personal dev test account."
+  - "Step 4: UI items from the owner's list: start screen inspiration cards inside the Continue row (after web TASK-1321), Continue order without empty New chat entries, no auto-model notice above the composer, dictation UI as on web, voice call button top right and report issue button top left below the menu in the active chat."
+decisions:
+  - "Owner brief 2026-11-20 (TASK-1410) and receipt d3c4f774372cd197: dev only, no PR to main; the Apple release candidate commit bbf1482 stays untouched."
+  - "Diagnostics stay metadata only: counts, durations, codes and hashed or prefixed identifiers; never message text, decrypted data, keys or tokens. Client-side encryption is unchanged."
+  - "No new API route: Apple reuses the web's three existing log endpoints and their server-side level rules."
+  - "Transport fixes in the not-yet-migrated Swift socket are marked shell-only: bugfix-in-frozen-code transport."
+  - "Voice-call admission stays with the voice chat (TASK-950); start-screen redesign follows the web chat (TASK-1321)."
+  - "Step 3 limits live in AppleInteractionBudgetUITests.InteractionBudget, set from three hosted macos-26 simulator runs plus margin (single runs vary about 2x); they guard regressions on that runner, not real-device speed. Reconnect count needs a live stack and runs only on the coordinated Mac with the personal dev test account."
+checks:
+  required:
+    - "apple-unit CI for each step's new tests (diagnostics payload level rules per role, MetricKit scalar extraction, stall events, redaction)."
+    - "apple-ui CI performance flows with limits once step 3 lands."
+    - "Screenshots or video for every visible change, sent to the owner."
+approval_provenance:
+  source: "Owner brief for TASK-1410 on 2026-11-20 and the verified owner message d3c4f774372cd197 on 2026-11-21."
+  note: "feature.issue-reporting@1 gains Apple diagnostics assertions as a draft; approval is asked once after deploy."

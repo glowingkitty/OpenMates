@@ -1,10 +1,12 @@
 schema_version: 1
 id: feature.daily-inspiration
-version: 2
-status: draft
+version: 3
+status: approved
 title: Daily Inspiration
-summary: Daily Inspiration provides personalized and public records, with the same public-safe default
-  and static fallback content available to signed-out visitors through an isolated guest source.
+summary: Daily Inspiration provides personalized and public video and article records, with the same
+  public-safe default and static fallback content available to signed-out visitors through an isolated
+  guest source. On the start screens, signed in or signed out, they appear as cards inside the row of
+  the user's own items (or the example chats for guests) instead of in a banner.
 scope:
   includes:
   - Chat-surface Daily Inspiration state, source priority, navigation, and visible fallback behavior.
@@ -13,10 +15,14 @@ scope:
   - Logged-out public-safe guest source isolation and restoration on logout.
   - Static authenticated fallback content shape for local no-API recovery and slow personalized recovery.
   - Opened/viewed state handling that keeps cards visible while preferring unopened cards.
+  - The start-screen row (Chats, Workflows; signed in and signed out) with its rhythm, ten-card limit, Daily
+    Inspiration card label, the browse actions as the row's last item and the suggestions below it.
+  - The data contract of recommended-workflow inspirations for the Workflows row (consumer only).
   excludes:
   - Exact LLM prompts, third-party provider ranking internals, or scheduled job timing changes.
   - Master-key derivation, chat encryption protocol design, or Directus schema migrations.
-  - Guest onboarding copy, animation timing, or visual redesign.
+  - Guest onboarding copy and animation timing.
+  - Generating recommended-workflow inspirations; no backend job produces them yet.
 models:
   DailyInspirationRecord:
     inspiration_id:
@@ -42,16 +48,20 @@ models:
       values:
       - video
       - wiki
-      - feature
+      - workflow
     video:
       type: object
       nullable: true
     wiki:
       type: object
       nullable: true
-    feature:
+    workflow:
       type: object
       nullable: true
+      fields:
+        template_id: {type: string, required: true}
+        summary: {type: string, nullable: true}
+        icon: {type: string, nullable: true}
     generated_at:
       type: unix_seconds
       required: true
@@ -67,6 +77,8 @@ models:
       - workflows
       - tasks
       - plans
+      - teams
+      - apps
     is_opened:
       type: boolean
       nullable: true
@@ -106,7 +118,7 @@ models:
       type: daily_inspiration_array
       required: true
       constraints:
-        count: 10
+        count: 6
         excludes_guest_onboarding_ids: true
     content_mix:
       type: map
@@ -114,7 +126,51 @@ models:
       constraints:
         video: 3
         wiki: 3
-        feature: 4
+  StartRow:
+    own_items:
+      type: array
+      required: true
+      constraints:
+        max_count: 10
+        order: priority chats, last opened chat, recent chats
+        signed_out: example chats (and the visitor's own anonymous or shared chats); example events leave the row
+    max_cards:
+      type: integer
+      required: true
+      constraints:
+        value: 10
+        counts: own items and inspirations together
+    actions:
+      type: array
+      required: true
+      constraints:
+        position: last item of the row, after the cards
+        signed_in_chats: [show all chats, search]
+        signed_out_chats: [select interests, show all examples]
+    suggestions:
+      type: array
+      required: true
+      constraints:
+        position: below the row (below the upcoming entry when one exists)
+        visible_count: 3
+        style: follow-up suggestions of an open chat
+        source_signed_in: the user's synced new-chat suggestions, newest first; translated defaults when none
+        source_signed_out: translated defaults ranked by selected interests
+    inspirations:
+      type: daily_inspiration_array
+      required: true
+      constraints:
+        chats_content_types: [video, wiki]
+        workflows_content_types: [workflow]
+        unopened_only: true
+    rhythm:
+      type: object
+      required: true
+      constraints:
+        leading_own_items: 2
+        own_items_between_inspirations: 3
+        no_own_items: inspirations only
+        fewer_than_two_own_items: one inspiration after the own items
   PublicDefaultResponse:
     route:
       type: string
@@ -140,7 +196,7 @@ models:
       type: daily_inspiration_array
       required: true
       constraints:
-        max_count: 10
+        max_count: 6
         public_cleartext: true
         excludes_guest_and_auth_only_features: true
   EncryptedPersistenceRecord:
@@ -168,6 +224,7 @@ models:
     encrypted_feature_metadata:
       type: encrypted_json_blob
       nullable: true
+      description: Legacy column; feature records are dropped on read and no longer written.
     encrypted_follow_up_suggestions:
       type: encrypted_json_blob
       nullable: true
@@ -213,9 +270,9 @@ assertions:
   - examples.personalized_priority
 - id: daily-inspiration.guest-isolated
   type: invariant
-  must: Signed-out visitors see ordinary public-safe Daily Inspirations from the public default endpoint,
-    or the ten-record static fallback with three video, three wiki and four feature cards when the endpoint
-    is unavailable. The existing guest-onboarding source marker identifies this isolated guest state but
+  must: Signed-out visitors see ordinary public-safe Daily Inspirations from the public default endpoint
+    as cards in the guest start row, or the six-record static fallback with three video and three wiki cards when the
+    endpoint is unavailable. The existing guest-onboarding source marker identifies this isolated guest state but
     no longer implies promotional onboarding cards. Guest state remains isolated from authenticated state;
     logging out restores guest content, and late guest requests never overwrite an authenticated-compatible
     source. No six-story promotional set is selected.
@@ -225,18 +282,17 @@ assertions:
   - examples.guest_isolation
 - id: daily-inspiration.authenticated-fallback-content
   type: behavior
-  must: Static authenticated fallback content contains ten authenticated-safe records with a 3 video,
-    3 wiki, and 4 feature mix, excludes guest signup content, and uses actionable feature destinations
-    where applicable.
+  must: Static authenticated fallback content contains six authenticated-safe records with a 3 video
+    and 3 wiki mix and excludes guest signup content and feature tips.
   depends_on:
   - models.AuthenticatedDailySet
   - examples.fallback_sets
 - id: daily-inspiration.public-defaults
   type: behavior
   must: The public default endpoint is unauthenticated, rate-limited, language-normalized, cached for
-    one hour, public-cleartext only, returns no more than ten public-safe records, falls back from today's
-    defaults to yesterday and then static wiki/public features, and targets the same 3 video, 3 wiki,
-    4 feature mix when inventory supports it.
+    one hour, public-cleartext only, returns no more than six public-safe records, never returns feature
+    records (legacy rows are skipped), falls back from today's defaults to yesterday and then static wiki
+    records, and targets the same 3 video and 3 wiki mix when inventory supports it.
   depends_on:
   - models.PublicDefaultResponse
   - examples.public_defaults
@@ -251,13 +307,109 @@ assertions:
   - examples.encrypted_persistence
 - id: daily-inspiration.opened-state
   type: behavior
-  must: Opening an inspiration keeps it visible, records opened state and optional opened chat ID locally
-    and remotely, broadcasts the update across devices, prefers the first unopened card for default display,
-    deduplicates viewed/opened side effects, and preserves opened/embed/current-index state across duplicate
-    personalized deliveries.
+  must: Opening a video or article inspiration shows it like a chat (its assistant message, video or
+    article and follow-up suggestions) but saves nothing; no chat key, no local or server chat record and
+    no opened state, and leaving without sending discards it so the inspiration stays in the start row.
+    The first follow-up message turns it into a normal saved, encrypted user chat in the chat list, then
+    records opened state with the opened chat ID locally and remotely, broadcasts the update across
+    devices, and the inspiration no longer shows in the start row; activating an already-opened
+    inspiration opens that saved chat. The banner carousel prefers the first unopened card for default
+    display, viewed/opened side effects are deduplicated, and opened/embed/current-index state survives
+    duplicate personalized deliveries.
   depends_on:
   - models.DailyInspirationState
   - examples.opened_state
+- id: daily-inspiration.workspace-start-screens
+  type: behavior
+  must: The Projects start screen has no Daily Inspiration banner; it uses the same large-card start
+    row as Chats, Apps and Workflows, with today's unopened Projects inspirations interleaved in the
+    Chats rhythm (and filling the row alone when the user has no projects); activating one fills the
+    new-project name. The Tasks start screen shows no Daily Inspiration at all, neither a banner nor a
+    row card.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-rhythm
+  type: behavior
+  must: The Chats start screen has no Daily Inspiration banner and no banner heading, signed in or
+    signed out. Its single row shows the user's own chats (reminder-priority chats first, then the last
+    opened chat, then recent chats; for a signed-out visitor the example chats; see
+    daily-inspiration.start-row-active-first for running chats) with today's unopened
+    video and article inspirations interleaved, two own chats first and then one inspiration after every
+    third own chat. The row holds at most ten cards in total, inspirations included; inspirations never
+    repeat and fill the row alone for a user without chats. "Show all" lists only real chats.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-cards
+  type: behavior
+  must: Every entry of the start row is a large chat card (no compact pill variant on any viewport), and
+    the row opens with its first card horizontally centred, as before the redesign. An
+    inspiration card is the same chat card as the user's own chats (category gradient, icon, title and
+    summary) with a small "Daily inspiration" label; it never shows a video or article image as its
+    background. Activating it opens the inspiration as an unsaved chat preview, and it reports itself as
+    viewed once at least half of it is visible. A draft-only chat card shows the "Draft" label and up to
+    three lines of the draft text before cutting it with an ellipsis.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-actions
+  type: behavior
+  must: The browse actions are the last item of the start row, after the cards, in a tile of card
+    height. Signed in, Chats offers "Show all chats" and "Search"; signed out, "Select interests" and
+    "Show all examples". Apps offers "Show all apps" and "Search", Workflows "Show templates", and
+    Projects "Show all projects" and "Search" (both open the full project grid; Search adds a filter
+    box). No browse links or buttons sit below the row.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-suggestions
+  type: behavior
+  must: On the Chats start screen three new-chat suggestions appear at the bottom, directly above the
+    message input (not right under the start row), in the style of the follow-up suggestions of an open
+    chat. Signed-in users see
+    their own synced suggestions, newest first, or the translated defaults when they have none;
+    signed-out visitors see the translated defaults ranked by their selected interests. Tapping one puts
+    it into the composer. Each suggestion stays on one line, longer text cut with an ellipsis, and on a
+    short screen the greeting, row and suggestions start below the top buttons row and scroll rather
+    than sliding under it. While the composer's own suggestion rail is open, these step aside so the
+    same prompts are not listed twice.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-suggestions-layout
+  type: behavior
+  must: On the Chats, Workflows and Projects screens the suggestions sit directly above the input as one
+    block exactly as wide as the input, centred on it, with every line starting at the same left edge
+    (Marco's layout B, 22 Nov; the right-aligned layout is gone). Projects suggests names for a new
+    project; tapping one puts it into that input. Apps has no input on its start screen and Tasks shows
+    no suggestions at all, so nothing overlays its board.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-active-first
+  type: behavior
+  must: Signed in, every running chat (a chat processing itself, or the visible parent of a running
+    sub-chat, counted once) is always the first card of the Chats start row, before reminder, last-opened
+    and recent chats, and is marked with an "Active" corner label. Below "Hey <name>!" the title reads
+    "Continue your recent chats:", or while chats are running "You have 1 chat active:" / "You have N
+    chats active:" (translated, singular and plural) as plain text, not a link. A chat that becomes
+    active, or a new chat, fades in from below into the first position while the other cards slide to
+    the right, with the sidebar's easing and duration (300 ms ease-in-out); with reduced motion the
+    change is immediate.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.workflow-recommendation-hook
+  type: behavior
+  must: The Workflows start screen interleaves recommended-workflow inspirations (surface workflows,
+    content_type workflow, with a workflow payload naming a template) into the row of the user's workflows
+    with the same rhythm and label as Chats. No such records are generated yet; until a producer exists the
+    row shows only the user's workflows and no generic workflow tip.
+  depends_on:
+  - models.DailyInspirationRecord
+  - models.StartRow
+  - examples.start_row
 applies_to:
   rest_api:
     required: true
@@ -280,7 +432,7 @@ applies_to:
         required: true
       apple:
         required: true
-        role: owns apple-startup-offline; existing web-specific fallback composition remains web-only
+        role: owns apple-startup-offline and the native start row (cards, actions, active-first); existing web-specific fallback composition remains web-only
 examples:
   file: examples.yml
   required_groups:
@@ -291,6 +443,7 @@ examples:
   - public_defaults
   - encrypted_persistence
   - opened_state
+  - start_row
 approval_source:
   instruction: User directly requested signed-out Daily Inspiration restoration on 2026-10-09 in this
     Codex thread; no new exact-fingerprint approval is claimed.

@@ -438,6 +438,31 @@ notifications.new_messages:
   sv: Nya meddelanden
   he: הודעות חדשות
   verified_by_human: []
+notifications.push_include_chat_title:
+  context: Push notification toggle - show a one-line summary and the chat title in the notification
+  en: Show summary and chat title
+  de: Zusammenfassung und Chat-Titel anzeigen
+  verified_by_human: []
+notifications.push_include_chat_title_desc:
+  context: Explains the push summary/title toggle and the client-side encryption boundary
+  en: Shows a one-line summary of the reply, for example "✅ Garden beds planned", and the chat title in app notifications. Both are encrypted for your device and shown only there; Apple and Google cannot read them. Turn off to keep notifications generic.
+  de: Zeigt in App-Benachrichtigungen eine einzeilige Zusammenfassung der Antwort, zum Beispiel "✅ Gartenbeete geplant", und den Chat-Titel. Beides wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können es nicht lesen. Ausschalten, damit Benachrichtigungen allgemein bleiben.
+  verified_by_human: []
+notifications.push_include_preview:
+  context: Push notification toggle - show the first lines of the answer in the notification
+  en: Show the start of the answer
+  de: Anfang der Antwort anzeigen
+  verified_by_human: []
+notifications.push_include_preview_desc:
+  context: Explains the optional push answer preview and the client-side encryption boundary
+  en: Adds the first lines of the reply to app notifications. They are encrypted for your device and shown only there; Apple and Google cannot read them. Off by default.
+  de: Fügt App-Benachrichtigungen die ersten Zeilen der Antwort hinzu. Sie werden für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können sie nicht lesen. Standardmäßig aus.
+  verified_by_human: []
+notifications.missed_warning:
+  context: Warning when both email and push notifications are off
+  en: Email and push notifications are both off. You may miss important replies and updates. Turn one of them on to stay informed.
+  de: E-Mail- und Push-Benachrichtigungen sind beide ausgeschaltet. Du könntest wichtige Antworten und Updates verpassen. Schalte eine der beiden ein, um informiert zu bleiben.
+  verified_by_human: []
 notifications.new_messages_desc:
   context: Description for new messages notifications
   en: When an assistant completes a response
@@ -878,15 +903,14 @@ notifications.email_workflow_runs_desc:
   he: אימייל יומי אחד מסכם פעילות Workflow מתוזמנת; הודעות פועלות לפי הגדרות הצ׳אט הרגילות.
   verified_by_human: []
 notifications.email_include_content:
-  context: Optional private email content beyond identifying daily Workflow context
-  en: Include private titles and previews
-  de: Private Titel und Vorschauen einschließen
+  context: Email notification toggle - include the reply summary, chat title and answer excerpt in the email
+  en: Show reply content in emails
+  de: Antwortinhalt in E-Mails anzeigen
   verified_by_human: []
 notifications.email_include_content_desc:
-  context: Private excerpt consent and basic Workflow identity disclosure
-  en: Allow chat titles and message previews in email. Daily Workflow summaries normally include names and outcomes; explicitly hiding content also hides those names. Your email provider can read included content.
-  de: Erlaube Chat-Titel und Nachrichtenvorschauen in E-Mails. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du Inhalte ausdrücklich ausblendest, werden auch diese Namen verborgen. Dein E-Mail-Anbieter kann
-    enthaltene Inhalte lesen.
+  context: Private excerpt consent and basic Workflow identity disclosure; must state plainly that the content travels as plain text
+  en: "Off by default: emails then say only that a reply is ready. When on, the email subject is a one-line summary of the reply, and the email shows the chat title, the first lines of the reply and an open-chat link. This content then travels as plain text through the email provider and stays in your mailbox. Daily Workflow summaries normally include names and outcomes; turning this off also hides those names."
+  de: "Standardmäßig aus: E-Mails sagen dann nur, dass eine Antwort bereit ist. Wenn an, ist der Betreff eine einzeilige Zusammenfassung der Antwort, und die E-Mail zeigt den Chat-Titel, die ersten Zeilen der Antwort und einen Link zum Öffnen des Chats. Dieser Inhalt wird dann als Klartext über den E-Mail-Anbieter übertragen und bleibt in deinem Postfach. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du dies ausschaltest, werden auch diese Namen verborgen."
   verified_by_human: []
 notifications.email_webhooks:
   context: Toggle label for webhook chat email notifications

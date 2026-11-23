@@ -154,6 +154,35 @@ final class AuthManagerCoreTests: XCTestCase {
         XCTAssertFalse(auth.hasNetworkAuthority)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testAdmittedCoreWithoutNetworkAuthorityIsAdmittedAgainOnForeground() async {
+        // TASK-1410: a readmit failed while the app went to the background, so
+        // the core still reports admitted while this app holds no authority.
+        var fresh = false
+        let auth = AuthManager(reads: AuthCoreReads(
+                profile: { UserProfileRecord(json: Self.profileJSON, fresh: fresh) },
+                socketGrant: { LegacySocketGrantRecord(sessionId: AuthManager.nativeSessionId, wsToken: "fixture-token") }),
+            profileCacheWriter: { _ in }, sessionScopeActivator: { _ in })
+        await auth.apply(.admitted(username: "Fixture", expiresAt: nil))
+        XCTAssertEqual(auth.sessionValidationState, .offlineAuthenticated)
+        XCTAssertFalse(auth.hasNetworkAuthority)
+        XCTAssertTrue(auth.needsNetworkAuthorityRecovery, "The foreground loop must keep re-admitting")
+
+        let admitted = CoreSessionState.admitted(username: "Fixture", expiresAt: nil)
+        XCTAssertEqual(AuthManager.admissionStep(for: admitted, forceReadmit: false, holdsNetworkAuthority: false),
+            .readmit, "A foreground re-admit must not be a no-op while the authority is missing")
+        XCTAssertEqual(AuthManager.admissionStep(for: admitted, forceReadmit: false, holdsNetworkAuthority: true), .none)
+        XCTAssertEqual(AuthManager.admissionStep(for: admitted, forceReadmit: true, holdsNetworkAuthority: true), .readmit)
+        XCTAssertEqual(AuthManager.admissionStep(for: .signedOut, forceReadmit: true, holdsNetworkAuthority: false), .none)
+
+        // The successful readmit's admission restores the authority and ends the loop.
+        fresh = true
+        await auth.apply(.admitted(username: "Fixture", expiresAt: nil))
+        XCTAssertEqual(auth.sessionValidationState, .onlineAuthenticated)
+        XCTAssertTrue(auth.hasNetworkAuthority)
+        XCTAssertFalse(auth.needsNetworkAuthorityRecovery)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,client-core.viewmodel.capability-contract
     func testFailedBackupCodeAndRecoveryKeyLoginsAreTypedAndStaySignedOut() async throws {
         let core = try makeCore()

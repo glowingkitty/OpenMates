@@ -888,7 +888,10 @@
         "text": "Görseli göster"
       },
       "interactive_html_blocked": {
-        "text": "Bu görsel başka bir sayfa açmaya çalıştı ve durduruldu."
+        "text": "Bu görsel farklı bir sayfa açmaya çalıştı. Sohbet içinde buna izin verilmediği için duraklatıldı."
+      },
+      "interactive_html_reload": {
+        "text": "Görseli yeniden yükle"
       },
       "search_repos": {
         "text": "Repo ara",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Tümünü reddet"
       },
+      "continue_without_memories": {
+        "text": "Anılar olmadan devam et"
+      },
+      "call_countdown_label": {
+        "text": "Anılar olmadan yanıtlamadan önce kalan süre"
+      },
       "entry_singular": {
         "text": "giriş"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Kaldığınız yerden devam edin:"
+        "text": "Son sohbetlerinize devam edin:"
+      },
+      "active_title_single": {
+        "text": "1 aktif sohbetiniz var:"
+      },
+      "active_title": {
+        "text": "{count} aktif sohbetiniz var:"
+      },
+      "active_card_label": {
+        "text": "Aktif"
       },
       "guest_title": {
         "text": "Bazı örnek sohbetleri keşfedin:"
@@ -4311,76 +4329,6 @@
         "text": "Fermi paradoksu, neden dünya dışı medeniyetlere dair ikna edici bir kanıt bulamadığımızı sorgular. Olası cevapları keşfet."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Kendi yedeğini tut. OpenMates verilerini dilediğin zaman dışa aktar."
-      },
-      "title": {
-        "text": "OpenMates verilerini dışa aktar"
-      },
-      "description": {
-        "text": "Sohbetleri, ayarları, anıları ve daha fazlasını yedekle."
-      },
-      "assistant_response": {
-        "text": "Hesap ayarlarından OpenMates verilerinin bir kopyasını dışa aktar. Şifrelenmiş hesap verilerine erişmek için giriş yap."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Daha güçlü gizlilik kontrolleri mi istiyorsun? OpenMates'in gizlemesi gereken kişisel detayları ekle."
-      },
-      "title": {
-        "text": "Özel PII tespiti"
-      },
-      "description": {
-        "text": "Model çağrılarından önce kişisel detayları koru."
-      },
-      "assistant_response": {
-        "text": "Bir model çağrısından önce OpenMates'in gizlemesini istediğin kişisel detayları seç. Bunları yönetmek için gizlilik ayarlarını gözden geçir."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Daha odaklanmış bir cevaba mı ihtiyacın var? Mate'ine özel bir görev ver."
-      },
-      "title": {
-        "text": "Odak modları"
-      },
-      "description": {
-        "text": "Bir sohbeti belirli bir hedefe yönlendir."
-      },
-      "assistant_response": {
-        "text": "Bir sohbeti belirli bir hedefe yönlendirmek için bir odak modu kullan. Uygulamalar'daki mevcut modları keşfet."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Kendini tekrarlamak sıkar. Mate'lerinin hatırlaması gereken bağlamları kaydet."
-      },
-      "title": {
-        "text": "Anılar"
-      },
-      "description": {
-        "text": "Faydalı tercihleri ve bağlamı kaydet."
-      },
-      "assistant_response": {
-        "text": "Faydalı tercihleri ve bağlamı anı olarak kaydet, ardından mate'lerinin neleri kullanabileceğini seç."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Yapacak bir şey mi arıyorsun? Yakınındaki etkinlikleri keşfet."
-      },
-      "title": {
-        "text": "Yerel etkinlikleri bul"
-      },
-      "description": {
-        "text": "Dersleri, buluşmaları ve diğer etkinlikleri ara."
-      },
-      "assistant_response": {
-        "text": "Yakınındaki dersleri ve buluşmaları bulmak için Etkinlik aramasını kullan. Çevrende neler olduğunu görmek için bir yer ve konu seç."
-      }
-    },
     "collective": {
       "title": {
         "text": "Hayvanlarda kolektif davranış"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "Çekme ve basınç kuvvetlerinin dengesiyle sabit kalan yapılar."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Güvenilir kaynak alıntıları"
-      },
-      "description": {
-        "text": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste."
-      },
-      "phrase": {
-        "text": "Yanıtı doğrulamak mı istiyorsun? OpenMates’ten destekleyici kaynağı alıntılamasını iste."
-      },
-      "assistant_response": {
-        "text": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Yapay zekâ görsel tespiti"
-      },
-      "description": {
-        "text": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele."
-      },
-      "phrase": {
-        "text": "Bir görsel yapay zekâyla mı üretildi? Yükle ve işaretleri incele."
-      },
-      "assistant_response": {
-        "text": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Gizli sohbetler"
-      },
-      "description": {
-        "text": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat."
-      },
-      "phrase": {
-        "text": "Geçici bir konuşma mı gerekiyor? Kayıtlı sohbet geçmişinin dışında tut."
-      },
-      "assistant_response": {
-        "text": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Gizlilik kontrolleri"
-      },
-      "description": {
-        "text": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla."
-      },
-      "phrase": {
-        "text": "Kontrollere acilen ihtiyaç duymadan önce OpenMates’in neleri koruduğunu incele."
-      },
-      "assistant_response": {
-        "text": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla."
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "Bu belge hakkında soru sor..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Bunu çalıştırmak için kodun ve dosyaların bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir ve ABD'de çalıştırılır. Proje işlerinde tüm Proje ve onu açan anahtar da sandbox'a konur; anahtar yalnızca o sandbox açabilecek şekilde mühürlenir. Sandbox daha sonra silinir."
+      },
+      "privacy_policy": {
+        "text": "Gizlilik politikası"
+      },
+      "own_machine_hint": {
+        "text": "Ya da şununla kendi bilgisayarında çalıştır:"
+      },
+      "allow": {
+        "text": "İzin ver"
+      },
+      "own_machine": {
+        "text": "Kendi bilgisayarımı kullan"
+      },
+      "not_now": {
+        "text": "Şimdi değil"
+      },
+      "answered": {
+        "text": "Yanıtın:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Hesabın için E2B bulut sandbox'ında kod çalıştırmaya izin verilmiyor, bu yüzden hiçbir şey başlatılmadı. Bunu Ayarlar > Gizlilik bölümünden değiştirebilir veya uzaktan erişim komutuyla kendi makinende çalıştırabilirsin."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Kodu E2B bulut sandbox'ında çalıştır"
+      },
+      "description": {
+        "text": "İzin verildiğinde, çalıştırdığın kod ve dosyalar bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir ve ABD'de işlenir. Proje işlerinde buna Proje ve onu açan anahtar da dahildir; anahtar yalnızca o sandbox açabilecek şekilde mühürlenir. Sandbox daha sonra silinir. İzin verilmezse hiçbir şey gönderilmez."
+      },
+      "status_allowed": {
+        "text": "İzin verildi"
+      },
+      "status_declined": {
+        "text": "İzin verilmedi"
+      },
+      "status_undecided": {
+        "text": "Henüz karar verilmedi"
+      },
+      "error": {
+        "text": "Bu ayar kaydedilemedi. Lütfen tekrar dene."
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "Bu çalıştırma için video yok"
+        },
+        "with_setup": {
+          "text": "hazırlıkla {duration}"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B (izole kod kum havuzu)"
             },
             "description": {
-              "text": "E2B, seçilen kod gömmelerini ve oluşturulan uygulama önizlemelerini izole kum havuzları içinde çalıştırır. E2B; çalıştırmayı seçtiğin kodu veya oluşturulan uygulama dosyalarını ve varlıklarını, çalışma zamanı girdilerini, önizleme günlüklerini ve kum havuzu sonucunu çalıştırmak ve görüntülemek için gereken yürütme çıktılarını alır. Bu paylaşım yalnızca açıkça kod çalıştırdığında, kısa bir ekran görüntüsü önizlemesini otomatik olarak başlatan oluşturulmuş bir uygulama oluşturduğunda veya bir uygulamanın canlı önizlemesini başlattığında/devam ettirdiğinde gerçekleşir."
+              "text": "E2B, seçilen kod gömmelerini ve oluşturulan uygulama önizlemelerini izole kum havuzları içinde çalıştırır. E2B; çalıştırmayı seçtiğin kodu veya oluşturulan uygulama dosyalarını ve varlıklarını, çalışma zamanı girdilerini, önizleme günlüklerini ve kum havuzu sonucunu çalıştırmak ve görüntülemek için gereken yürütme çıktılarını alır. Bu paylaşım yalnızca açıkça kod çalıştırdığında, kısa bir ekran görüntüsü önizlemesini otomatik olarak başlatan oluşturulmuş bir uygulama oluşturduğunda veya bir uygulamanın canlı önizlemesini başlattığında/devam ettirdiğinde gerçekleşir. Bir ajan işi bulut projesinde çalıştığında, ABD'deki E2B işin süresince projenin tüm dosyalarını ve yalnızca o sanal alanın açabileceği şekilde mühürlenmiş, projeyi açan anahtarı da alır. Sanal alan 15 dakika boşta kaldıktan sonra veya en geç 4 saat sonra silinir (etkinleştirirsen 24 saate kadar) ve hiçbir zaman duraklatılmaz."
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "Ekran görüntüsü çok büyük. Lütfen daha küçük bir pencere deneyin."
       },
+      "screenshot_limit_reached": {
+        "text": "En fazla 5 ekran görüntüsü ekleyebilirsiniz."
+      },
       "screenshot_preview_alt": {
         "text": "Ekran görüntüsü önizlemesi"
       },
@@ -21150,7 +21098,7 @@
       "text": "Ücretsiz dene"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Anı isteğinin süresi doldu, anılar olmadan yanıtlandı"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Sesli aramalar Mistral transkripsiyonu, ElevenLabs v4 Turbo sesi, OpenMates’in normal yapay zekâ yönlendirmesi ve kullanıma dayalı ücretlendirme kullanır."

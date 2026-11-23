@@ -43,17 +43,17 @@ pub(super) enum WriteProposal {
     },
     /// An assistant `create_file` / `update_file` on the source (host
     /// `source_host/writes.rs`); digest `projectFileMutationDigest`.
-    #[cfg(all(feature = "workflow-yaml", unix))]
+    #[cfg(feature = "workflow-yaml")]
     FileMutation(FileMutationProposal),
 }
 
 /// A file mutation inside a [`WriteProposal`]; `Debug` never shows the path or
 /// the file text (they are user content).
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 #[derive(Clone)]
 pub(super) struct FileMutationProposal(pub(super) super::HostedFileMutation);
 
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 impl std::fmt::Debug for FileMutationProposal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FileMutationProposal")
@@ -80,7 +80,7 @@ impl WriteProposal {
             Self::Command { operation_id, .. }
             | Self::Git { operation_id, .. }
             | Self::CreateSource { operation_id, .. } => operation_id,
-            #[cfg(all(feature = "workflow-yaml", unix))]
+            #[cfg(feature = "workflow-yaml")]
             Self::FileMutation(mutation) => &mutation.0.operation_id,
         }
     }
@@ -129,7 +129,7 @@ impl WriteProposal {
             ]),
             // The hosted proposal commitment, which the host recomputes
             // byte-identically (`source_host/writes.rs::digest`).
-            #[cfg(all(feature = "workflow-yaml", unix))]
+            #[cfg(feature = "workflow-yaml")]
             Self::FileMutation(mutation) => {
                 return mutation
                     .0
@@ -178,7 +178,7 @@ impl WriteProposal {
                 }
                 json!({"chat_id":chat,"git":git})
             }
-            #[cfg(all(feature = "workflow-yaml", unix))]
+            #[cfg(feature = "workflow-yaml")]
             Self::FileMutation(mutation) => {
                 json!({"chat_id":chat,"mutation":host_mutation(&mutation.0)})
             }
@@ -189,7 +189,7 @@ impl WriteProposal {
 /// The mutation as the host's `writes::validate` accepts it: a create carries
 /// `expected_base: null` and `content`, an update `expected_base` and `patch`;
 /// absent fields are omitted, never sent as `null`.
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 fn host_mutation(mutation: &super::HostedFileMutation) -> Value {
     let mut wire = json!({
         "operation": mutation.operation.wire(),

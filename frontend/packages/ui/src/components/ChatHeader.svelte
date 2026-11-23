@@ -52,7 +52,9 @@
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { resolveHeaderSwipeNavigation } from './headerSwipeNavigation';
+  import { headerBubbleFocusChildEmbedId } from './headerImageBubbleKey';
   import WorkspaceDetailHeader from './workspace/WorkspaceDetailHeader.svelte';
+  import { resolveChatDisplayTitle } from '../utils/chatDisplayTitle';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -263,8 +265,10 @@
   function getImageBubbleTestId(index: number) {
     return index === 0 ? 'chat-header-image-bubble-left' : 'chat-header-image-bubble-right';
   }
+  // Never "Untitled chat": without a generated title the header shows the
+  // beginning of the first user message (rule: utils/chatDisplayTitle.ts).
   const displayTitle = $derived(
-    title || (isSharedChat ? $text('chat.header.shared_chat') : writable ? $text('common.untitled_chat') : '')
+    resolveChatDisplayTitle(title, provisionalChatTitle) || (isSharedChat ? $text('chat.header.shared_chat') : '')
   );
   // ─── In-place video player ────────────────────────────────────────────────
   //
@@ -719,7 +723,7 @@
     dispatchEmbedFullscreen({
       embedId: bubble.parentEmbedId,
       embedType: 'app-skill-use',
-      focusChildEmbedId: bubble.childEmbedId,
+      focusChildEmbedId: headerBubbleFocusChildEmbedId(bubble.childEmbedId),
       hasChatContext: true,
     });
   }
@@ -1294,6 +1298,15 @@
     -webkit-background-clip: text;
     color: transparent;
     animation: headerShimmer 1.8s infinite linear;
+    /* The first-message title can be long; clamp like .loaded-title so it
+       never overflows the banner on a phone (TASK-6864). */
+    line-height: 1.3;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   @keyframes headerShimmer {

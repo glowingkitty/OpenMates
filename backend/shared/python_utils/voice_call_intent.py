@@ -78,6 +78,21 @@ def _supports_echo_verdict(text: str, assistant_text: str) -> bool:
     return any(tuple(incoming[index:index + 5]) in windows for index in range(len(incoming) - 4))
 
 
+def is_microphone_recapture(text: str, assistant_text: str) -> bool:
+    """The whole utterance is a 3+ word verbatim slice of the assistant's speech.
+
+    Only meaningful for words heard while that speech was playing: the
+    microphone picked the assistant up (EYHC5: "start the chat" became a user
+    message). Short echoes never reach the 5-word model-verdict support.
+    """
+    words = _words(text).split()
+    if len(words) < 3:
+        return False
+    spoken = _words(assistant_text).split()
+    size = len(words)
+    return any(spoken[index:index + size] == words for index in range(len(spoken) - size + 1))
+
+
 def is_immediate_barge_in(text: str, assistant_text: str, *, assistant_speaking: bool) -> bool:
     """Deterministic first-words decision: the user has taken the floor.
 
@@ -93,12 +108,7 @@ def is_immediate_barge_in(text: str, assistant_text: str, *, assistant_speaking:
         return True
     if is_listener_acknowledgement(text):
         return assistant_question_pending(assistant_text)
-    if assistant_speaking and len(words) >= 3:
-        spoken = _words(assistant_text).split()
-        size = len(words)
-        if any(spoken[index:index + size] == words for index in range(len(spoken) - size + 1)):
-            return False
-    return True
+    return not (assistant_speaking and is_microphone_recapture(text, assistant_text))
 
 
 async def classify_voice_interruption(

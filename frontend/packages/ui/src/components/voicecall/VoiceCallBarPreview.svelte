@@ -9,8 +9,8 @@
   import { initialVoiceCallState, type VoiceCallState, type VoiceCallControllerLike } from '../../services/voiceCall';
   import { downsample, pcm16Base64 } from '../videocall/callAudio';
   import { voicePcmEnvelope } from '../../services/voiceCall';
-  let { state:initialState = {}, fixed = false, realAudio = true, withinHistory = false, historyHeight = 400, pendingHeader = false }: {
-    state?:Partial<VoiceCallState>; fixed?:boolean; realAudio?:boolean; withinHistory?:boolean; historyHeight?:number; pendingHeader?:boolean;
+  let { state:initialState = {}, fixed = false, realAudio = true, withinHistory = false, historyHeight = 400, pendingHeader = false, screenShareSupported = true }: {
+    state?:Partial<VoiceCallState>; fixed?:boolean; realAudio?:boolean; withinHistory?:boolean; historyHeight?:number; pendingHeader?:boolean; screenShareSupported?:boolean;
   } = $props();
   const historyChatId = 'demo-preview-call-sizing';
   let headerMetadata = $state({ title: '', category: null as string | null,
@@ -47,6 +47,7 @@
     async submitText() { return true; },
     setMuted(muted) { store.update(current => ({ ...current, muted, audioLevels:muted && !current.assistantSpeaking ? Array(16).fill(0) : current.audioLevels, billingActivity:{inputListening:!muted,processing:current.billingActivity?.processing ?? false} })); },
     setMinimized(minimized) { store.update(current => ({ ...current,minimized })); },
+    setWaiting(waiting) { store.update(current => ({ ...current, waiting, waitingLine:{ kind:waiting ? 'waiting_start' : 'waiting_resume', text:waiting ? "Okay, I'm waiting." : 'Okay, go on.' } })); },
     async setCameraEnabled(cameraEnabled) {
       if (collapseTimer) clearTimeout(collapseTimer);
       previewStream?.getTracks().forEach(track => track.stop());
@@ -60,6 +61,10 @@
       }
       store.update(current => ({...current,cameraEnabled,cameraStream:previewStream,mediaExpanded:cameraEnabled}));
       if(cameraEnabled) collapseTimer=setTimeout(()=>store.update(current=>({...current,mediaExpanded:false})),2000);
+    },
+    async setScreenShareEnabled(screenSharing) {
+      await controller.setCameraEnabled(screenSharing);
+      store.update(current => ({...current,screenSharing}));
     },
     async flipCamera() { store.update(current=>({...current,cameraFacing:current.cameraFacing==='environment'?'user':'environment'})); },
     setMediaExpanded(mediaExpanded) { if(collapseTimer)clearTimeout(collapseTimer); store.update(current=>({...current,mediaExpanded})); },
@@ -99,7 +104,7 @@
   {#if withinHistory}
     <div class="history-fixture" data-testid="voice-call-history-fixture" style:height={`${historyHeight}px`}>
       {#snippet controls(stuck: boolean)}
-        <VoiceCallBar {controller} fixed={stuck} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
+        <VoiceCallBar {controller} {screenShareSupported} fixed={stuck} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
       {/snippet}
       <ChatHistory currentChatId={historyChatId} sourceMessages={historyMessages} isExampleChat={true}
         chatTitle={pendingHeader ? headerMetadata.title : 'Call sizing fixture'}
@@ -108,7 +113,7 @@
         voiceCallBridge={showCall ? {controls,onStickyChange:() => {}} : undefined} />
     </div>
   {:else}
-    <VoiceCallBar {controller} {fixed} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
+    <VoiceCallBar {controller} {screenShareSupported} {fixed} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
   {/if}
   {#if closed}<span data-testid="preview-chat-closed">Chat closed; call retained</span>{/if}
 </div>

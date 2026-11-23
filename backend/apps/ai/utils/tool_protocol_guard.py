@@ -24,6 +24,8 @@ from backend.apps.ai.utils.stream_utils import PROGRESSIVE_CODE_LANGUAGES, aggre
 _PROTOCOL_FENCE = re.compile(r"^```(toon|tool_code)(?:[^\n]*)\n", re.IGNORECASE)
 _APP_FIELD = re.compile(r"(?m)^\s*app_id\s*:")
 _SKILL_FIELD = re.compile(r"(?m)^\s*skill_id\s*:")
+_FOCUS_ID_FIELD = re.compile(r"(?m)^\s*focus_id\s*:")
+_FOCUS_NAME_FIELD = re.compile(r"(?m)^\s*focus_mode_name\s*:")
 
 TOOL_PROTOCOL_CONTINUATION_PROMPT = (
     "Continue the preceding assistant response exactly where it stopped. "
@@ -136,6 +138,20 @@ def tool_protocol_reason(language: str, content: str) -> str | None:
     return None
 
 
+def is_focus_activation_echo(language: str, content: str) -> bool:
+    """True for a copy of a Focus activation card written as a toon block.
+
+    Chat history shows past Focus activations to the model as toon blocks with
+    focus_id and focus_mode_name (GSLQ7). A model that repeats one adds no data
+    and runs nothing, so only the block is dropped; the reply itself stays.
+    """
+    return (
+        language.lower() == "toon"
+        and bool(_FOCUS_ID_FIELD.search(content))
+        and bool(_FOCUS_NAME_FIELD.search(content))
+    )
+
+
 def is_internal_tool_protocol(language: str, content: str) -> bool:
     """Keep classification unchanged; diagnostics expose fixed codes only."""
     return tool_protocol_reason(language, content) is not None
@@ -161,6 +177,8 @@ class ToolProtocolGuard:
         self.known_tools = known_tool_names(known_tools)
         self.pseudo_tool_call = False
         self.pseudo_tool_call_diagnostics: dict[str, str | int] = {}
+        # Echoed Focus activation cards dropped from the reply (GSLQ7).
+        self.focus_activation_echoes = 0
         # Internal only, never logged: the app-skill an imitated result names.
         self.imitated_tool: str | None = None
 
@@ -206,7 +224,9 @@ class ToolProtocolGuard:
             opening_end = pending.find("\n") + 1
             if "```" not in pending[opening_end:]:
                 continue
-            if is_internal_tool_protocol(language, pending[opening_end:]):
+            if is_focus_activation_echo(language, pending[opening_end:]):
+                self.focus_activation_echoes += 1
+            elif is_internal_tool_protocol(language, pending[opening_end:]):
                 self.detected = True
                 self.diagnostics = {"reason": tool_protocol_reason(language, pending[opening_end:]), "language": language.lower(), "closed": True, "body_chars": len(pending) - opening_end}
                 self.imitated_tool = imitated_tool_name(pending[opening_end:])
@@ -214,7 +234,9 @@ class ToolProtocolGuard:
                 yield pending
             pending = ""
         if pending and not self.detected:
-            if is_internal_tool_protocol(language, pending):
+            if is_focus_activation_echo(language, pending):
+                self.focus_activation_echoes += 1
+            elif is_internal_tool_protocol(language, pending):
                 self.detected = True
                 self.diagnostics = {"reason": tool_protocol_reason(language, pending), "language": language.lower(), "closed": False, "body_chars": len(pending)}
                 self.imitated_tool = imitated_tool_name(pending)

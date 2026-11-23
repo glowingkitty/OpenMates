@@ -9,6 +9,8 @@
 // Assertions: chat-navigation.open.local-first-coherent
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.focus.parent-state
+// Specification: specifications/features/issue-reporting/specification.yml
+// Assertions: issue-reporting.logs.role-aware-forwarding
 // Specification: specifications/architecture/client-core/specification.yml
 // Assertions: client-core.viewmodel.capability-contract
 
@@ -389,6 +391,16 @@ struct OpenMatesApp: App {
         #endif
     }
 
+    /// Administrators forward all-level metadata diagnostics by default (web
+    /// admin mode); everyone else stays on warn/error default telemetry.
+    private static func syncAdminLogForwarding(isAdmin: Bool) {
+        if isAdmin {
+            NativeLogForwarder.shared.startAdminForwarding()
+        } else {
+            NativeLogForwarder.shared.stopAdminForwarding()
+        }
+    }
+
     private var windowColorScheme: ColorScheme? {
         #if DEBUG
         // The isolated fixture owns its theme, including URL-driven changes.
@@ -434,6 +446,7 @@ struct OpenMatesApp: App {
                     #endif
                     if case .authenticated = newState {
                         NativeLogForwarder.shared.startDefaultTelemetry()
+                        Self.syncAdminLogForwarding(isAdmin: authManager.currentUser?.isAdmin == true)
                         Task {
                             await NativeLogForwarder.shared.syncActiveDebugSession()
                         }
@@ -449,7 +462,16 @@ struct OpenMatesApp: App {
                     } else {
                         NativeLogForwarder.shared.stopDefaultTelemetry()
                         NativeLogForwarder.shared.stopDebugSession()
+                        NativeLogForwarder.shared.stopAdminForwarding()
                     }
+                }
+                .onChange(of: authManager.currentUser?.isAdmin == true) { _, isAdmin in
+                    #if DEBUG
+                    guard DevPreviewLaunchConfiguration.current == nil,
+                          !NativeUnitTestHostPolicy.isUnitTestHost else { return }
+                    #endif
+                    guard case .authenticated = authManager.state else { return }
+                    Self.syncAdminLogForwarding(isAdmin: isAdmin)
                 }
                 #if os(macOS)
                 .modifier(AppWindowCommandInstaller {

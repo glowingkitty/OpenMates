@@ -6,8 +6,10 @@
   while it is near the viewport, so long chats do not run every animation at
   once. In preview cards it is inert (no focus, no pointer input) so a click
   opens the fullscreen view; in fullscreen it is interactive.
-  If the frame ever loads a second document (a navigation slipped past the
-  guards), it is removed and replaced by a notice.
+  If one iframe ever loads a second document (a navigation slipped past the
+  guards), it is removed and replaced by a plain-language notice; in
+  fullscreen the notice offers a reload of the visual. A remount after
+  scrolling is a fresh frame and never counts as a navigation.
 -->
 
 <script lang="ts">
@@ -28,6 +30,10 @@
   let host: HTMLDivElement | undefined = $state();
   let nearViewport = $state(false);
   let blocked = $state(false);
+  // Loads are counted per iframe element: the frame is remounted whenever it
+  // scrolls back near the viewport, and a remount's first load is the visual
+  // itself, not a navigation.
+  let loadedFrame: HTMLIFrameElement | null = null;
   let loadCount = 0;
 
   let srcdoc = $derived(buildInteractiveHtmlSrcdoc(code));
@@ -35,6 +41,7 @@
   $effect(() => {
     // A new source is a new document: reset the navigation detector.
     void srcdoc;
+    loadedFrame = null;
     loadCount = 0;
     blocked = false;
   });
@@ -51,9 +58,20 @@
     return () => observer.disconnect();
   });
 
-  function handleLoad() {
+  function handleLoad(event: Event) {
+    const frame = event.currentTarget as HTMLIFrameElement;
+    if (frame !== loadedFrame) {
+      loadedFrame = frame;
+      loadCount = 0;
+    }
     loadCount += 1;
     if (loadCount > 1) blocked = true;
+  }
+
+  function reload() {
+    loadedFrame = null;
+    loadCount = 0;
+    blocked = false;
   }
 </script>
 
@@ -66,7 +84,12 @@
 >
   {#if blocked}
     <div class="interactive-html-blocked" data-testid="interactive-html-blocked">
-      {$text('app_skills.code.interactive_html_blocked')}
+      <p>{$text('app_skills.code.interactive_html_blocked')}</p>
+      {#if interactive}
+        <button type="button" data-testid="interactive-html-reload" onclick={reload}>
+          {$text('app_skills.code.interactive_html_reload')}
+        </button>
+      {/if}
     </div>
   {:else if nearViewport}
     <iframe
@@ -105,6 +128,8 @@
 
   .interactive-html-blocked {
     display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
     align-items: center;
     justify-content: center;
     height: 100%;

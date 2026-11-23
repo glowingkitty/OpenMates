@@ -956,3 +956,98 @@ test('pii enhanced detection highlights every name in a long journalist-style ma
 
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-long-mail-cleanup');
 });
+
+// ---------------------------------------------------------------------------
+// Test: keeping one highlight original keeps the others; banner is gone after send
+// ---------------------------------------------------------------------------
+
+// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+test('pii keeping one highlight original keeps the other highlights and the banner stays hidden after send', async ({
+	page
+}: {
+	page: any;
+}, testInfo: any) => {
+	test.slow();
+	test.setTimeout(360000);
+
+	const logCheckpoint = createSignupLogger('PII_KEEP_ONE');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'pii-keep-one'
+	});
+	const attachShot = async (name: string) => {
+		await testInfo.attach(name, {
+			body: await page.screenshot({ fullPage: false }),
+			contentType: 'image/png'
+		});
+	};
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await archiveExistingScreenshots(logCheckpoint);
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+
+	const messageEditor = page.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 10000 });
+
+	const text =
+		'Hello, my name is Markus Behrens. Please write to max@posteo.de or sarah@proton.com ' +
+		'and call me on +49 170 1234567 about the broken heater.';
+	await insertComposerText(page, messageEditor, withMockMarker(text, 'pii_keep_one_check'), [
+		'Markus Behrens',
+		'max@posteo.de',
+		'sarah@proton.com',
+		'+49 170 1234567'
+	]);
+
+	const highlights = page.locator('[data-testid="pii-highlight"]');
+	const emailHighlights = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
+	const phoneHighlights = page.locator('[data-testid="pii-highlight"][data-pii-type="PHONE"]');
+	const nameHighlights = page.locator('[data-testid="pii-highlight"][data-pii-type="PERSON_NAME"]');
+
+	// The model detector runs in the test environment (the long-mail case relies on it), so
+	// the name highlight comes from the background full scan and may take a while.
+	await expect.poll(async () => emailHighlights.count(), { timeout: 30000 }).toBe(2);
+	await expect.poll(async () => phoneHighlights.count(), { timeout: 30000 }).toBe(1);
+	await expect
+		.poll(async () => (await nameHighlights.allTextContents()).join(' '), { timeout: 120000 })
+		.toContain('Behrens');
+	// The model may mark the name as one span or one span per word ("Markus", "Behrens"),
+	// so the totals are counted from the name highlights actually shown.
+	const nameCountBefore = await nameHighlights.count();
+	const nameTextBefore = (await nameHighlights.allTextContents()).join(' ');
+	await expect.poll(async () => highlights.count(), { timeout: 10000 }).toBe(3 + nameCountBefore);
+	await expect(page.getByTestId('pii-warning-banner')).toBeVisible({ timeout: 10000 });
+	await attachShot('pii-keep-one-1-highlights');
+
+	// Keep the first email original.
+	await page.evaluate(() => {
+		document
+			.querySelector('[data-testid="pii-highlight"][data-pii-type="EMAIL"]')
+			?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+	});
+	await expect.poll(async () => emailHighlights.count(), { timeout: 10000 }).toBe(1);
+	// Let any re-scan settle, then the other highlights must still be there.
+	await page.waitForTimeout(3000);
+	await expect(emailHighlights).toHaveCount(1);
+	await expect(emailHighlights.first()).toContainText('sarah@proton.com');
+	await expect(phoneHighlights).toHaveCount(1);
+	await expect(nameHighlights).toHaveCount(nameCountBefore);
+	expect((await nameHighlights.allTextContents()).join(' ')).toBe(nameTextBefore);
+	await expect(highlights).toHaveCount(2 + nameCountBefore);
+	expect(await messageEditor.textContent()).toContain('max@posteo.de');
+	await attachShot('pii-keep-one-2-after-click');
+
+	// Send: the banner must disappear immediately and not come back.
+	const banner = page.getByTestId('pii-warning-banner');
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled();
+	await sendButton.click();
+	await expect(banner).toBeHidden({ timeout: 1000 });
+	await page.waitForTimeout(3000);
+	await expect(banner).toBeHidden({ timeout: 100 });
+	expect(await banner.count()).toBe(0);
+	await attachShot('pii-keep-one-3-after-send');
+
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-keep-one-cleanup');
+});

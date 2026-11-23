@@ -133,7 +133,7 @@ final class AppsWorkspaceStore: ObservableObject {
         visibleApps = query.isEmpty ? apps : apps.filter { $0.name.localizedCaseInsensitiveContains(query) || ($0.description ?? "").localizedCaseInsensitiveContains(query) }
         let ids = recentIDs + ["web", "news", "health", "travel", "weather", "audio"]
         var seen = Set<String>()
-        homeApps = ids.filter { seen.insert($0).inserted }.compactMap { id in apps.first { $0.id == id } }.prefix(6).map { $0 }
+        homeApps = ids.filter { seen.insert($0).inserted }.compactMap { id in apps.first { $0.id == id } }.prefix(StartScreenRow.maxCards).map { $0 }
     }
 
     func selectApp(_ app: SettingsAppsFullView.AppInfo) {

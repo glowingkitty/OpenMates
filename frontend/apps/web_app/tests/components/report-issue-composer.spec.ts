@@ -156,3 +156,46 @@ test('guest composer hides image attachment and dictation appends the corrected 
 		contentType: 'image/png'
 	});
 });
+
+// Issue A5455: at the server's two-minute cap the recording finished as a
+// cancel and every dictated word was lost. The cap must end the recording and
+// still append the transcript.
+// contract-test: supporting surface=gui.web assertions=issue-reporting.form.free-limited-dictation
+test('signed-in dictation keeps the transcript when the server reaches the two-minute cap', async ({ page }) => {
+	await mockDictationQuota(page, 1800);
+	await allowFixtureMicrophone(page, PREVIEW);
+	await page.addInitScript(() => sessionStorage.setItem('ws_token', 'synthetic-preview-token'));
+	await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
+		socket.send(JSON.stringify({ type: 'session.ready', sample_rate: 16000 }));
+		let appends = 0;
+		socket.onMessage(raw => {
+			if (JSON.parse(String(raw)).type !== 'input_audio.append') return;
+			appends += 1;
+			if (appends === 1) socket.send(JSON.stringify({ type: 'transcription.text.delta', text: RAW }));
+			if (appends === 3) {
+				// What the server sends once the cap is reached: the limit signal,
+				// then the transcript of the audio before the cap.
+				socket.send(JSON.stringify({ type: 'session.limit_reached', code: 'recording_limit',
+					message: 'Report dictation is limited to two minutes per recording.' }));
+				socket.send(JSON.stringify({ type: 'transcription.done', transcript: RAW, model: 'fixture-transcription' }));
+				socket.send(JSON.stringify({ type: 'correction.done', transcript: CORRECTED }));
+			}
+		});
+	});
+
+	await openComposer(page, 'filled');
+	const field = page.getByTestId('report-issue-title');
+	await field.fill('Existing notes.');
+	await page.getByTestId('report-issue-dictate').click();
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible();
+	// No Finish click: the cap alone ends the recording.
+	await expect(overlay).toHaveCount(0, { timeout: 15000 });
+	await expect(field).toHaveValue(`Existing notes.\n${CORRECTED}`);
+	await expect(field).toBeEnabled();
+	await expect(page.getByTestId('report-issue-dictate')).not.toHaveAttribute('aria-disabled', 'true');
+	await test.info().attach('report-issue-composer-dictation-cap-kept-text', {
+		body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }),
+		contentType: 'image/png'
+	});
+});

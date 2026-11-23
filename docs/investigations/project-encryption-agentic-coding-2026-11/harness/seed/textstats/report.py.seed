@@ -1,0 +1,16 @@
+"""Plain-text report for a document."""
+
+from textstats.sentences import average_sentence_length, count_sentences
+from textstats.words import count_words, longest_word, unique_words
+
+
+def build_report(text):
+    """Return a multi-line report about text."""
+    lines = [
+        f"Words: {count_words(text)}",
+        f"Unique words: {len(unique_words(text))}",
+        f"Longest word: {longest_word(text)}",
+        f"Sentences: {count_sentences(text)}",
+        f"Average sentence length: {average_sentence_length(text, count_words)}",
+    ]
+    return "\n".join(lines)

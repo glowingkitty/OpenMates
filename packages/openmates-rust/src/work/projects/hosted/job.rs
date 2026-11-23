@@ -80,15 +80,15 @@ pub struct HostedFileJob {
 
 /// Inputs the executor needs beyond IO. Keys are borrowed and never copied
 /// into results.
-pub(super) struct HostedContext<'k> {
-    pub(super) project_id: &'k str,
-    pub(super) project_key: &'k [u8; 32],
+pub(crate) struct HostedContext<'k> {
+    pub(crate) project_id: &'k str,
+    pub(crate) project_key: &'k [u8; 32],
     /// Required for creates: the new embed key is also wrapped for the chat.
-    pub(super) chat_key: Option<&'k [u8; 32]>,
-    pub(super) team_id: Option<&'k str>,
-    pub(super) private_paths: &'k [String],
+    pub(crate) chat_key: Option<&'k [u8; 32]>,
+    pub(crate) team_id: Option<&'k str>,
+    pub(crate) private_paths: &'k [String],
     /// The caller holds an explicit user grant for this exact ignored read.
-    pub(super) ignored_read_approved: bool,
+    pub(crate) ignored_read_approved: bool,
 }
 
 fn now_seconds() -> u64 {
@@ -148,7 +148,7 @@ fn marked(files: &[HostedFile], policy: &PathPolicy) -> Vec<Value> {
 /// The TS executor codes (`file_not_found`, `file_exists`, `stale_base`,
 /// `invalid_patch`, `file_too_large`, `revision_conflict`, …), the server's
 /// commit rejection code, or a core transport/crypto error.
-pub(super) async fn execute<I: HostedIo>(
+pub(crate) async fn execute<I: HostedIo>(
     io: &mut I,
     ctx: &HostedContext<'_>,
     job: &HostedFileJob,
@@ -204,7 +204,7 @@ async fn search<I: HostedIo>(
         .map(|v| v as usize)
         .ok_or(HostedFileError::Core(Error::Protocol))?;
     if include_content {
-        let order = crate::source_host::NameOrder::new()
+        let order = crate::path_rules::NameOrder::new()
             .map_err(|_| HostedFileError::Core(Error::Protocol))?;
         candidates.sort_by(|a, b| order.compare(&a.path, &b.path));
     }

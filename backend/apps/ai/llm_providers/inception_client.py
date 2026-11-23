@@ -161,6 +161,9 @@ async def invoke_inception_chat_completions(
                 error_message = "Inception API transport failure"
             elif exc.kind == "invalid_response":
                 error_message = "Inception API returned an invalid response"
+            elif exc.kind == "credential":
+                # A server without this key lets the bounded chain try the next model.
+                error_message = "Inception API key is not configured"
         return UnifiedOpenAIResponse(
             task_id=task_id, model_id=model_id, success=False,
             error_message=error_message,

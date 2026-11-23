@@ -108,8 +108,10 @@ async def handle_project_create_result(
         if report["status"] == "created":
             await _announce_created_focus(cache_service=cache_service, service=service, user_id=user_id,
                                           pending=pending, report=report)
-        logger.info("Project create result chat=%s request=%s status=%s",
-                    report["chat_id"], report["request_id"], report["status"])
+        # error_code is a validated stable code (never content); without it a
+        # client-side failure is invisible in the server logs.
+        logger.info("Project create result chat=%s request=%s status=%s error_code=%s",
+                    report["chat_id"], report["request_id"], report["status"], report.get("error_code"))
         await dispatch_async_skill_continuation(
             cache_service=cache_service, async_task_id=report["request_id"],
             completed_results=[continuation_result(pending, report)],

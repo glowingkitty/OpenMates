@@ -6,6 +6,9 @@ Two failure modes made lanes ship partial work without noticing:
   worktree that the session never recorded, so ``ci-source`` and
   ``deploy --only`` can track them automatically instead of silently
   publishing a candidate without them.
+* ``dirty_session_worktree_files`` lists every dirty file of a session's own
+  managed worktree it does not track yet (edited via Bash or a sub-agent), so
+  a plain ``deploy`` tracks it instead of refusing "Dirty files NOT tracked".
 * ``omitted_only_files`` lists dirty session files that an explicit
   ``--only`` selection leaves out, so deploy can refuse a partial commit and
   name every file it would have dropped. ``--exclude`` leaves one out on purpose.
@@ -61,6 +64,27 @@ def new_untracked_files(root: Path, tracked: list[str]) -> list[str]:
         if name in known or name in REGENERABLE_GENERATED_ARTIFACTS:
             continue
         if path.is_symlink() or not path.is_file() or not _publishable(name):
+            continue
+        found.append(name)
+    return found
+
+
+def dirty_session_worktree_files(root: Path, dirty: set[str] | list[str], tracked: list[str]) -> list[str]:
+    """Dirty files in the session's own managed worktree the session does not track yet.
+
+    A managed worktree belongs to exactly one session, so every dirty file there
+    is that session's work, also when it was written with Bash or by a sub-agent
+    (the Edit hook records only its own edits). Deleted files count; generated
+    artifacts, symlinks and paths ``ci_source`` refuses to publish do not.
+    """
+    root = Path(root)
+    known = set(tracked)
+    found = []
+    for name in sorted(set(dirty) - known):
+        if name in REGENERABLE_GENERATED_ARTIFACTS:
+            continue
+        path = root / name
+        if path.is_symlink() or (path.exists() and not path.is_file()) or not _publishable(name):
             continue
         found.append(name)
     return found

@@ -19,6 +19,14 @@ TARGETS = {8000: ("api", 8000), 8055: ("cms", 8055)}
 
 # No external provider authority is currently permitted by CI.
 PUBLIC_PROVIDER_HOSTS: frozenset[str] = frozenset()
+# Real-inference runs (protected `real-inference` environment, TASK-5616): the
+# only hosts the stack may reach, matching the dev-only keys seeded into its Vault.
+REAL_INFERENCE_HOSTS: frozenset[str] = frozenset({
+    "generativelanguage.googleapis.com",
+    "api.mistral.ai",
+    "api.search.brave.com",
+    "api.typesafe.ai",
+})
 PROVIDER_PROXY_PORT = 3128
 MAX_PROXY_HEADER = 16384
 
@@ -38,13 +46,14 @@ def relay(client, upstream):
             (upstream if stream is client else client).sendall(data)
 
 
-def public_provider_target(line: bytes) -> str:
-    """Only fixed credential-free HTTPS authorities; no general forward proxy."""
+def public_provider_target(line: bytes, allowed: frozenset[str] | None = None) -> str:
+    """Only fixed HTTPS authorities; no general forward proxy."""
+    allowed = PUBLIC_PROVIDER_HOSTS if allowed is None else allowed
     parts = line.decode("ascii").strip().split(" ")
     if len(parts) != 3 or parts[0] != "CONNECT" or parts[2] != "HTTP/1.1":
         raise ValueError("Only HTTPS CONNECT is supported")
     host, separator, port = parts[1].rpartition(":")
-    if separator != ":" or port != "443" or host not in PUBLIC_PROVIDER_HOSTS:
+    if separator != ":" or port != "443" or host not in allowed:
         raise ValueError("Provider destination is not approved")
     return host
 
@@ -54,7 +63,7 @@ class ProviderProxy(socketserver.StreamRequestHandler):
         self.request.settimeout(10)
         try:
             line = self.rfile.readline(MAX_PROXY_HEADER + 1)
-            host = public_provider_target(line)
+            host = public_provider_target(line, self.server.allowed_hosts)
             size = len(line)
             while True:
                 header = self.rfile.readline(MAX_PROXY_HEADER + 1)
@@ -92,6 +101,7 @@ class Forwarder(socketserver.BaseRequestHandler):
 class Gateway(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
+    allowed_hosts: frozenset[str] | None = None  # None: the replay list
 
 
 if __name__ == "__main__":
@@ -100,8 +110,13 @@ if __name__ == "__main__":
     if os.environ.get("OPENMATES_CI_MAIL_CAPTURE") == "1":
         TARGETS[8025] = ("mailpit", 8025)
     servers = [Gateway(("0.0.0.0", port), Forwarder) for port in TARGETS]
-    if os.environ.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
-        servers.append(Gateway(("0.0.0.0", PROVIDER_PROXY_PORT), ProviderProxy))
+    real_inference = os.environ.get("OPENMATES_CI_REAL_INFERENCE_PROXY") == "1"
+    if real_inference and os.environ.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
+        raise RuntimeError("Real-inference and replay provider proxies never share a run")
+    if real_inference or os.environ.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
+        proxy = Gateway(("0.0.0.0", PROVIDER_PROXY_PORT), ProviderProxy)
+        proxy.allowed_hosts = REAL_INFERENCE_HOSTS if real_inference else None
+        servers.append(proxy)
     for server in servers:
         threading.Thread(target=server.serve_forever, daemon=True).start()
     threading.Event().wait()

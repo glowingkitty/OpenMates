@@ -10,7 +10,7 @@ use super::*;
 
 /// Effects of one hosted file operation. Implemented by [`ProjectIo`] and by
 /// in-memory fakes in the unit tests.
-pub(super) trait HostedIo {
+pub(crate) trait HostedIo {
     /// Every hosted-file candidate link of the Project with its metadata path.
     async fn list_files(&mut self) -> HostedResult<Vec<HostedFile>>;
     /// The decrypted current head of one linked embed.
@@ -32,10 +32,12 @@ pub(super) trait HostedIo {
 }
 
 /// Session-backed effects for one resolved Project.
-pub(super) struct ProjectIo<'p, 'a> {
-    pub(super) projects: &'p mut Projects<'a>,
-    pub(super) project_id: String,
-    pub(super) key: Key,
+/// Visible to the whole `projects` module: the sandbox change preview
+/// (`sandbox_change.rs`) reads a committed head through the same effects.
+pub(in crate::work::projects) struct ProjectIo<'p, 'a> {
+    pub(in crate::work::projects) projects: &'p mut Projects<'a>,
+    pub(in crate::work::projects) project_id: String,
+    pub(in crate::work::projects) key: Key,
 }
 
 impl ProjectIo<'_, '_> {
@@ -50,7 +52,7 @@ impl ProjectIo<'_, '_> {
 /// npm CLI `listFiles`: embed/upload links whose metadata names a path
 /// (`path ?? file_path ?? filename ?? display name`); links the hosted path
 /// rule refuses are not source files and are skipped.
-pub(super) fn linked_files(items: &Value, key: &[u8; 32]) -> HostedResult<Vec<HostedFile>> {
+pub(crate) fn linked_files(items: &Value, key: &[u8; 32]) -> HostedResult<Vec<HostedFile>> {
     let mut files = Vec::new();
     for item in items
         .as_array()
@@ -124,7 +126,7 @@ pub(super) fn linked_files(items: &Value, key: &[u8; 32]) -> HostedResult<Vec<Ho
 }
 
 /// Decode a ciphertext head projection (`/v1/embeds/{id}/encrypted`).
-pub(super) fn decode_head(
+pub(crate) fn decode_head(
     response: &Value,
     embed_id: &str,
     project_id: &str,

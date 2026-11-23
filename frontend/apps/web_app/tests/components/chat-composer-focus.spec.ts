@@ -6,6 +6,15 @@ function preview(component: string, width = 680, variant?: string, theme = 'ligh
   return `/dev/preview/${component}?${new URLSearchParams({ theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: String(width), chrome: '0', ...(variant ? { variant } : {}) })}`;
 }
 
+/** True when the element's box lies fully inside the banner's box (no overflow out of the header). */
+async function insideBanner(page: any, testId: string): Promise<boolean> {
+  return page.evaluate((id: string) => {
+    const el = document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect();
+    const banner = document.querySelector('[data-testid="chat-header-banner"]')?.getBoundingClientRect();
+    return !!el && !!banner && el.top >= banner.top - 1 && el.bottom <= banner.bottom + 1;
+  }, testId);
+}
+
 test.describe('Chat composer focus and draft preservation', () => {
   // contract-test: direct surface=gui.web assertions=message-input.send.ownership,message-input.actions.visibility
   test('focuses the editor during a composer padding click before immediate typing', async ({ page }) => {
@@ -35,30 +44,62 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('message-editor')).toContainText(prompt);
   });
 
-  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,message-input.actions.visibility
+  // contract-test: direct surface=gui.web assertions=message-input.send.collapse-at-send
+  test('Send collapses the expanded composer and drops focus while the send is still pending', async ({ page }) => {
+    const availability = { active: true, can_send_text: true, reason: null };
+    await page.context().route('**/v1/settings/server-status', (route) => route.fulfill({ json: {
+      is_self_hosted: false, payment_enabled: true, server_edition: 'development',
+      ai_models_configured: true, anonymous_free_usage: availability,
+    } }));
+    await page.context().route('**/v1/anonymous/free-usage/status**', (route) => route.fulfill({ json: availability }));
+    // Never answer the send: everything asserted below happens while it is pending.
+    await page.context().route('**/v1/anonymous/chat/stream**', () => new Promise<void>(() => {}));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(preview('enter_message/MessageInputFocusFixture', 390));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('composer-focus-fixture')).toHaveAttribute('data-ready', 'true');
+    const field = page.getByTestId('message-field');
+    const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+    await field.click();
+    await editor.fill('Plan a relaxed weekend in Lisbon\n' + Array.from({ length: 12 }, (_, index) => `Detail ${index + 1}`).join('\n'));
+    await page.getByTestId('message-expand-button').click();
+    await expect(field).toHaveClass(/fullscreen-expanded/);
+    await expect(editor).toBeFocused();
+    await test.info().attach('composer-expanded-before-send-390', { body: await page.screenshot(), contentType: 'image/png' });
+    await page.getByTestId('composer-send-button').click();
+    // At Send, within a few frames: the send itself never completes in this test.
+    await expect(async () => {
+      expect(await field.evaluate((element) => ({
+        focused: element.getAttribute('data-focused'),
+        fullscreen: element.classList.contains('fullscreen-expanded'),
+        activeInside: !!document.activeElement?.closest('[data-testid="message-field"]'),
+      }))).toEqual({ focused: 'false', fullscreen: false, activeInside: false });
+    }).toPass({ timeout: 500, intervals: [25, 50, 100] });
+    await expect(editor).not.toBeFocused();
+    await expect(page.getByTestId('composer-send-button')).toHaveCount(0);
+    await test.info().attach('composer-collapsed-while-send-pending-390', { body: await page.screenshot(), contentType: 'image/png' });
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,message-input.actions.visibility,message-input.send.collapse-at-send
   test('failed send keeps the expanded draft and accepted retry collapses and blurs', async ({ page }) => {
     const availability = { active: true, can_send_text: true, reason: null };
     await page.route('**/v1/settings/server-status', (route) => route.fulfill({ json: {
       is_self_hosted: false, payment_enabled: true, server_edition: 'development',
       ai_models_configured: true, anonymous_free_usage: availability,
     } }));
-    await page.route('**/v1/anonymous/free-usage/status**', (route) => route.fulfill({ json: availability }));
-    await page.addInitScript(() => {
-      const originalFetch = window.fetch.bind(window);
-      const fixture = window as typeof window & { fixtureSendAttempts: number };
-      fixture.fixtureSendAttempts = 0;
-      window.fetch = async (input, init) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        if (!url.includes('/v1/anonymous/chat/stream')) return originalFetch(input, init);
-        fixture.fixtureSendAttempts += 1;
-        if (fixture.fixtureSendAttempts === 1) return new Response(JSON.stringify({ detail: 'Synthetic send failure' }), {
-          status: 503, headers: { 'content-type': 'application/json' },
-        });
-        await new Promise<void>((resolve) => window.addEventListener('fixtureAcceptSend', () => resolve(), { once: true }));
-        return new Response(JSON.stringify({ status: 'completed', messageId: 'synthetic-response', assistant: 'Synthetic response' }), {
-          status: 200, headers: { 'content-type': 'application/json' },
-        });
-      };
+    // The send runs in the client core's Worker, so stub it at the network layer
+    // (a page-side fetch patch never sees it). The test counts attempts and holds
+    // the accepted reply until it has checked the composer state at send.
+    await page.context().route('**/v1/anonymous/free-usage/status**', (route) => route.fulfill({ json: availability }));
+    let sendAttempts = 0;
+    let acceptSend!: () => void;
+    const sendAccepted = new Promise<void>((resolve) => { acceptSend = resolve; });
+    await page.context().route('**/v1/anonymous/chat/stream**', async (route) => {
+      sendAttempts += 1;
+      if (sendAttempts === 1) return route.fulfill({ status: 503, json: { detail: 'Synthetic send failure' } });
+      const chatId = route.request().postDataJSON()?.client_chat_id;
+      await sendAccepted;
+      return route.fulfill({ status: 200, json: { status: 'completed', chatId, messageId: 'synthetic-response', assistant: 'Synthetic response' } });
     });
     await page.goto(preview('enter_message/MessageInputFocusFixture'));
     await waitForComponentPreview(page);
@@ -83,17 +124,24 @@ test.describe('Chat composer focus and draft preservation', () => {
     await editor.fill('Unsent multiline draft\nsecond line\n' + Array.from({ length: 20 }, (_, index) => `More draft details ${index + 1}`).join('\n'));
     await page.getByTestId('message-expand-button').click();
     await page.getByTestId('composer-send-button').click();
-    await expect.poll(() => page.evaluate(() => (window as typeof window & { fixtureSendAttempts: number }).fixtureSendAttempts)).toBe(1);
+    await expect.poll(() => sendAttempts).toBe(1);
     await expect(field).toHaveAttribute('data-focused', 'true');
     await expect(field).toHaveClass(/fullscreen-expanded/);
     await expect(editor).toContainText('Unsent multiline');
     await expect(editor).toBeFocused();
     await expect(page.getByTestId('composer-send-button')).toBeVisible();
     await page.getByTestId('composer-send-button').click();
-    await expect.poll(() => page.evaluate(() => (window as typeof window & { fixtureSendAttempts: number }).fixtureSendAttempts)).toBe(2);
+    await expect.poll(() => sendAttempts).toBe(2);
     await expect(editor).not.toContainText('second line');
     await expect(page.getByTestId('composer-send-button')).toHaveCount(0);
-    await page.evaluate(() => window.dispatchEvent(new Event('fixtureAcceptSend')));
+    // TASK-6864: the composer collapses and drops focus at Send, while the send
+    // is still being processed (the reply is held until acceptSend).
+    await expect(field).toHaveAttribute('data-focused', 'false');
+    await expect(field).not.toHaveClass(/fullscreen-expanded/);
+    await expect(editor).not.toBeFocused();
+    await test.info().attach('composer-collapsed-while-send-pending', { body: await field.screenshot(), contentType: 'image/png' });
+    expect(sendAttempts).toBe(2);
+    acceptSend();
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(field).not.toHaveClass(/fullscreen-expanded/);
     await expect(editor).not.toContainText('Unsent multiline');
@@ -194,18 +242,32 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('chat-header-title')).toContainText('Writing preferences');
   });
 
-  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chats.titles.first-message-fallback
   test('shows the first message while the generated chat title is pending', async ({ page }) => {
     await page.goto(preview('ChatHistory', 390, 'titlePending'));
     await waitForComponentPreview(page);
     await expect(page.getByTestId('chat-header-provisional-title')).toHaveText(
-      'Help me reply to a photography enquiry using my saved writing preferences.'
+      'Help me reply to a photography enquiry using my saved memories.'
     );
     await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat');
+    // A long first-message title is clamped and stays inside the phone-width banner.
+    await expect.poll(() => insideBanner(page, 'chat-header-provisional-title')).toBe(true);
+    await test.info().attach('header-provisional-title-390', { body: await page.getByTestId('chat-header-banner').screenshot(), contentType: 'image/png' });
     await page.goto(preview('ChatHistory', 390, 'titleReady'));
     await waitForComponentPreview(page);
     await expect(page.getByTestId('chat-header-title')).toHaveText('Photography reply');
     await expect(page.getByTestId('chat-header-provisional-title')).toHaveCount(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  test('a reopened chat without a generated title shows its first message, never Untitled chat', async ({ page }) => {
+    await page.goto(preview('ChatHistory', 390, 'titleMissing'));
+    await waitForComponentPreview(page);
+    const banner = page.getByTestId('chat-header-banner');
+    await expect(banner).toContainText('Help me reply to a photography enquiry');
+    await expect(banner).not.toContainText('Untitled chat');
+    await expect(banner).not.toContainText('Creating new chat');
+    await test.info().attach('header-first-message-title', { body: await banner.screenshot(), contentType: 'image/png' });
   });
 
   for (const { width, height, theme, color } of [
@@ -220,20 +282,23 @@ test.describe('Chat composer focus and draft preservation', () => {
     await waitForComponentPreview(page);
     const side = page.getByTestId('chat-side');
     const field = page.getByTestId('message-field');
-    // Exercise focus restoration from the ordinary guest welcome.
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    // Exercise focus restoration from the ordinary guest welcome: no banner, the start row is the welcome.
+    const startRow = page.getByTestId('recent-chats-scroll-container');
+    await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+    await expect(startRow).toBeVisible();
     await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
     await expect(page.locator('.chat-wrapper.landing-intro-content-covered')).toHaveCount(0);
     await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
     await expect(field).toBeVisible();
     await expect(field).toHaveCSS('background-color', color);
-    const welcomeArea = page.locator('.daily-inspiration-area');
+    // The welcome area itself stretches to the space above the composer (no banner since
+    // TASK-1321); the start row inside it keeps its measured size while hidden, so nothing
+    // re-lays out when the welcome returns.
+    const welcomeArea = startRow;
     const welcomeHeight = await welcomeArea.evaluate((element) => element.getBoundingClientRect().height);
     // Ordinary pointer focus must hide the welcome before any prefill or overlay.
     await field.click();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
-    await expect(page.locator('.daily-inspiration-area')).toHaveCSS('opacity', '0');
-    await expect(page.locator('.daily-inspiration-area')).toHaveAttribute('inert', '');
+    await expect(startRow).toBeHidden();
     await expect(page.getByTestId('welcome-content')).toBeHidden();
     await expect(page.getByTestId('welcome-content')).toHaveAttribute('inert', '');
     await expect.poll(() => welcomeArea.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
@@ -252,7 +317,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', '');
     await expect(page.getByTestId('message-user')).toHaveCount(0);
     await page.getByTestId('input-dismiss-button').click();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(startRow).toBeVisible();
     await expect(suggestions).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await expect(field).toHaveAttribute('data-focused', 'true');
@@ -263,7 +328,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     // the hidden welcome remains measured and the composer must stay reachable.
     await expect.poll(() => welcomeArea.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
     await expect(field).toBeInViewport({ ratio: 1 });
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
+    await expect(startRow).toBeHidden();
     await expect(page.getByTestId('welcome-content')).toBeHidden();
     await expect(suggestions).toBeVisible();
     await expect(suggestions).not.toHaveAttribute('inert', '');
@@ -286,7 +351,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(side).not.toHaveAttribute('inert', '');
     await expect(page.getByTestId('welcome-content')).not.toHaveAttribute('inert', '');
     await expect(page.getByTestId('welcome-content')).toHaveCSS('opacity', '1');
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(startRow).toBeVisible();
     await expect(field).toHaveCSS('background-color', color);
     await expect(side).toHaveCSS('opacity', '1');
     await expect(side).toBeVisible();
@@ -298,7 +363,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await page.getByTestId('input-dismiss-button').click();
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).not.toBeFocused();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(startRow).toBeVisible();
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toBeEmpty();
     await expect(page.getByTestId('resume-chat-draft-card').filter({ hasText: 'Keep this second line' }).last()).toBeVisible();
   });
@@ -309,9 +374,10 @@ test.describe('Chat composer focus and draft preservation', () => {
 test('continuation cards match Apple spacing in narrow, short, and tall panes', async ({
 	page
 }) => {
+	// Large cards on every pane size: the compact pill view was removed (TASK-1321).
 	for (const profile of [
-		{ width: 390, height: 844, large: false, theme: 'dark' },
-		{ width: 1366, height: 700, large: false, theme: 'light' },
+		{ width: 390, height: 844, large: true, theme: 'dark' },
+		{ width: 1366, height: 700, large: true, theme: 'light' },
 		{ width: 1366, height: 1032, large: true, theme: 'light' }
 	]) {
 		await page.setViewportSize({ width: profile.width, height: profile.height });
@@ -319,7 +385,7 @@ test('continuation cards match Apple spacing in narrow, short, and tall panes', 
 			`/dev/preview/ActiveChatFocusFixture?chrome=0&theme=${profile.theme}&background=%23dbeafe&width=${profile.width}`
 		);
 		await waitForComponentPreview(page);
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 
 		const carousel = page.getByTestId('recent-chats-scroll-container');
@@ -330,22 +396,35 @@ test('continuation cards match Apple spacing in narrow, short, and tall panes', 
 		await expect(carousel).toHaveCSS('padding-top', profile.large ? '17.5px' : '6px');
 		await expect(carousel).toHaveCSS('padding-bottom', profile.large ? '17px' : '6px');
 		await page.evaluate(() => document.fonts.ready);
-		const [carouselBox, cardBox, browseBox, composerBox] = await Promise.all([
+		// Browsing moved into the row (its last item); the suggestions are what sits below the cards.
+		const actionsTile = carousel.getByTestId('start-row-actions');
+		await expect(carousel.locator(':scope > [data-testid]').last()).toHaveAttribute('data-testid', 'start-row-actions');
+		const [carouselBox, cardBox, browseBox, composerBox, actionsBox] = await Promise.all([
 			carousel.boundingBox(),
 			card.boundingBox(),
-			page.locator('.guest-example-link-row').boundingBox(),
-			page.getByTestId('message-input-wrapper').boundingBox()
+			page.getByTestId('start-screen-suggestions').boundingBox(),
+			page.getByTestId('message-input-wrapper').boundingBox(),
+			actionsTile.boundingBox()
 		]);
-		expect(carouselBox && cardBox && browseBox && composerBox).toBeTruthy();
+		expect(carouselBox && cardBox && browseBox && composerBox && actionsBox).toBeTruthy();
+		expect(actionsBox!.height).toBe(200);
 		expect(cardBox!.y - carouselBox!.y).toBeCloseTo(profile.large ? 17.5 : 6, 0);
 		expect(carouselBox!.y + carouselBox!.height - cardBox!.y - cardBox!.height).toBeCloseTo(
 			profile.large ? 17 : 6,
 			0
 		);
-		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeGreaterThanOrEqual(0);
-		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeLessThanOrEqual(24);
-		expect(browseBox!.y + browseBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
+		// Suggestions sit at the bottom, directly above the composer, not under the row (issue AJV2Q).
+		expect(browseBox!.y).toBeGreaterThanOrEqual(carouselBox!.y + carouselBox!.height - 1);
+		const fieldBox = await page.getByTestId('message-field').boundingBox();
+		expect(fieldBox).toBeTruthy();
+		expect(browseBox!.y + browseBox!.height).toBeLessThanOrEqual(fieldBox!.y + 1);
+		expect(fieldBox!.y - browseBox!.y - browseBox!.height).toBeLessThanOrEqual(40);
+		await test.info().attach(`start-suggestions-above-composer-${profile.width}x${profile.height}-${profile.theme}`, {
+			body: await page.screenshot(),
+			contentType: 'image/png'
+		});
 		await expect(carousel).toBeInViewport();
+		await actionsTile.scrollIntoViewIfNeeded();
 		await expect(page.getByTestId('guest-show-all-examples')).toBeInViewport();
 	}
 });

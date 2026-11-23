@@ -728,6 +728,41 @@ class TestTopicAreaMateRouting:
             raw_task_area="general",
         ) == "software_development"
 
+    def test_platform_topic_same_topic_keeps_previous_mate(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="openmates_platform", raw_topic_shift="same_topic",
+            previous_category="software_development", available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "software_development"
+
+    def test_short_follow_up_with_unclear_shift_keeps_previous_mate(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="general_misc", raw_topic_shift=None,
+            previous_category="software_development", available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "software_development"
+
+    def test_platform_topic_without_previous_category_is_unchanged(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="openmates_platform", raw_topic_shift="same_topic",
+            previous_category=None, available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "general_knowledge"
+
+    def test_previous_category_falls_back_to_cached_chat_category(self):
+        import asyncio
+        from backend.apps.ai.processing.preprocessor import _resolve_previous_category
+
+        class Cache:
+            async def get_chat_list_item_data(self, user_id, chat_id, refresh_ttl=False):
+                return SimpleNamespace(last_mate_category="software_development")
+
+        request = SimpleNamespace(
+            user_id="u", chat_id="c",
+            message_history=[_user_msg("hi"), _assistant_msg("hello"), _user_msg("Yeah, so I created")],
+        )
+        assert asyncio.run(_resolve_previous_category(request, Cache())) == "software_development"
+        request.message_history = [_assistant_msg_with_category("x", "cooking_food")]
+        assert asyncio.run(_resolve_previous_category(request, Cache())) == "cooking_food"
+        assert asyncio.run(_resolve_previous_category(request, None)) == "cooking_food"
+
     def test_allows_clear_follow_up_topic_shift(self):
         assert _resolve_category_from_topic_area(
             raw_topic_area="cooking_food",

@@ -26,7 +26,7 @@ models:
     for_app_skill: "ai.ask"
     release_date: "2026-10-06"
     capability_level: "high"
-    allow_auto_select: true
+    allow_auto_select: false # Manual selection only; never chosen automatically (owner decision, 21 Nov).
     reasoning: true
     reasoning_effort: "high"
     search_aliases:
@@ -124,7 +124,7 @@ models:
     capability_level: "low"
     reasoning: true
     reasoning_effort: "none" # Preserve fast utility calls without a thinking phase.
-    allow_auto_select: true
+    allow_auto_select: false # Manual selection only; never chosen automatically (owner decision, 21 Nov).
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-small-latest"
       openrouter: "mistralai/mistral-small-2603"
@@ -198,7 +198,7 @@ models:
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-04-28" # Mistral Medium 3.5 release date
     capability_level: "medium"
-    allow_auto_select: true
+    allow_auto_select: false # Manual selection only; never chosen automatically (owner decision, 21 Nov).
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-medium-3.5"
       openrouter: "mistralai/mistral-medium-3-5"

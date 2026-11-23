@@ -24,8 +24,8 @@ app_stats:
   de: "{skills} Skills · {focusModes} Fokus-Modi"
 home_prompt:
   context: Apps workspace interface
-  en: What app do you want to use?
-  de: Welche App möchtest du verwenden?
+  en: Explore the apps OpenMates can use
+  de: Entdecke die Apps, die OpenMates nutzen kann
 home_greeting:
   context: Apps workspace interface
   en: "Hey {name}!"

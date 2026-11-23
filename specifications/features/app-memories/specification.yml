@@ -422,12 +422,14 @@ assertions:
   - examples.references
 - id: app-memories.suggestions.post-processor
   type: behavior
-  must: After every substantive turn the regular post-processing request (no separate request) returns one to three memory
-    recommendations and one to three workflow recommendations, each only a title and a short summary, shown in the
+  must: After every substantive turn the regular post-processing request (no separate request) returns zero to three memory
+    recommendations (see app-memories.suggestions.quality) and one to three workflow recommendations, each only a title and a short summary. Memory recommendations are shown in the
     Recommendations card that replaced the quick tips container between chat history and the follow-up suggestion chips.
+    Workflow suggestions never appear in the open chat view (the same rule as linked Tasks, tasks.chat.settings-only); the stored
+    workflow recommendations are offered on the Workflows start screen.
     The follow-up suggestion chips are a separate feature and are unchanged. The card keeps the chat-category colored
     background of the former quick tips container and shows one recommendation at a time, starting with a heading that says whether it
-    recommends a new memory or workflow or an update to an existing one (in a Project chat also a Project focus, see
+    recommends a new memory or an update to an existing one (in a Project chat also a Project focus, see
     focus-modes.project-recommendation-catalog), the entry as an embed preview card, and below it a
     Create (or Update) button; clicking the preview card does the same as the button. Previous/next icon buttons and one dot
     per recommendation sit underneath. There is no dismiss control. No recommendations are
@@ -437,9 +439,7 @@ assertions:
     and sync to the user's other devices; the server stores only ciphertext. The next completed turn replaces the open set;
     saved recommendations are not proposed again in that chat. Only choosing a recommendation's action starts a separate request that generates the full
     entry from its title, summary, the previous user message and the last assistant response. A memory opens as an unsaved
-    draft in Settings Memories (an update shows the diff, or says the memory already looks up to date), a workflow opens as
-    an unsaved draft in the workflow editor side by side with the chat (chat left, editor right; fullscreen on narrow
-    screens) and is generated visibly. Choosing does not remove the recommendation; nothing changes until the user saves,
+    draft in Settings Memories (an update shows the diff, or says the memory already looks up to date). Choosing does not remove the recommendation; nothing changes until the user saves,
     and a revision change since preview is reported as a conflict. Saving removes that recommendation from the chat and
     adds a system event to the chat history saying a memory or workflow was created or updated, with its title and a link
     that opens the entry (or says it no longer exists). These events are not sent to the AI.
@@ -466,6 +466,20 @@ assertions:
     the server, the AI provider or logs, and human-readable client views never print the mapping itself.
   depends_on:
   - models.MemoryDocument
+- id: app-memories.suggestions.quality
+  type: behavior
+  must: A memory recommendation is offered only when it will still help in later chats - a lasting interest, preference,
+    goal, the person's situation or how they like to work, or a short-lived but relevant plan such as an upcoming trip and
+    what they want to do there - and only from a clear signal, an explicit statement by the user or a repeated pattern.
+    The single question or task itself is never saved; the post-processor asks what the exchange says about the person that
+    will help later and recommends only when the answer is clear. One simple question, calculation or lookup is not an
+    interest. When in doubt it returns no memory recommendation, which is the usual outcome. Every memory is phrased as a
+    fact about the person ("Interested in mathematics and learning new things about it"), never as a log of what they asked
+    ("The user asked a basic mathematical calculation"). A turn without a memory recommendation still shows the workflow
+    recommendations. Decided by the owner on 22 Nov.
+  depends_on:
+  - models.MemorySuggestion
+  - examples.suggestions
 - id: app-memories.suggestions.no-duplicates
   type: privacy
   must: Recommendations never duplicate an existing memory or workflow; a matching one is recommended as an update instead.

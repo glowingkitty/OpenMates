@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chat-navigation
 version: 3
-status: draft
+status: approved
 title: Chat Navigation
 summary: First-party chat navigation follows sidebar order, keeps running parent chats
   globally first, and provides readable nested Project navigation and chat organization.
@@ -121,6 +121,36 @@ assertions:
   - models.ChatNavigationList
   - models.HeaderNavigationAction
   - examples.sidebar_header_order
+- id: chat-navigation.sidebar.overlay-motion
+  type: behavior
+  must: On phone and small viewports (600px wide or less) the chat sidebar is an overlay
+    that slides in from the inline-start edge over the unmoved chat with an ease-in-out
+    curve of about 300 ms and slides out with the same curve in reverse, above a dim
+    backdrop; tapping the backdrop closes it. Reduced-motion preferences remove the
+    animation. The sidebar content and design are unchanged.
+  depends_on:
+  - examples.sidebar_overlay
+- id: chat-navigation.sidebar.close-at-menu-position
+  type: behavior
+  must: On every screen size the sidebar's top bar has one button order, with the close
+    button first at exactly the position of the header menu button and search at the
+    other end, so the same spot opens and closes the sidebar.
+- id: chat-navigation.sidebar.width-transition
+  type: behavior
+  must: On larger viewports the sidebar stays side by side with the chat; opening grows
+    the sidebar width and narrows the chat area with the same ease-in-out curve and
+    duration, and closing reverses it, without layout jumps. Reduced-motion preferences
+    remove the animation.
+  depends_on:
+  - examples.sidebar_overlay
+- id: chat-navigation.sidebar.keyboard-focus
+  type: behavior
+  must: Opening the sidebar with the menu button moves focus into the sidebar; closing
+    it returns focus to the menu button; Escape closes it (on small viewports from
+    anywhere, otherwise while focus is inside it) unless a nested layer such as search
+    handles Escape first; the menu button exposes aria-expanded.
+  depends_on:
+  - examples.sidebar_overlay
 - id: chat-navigation.draft-only.addressable
   type: behavior
   must: A saved draft-only chat remains an addressable chat target with its chat-id,
@@ -174,9 +204,10 @@ assertions:
     first in the sidebar at every folder depth. Each available visible parent appears
     once and displays its running subchat count; running chat and containing descendant-folder
     icons use a processing wheel instead of their normal icon or gradient. Completion,
-    failure and cancellation clear only their current turn. The landing page shows
-    the matching grouped active count and activating it opens the sidebar and reveals
-    the running rows. Reduced motion preserves a static accessible processing indicator.
+    failure and cancellation clear only their current turn. The Chats start screen shows
+    the matching grouped active count as its row title ("You have N chats active:") and
+    the same parents as the first, active-marked cards of its row
+    (daily-inspiration.start-row-active-first). Reduced motion preserves a static accessible processing indicator.
   depends_on:
   - examples.running_chats
 - id: chat-navigation.projects.organize
@@ -242,3 +273,4 @@ examples:
   - running_chats
   - chat_organization
   - chat_menus
+  - sidebar_overlay

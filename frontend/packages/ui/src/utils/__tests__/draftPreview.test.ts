@@ -4,7 +4,21 @@ vi.mock("../../data/modelsMetadata", () => ({
   modelsMetadata: [{ id: "claude-sonnet-5", name: "Claude Sonnet 5" }],
 }));
 vi.mock("../../data/matesMetadata", () => ({ matesMetadata: [] }));
-vi.mock("../../stores/appSkillsStore", () => ({ appSkillsStore: { apps: {} } }));
+vi.mock("../../stores/appSkillsStore", () => ({
+  appSkillsStore: {
+    apps: {
+      code: {
+        focus_modes: [{ id: "write_specification", name_translation_key: "app_focus_modes.code.write_specification" }],
+        skills: [],
+      },
+    },
+  },
+}));
+vi.mock("../../i18n/translations", async () => {
+  const { readable } = await import("svelte/store");
+  const titles: Record<string, string> = { "app_focus_modes.code.write_specification": "Write a specification" };
+  return { text: readable((key: string) => titles[key] ?? `[T:${key}]`) };
+});
 
 import { formatDraftPreview } from "../draftPreview";
 
@@ -50,5 +64,25 @@ describe("formatDraftPreview", () => {
   // contract-test: supporting surface=gui.web assertions=drafts.draft-only.presentation
   it("never leaks malformed serialized JSON into a preview", () => {
     expect(formatDraftPreview('```json {"embed_id":"broken"')).toBe("[Embed]");
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence,chats.titles.first-message-fallback
+  it("shows a Project mention in a draft card by the Project name, never its id", () => {
+    const draft = "@project:6b0c2f4e-3a91-4d2b-9c57-1f8e2a7d4c10:read Plan the beds";
+    expect(formatDraftPreview(draft, (id) => (id.startsWith("6b0c2f4e") ? "Garden planner" : undefined)))
+      .toBe("@Garden planner Plan the beds");
+    expect(formatDraftPreview(draft)).toBe("@Project Plan the beds");
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence,chats.titles.first-message-fallback
+  it("shows a Focus mention by its Focus title", () => {
+    expect(formatDraftPreview("@focus:code:write_specification Garden planner"))
+      .toBe("@Write a specification Garden planner");
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence,chats.titles.first-message-fallback
+  it("never leaves mention syntax or ids in a preview", () => {
+    expect(formatDraftPreview("@mate:missing Hi 6b0c2f4e-3a91-4d2b-9c57-1f8e2a7d4c10 @unknown:x:y there"))
+      .toBe("Hi there");
   });
 });

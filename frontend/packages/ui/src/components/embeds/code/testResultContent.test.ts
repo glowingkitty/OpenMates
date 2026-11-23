@@ -1,7 +1,7 @@
 // Evidence lookup of the test_result embed: the stored asset id plus file
 // variant mint a fresh link through the generated-assets route.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { findEvidence, parseTestResult, resolveArtifactEvidenceUrl, testResultTitle } from './testResultContent';
+import { findEvidence, parseTestResult, resolveArtifactEvidenceUrl, testResultDurations, testResultTitle } from './testResultContent';
 
 const content = {
   kind: 'browser', target: 'e2b', run_status: 'passed', steps: [], tests: [],
@@ -48,5 +48,24 @@ describe('test result title', () => {
     expect(testResultTitle(parseTestResult(content), 'Test result')).toBe('Test result');
     const several = parseTestResult({ ...content, tests: [{ name: 'a', status: 'passed' }, { name: 'b', status: 'passed' }] });
     expect(testResultTitle(several, 'Test result')).toBe('Test result');
+  });
+});
+
+describe('test result durations', () => {
+  // contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
+  it('shows the time the tests ran and the whole run with setup separately', () => {
+    // TASK-3334: a 2 s browser video under a "19.6 s" run looked truncated; the 17.6 s were install and server start.
+    const view = parseTestResult({ ...content, duration_ms: 19600, tests: [{ name: 'a', status: 'passed', duration_ms: 2000 }] });
+    expect(testResultDurations(view)).toEqual({ tests: '2.0 s', withSetup: '19.6 s' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
+  it('shows one time when setup was short or test times are missing', () => {
+    const quick = parseTestResult({ ...content, duration_ms: 2400, tests: [{ name: 'a', status: 'passed', duration_ms: 2000 }] });
+    expect(testResultDurations(quick)).toEqual({ tests: '2.0 s', withSetup: '' });
+    const untimed = parseTestResult({ ...content, duration_ms: 19600, tests: [{ name: 'a', status: 'passed' }] });
+    expect(testResultDurations(untimed)).toEqual({ tests: '19.6 s', withSetup: '' });
+    const none = parseTestResult({ ...content, duration_ms: 4200, tests: [] });
+    expect(testResultDurations(none)).toEqual({ tests: '4.2 s', withSetup: '' });
   });
 });

@@ -47,3 +47,21 @@ export function createPIIDisplayAliases(
   }
   return aliases;
 }
+
+const enhancedTokenInText = /\[([A-Z][A-Z0-9_]*?)_[1-9][0-9]*_[0-9a-f]{16}(?:_[1-9][0-9]*_[0-9a-f]{32})*\]/g;
+
+/**
+ * Text with each enhanced privacy placeholder (`[PERSON_NAME_1_<nonce>]`) shown
+ * by the same short alias the message view uses (`[PERSON_NAME_1]`). For text
+ * shown outside the message itself, such as a chat's temporary title.
+ */
+export function aliasEnhancedPlaceholders(text: string): string {
+  const mappings: PIIMapping[] = Array.from(text.matchAll(enhancedTokenInText), (match) => ({
+    placeholder: match[0],
+    type: match[1],
+    original: '',
+  }));
+  if (!mappings.length) return text;
+  const aliases = createPIIDisplayAliases(text, mappings);
+  return text.replace(enhancedTokenInText, (token) => aliases.get(token) ?? token);
+}

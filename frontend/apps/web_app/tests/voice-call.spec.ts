@@ -6,12 +6,24 @@ import type { Locator, Page, TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
-const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, startNewChat, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { expect, test: auditedTest } = require('./helpers/cookie-audit');
+const { withProofAudio, proofAudioLaunchArgs } = require('./helpers/proof-audio');
+// Proof videos carry the call's sound in sync: the fake microphone, the Mate's speech and every
+// chime (tests/helpers/proof-audio.ts). The built-in fake microphone (beeps with silence between)
+// stays, because the voice-activity cases here depend on that silence; the spoken caller side is
+// in voice-call-real.spec.ts, whose scenarios play a recorded question.
+const test = withProofAudio(auditedTest);
+const { loginToTestAccount, startNewChat, waitForChatReady, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { naturalProjectName } = require('./helpers/project-names');
+const { withMockMarker } = require('./signup-flow-helpers');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
 const PASTED_TEXT = 'Please use this pasted recipe: noodles, broth, mushrooms and ginger.';
+const PASTED_RECIPE = 'Soup for two: simmer broth with ginger for ten minutes, add noodles and mushrooms.';
+// Tap-to-listening includes the encrypted chat bootstrap and provider readiness;
+// on a loaded CI runner that took 5.2 s, just over Playwright's 5 s default.
+// Call latency itself is measured by the dev latency probe, not this wait.
+const CALL_LISTENING_TIMEOUT_MS = 15_000;
 
 /** Substitute only the external image bytes; ordinary proxy URLs and embeds stay real. */
 async function installVoiceFixtureImageProxy(page: Page): Promise<{ servedRequests: number }> {
@@ -47,9 +59,13 @@ interface SocketObservation {
   autoSpeak?: boolean;
   forcedModel?: boolean;
   speaking?: boolean;
+  chatStartClipText?: boolean;
   kind?: string;
   speechStatus?: string;
   clipId?: string;
+  promptKind?: string;
+  promptRequestId?: string;
+  promptClips?: string[];
   speechErrorCode?: string;
   speechAction?: 'request'|'generate'|'retry'|'cancel'|'delete';
   recoveryOperation?: string;
@@ -89,6 +105,7 @@ interface SocketObservation {
   audioNonzero?: boolean;
   startupAllowanceMs?: number;
   messageId?: string;
+  pasted?: boolean;
   requestId?: string;
   turnId?: string;
   preflightId?: string;
@@ -192,7 +209,7 @@ interface CallEvidence {
 
 test.use({
   actionTimeout: 30_000,
-  launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+  launchOptions: { args: proofAudioLaunchArgs({ voiceWav: null }) },
   permissions: ['microphone'],
 });
 
@@ -460,6 +477,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
           userMessageId:payload.user_message_id,taskId:payload.task_id??payload.assistant_task_id,
           taskStatus:taskStatuses.has(payload.status)?payload.status:undefined,
           ...(event.type==='start'?{startupAllowanceMs:payload.startup_audio_allowance_ms}:{}),
+          ...(event.type==='text_input'?{pasted:payload.pasted===true}:{}),
           ...(event.type==='error'?{code:typeof payload.code==='string'&&/^[a-z_]{1,64}$/.test(payload.code)?payload.code:'unknown',stage:typeof payload.stage==='string'&&/^[a-z_]{1,64}$/.test(payload.stage)?payload.stage:'unknown'}:{}),
           ...(event.type==='mic_audio'?{audioSamples:atob(payload.data).length/2,audioBatch,audioNonzero:/[^\0]/.test(atob(payload.data))}:{}),
           ...(['encrypted_chat_metadata','voice_call_chat_prepare'].includes(event.type)?{ciphertextLength:typeof payload.encrypted_chat_key==='string'?payload.encrypted_chat_key.length:0,
@@ -485,10 +503,15 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
             final:payload.is_final_chunk===true&&!payload.awaiting_async_skill_continuation,
             finalChunk:payload.is_final_chunk===true,awaitingContinuation:payload.awaiting_async_skill_continuation===true,
             interruptedByRevocation:payload.interrupted_by_revocation===true,interruptedBySoftLimit:payload.interrupted_by_soft_limit===true}:{}),
-          ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language}:{}),
+          ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language,
+            // Only whether the playing chat-start clip was reported (EYHC5).
+            chatStartClipText:typeof payload.clip_audio_url==='string'&&payload.clip_audio_url.endsWith('/chat_start-1.mp3')}:{}),
           ...(sent&&event.type==='assistant_speech'?{
             speechAction:speechActions.has(payload.action)?payload.action:undefined}:{}),
           ...(event.type==='assistant_speech_acknowledgement'&&typeof payload.clip_id==='string'&&/^[A-Za-z0-9._-]{1,128}$/.test(payload.clip_id)?{clipId:payload.clip_id}:{}),
+          ...(event.type==='voice_call_permission_prompt'?{promptKind:typeof payload.kind==='string'?payload.kind:undefined,
+            promptRequestId:safeId(payload.request_id),
+            promptClips:Object.values(payload.clips??{}).filter((url):url is string=>typeof url==='string'&&url.startsWith('/audio/assistant-acknowledgements/'))}:{}),
           ...(event.type==='assistant_speech_status'?{kind:payload.kind,speechStatus:payload.status,language:payload.language,
             speechErrorCode:payload.error!==undefined||payload.status==='error'
               ?speechErrorCodes.has(payload.error)?payload.error:'unknown':undefined,
@@ -1552,6 +1575,27 @@ async function assertOpenOriginalSource(page: Page, thumbnail: Locator, sourceId
   await expect(page.getByTestId('image-embed-fullscreen')).toHaveCount(0);
 }
 
+// Pastes plain text into the composer the way a browser does (a ClipboardEvent the
+// editor handles), then sends it into the live call.
+async function expectCleanCallComposer(page: Page): Promise<void> {
+  await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+}
+
+async function sendPastedCallText(page: Page, text: string): Promise<string> {
+  const before = voiceFrames(await evidence(page), 'text_input').length;
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+  await editor.click();
+  await editor.evaluate((node, value) => {
+    const data = new DataTransfer(); data.setData('text/plain', value);
+    node.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  }, text);
+  await expect(editor).toContainText(text);
+  await page.getByTestId('composer-send-button').click();
+  await expect.poll(async () => voiceFrames(await evidence(page), 'text_input').length).toBe(before + 1);
+  return voiceFrames(await evidence(page), 'text_input').at(-1)!.messageId!;
+}
+
 async function sendCameraCallText(page: Page, text: string): Promise<string> {
   const before = voiceFrames(await evidence(page), 'text_input').length;
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
@@ -1566,6 +1610,22 @@ test.describe('Voice mode through ordinary chat', () => {
   // Restore the saved acknowledgement even when that case fails, so later cases
   // never start behind the consent notice.
   let voiceAcknowledgementResetPending = false;
+  // Call start diagnostics: the controller logs why a started call returned to
+  // inactive; attach those lines to a failed case.
+  let callConsole: string[] = [];
+  test.beforeEach(async ({page}) => {
+    callConsole = [];
+    const relevant=/\[(VoiceCall|CallPermissionPrompt|AssistantSpeech|PermissionDialog|Notifications|E2E)\]/;
+    page.on('console', (message) => {
+      if (message.type()!=='debug'&&(relevant.test(message.text())||message.type()==='error')) callConsole.push(`${message.type()}: ${message.text()}`.slice(0, 500));
+    });
+    page.on('pageerror', (error) => { callConsole.push(`pageerror: ${error.message}`.slice(0, 500)); });
+  });
+  test.afterEach(async ({page: _page}, testInfo) => {
+    if (testInfo.status !== testInfo.expectedStatus && callConsole.length) {
+      await testInfo.attach('voice-call-console', {body: callConsole.join('\n'), contentType: 'text/plain'});
+    }
+  });
   test.afterEach(async ({page}) => {
     if (!voiceAcknowledgementResetPending) return;
     voiceAcknowledgementResetPending = false;
@@ -1873,7 +1933,7 @@ test.describe('Voice mode through ordinary chat', () => {
     }
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner
+  // contract-test: direct surface=gui.web assertions=video-call.audio.single-owner
   test('requires a saved voice processing acknowledgement before first capture and remembers it after reload', async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.setViewportSize({width:390,height:844});
@@ -1971,7 +2031,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.screenshot({path:testInfo.outputPath('voice-call-first-privacy-phone-save-failure.png')});
     await notice.getByRole('button',{name:'Continue',exact:true}).click();
     await expect(notice).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(0);
     const accepted=await events();
     const privacyPriming=await nativeVoiceInput(page);
@@ -2067,7 +2127,7 @@ test.describe('Voice mode through ordinary chat', () => {
     }, { message: 'Pre-ready capture must contain speech followed by quiet input quanta' }).toBe(true);
     const beforeRelease = await nativeVoiceInput(page);
     await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.releaseReady!());
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
     const flushed = await evidence(page);
@@ -2106,7 +2166,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await fallback;
     expect(failedModel).toBe(true);
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await playNativeVoiceFixture(page);
     await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
@@ -2123,7 +2183,7 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(voiceFrames(continuous, 'audio_stream_end')).toHaveLength(0);
     expect(voiceFrames(continuous, 'start')).toHaveLength(1);
     expect(continuous.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(1);
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await assertActivityCounter(page,true);
     await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
     expect((await nativeVoiceInput(page)).detectorReady).toBe(0);
@@ -2141,7 +2201,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await observeRealTransport(page);
     await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     const chatBefore = await page.evaluate(() => location.hash || location.pathname);
     // Safari in the background: the page becomes hidden and the OS drops the socket.
     await page.evaluate(() => {
@@ -2164,9 +2224,12 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.voiceSocketCount)).toBe(starts.length);
     expect(new Set(starts.map((frame) => frame.chatId)).size, 'every attempt resumes the same chat').toBe(1);
     expect(resumed.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(2);
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-    expect(await page.evaluate(() => location.hash || location.pathname)).toBe(chatBefore);
+    // The call chat's id may reach the URL just after Listening, so the page
+    // shows either where it was or the call's own chat, never another chat.
+    const placeAfter = await page.evaluate(() => location.hash || location.pathname);
+    expect([chatBefore, `#chat-id=${starts[0].chatId}`]).toContain(placeAfter);
     await page.getByTestId('voice-call-hangup').click();
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
   });
@@ -2178,7 +2241,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await observeRealTransport(page);
     await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     // Safari on iOS: the microphone track mutes and the page becomes hidden.
     await page.evaluate(() => {
       // The call captures the fixture's output stream, so that is the track iOS would mute.
@@ -2230,7 +2293,7 @@ test.describe('Voice mode through ordinary chat', () => {
     try {
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect.poll(()=>requested).toBe(true);
-      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
       const initial=await evidence(page);const start=voiceFrames(initial,'start')[0];
       const baseline=voiceFrames(initial,'mic_audio').length;
       await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(baseline+12);
@@ -2350,7 +2413,7 @@ test.describe('Voice mode through ordinary chat', () => {
       await page.bringToFront();
       await expect.poll(()=>page.evaluate(()=>document.visibilityState==='visible'&&document.hasFocus())).toBe(true);
       await page.locator('[data-testid="voice-call-start"]:visible').click();
-      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
       const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
       const startedId=`00000000-voice-call-${ready.callId}-started`;
       await expect.poll(()=>systemEvents.find(event=>event.data?.message_id===startedId)).toBeTruthy();
@@ -2420,7 +2483,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
     // The server-issued cleanup authority is durable before anything can interrupt the call.
     await expect.poll(async()=>(await pendingCleanups()).find(row=>row.callId===ready.callId)?.chatId).toBeTruthy();
@@ -2439,14 +2502,14 @@ test.describe('Voice mode through ordinary chat', () => {
     await testInfo.attach('interrupted-call-cleanup',{body:JSON.stringify({accepted:results.filter(result=>result.chat_id===chatId)}),contentType:'application/json'});
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
+  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.pasted-text-not-read-aloud,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
   test('uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload',async({page},testInfo)=>{
     test.setTimeout(330_000);
     const imageProxyFixture = await installVoiceFixtureImageProxy(page);
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
     // The first genuine microphone slice ends mid-request. Native STT turn.end
     // must remain provisional through silence and resume under one identity.
@@ -2500,6 +2563,11 @@ test.describe('Voice mode through ordinary chat', () => {
       target.__unspokenSamples=[];
       const registry=(CSS as unknown as {highlights?:Map<string,{size:number}>}).highlights;
       setInterval(()=>target.__unspokenSamples!.push(registry?.get('assistant-speech-unspoken')?.size ?? 0),50);
+      // The call bar owns the controls: the composer's pulsing red stop icon
+      // never shows in the call chat while the assistant answers (TASK-5166).
+      const stopTarget=window as unknown as {__composerStopSamples?:number[]};
+      stopTarget.__composerStopSamples=[];
+      setInterval(()=>stopTarget.__composerStopSamples!.push(document.querySelectorAll('[data-testid="stop-processing-button"]').length),50);
     });
     const resumedAt=await page.evaluate(()=>performance.now());
     await playNativeVoiceFixture(page);
@@ -2514,6 +2582,9 @@ test.describe('Voice mode through ordinary chat', () => {
       {timeout:60_000,message:'Assistant text must be dimmed until spoken'}).toBe(true);
     await expect.poll(async()=>(await unspokenSamples()).slice(-3).every(size=>size===0),
       {timeout:90_000,message:'Spoken reply must become fully visible after playback'}).toBe(true);
+    const composerStopSamples=await page.evaluate(()=>(window as unknown as {__composerStopSamples:number[]}).__composerStopSamples);
+    expect(composerStopSamples.length,'The composer stop icon must be sampled through the answer').toBeGreaterThan(20);
+    expect(composerStopSamples.filter(count=>count>0),'No red composer stop icon during the call answer').toHaveLength(0);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
     // Once admitted, the turn is a regular chat message and the preview clears.
     await expect(liveTranscript).toHaveCount(0);
@@ -2546,6 +2617,15 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
     await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    // Pasted text in a call is marked so the assistant summarises it instead of
+    // reading it aloud; typed text is not marked (feature.video-call pasted-text-not-read-aloud).
+    const pastedId=await sendPastedCallText(page,PASTED_RECIPE);
+    await waitForCanonicalAssistant(page,pastedId);
+    await expect(page.getByTestId('message-user').filter({hasText:PASTED_RECIPE})).toHaveCount(1);
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    const textInputs=voiceFrames(await evidence(page),'text_input');
+    expect(textInputs.find(frame=>frame.messageId===typedId)?.pasted).toBe(false);
+    expect(textInputs.find(frame=>frame.messageId===pastedId)?.pasted).toBe(true);
     const richId=await sendCameraCallText(page,'Show voice rich results');
     await waitForCanonicalAssistant(page,richId);
     const rich=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
@@ -2561,14 +2641,18 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(finals.filter(frame=>frame.messageId===richId)).toHaveLength(1);
     expect(sends.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
     expect(sends.filter(frame=>frame.messageId===richId)).toHaveLength(1);
+    expect(sends.filter(frame=>frame.messageId===pastedId)).toHaveLength(1);
     expect(sends.every(frame=>frame.autoSpeak===true&&frame.forcedModel===false)).toBe(true);
     expect(protocol.sent.filter(frame=>frame.type==='call_message_completed')).toHaveLength(0);
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='audio_chunk')).toHaveLength(0);
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
     const messageIds=await page.locator('[data-testid="message-user"],[data-testid="message-assistant"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-message-id')!).filter(Boolean));
-    expect(messageIds).toHaveLength(6);
+    expect(messageIds).toHaveLength(8);
+    // A live call shows no Cancel pill under the composer, and the speech button that
+    // slid under the resting pointer after Send opens no tooltip (product videos).
+    await expectCleanCallComposer(page);
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-laptop.png')});
-    const dismiss=page.getByTestId('input-dismiss-button');if(await dismiss.isVisible())await dismiss.click();
+    await testInfo.attach('call-composer-laptop',{body:await page.screenshot(),contentType:'image/png'});
     await scrollChatHistoryToStart(page,testInfo);
     const close=page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible');
     await expect(close).toHaveCount(1);await close.click();await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
@@ -2581,12 +2665,18 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.getByTestId('voice-call-pill').click();await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/);
     await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
     expect(voiceFrames(await evidence(page),'start')).toHaveLength(1);expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+    // Text sent during the call left no saved draft behind: the reopened chat's composer is empty.
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    await expectCleanCallComposer(page);
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-phone.png')});
+    await testInfo.attach('call-composer-phone',{body:await page.screenshot(),contentType:'image/png'});
     await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
     await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
     await assertCallChatPreserved(page,chatId);await expectCallChatLastOpened(page,chatId);
     await evictOwnedCallRows(page,chatId,ready.callId!,messageIds);await page.reload();await waitForChatReady(page);
-    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    // The local rows were evicted, so the transcript comes back from the server:
+    // allow that fetch time instead of the default 5 s (a stuck load still fails).
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1,{timeout:30_000});
     await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'}).getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
     await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
@@ -2682,7 +2772,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await playNativeVoiceFixture(page);await waitForSpokenAssistant(page);
     const assistant=page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH});
     await expect(assistant).toHaveCount(1);
@@ -2719,6 +2809,11 @@ test.describe('Voice mode through ordinary chat', () => {
     const speak=assistant.getByTestId('assistant-message-speak');
     expect(speechCapabilityResponses).toBeGreaterThan(0);
     await expect(speak).toBeVisible();
+    // Manual Speak needs the stored reply (otherwise assistant_message_required).
+    // Right after hangup the page may still be persisting it, so wait for its
+    // storage receipt instead of racing it.
+    await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='recovery_job_persisted'
+      &&frame.messageId===messageId),{timeout:30_000}).toBe(true);
     const startManual=(await evidence(page)).received.length;
     await page.evaluate(()=>(window as unknown as {__voiceManualSpeechPlayback:{epoch:number}}).__voiceManualSpeechPlayback.epoch=1);
     await clickChatTarget(speak,testInfo);
@@ -2782,7 +2877,7 @@ test.describe('Voice mode through ordinary chat', () => {
       test.setTimeout(180_000);await page.setViewportSize(viewport);await context.grantPermissions(['microphone','camera']);
       await installNativeVoiceInput(page);await observeRealTransport(page);await observeCameraCall(page);
       await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
-      await page.locator('[data-testid="voice-call-start"]:visible').click();await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      await page.locator('[data-testid="voice-call-start"]:visible').click();await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
       await page.getByTestId('voice-call-mute').click();await page.getByTestId('voice-call-video').click();
       await expect.poll(async()=>(await cameraCallEvidence(page)).sent.filter(frame=>frame.type==='camera_frame').length).toBeGreaterThan(0);
       await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','true');
@@ -2814,7 +2909,7 @@ test.describe('Voice mode through ordinary chat', () => {
     test.setTimeout(150_000);await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await page.getByTestId('voice-call-mute').click();
     const id=await sendCameraCallText(page,'Bitte prüfe das gründlich');
     // This call starts a new chat, so no Mate is known yet: the pre-recorded,
@@ -2824,6 +2919,10 @@ test.describe('Voice mode through ordinary chat', () => {
     const acknowledgementClips=async()=>(await evidence(page)).received
       .filter(frame=>frame.type==='assistant_speech_acknowledgement').map(frame=>frame.clipId);
     await expect.poll(acknowledgementClips,{timeout:30_000}).toEqual(['system-de-DE-chat_start-1']);
+    // The call reports the playing clip, so the server can recognise its words
+    // as echo if the microphone picks them up (EYHC5).
+    await expect.poll(async()=>(await evidence(page)).sent.some(frame=>frame.type==='assistant_state'&&frame.chatStartClipText===true),
+      {timeout:15_000}).toBe(true);
     expect((await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_status'&&frame.kind==='waiting_confirmation')).toHaveLength(0);
     await waitForCanonicalAssistant(page,id);
     // After routing no second confirmation follows in the routed Mate's voice.
@@ -2834,6 +2933,103 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)&&frame.messageId===id)).toHaveLength(1);
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
     await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+  });
+
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.permission-prompt
+  test('a memory request in a live call is spoken, counts down, is confirmed after the tap and self-cancels at 30 seconds',async({page},testInfo)=>{
+    test.setTimeout(200_000);
+    await page.addInitScript(()=>{
+      const plays:string[]=[];Object.assign(window,{__promptPlays:plays});
+      const play=HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play=function(...args:Parameters<HTMLMediaElement['play']>){
+        // A reused element still reports the previous clip in currentSrc until its
+        // load algorithm runs; the src that was just assigned is the clip being played.
+        plays.push(new URL(this.src||this.currentSrc||'about:blank',location.href).pathname);
+        return play.apply(this,args);
+      };
+    });
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{});
+    const played=async()=>page.evaluate(()=>(window as unknown as {__promptPlays:string[]}).__promptPlays);
+    const playedClip=async(name:string)=>(await played()).some(path=>path.endsWith(`/${name}`));
+    const prompts=async()=>(await evidence(page)).received.filter(frame=>frame.type==='voice_call_permission_prompt');
+    // Ordinary text turn first: the assistant saves the Memory the call turns will ask for.
+    await sendMessage(page,withMockMarker('Please remember my career profile for later.','memory_reuse_save','fast'),()=>{},async()=>{},'save-career-profile');
+    await waitForAssistantMessage(page,{which:'last',logCheckpoint:()=>{}});
+    const saveChatId=await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id');
+    const notice=page.locator('[data-testid="context-entry-event"][data-kind="memory"][data-source="assistant"]');
+    await expect(notice).toHaveCount(1,{timeout:90_000});
+    await startNewChat(page,()=>{});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
+    await page.getByTestId('voice-call-mute').click();
+    const dialog=page.getByTestId('app-settings-memories-permission-dialog');
+    const countdown=page.getByTestId('memory-request-call-countdown');
+
+    // Phase A: the request is spoken and counts down; the tap is confirmed and answered.
+    await sendCameraCallText(page,withMockMarker('Which employer should I mention in my cover letter?','memory_reuse_load','fast'));
+    await expect.poll(async()=>(await prompts()).length,{timeout:90_000}).toBe(1);
+    const first=(await prompts())[0];
+    expect(first.promptKind).toBe('memory');
+    expect(first.promptClips?.some(url=>url.endsWith('/needs_memory-1.mp3'))).toBe(true);
+    await expect(dialog).toBeVisible({timeout:30_000});
+    await expect(countdown).toBeVisible();
+    await expect.poll(()=>playedClip('needs_memory-1.mp3'),{timeout:15_000}).toBe(true);
+    const before=Number(await countdown.getAttribute('aria-valuenow'));
+    await expect.poll(async()=>Number(await countdown.getAttribute('aria-valuenow')),{timeout:10_000}).not.toBe(before);
+    expect(Number(await countdown.getAttribute('aria-valuenow'))).toBeLessThan(before);
+    await testInfo.attach('call-memory-request-countdown',{body:await page.screenshot(),contentType:'image/png'});
+    // The typed turn leaves the composer focused; the dialog must still be on screen
+    // (not only attached) so the user's first tap reaches "Include".
+    await expect(dialog.getByTestId('btn-include')).toBeInViewport();
+    await dialog.getByTestId('btn-include').click();
+    await expect(dialog).not.toBeVisible({timeout:10_000});
+    await expect(countdown).toHaveCount(0);
+    await expect.poll(()=>playedClip('approval_thanks-1.mp3'),{timeout:15_000}).toBe(true);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'Example Retail GmbH'})).toHaveCount(1,{timeout:120_000});
+    // The approved turn names the included Memory by title with its icon circle, never "(1)".
+    const includedPill=page.getByTestId('included-memory-pill');
+    await expect(includedPill).toHaveCount(1,{timeout:20_000});
+    await expect(includedPill.getByTestId('included-memory-title')).toHaveText('Career profile');
+    await expect(includedPill).not.toContainText('(1)');
+    await includedPill.scrollIntoViewIfNeeded();
+    await testInfo.attach('call-included-memory-desktop',{body:await page.screenshot(),contentType:'image/png'});
+
+    // Phase B: no tap. The reminder plays, then the request cancels itself at 30 seconds.
+    await sendCameraCallText(page,withMockMarker('Which employer should I mention in my cover letter?','memory_reuse_load','fast'));
+    await expect.poll(async()=>(await prompts()).length,{timeout:90_000}).toBe(2);
+    await expect(dialog).toBeVisible({timeout:30_000});
+    await expect.poll(()=>playedClip('needs_reminder-1.mp3'),{timeout:25_000}).toBe(true);
+    await expect(dialog).not.toBeVisible({timeout:40_000});
+    await expect(page.getByTestId('memory-request-timed-out')).toBeVisible({timeout:20_000});
+    await expect.poll(()=>playedClip('memory_timeout-1.mp3'),{timeout:15_000}).toBe(true);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(2,{timeout:120_000});
+    await testInfo.attach('call-memory-request-timed-out',{body:await page.screenshot(),contentType:'image/png'});
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+
+    // Cleanup: Undo the save notice so reruns start clean.
+    // The replies heard in the call are not announced again after hang-up: no
+    // new-message card ever covers the top bar while the app boots (product videos).
+    const countChatCards=()=>{
+      const seen={count:0};(window as unknown as {__chatCardsSeen:typeof seen}).__chatCardsSeen=seen;
+      new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)
+        if(node instanceof Element&&(node.matches('[data-testid="chat-notification"]')||node.querySelector('[data-testid="chat-notification"]')))seen.count++;})
+        .observe(document,{childList:true,subtree:true});
+    };
+    // A hash-only navigation keeps this document; a reload runs the init script.
+    await page.addInitScript(countChatCards);await page.evaluate(countChatCards);
+    const chatCardsSeen=()=>page.evaluate(()=>(window as unknown as {__chatCardsSeen?:{count:number}}).__chatCardsSeen?.count??-1);
+    await page.goto(`/#chat-id=${encodeURIComponent(saveChatId as string)}`,{waitUntil:'domcontentloaded'});
+    await expect(notice).toHaveCount(1,{timeout:60_000});
+    await expect(page.getByTestId('chat-notification')).toHaveCount(0);
+    await testInfo.attach('after-hangup-laptop',{body:await page.screenshot(),contentType:'image/png'});
+    await notice.getByTestId('context-entry-event-undo').click();
+    await expect(notice).toHaveAttribute('data-undone','true',{timeout:20_000});
+    await page.setViewportSize({width:390,height:844});
+    await expect(page.getByTestId('chat-notification')).toHaveCount(0);
+    await testInfo.attach('after-hangup-phone',{body:await page.screenshot(),contentType:'image/png'});
+    expect(await chatCardsSeen()).toBe(0);
   });
 
 
@@ -2900,7 +3096,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
     await page.getByTestId('voice-call-mute').click();
     const richTurnId=await sendCameraCallText(page,'Show voice rich results');
     await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
@@ -3124,4 +3320,132 @@ test.describe('Voice mode through ordinary chat', () => {
     }
   });
 
+});
+
+test.describe('First voice call of a just-signed-up account', () => {
+  const {
+    buildSignupEmail, cleanupFailedSignupAccount, configureCloudSignupUiForCi, createSignupEmailClient,
+    checkSignupEmailQuota, getE2EDebugUrl, getSignupTestDomain, setToggleChecked, validateSignupInviteIfRequired,
+  } = require('./signup-flow-helpers');
+  const { openSignupInterface } = require('./helpers/chat-test-helpers');
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.single-owner
+  test('starts the first voice call right after password signup without reload', async ({ page, context }, testInfo) => {
+    test.setTimeout(480_000);
+    const signupDomain = getSignupTestDomain(process.env.SIGNUP_TEST_EMAIL_DOMAINS);
+    test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
+    const emailClient = createSignupEmailClient();
+    test.skip(!emailClient, 'A signup test inbox is required.');
+    const giftedInvite = process.env.E2E_SIGNUP_GIFTED_INVITE_CODE;
+    test.skip(!giftedInvite, 'E2E_SIGNUP_GIFTED_INVITE_CODE is seeded by the isolated CI runner.');
+    const quota = await checkSignupEmailQuota();
+    test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
+    const { waitForMessage, extractSixDigitCode } = emailClient;
+
+    await installNativeVoiceInput(page);
+    // Call and core warnings name the refusal reason when the call does not connect.
+    const callConsole: string[] = [];
+    page.on('console', (message) => {
+      const line = message.text();
+      if (/\[(VoiceCall|RustCore)\]/.test(line) && callConsole.length < 200) callConsole.push(`${Math.round(performance.now())} ${message.type()}: ${line.slice(0, 300)}`);
+    });
+    await page.addInitScript(() => {
+      const sockets: string[] = [];
+      Object.assign(window, { __voiceSocketPaths: sockets });
+      const NativeSocket = window.WebSocket;
+      window.WebSocket = new Proxy(NativeSocket, { construct(Target, args) {
+        const path = new URL(String(args[0]), location.href).pathname;
+        if (path === '/v1/voice-call') sockets.push(path);
+        return Reflect.construct(Target, args);
+      } });
+    });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    const signupEmail = buildSignupEmail(signupDomain);
+    const emailLocal = signupEmail.split('@')[0];
+    const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
+    const signupPassword = 'SignupTest!234Secure';
+    // This signup uses the single-use invite that carries gifted credits.
+    const sharedInvite = process.env.E2E_SIGNUP_INVITE_CODE;
+    process.env.E2E_SIGNUP_INVITE_CODE = giftedInvite;
+    try {
+      await configureCloudSignupUiForCi(page);
+      // The invite carries gifted credits, so the new account can pay for the
+      // call and the call itself must connect (TASK-950).
+      await page.goto(getE2EDebugUrl('/'));
+      await openSignupInterface(page);
+      const loginTabs = page.getByTestId('login-tabs');
+      await expect(loginTabs).toBeVisible();
+      await loginTabs.getByRole('button', { name: /sign up/i }).click();
+      // Isolated CI signup requires an invite. The shared helper skips the
+      // step when the field is not rendered yet, so wait for it first.
+      await expect(page.getByTestId('signup-invite-code-input')).toBeVisible({ timeout: 15_000 });
+      await validateSignupInviteIfRequired(page, () => undefined);
+      await page.locator('input[type="email"][autocomplete="email"]').fill(signupEmail);
+      await page.locator('input[autocomplete="username"]').fill(signupUsername);
+      await setToggleChecked(page.locator('#terms-agreed-toggle'), true);
+      await setToggleChecked(page.locator('#privacy-agreed-toggle'), true);
+      const emailRequestedAt = new Date().toISOString();
+      await page.getByRole('button', { name: /create new account/i }).click();
+      await expect(page.getByRole('link', { name: /open mail app/i })).toBeVisible({ timeout: 10_000 });
+      const message = await waitForMessage({ sentTo: signupEmail, receivedAfter: emailRequestedAt });
+      const emailCode = extractSixDigitCode(message);
+      expect(emailCode, 'Expected a 6-digit email confirmation code.').toBeTruthy();
+      await page.locator('input[inputmode="numeric"][maxlength="6"]').fill(emailCode);
+      await expect(page.locator('#signup-password-option')).toBeVisible({ timeout: 10_000 });
+      await page.locator('#signup-password-option').click();
+      const passwordInputs = page.locator('input[autocomplete="new-password"]');
+      await expect(passwordInputs).toHaveCount(2);
+      await passwordInputs.nth(0).fill(signupPassword);
+      await passwordInputs.nth(1).fill(signupPassword);
+      await page.locator('#signup-password-continue').click();
+      // No reload from here on: the signup profile still has user_id null.
+      await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30_000 });
+      // Accept the invite's gift as the web gift button does (same endpoint, the
+      // session's own cookies); the page is not reloaded.
+      const gift = await page.evaluate(async (apiUrl: string) => {
+        const response = await fetch(`${apiUrl}/v1/auth/accept-gift`, {
+          method: 'POST', credentials: 'include', headers: { Accept: 'application/json' },
+        });
+        const body = await response.json().catch(() => ({}));
+        return { status: response.status, success: body.success === true, credits: body.current_credits };
+      }, process.env.PLAYWRIGHT_TEST_API_URL!);
+      expect(gift, 'the invite gift must be accepted before the call').toMatchObject({ status: 200, success: true });
+
+      await page.evaluate(() => {
+        const seen: string[] = [];
+        Object.assign(window, { __voiceUnavailableSeen: seen });
+        setInterval(() => {
+          for (const node of document.querySelectorAll('[data-testid="notification"]')) {
+            if (node.textContent?.includes('Voice calling is unavailable right now')) seen.push(node.textContent);
+          }
+        }, 50);
+      });
+      // Isolated CI acknowledges voice processing by fixture, so no privacy
+      // notice appears here; the notice itself is covered by its own case.
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now', { timeout: 45_000 });
+      await page.screenshot({ path: testInfo.outputPath('first-call-after-signup-listening.png') });
+
+      expect(await page.evaluate(() => (window as unknown as { __voiceUnavailableSeen: string[] }).__voiceUnavailableSeen)).toEqual([]);
+      await expect(page.getByTestId('notification').filter({ hasText: 'Voice calling is unavailable right now' })).toHaveCount(0);
+      expect(await page.evaluate(() => (window as unknown as { __voiceSocketPaths: string[] }).__voiceSocketPaths)).toHaveLength(1);
+      // The core admission runs while the call connects (only turns wait for
+      // it), so read its final outcome, not the stage shown at Listening. A
+      // refused admission ends the call, which the checks below also catch.
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.rustCoreAdmit), {
+        timeout: 45_000, message: 'the call chat must be admitted into the core',
+      }).toBe('ok');
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      await expect(page.getByTestId('notification').filter({ hasText: 'Voice calling is unavailable right now' })).toHaveCount(0);
+      await page.getByTestId('voice-call-hangup').click();
+    } finally {
+      const stages = await page.evaluate(() => performance.getEntriesByType('mark')
+        .filter(mark => mark.name.startsWith('openmates:rust:'))
+        .map(mark => `${Math.round(mark.startTime)} ${mark.name.slice(15)}`)).catch(() => [] as string[]);
+      await testInfo.attach('first-call-console.txt', { body: [...callConsole, '--- core stages', ...stages].join('\n'), contentType: 'text/plain' });
+      process.env.E2E_SIGNUP_INVITE_CODE = sharedInvite;
+      await cleanupFailedSignupAccount(signupEmail, console.log, { testFile: testInfo.file || 'voice-call.spec.ts' });
+    }
+  });
 });

@@ -5,11 +5,11 @@ import type { RecommendationCardItem } from '../types/recommendations';
 
 const catalogue: RecommendationCardItem[] = [
   { id: 'preview-rec-1', kind: 'memory', action: 'create', target_id: null, title: 'Conference day pacing', summary: 'Plan conference days with a balance of talks, hallway conversations and rest breaks.' },
-  { id: 'preview-rec-2', kind: 'workflow', action: 'create', target_id: null, title: 'Weekly open source conference digest', summary: 'Every Monday, summarize upcoming open source conferences and their talk submission deadlines.' },
+  { id: 'preview-rec-2', kind: 'memory', action: 'create', target_id: null, title: 'Weekly open source conference digest', summary: 'Prefer a Monday summary of upcoming open source conferences and their talk submission deadlines.' },
   { id: 'preview-rec-3', kind: 'memory', action: 'update', target_id: 'personal:preview-memory', title: 'Preferred conference topics', summary: 'Add developer tooling and privacy to the topics you prioritize.' },
-  { id: 'preview-rec-4', kind: 'workflow', action: 'update', target_id: 'preview-workflow', title: 'Monthly travel budget check', summary: 'Also include conference tickets in the monthly budget summary.' },
+  { id: 'preview-rec-4', kind: 'memory', action: 'update', target_id: 'personal:preview-budget', title: 'Monthly travel budget check', summary: 'Also include conference tickets in the monthly budget summary.' },
   { id: 'preview-rec-5', kind: 'memory', action: 'create', target_id: null, title: 'Talk note format', summary: 'Keep talk notes as three key takeaways plus one follow-up question.' },
-  { id: 'preview-rec-6', kind: 'workflow', action: 'create', target_id: null, title: 'Speaker follow-up reminders', summary: 'Two days after each conference, remind me to contact the speakers I noted.' },
+  { id: 'preview-rec-6', kind: 'memory', action: 'create', target_id: null, title: 'Speaker follow-up reminders', summary: 'Two days after each conference, remind me to contact the speakers I noted.' },
 ];
 
 // Project focus suggestions of the active Project, as ChatRecommendations maps them.

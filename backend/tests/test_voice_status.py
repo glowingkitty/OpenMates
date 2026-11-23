@@ -263,3 +263,16 @@ async def test_chat_start_confirmation_is_the_single_clip_of_the_turn(monkeypatc
             task_id="task-silent", request_data=silent, cache_service=None, log_prefix="[test]",
         )
     assert published == []
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+def test_prerecorded_clip_words_resolve_only_from_approved_static_assets():
+    from backend.apps.audio.assistant_speech.acknowledgements import prerecorded_clip_text
+
+    root = "/audio/assistant-acknowledgements"
+    assert prerecorded_clip_text(f"{root}/system/en-US/chat_start-1.mp3") == "Starting your chat…"
+    assert prerecorded_clip_text(f"{root}/system/de-DE/waiting_start-1.mp3") == "Okay, ich warte."
+    assert prerecorded_clip_text(f"{root}/hiro/en-US/lookup-2.mp3") == "Okay, let me check."
+    for unknown in (f"{root}/hiro/en-US/lookup-9.mp3", f"{root}/hiro/ja-JP/general-1.mp3",
+                    f"{root}/../en-US/general-1.mp3", "https://example.org/general-1.mp3", ""):
+        assert prerecorded_clip_text(unknown) == ""

@@ -292,58 +292,46 @@ test.describe('Apps bare component previews', () => {
       await page.goto(preview('apps/AppsWorkspace', width), { waitUntil: 'domcontentloaded' });
       await waitForComponentPreview(page);
       await expect(page.getByTestId('apps-workspace')).toBeVisible();
-      await expect(page.getByTestId('apps-daily-inspiration-area').getByTestId('daily-inspiration-phrase')).toBeVisible();
-      await expect(page.getByTestId('daily-inspiration-cta-text')).toHaveText(/^(Click|Tap) to use app skill$/);
+      await expect(page.getByTestId('apps-daily-inspiration-area')).toHaveCount(0);
+      await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(page.getByTestId('report-issue-button')).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'What app do you want to use?' })).toBeVisible();
-      const banner = await page.getByTestId('apps-daily-inspiration-area').boundingBox();
+      // TASK-1321: same heading pattern on every start screen: "Hey <name>!" then one call to action.
+      await expect(page.getByTestId('apps-workspace-home').getByRole('heading', { name: /^Hey .+!$/ })).toBeVisible();
+      await expect(page.getByTestId('apps-workspace-home').locator('.workspace-subtitle')).toHaveText('Explore the apps OpenMates can use');
       await expect(page.getByTestId('apps-workspace-home').locator('.workspace-eyebrow')).toHaveCount(0);
       await expect(page.getByTestId('apps-workspace-background-icon')).toBeVisible();
-      const heading = await page.getByRole('heading', { name: 'What app do you want to use?' }).boundingBox();
-      expect(heading!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height);
+      await expect(page.getByTestId('apps-workspace-link-row')).toHaveCount(0);
       await expect(page.getByTestId('apps-workspace-home').getByTestId('workspace-composer-slot')).toHaveCount(0);
       await expect(page.getByTestId('apps-workspace-home').getByRole('textbox')).toHaveCount(0);
-      for (const link of [page.getByTestId('apps-show-all'), page.getByTestId('apps-search')]) {
-        await expect(link).toBeVisible();
-        await expectContainedInPreview(page, link);
-        expect(await link.evaluate(element => {
-          const rect = element.getBoundingClientRect();
-          const top = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
-          return top === element || element.contains(top);
-        })).toBe(true);
-      }
+      // Row-end actions: the last tile of the row, reachable by scrolling past the cards.
+      const actionsTile = page.getByTestId('apps-start-row-actions');
+      await expect(actionsTile.getByTestId('apps-show-all')).toBeAttached();
+      await expect(actionsTile.getByTestId('apps-search')).toBeAttached();
+      expect(await actionsTile.evaluate(element => element === element.parentElement?.lastElementChild)).toBe(true);
       await expect(page.getByTestId('apps-app-card').first()).toBeVisible();
-      const webCard = page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ has: page.getByTestId('app-card-name').getByText('Web') });
-      await expect(webCard).toHaveAttribute('data-app-id', 'web');
-      await expect(webCard.getByTestId('app-card-icon')).toBeVisible();
-      await expect(webCard.getByTestId('app-card-name')).toHaveCSS('text-align', 'left');
-      const iconBounds = await webCard.getByTestId('app-card-icon').boundingBox();
-      const nameBounds = await webCard.getByTestId('app-card-name').boundingBox();
-      expect(iconBounds!.x + iconBounds!.width).toBeLessThan(nameBounds!.x);
-      await expect(page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ has: page.getByTestId('app-card-name').getByText('Weather') })).toHaveAttribute('data-app-id', 'weather');
-      const webCardBounds = await webCard.boundingBox();
-      expect(webCardBounds).not.toBeNull();
-      if (width === 390) {
-        expect(webCardBounds!.width).toBeGreaterThanOrEqual(275);
-        expect(webCardBounds!.width).toBeLessThanOrEqual(285);
-        expect(webCardBounds!.height).toBeGreaterThanOrEqual(42);
-        expect(webCardBounds!.height).toBeLessThanOrEqual(46);
-        await expect(webCard.getByTestId('app-card-name')).toBeVisible();
-        await expect(webCard.getByTestId('app-card-description')).toHaveCount(0);
-        await expect(webCard).toHaveText('Web');
-      } else {
-        expect(webCardBounds!.height).toBeGreaterThanOrEqual(125);
-        await expect(webCard.getByTestId('app-card-description')).toBeVisible();
-        await expect(webCard.getByTestId('app-card-description')).toHaveCSS('text-align', 'left');
-      }
+      const row = page.getByTestId('apps-home-apps');
+      const cards = page.getByTestId('apps-app-card');
+      expect(await cards.count()).toBeLessThanOrEqual(10);
+      const webCard = page.locator('[data-testid="apps-app-card"][data-app-id="web"]');
+      await expect(webCard).toHaveCount(1);
+      await expect(webCard.getByTestId('apps-card-glyph')).toBeAttached();
+      // Marco, 22 Nov: the app icon is as large as the card icons on the other workspaces (32px centre, 80px decoration).
+      const glyphSizes = await webCard.locator('img.apps-large-glyph').evaluateAll((nodes: Element[]) =>
+        nodes.map((node) => Math.round((node as HTMLElement).offsetWidth)));
+      expect(glyphSizes.sort((a, b) => a - b)).toEqual([32, 80, 80]);
+      await expect(page.locator('[data-testid="apps-app-card"][data-app-id="weather"]')).toHaveCount(1);
+      // Same large card as the Chats start row: 300x200 (phones min(280px, 76vw) wide), first card centred.
+      const [rowBox, firstBox] = await Promise.all([row.boundingBox(), cards.first().boundingBox()]);
+      expect(Math.abs(firstBox!.x + firstBox!.width / 2 - (rowBox!.x + rowBox!.width / 2))).toBeLessThanOrEqual(2);
+      expect(firstBox!.height).toBeCloseTo(200, 0);
+      expect(firstBox!.width).toBeCloseTo(width <= 480 ? Math.min(280, 0.76 * width) : 300, 0);
+      expect(await row.evaluate(element => getComputedStyle(element).justifyContent)).not.toBe('center');
       await attachWorkspaceScreenshot(page, `apps-home-${width}.png`);
-      const inspiredSkill = page.evaluate(() => new Promise<string>(resolve =>
-        window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-      await page.getByTestId('daily-inspiration-phrase').click();
-      expect(await inspiredSkill).toMatch(/^#apps\/(web\/search|weather\/forecast)$/);
+      // TASK-1321: Apps has no Daily Inspiration (no banner, no inspiration cards).
+      await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
       const navigated = page.evaluate(() => new Promise<string>(resolve =>
         window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-      await page.getByTestId('apps-app-card').first().getByTestId('app-store-card').click();
+      await page.getByTestId('apps-app-card').first().click();
       expect(await navigated).toMatch(/^#apps\/[a-z0-9-]+$/);
       if (width === 390) {
         const keyboardNavigation = page.evaluate(() => new Promise<string>(resolve =>
@@ -370,7 +358,7 @@ test.describe('Apps bare component previews', () => {
       await expect(page.getByTestId('apps-all-items-toolbar')).toBeVisible();
       await expect(page.getByTestId('apps-search')).toHaveText('Search');
       await expect(page.getByTestId('apps-daily-inspiration-area')).toHaveCount(0);
-      await expect(page.getByRole('heading', { name: 'What app do you want to use?' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Explore the apps OpenMates can use' })).toHaveCount(0);
       await expect(page.getByTestId('apps-home-apps')).toHaveCount(0);
       await expect(page.getByTestId('workspace-composer-slot')).toHaveCount(0);
       const webCard = grid.getByTestId('apps-all-item').filter({ has: page.getByTestId('app-card-name').getByText('Web', { exact: true }) });
@@ -403,6 +391,8 @@ test.describe('Apps bare component previews', () => {
 
   // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen,apps.navigation.hash-and-forwarding
   test('app home keeps its header, clipped example carousel, controls and composer bounded on laptop and phone', async ({ page }: { page: Page }) => {
+    // Four full passes (light/dark x laptop/phone) do not fit the 30s default; same budget style as the next test.
+    test.setTimeout(120_000);
     await fixturePublicApps(page);
     for (const theme of ['light', 'dark']) for (const width of [1180, 390]) {
       await page.setViewportSize({width,height:844});

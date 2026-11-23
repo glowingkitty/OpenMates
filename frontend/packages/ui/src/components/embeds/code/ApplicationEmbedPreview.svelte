@@ -52,6 +52,8 @@
     taskId?: string;
     chatId?: string;
     sourceMessageId?: string;
+    /** Set for an app built in the chat's Project sandbox: the card names the folder instead of chat files. */
+    projectSource?: { projectName: string; cwd: string } | null;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
@@ -69,6 +71,7 @@
     taskId,
     chatId,
     sourceMessageId,
+    projectSource = null,
     isMobile = false,
     onFullscreen,
   }: Props = $props();
@@ -90,6 +93,7 @@
   let statusText = $derived.by(() => {
     if (status === 'processing') return $text('embeds.processing');
     if (status === 'error') return $text('embeds.application_preview_failed');
+    if (projectSource) return [projectSource.projectName, projectSource.cwd].filter(Boolean).join(' / ');
     const facts = [framework, runtime, fileCount ? $text('embeds.application_file_count', { values: { count: String(fileCount) } }) : ''].filter(Boolean);
     return facts.join(' · ') || $text('embeds.application_ready');
   });
@@ -150,6 +154,7 @@
   async function maybeAutoStartThumbnailCapture() {
     if (
       autoStartRequested ||
+      projectSource ||
       status !== 'finished' ||
       screenshotUrl ||
       screenshotRef?.files?.preview?.s3_key ||
@@ -205,16 +210,25 @@
         {:else}
           <!-- No stored screenshot (always the case for apps built from private
                Project files): a call to start the preview, not a loading skeleton. -->
+          <!-- The play icon and its label share one centered column, so a short
+               card can never stack the icon over the label. -->
           <div class="placeholder" data-testid="application-preview-placeholder">
+            <div class="play-overlay inline" data-testid="application-preview-play-overlay" aria-hidden="true">▶</div>
             <span class="placeholder-label" data-testid="application-preview-start-label">{$text('embeds.application_start_preview')}</span>
           </div>
         {/if}
-        <div class="play-overlay" data-testid="application-preview-play-overlay" aria-hidden="true">▶</div>
+        {#if screenshotUrl}
+          <div class="play-overlay" data-testid="application-preview-play-overlay" aria-hidden="true">▶</div>
+        {/if}
       </div>
       <div class="meta-row">
+        {#if projectSource}
+          <span data-testid="application-preview-project-folder">{projectSource.cwd || projectSource.projectName}</span>
+        {:else}
         <span>{fileCount} {$text(fileCount === 1 ? 'embeds.application_file_singular' : 'embeds.application_file_plural')}</span>
         {#if entrypointCount}
           <span>{entrypointCount} {$text(entrypointCount === 1 ? 'embeds.application_entrypoint_singular' : 'embeds.application_entrypoint_plural')}</span>
+        {/if}
         {/if}
       </div>
     </div>
@@ -249,8 +263,10 @@
 
   .placeholder {
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    gap: var(--spacing-2);
     height: 100%;
     /* Padding inside the frame height, so the bottom label is never clipped. */
     box-sizing: border-box;
@@ -279,11 +295,33 @@
     font-size: var(--font-size-small);
   }
 
+  .play-overlay.inline {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+  }
+
   .meta-row {
     display: flex;
     gap: var(--spacing-2);
     flex-wrap: wrap;
     color: var(--color-font-secondary);
     font-size: var(--font-size-xs);
+  }
+
+  /* Same "·" separator as the subtitle, so the two counts do not read as one phrase. */
+  .meta-row span + span::before {
+    content: '·';
+    margin-right: var(--spacing-2);
+  }
+
+  /* The narrow card stacks the counts; a leading dot would dangle there. */
+  .application-preview.mobile .meta-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .application-preview.mobile .meta-row span + span::before {
+    content: none;
   }
 </style>

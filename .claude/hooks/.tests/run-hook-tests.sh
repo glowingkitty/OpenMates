@@ -224,6 +224,29 @@ run_case "session-gate: file outside the repository allowed" \
   0 ""
 
 echo ""
+echo "=== bash-guard: install release-age gate ==="
+age_case() { # NAME COMMAND EXIT PATTERN
+  local payload
+  payload=$(jq -nc --arg c "$2" '{tool_name:"Bash",tool_input:{command:$c}}')
+  run_case "age-guard: $1" "bash-guard.sh" "$payload" "$3" "$4"
+}
+age_case "npm add unchecked refused" "npm install my-pkg" 2 "install_age_guard.py check"
+age_case "pip without hashes refused" "pip install my-pkg" 2 "OPENMATES_AGE_CHECKED"
+age_case "cargo add refused" "cargo add my-pkg" 2 "BLOCKED"
+age_case "fake pass-through for other pkg refused" "OPENMATES_AGE_CHECKED=npm:a@1.0.0 npm install b@1.0.0" 2 "not age-checked"
+age_case "frozen lockfile install allowed" "pnpm install --frozen-lockfile" 0 ""
+age_case "pip require-hashes allowed" "pip install -r requirements.txt --require-hashes" 0 ""
+age_case "pip editable local allowed" "pip install -e ." 0 ""
+age_case "quoted install text allowed" "git status && echo 'pip install x'" 0 ""
+age_case "credential: cat ssh private key refused" "cat ~/.ssh/id_ed25519" 2 "credential file"
+age_case "credential: grep gh hosts refused" "grep oauth_token ~/.config/gh/hosts.yml" 2 "credential file"
+age_case "credential: base64 claude credentials refused" "base64 ~/.claude/.credentials.json" 2 "credential file"
+age_case "credential: public key allowed" "cat ~/.ssh/id_ed25519.pub" 0 ""
+age_case "credential: absolute home path refused" "tail -n 3 /home/someone/.aws/credentials" 2 "credential file"
+age_case "credential: code search for the path text allowed" "grep -rn 'aws/credentials' scripts" 0 ""
+age_case "credential: ssh with key allowed" "ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes example.org true" 0 ""
+
+echo ""
 echo "================================"
 echo -e "PASS: ${GREEN}$PASS${NC}   FAIL: ${RED}$FAIL${NC}"
 if [ "$FAIL" -gt 0 ]; then

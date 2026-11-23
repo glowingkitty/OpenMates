@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@17
+specification: feature.video-call@19
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -316,9 +316,18 @@ interruption_intent:
   when: Maya murmurs mhmm, then mm-hmm, then yeahhh.
   then: Speech and generation continue uninterrupted; mhmm but show Berlin instead takes the floor at its first words.
 - id: first-words-barge-in
+  assertion_ids:
+  - video-call.audio.intentional-interruption
   given: The assistant is speaking.
   when: Maya starts a real sentence, what about prices.
   then: Playback stops at the first recognized words, before the endpoint or any model verdict.
+- id: short-echo-recapture
+  assertion_ids:
+  - video-call.audio.intentional-interruption
+  given: Maya's speakers are on and the assistant is saying it will start the chat for her.
+  when: The microphone picks up the words start the chat while that answer is playing.
+  then: No user message appears and playback continues; if Maya says the same words after playback ended, they are her
+    normal turn.
 - id: stop-during-tool
   given: A call has an unfinished tool-assisted answer and queued speech.
   when: Maya clearly asks it to stop.
@@ -486,3 +495,49 @@ orchestration_continuity:
   given: Maya asked in a call to compare three laptops, and the turn waits for three sub-chats.
   when: They finish while the call is still active.
   then: The comparison is spoken in the call in the Mate's voice.
+permission_prompt:
+- id: spoken-memory-request
+  assertion_ids:
+  - video-call.chat.permission-prompt
+  given: Maya is in a voice call and asks "what should I cook tonight, given my diet".
+  when: The turn needs her saved dietary preferences and she taps Allow on the request.
+  then: She hears the "needs you" chime and "I'd like to use your memories for this. Please tap Allow on your screen.",
+    then "Thanks, I'll continue." after the tap, and the answer is spoken.
+- id: memory-request-times-out-in-call
+  assertion_ids:
+  - video-call.chat.permission-prompt
+  given: Maya is in a voice call and a memory request shows its countdown bar.
+  when: She does not tap for about 30 seconds.
+  then: She hears a reminder at about 15 seconds; at about 30 seconds she hears "No problem, I'll answer without your
+    memories.", the chat shows "Memory request timed out, answered without memories" and the spoken answer follows.
+permission_prompt_followups:
+- id: text-chat-continue-without-memories
+  given: Maya types a question in a text chat and a memory request appears.
+  when: She leaves it for a minute, then taps "Continue without memories".
+  then: The request stays open until her tap, and the answer then comes without memories.
+- id: focus-answer-stays-spoken
+  given: Maya is in a voice call and her question activates a focus mode after its countdown.
+  when: The focus mode starts.
+  then: The answer in the focus mode is spoken in the call, not only shown as text.
+stt_special_terms:
+- id: bakery-terms-in-a-call
+  given: Maya's chat about her bakery lists the special terms "Franzbrötchen" and "Backstube Maya".
+  when: She starts a call in that chat and says both words.
+  then: Her transcript spells them as listed. The list travels only over the call connection; the server uses it for
+    that call, never stores or logs it, and an over-long list is refused without ending the call.
+pasted_text:
+- id: pasted-recipe-is-summarised
+  given: Maya is in a voice call.
+  when: She pastes a long soup recipe into the composer and sends it, then types "how long does it take?".
+  then: The assistant does not read the recipe aloud; it says what the recipe is about and offers help. The typed
+    question is answered aloud as usual.
+waiting_merge:
+- id: wait-then-continue-is-one-turn
+  given: Maya is in a voice call.
+  when: She says "book a table for... hold on a second", talks to someone else, then says "okay, for four at eight".
+  then: The call waits quietly after "Okay, I'm waiting." and sends one turn, "book a table for four at eight",
+    after she continues.
+- id: repeat-last-answer
+  given: Maya missed the assistant's last spoken answer.
+  when: She says "sorry, can you say that again?".
+  then: The stored last answer is played and shown again without a new model request and without credits.

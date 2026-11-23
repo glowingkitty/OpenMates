@@ -78,3 +78,14 @@ def test_configured_test_accounts_and_time_formats():
     assert parse_moment("1763028000") == datetime.fromtimestamp(1763028000, tz=timezone.utc)
     assert parse_moment("2026-11-13T09:00:00Z") == datetime(2026, 11, 13, 9, tzinfo=timezone.utc)
     assert parse_moment("garbage") is None and parse_moment(None) is None
+
+
+def test_flagged_test_accounts_and_their_purchases_are_left_out():
+    users = [_user("uid-real", started=NOW - timedelta(hours=3), online=NOW - timedelta(hours=1)),
+             {**_user("uid-bot", started=NOW - timedelta(hours=3), online=NOW), "is_test_account": True}]
+    invoices = [_invoice("uid-real", NOW - timedelta(hours=2)), _invoice("uid-bot", NOW - timedelta(hours=2))]
+    m = compute_growth_metrics(users, invoices, now=NOW, since=SINCE, excluded_email_hashes=set())
+    assert m["total_users"] == 1 and m["excluded_accounts"] == 1
+    assert m["paying_users_total"] == 1
+    assert m["periods"]["since_last_meeting"]["credit_purchases"] == 1
+    assert m["periods"]["since_last_meeting"]["signups_started"] == 1

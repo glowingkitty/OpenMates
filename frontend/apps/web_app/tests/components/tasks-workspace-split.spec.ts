@@ -34,7 +34,7 @@ test('task and Workflow run details split the full Tasks workspace', async ({ pa
   expect(composerBox!.x).toBeGreaterThanOrEqual(workspaceBox!.x);
   expect(composerBox!.x + composerBox!.width).toBeLessThanOrEqual(workspaceBox!.x + workspaceBox!.width + 1);
   await expect(page.getByTestId('task-greeting')).toBeVisible();
-  await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeAttached();
+  await expect(page.getByTestId('tasks-daily-inspiration-area')).toHaveCount(0);
   await expect(detail.getByRole('alert')).toHaveCount(0);
   await testInfo.attach('tasks-workspace-task-split', { body: await page.getByTestId('tasks-workspace-layout').screenshot(), contentType: 'image/png' });
 

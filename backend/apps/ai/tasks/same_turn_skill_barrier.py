@@ -7,6 +7,7 @@ Provider results are sealed by the existing API-process private context handoff.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 import uuid
@@ -14,8 +15,10 @@ import base64
 import zlib
 from typing import Any
 
-from backend.apps.ai.tasks.result_embed_references import completed_result_embed_ids
+from backend.apps.ai.tasks.result_embed_references import completed_command_embed_ids, completed_result_embed_ids
 from backend.shared.python_utils.skill_use_body_refs import is_skill_use_ref
+
+logger = logging.getLogger(__name__)
 
 PREFIX = "same_turn_skill"
 TTL_SECONDS = 90 * 60
@@ -105,14 +108,82 @@ async def register_barrier(
     await cache.set(f"{PREFIX}:source:{source_delivery_task_id}", batch_id, ttl=TTL_SECONDS)
 
 
+INLINE_IMAGE_OMITTED_TEXT = (
+    "[An image was inspected earlier in this turn. Its pixels are not kept while the turn "
+    "waits for a skill result; call the view skill again if the pixels are needed.]"
+)
+
+
+def _is_inline_image_block(value: Any) -> bool:
+    if not isinstance(value, dict) or value.get("type") not in {"image_url", "input_image"}:
+        return False
+    image = value.get("image_url")
+    url = image.get("url") if isinstance(image, dict) else image
+    return isinstance(url, str) and url.startswith("data:")
+
+
+def compact_inline_images(value: Any) -> Any:
+    """Replace inline base64 image blocks (from view skills) with a short text block.
+
+    A view skill hands the model the uploaded image as a data URL inside the
+    tool result. Those bytes are incompressible and alone exceed the sealed
+    handoff, so a paused turn keeps only the text parts of that result; the
+    model has already seen the pixels and the producing skill reads its input
+    image by reference. The transform is deterministic, so the transcript and
+    the native snapshot taken from it stay equal after restore.
+    """
+    if _is_inline_image_block(value):
+        return {"type": "text", "text": INLINE_IMAGE_OMITTED_TEXT}
+    if isinstance(value, list):
+        return [compact_inline_images(item) for item in value]
+    if isinstance(value, dict):
+        return {key: compact_inline_images(item) for key, item in value.items()}
+    return value
+
+
+def _compressed_size(value: Any) -> int:
+    return len(zlib.compress(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 6))
+
+
+def _entry_label(entry: Any) -> str:
+    """Role and tool name of one history entry; never its content."""
+    if not isinstance(entry, dict):
+        return type(entry).__name__
+    role = str(entry.get("role") or entry.get("type") or "?")[:20]
+    name = entry.get("name") or entry.get("tool_name")
+    calls = entry.get("tool_calls")
+    if not name and isinstance(calls, list) and calls and isinstance(calls[0], dict):
+        name = (calls[0].get("function") or {}).get("name") if isinstance(calls[0].get("function"), dict) else None
+    return f"{role}:{str(name)[:40]}" if name else role
+
+
+def checkpoint_size_breakdown(request_payload: dict[str, Any], checkpoint: dict[str, Any]) -> dict[str, Any]:
+    """Compressed byte sizes per checkpoint part and the largest history entries, for diagnosing
+    an oversized handoff. Sizes and labels only: no message text, file content or keys."""
+    parts = {f"checkpoint.{key}": _compressed_size(compact_inline_images(value))
+             for key, value in checkpoint.items()}
+    parts["request"] = _compressed_size(compact_inline_images(request_payload))
+    history = checkpoint.get("current_message_history")
+    largest: list[tuple[int, str]] = []
+    if isinstance(history, list):
+        largest = sorted(((len(json.dumps(compact_inline_images(entry), ensure_ascii=False)), _entry_label(entry))
+                          for entry in history), reverse=True)[:6]
+    top_parts = dict(sorted(parts.items(), key=lambda item: item[1], reverse=True)[:6])
+    return {"parts": top_parts, "history_entries": len(history) if isinstance(history, list) else None,
+            "largest_history_entries_raw": largest}
+
+
 def pack_private_checkpoint(request_payload: dict[str, Any], checkpoint: dict[str, Any]) -> dict[str, str]:
     """One bounded JSON copy of the private turn in the API-only sealed handoff."""
-    raw = json.dumps({"request": request_payload, "checkpoint": checkpoint}, ensure_ascii=False,
+    raw = json.dumps({"request": compact_inline_images(request_payload),
+                      "checkpoint": compact_inline_images(checkpoint)}, ensure_ascii=False,
                      separators=(",", ":")).encode("utf-8")
     if len(raw) > 4_000_000:
         raise RuntimeError("Same-turn private checkpoint exceeds the bounded handoff")
     compressed = zlib.compress(raw, level=6)
     if len(compressed) > 140_000:
+        logger.warning("Same-turn checkpoint over the handoff limit: compressed=%d raw=%d parts=%s",
+                       len(compressed), len(raw), checkpoint_size_breakdown(request_payload, checkpoint))
         raise RuntimeError("Same-turn private checkpoint cannot fit in transient handoff")
     return {"codec": "json-zlib-base64-v1", "data": base64.b64encode(compressed).decode("ascii")}
 
@@ -351,6 +422,8 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
     generated_aliases = dict(checkpoint.get("generated_embed_aliases") or {})
     authored_inline_outputs = list(checkpoint.get("authored_inline_outputs") or [])
     result_embed_ids: list[str] = list(getattr(request, "completed_result_embed_ids", None) or [])
+    command_embed_ids: list[str] = list(getattr(request, "completed_command_embed_ids", None) or [])
+    sandbox_command_results: list[dict[str, Any]] = []
     for job, slot in zip(jobs, slots):
         if not isinstance(job, dict) or not isinstance(slot, dict) or job.get("task_id") != slot.get("task_id"):
             raise RuntimeError("Same-turn completion order changed")
@@ -377,6 +450,12 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
         for embed_id in completed_result_embed_ids(payload.get("results")):
             if embed_id not in result_embed_ids:
                 result_embed_ids.append(embed_id)
+        for embed_id in completed_command_embed_ids(payload.get("results")):
+            if embed_id not in command_embed_ids:
+                command_embed_ids.append(embed_id)
+        if (job.get("app_id"), job.get("skill_id")) == ("code", "run"):
+            sandbox_command_results.extend(row for row in payload.get("results") or []
+                                           if isinstance(row, dict) and isinstance(row.get("write_back"), dict))
         if job.get("app_id") in {"images", "audio", "music", "videos", "models3d"} or (
             job.get("app_id") == "code" and job.get("skill_id") == "image_to_html"
         ) or (job.get("app_id") == "design" and job.get("skill_id") == "embroidery"):
@@ -404,6 +483,10 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
         by_call.setdefault(str(job["tool_call_id"]), []).append(payload)
     if result_embed_ids:
         request.completed_result_embed_ids = result_embed_ids
+    if command_embed_ids:
+        request.completed_command_embed_ids = command_embed_ids
+    if sandbox_command_results:
+        _attach_project_command_outcomes(request, sandbox_command_results)
     checkpoint["generated_embed_refs"] = generated_refs
     checkpoint["generated_embed_aliases"] = generated_aliases
     checkpoint["authored_inline_outputs"] = authored_inline_outputs
@@ -451,3 +534,14 @@ async def verify_resume_delivery(cache: Any, request: Any, delivery_task_id: str
     if not isinstance(request.same_turn_checkpoint, dict):
         return False
     return True
+
+
+def _attach_project_command_outcomes(request: Any, results: list[dict[str, Any]]) -> None:
+    """Passing builds of the batch get app cards (the files themselves show as code embeds)."""
+    from backend.apps.ai.processing.project_app_preview_card import built_app_folders
+
+    focus = getattr(request, "active_project_focus", None) or {}
+    project_id = focus.get("project_id")
+    if not isinstance(project_id, str) or not project_id:
+        return
+    request.project_app_folders = built_app_folders(results) or None

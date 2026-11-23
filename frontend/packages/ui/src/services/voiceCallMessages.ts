@@ -14,7 +14,7 @@ import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
 import { initialChatHistoryGate } from "./initialChatHistoryGate";
 import { matesMetadata } from "../data/matesMetadata";
 import { userDB } from "./userDB";
-import { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId, type VoiceCallLifecycleEvent } from "./voiceCallLifecycleEvent";
+import { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId, voiceCallWaitingMessageId, type VoiceCallLifecycleEvent } from "./voiceCallLifecycleEvent";
 import { getPendingChatDeletionsSet } from "./pendingChatDeletions";
 
 export interface CallTranscriptUpdate {
@@ -47,6 +47,11 @@ const CONTEXT_WINDOW_SIZE = 24;
 const MAX_CONTEXT_SCAN_MESSAGES = 120;
 const MAX_CONTEXT_CHARS = 64_000;
 const MAX_CHECKPOINT_CHARS = 48_000;
+/** The voice call reports and retries its spoken turns' rejections itself. */
+export function ownVoiceTurnErrors(turnId: string): () => void {
+  return webSocketService.ownTurnErrors(turnId);
+}
+
 export class VoiceCallContextError extends Error {
   constructor(readonly code: "context_too_large" | "context_unavailable") { super(code); }
 }
@@ -155,12 +160,24 @@ export async function prepareVoiceCallChat(existingChatId?: string, transportOnl
     if (!chat || chat.team_id || chat.chat_visibility === "direct" || chat.is_incognito || chat.is_anonymous
       || (chat.user_id && chat.user_id !== profile.user_id)) throw new Error("Voice calls need an owned personal chat");
     chatId = existingChatId;
-    const key = await chatKeyManager.getKey(chatId);
-    if (!key) throw new Error("Chat key unavailable for voice call");
-    chatKey = key;
-    // Use the persisted wrapper verbatim. Rewrapping the same raw key produces
-    // different ciphertext and cannot prove an existing server key matches.
-    encryptedChatKey = chat.encrypted_chat_key ?? await chatDB.getEncryptedChatKey(chatId);
+    const persistedWrapper = chat.encrypted_chat_key ?? await chatDB.getEncryptedChatKey(chatId);
+    const unsentDraftShell = !persistedWrapper && !chat.messages_v && Boolean(chat.encrypted_draft_md);
+    if (!unsentDraftShell) {
+      if (!persistedWrapper) throw new Error("Chat key unavailable for voice call");
+      const key = await chatKeyManager.getKey(chatId);
+      if (!key) throw new Error("Chat key unavailable for voice call");
+      chatKey = key;
+      // Use the persisted wrapper verbatim. Rewrapping the same raw key produces
+      // different ciphertext and cannot prove an existing server key matches.
+      encryptedChatKey = persistedWrapper;
+    } else {
+      // An unsent draft's shell row (written by the core's draft save) has no
+      // chat key yet; the first send creates it the same way
+      // (sendersChatMessages), and so does the call that binds to the draft.
+      const created = await chatKeyManager.createAndPersistKeyLocked(chatId);
+      chatKey = created.chatKey;
+      encryptedChatKey = created.encryptedChatKey;
+    }
     createdAt = chat.created_at;
   } else {
     chatId = crypto.randomUUID();
@@ -650,11 +667,13 @@ export async function markTypedCallMessageFailed(callId: string, chatId: string,
  */
 export async function recordCallLifecycle(event: VoiceCallLifecycleEvent): Promise<void> {
   if (!event.chatId || !/^[A-Za-z0-9_-]{8,128}$/.test(event.callId) ||
-      !["started", "ended"].includes(event.type) || !Number.isSafeInteger(event.occurredAt) ||
+      !["started", "ended", "waiting_start", "waiting_resume"].includes(event.type) || !Number.isSafeInteger(event.occurredAt) ||
       event.occurredAt <= 0 || !Number.isFinite(event.activeElapsedSeconds) || event.activeElapsedSeconds < 0) {
     throw new Error("Invalid voice call lifecycle event");
   }
-  const messageId = voiceCallLifecycleMessageId(event.callId, event.type);
+  const messageId = event.type === "waiting_start" || event.type === "waiting_resume"
+    ? voiceCallWaitingMessageId(event.callId, event.type, event.occurredAtMs ?? Date.now())
+    : voiceCallLifecycleMessageId(event.callId, event.type);
   await serializeMessage(messageId, async () => {
     const identity = getWorkspaceCacheIdentity();
     const chat = await chatDB.getChat(event.chatId);

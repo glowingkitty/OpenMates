@@ -169,7 +169,11 @@ def test_routing_hint_names_the_web_source_only_next_to_a_provider_hint():
     overlay._add_web_source_hint("events", skill)
     hint = skill["preprocessor_hint"]
     assert hint.endswith(" Search events in a city.") and "public web pages" in hint
-    assert hint.startswith("Prefer this over web search")
+    # Stage-one app routing reads only the first ~100 characters of the first sentence: that
+    # sentence alone says what the skill finds and that it beats web search.
+    first_sentence = hint.split(". ", 1)[0]
+    assert len(first_sentence) <= 100 and first_sentence.startswith("Find events and conferences")
+    assert "prefer this over web search" in first_sentence
     bare = {"id": "search"}
     overlay._add_web_source_hint("events", bare)
     other = {"id": "search_stays", "preprocessor_hint": "Stays."}
@@ -214,3 +218,48 @@ def test_events_app_declares_reachable_installed_provider_descriptions():
     overlay._apply_installed_descriptions(skill)
     requests = skill["tool_schema"]["properties"]["requests"]
     assert "Europe" in requests["description"] and "unavailable" not in requests["description"]
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
+def test_open_ended_event_search_also_looks_for_next_years_edition() -> None:
+    from datetime import date
+
+    today = date(2026, 11, 20)
+    request = {"query": "Example conference", "location": "Example City"}
+    # Late in a year the next edition of an annual event is dated the year after the start date.
+    assert extraction.search_query(extraction.KIND_EVENT, {**request, "start_date": "2026-11-20T20:00:00+01:00"},
+                                   today) == "Example conference Example City 2026 2027"
+    assert extraction.search_query(extraction.KIND_EVENT, request, today) == "Example conference Example City 2026 2027"
+    # A window that ends in its start year stays in that year.
+    assert extraction.search_query(extraction.KIND_EVENT, {**request, "start_date": "2026-03-01",
+                                                           "end_date": "2026-06-30"}, today) == \
+        "Example conference Example City 2026"
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
+@pytest.mark.anyio
+async def test_a_named_events_official_page_is_read_before_second_pages_of_one_site(monkeypatch):
+    """Several pages of one site must not take the page budget (and reader queue) from other sites."""
+    read_urls: List[str] = []
+    top = "https://conf.example.org/2027/"
+
+    async def search(query, secrets_manager, **kwargs):
+        return {"results": [{"url": top}, {"url": "https://conf.example.org/2027/news/"},
+                            {"url": "https://conf.example.org/2027/calendar/"},
+                            {"url": "https://conf.example.org/2027/about/"},
+                            {"url": "https://archive.example.org/2026/"}, {"url": "https://wiki.example.org/Conf"}]}
+
+    async def read(url, **kwargs):
+        read_urls.append(url)
+        return {"markdown": EVENT_PAGE, "title": "Conferences"}
+
+    async def complete(kind, request, page_url, page_title, page_text, **kwargs):
+        return [{"title": "Libre Days", "date_start": "2027-01-14"}], 10, 5
+
+    monkeypatch.setattr(extraction, "search_web", search)
+    monkeypatch.setattr(extraction, "read_public_web_page", read)
+    monkeypatch.setattr(extraction, "complete_page", complete)
+    outcome = await extraction.extract_web_results(extraction.KIND_EVENT, {"query": "Libre Days"},
+                                                   secrets_manager=None)
+    assert read_urls[:3] == [top, "https://archive.example.org/2026/", "https://wiki.example.org/Conf"]
+    assert len(read_urls) == extraction.MAX_PAGES and top in {row["source_page_url"] for row in outcome.results}

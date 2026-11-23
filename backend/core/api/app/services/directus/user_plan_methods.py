@@ -375,6 +375,12 @@ class UserPlanMethods:
             return plan
         return None
 
+    async def plan_id_exists(self, plan_id: str) -> bool:
+        """True when any owner (user or Team) already holds this plan_id."""
+        params = {"filter[plan_id][_eq]": plan_id, "fields": "plan_id", "limit": 1}
+        rows = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
+        return bool(rows)
+
     async def create_plan(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         if not _validate_create_project_links(payload):
             return None

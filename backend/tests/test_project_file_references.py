@@ -7,8 +7,10 @@ from types import ModuleType, SimpleNamespace
 import pytest
 from toon_format import decode
 
+from backend.apps.ai.processing import project_file_references
 from backend.apps.ai.processing.project_file_references import (
-    build_project_file_reference_preview, publish_project_file_reference_preview,
+    build_project_file_reference_preview, publish_inline_project_file_reference,
+    publish_project_file_reference_preview,
 )
 
 
@@ -259,3 +261,57 @@ async def test_new_turn_after_dispatch_prevents_reference_publication(monkeypatc
             request_data=request, cache_service=Cache(), directus_service=object(),
             encryption_service=object(), user_vault_key_id="vault-key", task_id="task", log_prefix="",
         )
+
+
+# contract-test: supporting surface=rest_api assertions=projects.agentic.earlier-steps-stay
+def test_multi_path_read_builds_one_reference_per_file() -> None:
+    ctx = context("project_read_text")
+    ctx["tool_arguments"] = {"paths": ["a.md", "docs/b.md"]}
+    preview = build_project_file_reference_preview(
+        context=ctx, result_status="completed",
+        completed_results=[{"status": "completed", "source_id": "src", "files": [
+            {"status": "completed", "path": "a.md", "content": "DO_NOT_COPY"},
+            {"status": "completed", "path": "docs/b.md"},
+            {"status": "rejected", "path": "missing.md"}]}],
+    )
+    assert preview["skill_id"] == "read"
+    assert [row["path"] for row in preview["results"]] == ["a.md", "docs/b.md"]
+    assert "DO_NOT_COPY" not in json.dumps(preview)
+
+
+# contract-test: supporting surface=rest_api assertions=projects.agentic.earlier-steps-stay
+@pytest.mark.asyncio
+async def test_inline_sandbox_read_publishes_the_same_reference_only_card(monkeypatch) -> None:
+    published = {}
+
+    async def fake_publish(**kwargs):
+        published.update(kwargs)
+        return '{"type": "app_skill_use", "embed_id": "read-card"}'
+
+    monkeypatch.setattr(project_file_references, "publish_project_file_reference_preview", fake_publish)
+    request = SimpleNamespace(
+        active_project_focus={"project_id": "project"}, team_id=None,
+        project_focus_candidates=[{"project_id": "project", "name": "Recipe Manager"}],
+    )
+    envelope = {"status": "completed", "operation": "read_text", "path": "web-app/src/App.tsx",
+                "embed_id": "file-embed", "content": "DO_NOT_COPY", "expected_base": "f" * 64}
+    reference = await publish_inline_project_file_reference(
+        request_data=request, skill_id="project_read_text",
+        operation_arguments={"path": "web-app/src/App.tsx"}, envelope=envelope,
+        cache_service=object(), directus_service=object(), encryption_service=object(),
+        user_vault_key_id="vault", task_id="task", log_prefix="",
+    )
+    assert reference and published["inline"] is True
+    preview = published["preview"]
+    assert preview["project_name"] == "Recipe Manager" and preview["skill_id"] == "read"
+    assert preview["results"] == [{"project_id": "project", "project_name": "Recipe Manager",
+                                   "path": "web-app/src/App.tsx", "embed_id": "file-embed",
+                                   "expected_base": "f" * 64}]
+    assert "DO_NOT_COPY" not in json.dumps(preview)
+    # A rejected read shows no card.
+    published.clear()
+    assert await publish_inline_project_file_reference(
+        request_data=request, skill_id="project_read_text", operation_arguments={"path": "x.md"},
+        envelope={"status": "rejected"}, cache_service=object(), directus_service=object(),
+        encryption_service=object(), user_vault_key_id="vault", task_id="task", log_prefix="",
+    ) is None and not published

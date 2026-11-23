@@ -8,7 +8,7 @@
 #    Runs in the same app-ai-worker context as the AI task.
 #
 # 2. generate_daily_inspirations (Celery task, scheduled by Beat)
-#    Runs once per day. Scans all active users and generates a 10-item mixed set
+#    Runs once per day. Scans all active users and generates a 6-item mixed set
 #    for users who viewed at least one inspiration the previous day.
 #    Users are processed sequentially to respect Brave and LLM rate limits.
 #
@@ -38,8 +38,7 @@ from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e
 logger = logging.getLogger(__name__)
 DAILY_VIDEO_COUNT = 3
 DAILY_WIKI_COUNT = 3
-DAILY_FEATURE_COUNT = 4
-DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT
+DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT
 
 # Cache key to mark that a user has already received their first-run inspirations.
 # Prevents re-triggering on every paid request after the first one.
@@ -84,9 +83,7 @@ async def generate_and_deliver_inspirations_for_user(
     Returns:
         True if generation and delivery succeeded, False on error
     """
-    from backend.apps.ai.daily_inspiration.feature_suggestions import (
-        build_feature_inspirations, has_complete_daily_inspiration_set,
-    )
+    from backend.apps.ai.daily_inspiration.schemas import has_complete_daily_inspiration_set
     from backend.apps.ai.daily_inspiration.content_filter import check_daily_inspiration_entry
     from backend.apps.ai.daily_inspiration.generator import generate_inspirations
     from backend.apps.ai.daily_inspiration.wiki_generator import generate_wiki_inspirations
@@ -104,8 +101,8 @@ async def generate_and_deliver_inspirations_for_user(
     )
 
     # Run generation (language controls LLM phrase language + Brave search locale).
-    # Keep the expensive video pipeline capped at 3, then add cheaper wiki and
-    # static feature cards to reach the daily 10-item set.
+    # Keep the expensive video pipeline capped at 3, then add 3 wiki cards to
+    # reach the daily 6-item set.
     video_inspirations = await generate_inspirations(
         user_id=user_id,
         count=min(count, DAILY_VIDEO_COUNT),
@@ -121,8 +118,7 @@ async def generate_and_deliver_inspirations_for_user(
         language=language,
         task_id=f"{task_id}_wiki",
     )
-    feature_inspirations = build_feature_inspirations(DAILY_FEATURE_COUNT, language=language)
-    inspirations = video_inspirations + wiki_inspirations + feature_inspirations
+    inspirations = video_inspirations + wiki_inspirations
 
     policy_checked_inspirations = []
     for inspiration in inspirations:
@@ -135,7 +131,6 @@ async def generate_and_deliver_inspirations_for_user(
             "video_title": inspiration.video.title if inspiration.video else None,
             "video_channel_name": inspiration.video.channel_name if inspiration.video else None,
             "wiki_metadata": inspiration.wiki.model_dump() if inspiration.wiki else None,
-            "feature_metadata": inspiration.feature.model_dump() if inspiration.feature else None,
         }
         policy_result = check_daily_inspiration_entry(policy_entry)
         if policy_result["verdict"] == "REJECT":
@@ -214,7 +209,6 @@ async def generate_and_deliver_inspirations_for_user(
                         video_duration_seconds=insp.video.duration_seconds if insp.video else None,
                         video_published_at=insp.video.published_at if insp.video else None,
                         wiki_metadata=insp.wiki.model_dump() if insp.wiki else None,
-                        feature_metadata=insp.feature.model_dump() if insp.feature else None,
                         follow_up_suggestions=insp.follow_up_suggestions,
                         generated_at=insp.generated_at,
                     )
@@ -472,7 +466,7 @@ def generate_daily_inspirations(self):
 
     Scheduled by Beat (see celery_config.py beat_schedule).
     Active = made at least one paid request in the last 24 hours.
-    Count = if the user viewed any inspiration, generate the full 10-item mixed set.
+    Count = if the user viewed any inspiration, generate the full 6-item mixed set (3 video + 3 wiki).
     Users with 0 views get no new inspirations (cost optimization).
 
     Processing is sequential per user to respect API rate limits.

@@ -1,9 +1,12 @@
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.confirmed-action-haptics
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.web.duplicate-grouping, notifications.web.duplicate-lifecycle
 // Shared in-app notifications using the rendered web notification card.
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte: frontend/packages/ui/src/components/Notification.svelte
 //         frontend/packages/ui/src/components/NotificationStack.svelte
+//         frontend/packages/ui/src/components/NotificationRepeatCount.svelte
 // CSS: .notification, .notification-header, .notification-content,
 //      .notification-progress, .notification-activity, .notification-action-row,
 //      .notification-action-btn-primary/secondary, notificationSlideIn/Out
@@ -29,8 +32,12 @@ final class ToastManager: ObservableObject {
         let duration: TimeInterval
         let title: String
         let isProcessing: Bool
+        /// The first explicit key; `dedupeKeys` holds every key this card stands for.
         let dedupeKey: String?
         let hapticScope: UUID
+        /// Every trigger shown by this card; the card shows ×N from two on.
+        var count = 1
+        var dedupeKeys: [String] = []
     }
 
     enum ToastType: Equatable {
@@ -60,19 +67,45 @@ final class ToastManager: ObservableObject {
 
     func show(_ message: String, type: ToastType = .info, duration: TimeInterval = 3,
               title: String = "", isProcessing: Bool = false, dedupeKey: String? = nil) {
-        let existing = dedupeKey.flatMap { key in notifications.first { $0.dedupeKey == key } }
-        let id = existing?.id ?? UUID()
+        // A key owned by a card updates that card in place (status cards such as the connection).
+        if let key = dedupeKey, let index = notifications.firstIndex(where: { $0.dedupeKeys.contains(key) }) {
+            let existing = notifications[index]
+            let same = existing.type == type && existing.title == title && existing.message == message
+                && existing.isProcessing == isProcessing
+            var updated = Toast(id: existing.id, message: message, type: type, duration: duration,
+                                title: title, isProcessing: isProcessing, dedupeKey: existing.dedupeKey,
+                                hapticScope: existing.hapticScope)
+            updated.count = same ? existing.count + 1 : existing.count
+            updated.dedupeKeys = existing.dedupeKeys
+            notifications[index] = updated
+            restartTimer(id: existing.id, duration: duration)
+            if !same { AccessibilityAnnouncement.announce(message) }
+            return
+        }
+        // The same visible text joins one card with a counter, whatever its source key.
+        if let index = notifications.firstIndex(where: { $0.type == type && $0.title == title
+            && $0.message == message && $0.isProcessing == isProcessing }) {
+            notifications[index].count += 1
+            if let key = dedupeKey { notifications[index].dedupeKeys.append(key) }
+            // A trigger that must stay until closed keeps the card open.
+            if duration <= 0 {
+                dismissTasks[notifications[index].id]?.cancel()
+                dismissTasks[notifications[index].id] = nil
+            }
+            return
+        }
+        var notification = Toast(id: UUID(), message: message, type: type, duration: duration,
+                                 title: title, isProcessing: isProcessing, dedupeKey: dedupeKey,
+                                 hapticScope: OfflineStore.shared.scopeGeneration)
+        notification.dedupeKeys = dedupeKey.map { [$0] } ?? []
+        notifications.append(notification)
+        AccessibilityAnnouncement.announce(message)
+        restartTimer(id: notification.id, duration: duration)
+    }
+
+    private func restartTimer(id: UUID, duration: TimeInterval) {
         dismissTasks[id]?.cancel()
         dismissTasks[id] = nil
-        let notification = Toast(id: id, message: message, type: type, duration: duration,
-                                 title: title, isProcessing: isProcessing, dedupeKey: dedupeKey,
-                                 hapticScope: existing?.hapticScope ?? OfflineStore.shared.scopeGeneration)
-        if let index = notifications.firstIndex(where: { $0.id == id }) {
-            notifications[index] = notification
-        } else {
-            notifications.append(notification)
-        }
-        AccessibilityAnnouncement.announce(message)
         guard duration > 0 else { return }
         dismissTasks[id] = Task {
             do { try await Task.sleep(for: .seconds(duration)) } catch { return }
@@ -87,8 +120,14 @@ final class ToastManager: ObservableObject {
         notifications.removeAll { $0.id == id }
     }
 
+    /// Resolve one key; a card standing for other keys stays until its last key is resolved.
     func dismiss(dedupeKey: String) {
-        if let id = notifications.first(where: { $0.dedupeKey == dedupeKey })?.id { dismiss(id: id) }
+        guard let index = notifications.firstIndex(where: { $0.dedupeKeys.contains(dedupeKey) }) else { return }
+        if notifications[index].dedupeKeys.count == 1 {
+            dismiss(id: notifications[index].id)
+        } else {
+            notifications[index].dedupeKeys.removeAll { $0 == dedupeKey }
+        }
     }
 
     func dismiss() {
@@ -135,6 +174,7 @@ struct InAppNotificationCard: View {
     var primaryAction: InAppNotificationAction?
     var secondaryAction: InAppNotificationAction?
     var downloadFraction: Double?
+    var count = 1
     let onDismiss: () -> Void
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     #if DEBUG && targetEnvironment(simulator)
@@ -158,6 +198,16 @@ struct InAppNotificationCard: View {
                 Text(title).font(.omXxs).fontWeight(.medium).foregroundStyle(Color.grey50)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("notification-title")
+                if count > 1 {
+                    // NotificationRepeatCount.svelte: pill, grey-30, 0.75rem semibold, tabular digits.
+                    Text("×\(count)").font(.omXxs).fontWeight(.semibold).monospacedDigit()
+                        .foregroundStyle(Color.fontPrimary)
+                        .padding(.horizontal, .spacing3).padding(.vertical, .spacing1)
+                        .frame(minWidth: 28)
+                        .background(Color.grey30, in: Capsule())
+                        .accessibilityLabel(AppStrings.notificationOccurrenceCount(count))
+                        .accessibilityIdentifier("notification-repeat-count")
+                }
                 Button(action: onDismiss) {
                     Icon("close", size: .iconSizeSm).foregroundStyle(Color.grey90)
                         .padding(.spacing2)
@@ -358,7 +408,7 @@ struct ToastOverlay: View {
     private func notificationCard(_ toast: ToastManager.Toast, depth: Int, width: CGFloat) -> some View {
         InAppNotificationCard(title: toast.title, message: toast.message, type: toast.type,
             duration: toast.duration, isProcessing: toast.isProcessing,
-            compact: width <= 450, isInteractive: depth == 0,
+            compact: width <= 450, isInteractive: depth == 0, count: toast.count,
             onDismiss: { manager.dismiss(id: toast.id) })
             .frame(width: min(430, max(0, width - (width <= 450 ? 20 : 40))))
             .scaleEffect(1 - CGFloat(depth) * 0.045, anchor: .top)

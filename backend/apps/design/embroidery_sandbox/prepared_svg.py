@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from xml.sax.saxutils import quoteattr
 
-from .geometry import Prepared, Shape2D, multipolygon_rings
-from .presets import fill_params, running_params, satin_params
+from .geometry import BORDER_INDEX, Prepared, Shape2D, multipolygon_rings
+from .presets import border_satin_params, fill_params, running_params, satin_params
 
 INKSTITCH_NS = "http://inkstitch.org/namespace"
 # Palette name as Ink/Stitch reads it from "InkStitch Madeira Polyneon.gpl" (prefix stripped).
@@ -61,7 +61,8 @@ def _element(number: int, shape: Shape2D, fabric: str) -> str:
         # Two rails with equally many points: Ink/Stitch pairs them point by point.
         path = "".join(_line_path(list(rail.coords)) for rail in shape.rails)
         style = f"fill:none;stroke:{shape.colour};stroke-width:0.3;stroke-linejoin:round;stroke-linecap:butt"
-        params = satin_params(fabric, shape.width)
+        params = (border_satin_params(fabric, shape.width) if shape.index == BORDER_INDEX
+                  else satin_params(fabric, shape.width))
     else:
         path = _line_path(list(shape.geom.coords))
         style = (f"fill:none;stroke:{shape.colour};stroke-width:{_num(max(shape.width, 0.1))};"

@@ -77,6 +77,9 @@
     type ProjectRemoteSearchResult,
     type ProjectRemoteTextResult,
   } from '../../services/projectService';
+  import {
+    PROJECT_PRESENTATION_AVAILABLE, backfillProjectPresentations, saveProjectPresentationByUser,
+  } from '../../services/projectPresentationService';
   import { PROJECT_RUST_CORE, decideProject } from '../../services/projectState/decide';
   import {
     buildRemoteFileUploadCandidate,
@@ -114,6 +117,8 @@
 
   interface PreviewState {
     project: ProjectViewModel;
+    /** Several Projects for the home tiles; defaults to `[project]`. */
+    projects?: ProjectViewModel[];
     startAtHome?: boolean;
     folders?: ProjectFolderViewModel[];
     items?: ProjectItemViewModel[];
@@ -349,14 +354,32 @@
     ? virtualBrowserView.items
     : items.filter((item) => (item.encrypted.hashed_folder_id ?? null) === currentFolderHash));
   let browserSources = $derived(!activeRemoteSourceId && currentFolderHash === null && currentVirtualPath === null ? sources : []);
-  let projectLandingItems = $derived<ProjectContinueItem[]>(recentProjects.map((project) => ({
-    id: project.project_id,
-    title: project.name || 'Untitled project',
-    category: 'productivity',
-    appId: 'projects',
-    icon: 'folder',
-    source: 'recent',
-  })));
+  // A categorised Project uses its category's chat gradient (empty appId skips the
+  // Projects app gradient); without a category the tile keeps the Projects look.
+  function projectTile(project: ProjectViewModel): ProjectContinueItem {
+    const category = project.category || '';
+    const icon = project.icon && project.icon !== 'folder' ? project.icon : (category ? '' : 'folder');
+    return {
+      id: project.project_id,
+      title: project.name || 'Untitled project',
+      summary: project.description || null,
+      category: category || 'productivity',
+      appId: category ? '' : 'projects',
+      icon,
+      source: 'recent',
+    };
+  }
+  let projectLandingItems = $derived<ProjectContinueItem[]>(recentProjects.map(projectTile));
+  // Start-screen end-of-row actions (same pattern as Apps and Workflows, TASK-1321):
+  // "Show all projects" opens the shell's all-items grid; "Search" opens it with a filter.
+  let showAllProjects = $state(false);
+  let projectSearchOpen = $state(false);
+  let projectSearchQuery = $state('');
+  let projectSearchInput = $state<HTMLInputElement | null>(null);
+  let normalizedProjectSearch = $derived(projectSearchQuery.trim().toLocaleLowerCase());
+  let allProjectItems = $derived<ProjectContinueItem[]>(sortedProjects
+    .filter((project) => !normalizedProjectSearch || (project.name || 'Untitled project').toLocaleLowerCase().includes(normalizedProjectSearch))
+    .map(projectTile));
   let projectTabs = $derived([
     { id: 'overview', icon: 'project', label: 'Overview' },
     { id: 'folders', icon: 'files', label: 'Files' },
@@ -738,6 +761,11 @@
         if (current) selectedProject = current;
         else clearSelectedProject();
       }
+      void backfillProjectPresentations(loaded, (updated) => {
+        if (pageDisposed || !isActiveTeamContext(context.teamId, context.epoch)) return;
+        updateProjectInList(updated);
+        if (selectedProject?.project_id === updated.project_id) selectedProject = updated;
+      }).catch((error) => console.error('[ProjectsPage] Project presentation backfill failed:', error));
     } catch (error) {
       if (pageDisposed || !isActiveTeamContext(context.teamId, context.epoch)) return;
       hasLoadError = true;
@@ -861,8 +889,25 @@
   }
 
   function openProjectsHome(): void {
+    closeAllProjects();
     clearSelectedProject();
     setProjectUrlState(null);
+  }
+
+  function openAllProjects(): void {
+    showAllProjects = true;
+  }
+
+  function openProjectSearch(): void {
+    showAllProjects = true;
+    projectSearchOpen = true;
+    void tick().then(() => projectSearchInput?.focus());
+  }
+
+  function closeAllProjects(): void {
+    showAllProjects = false;
+    projectSearchOpen = false;
+    projectSearchQuery = '';
   }
 
   async function openProjectFromCard(item: ProjectContinueItem): Promise<void> {
@@ -948,7 +993,10 @@
 
   async function saveSelectedProjectDescription(description: string): Promise<void> {
     if (!selectedProject) return;
-    const updatedProject = await updateProjectMetadata(selectedProject, { description });
+    // Flag-on: the core records the description as the user's, so automatic steps never overwrite it.
+    const updatedProject = PROJECT_PRESENTATION_AVAILABLE
+      ? await saveProjectPresentationByUser(selectedProject, { description })
+      : await updateProjectMetadata(selectedProject, { description });
     selectedProject = updatedProject;
     updateProjectInList(updatedProject);
     broadcastProjectFilesChanged(updatedProject.project_id);
@@ -1988,7 +2036,7 @@
     // Recover temporary browser files left by a closed or crashed download tab.
     void cleanupStaleConnectedProjectDownloads().catch(() => {});
     if (previewState) {
-      projects = [previewState.project];
+      projects = previewState.projects ?? [previewState.project];
       selectedProject = previewState.startAtHome ? null : previewState.project;
       folders = previewState.folders ?? [];
       void Promise.all(folders.map(async (folder) => [folder.folder_id, await computeSHA256(folder.folder_id)] as const)).then((pairs) => { if (!pageDisposed) folderHashes = new Map(pairs); });
@@ -2252,7 +2300,7 @@
       {#if activeTab === 'overview'}
         <section class="project-panel overview-panel" role="tabpanel" id="tabpanel-overview" data-testid="project-overview-panel">
           <ProjectChatsSection {items} presentations={previewState?.chatPresentations} />
-          {#if selectedProject && !previewState}<ProjectSpecificationsPanel project={selectedProject} />{/if}
+          {#if selectedProject && !previewState}<ProjectSpecificationsPanel project={selectedProject} onProjectUpdated={(updated) => { updateProjectInList(updated); if (selectedProject?.project_id === updated.project_id) selectedProject = updated; }} />{/if}
           {#if selectedProject && !previewState}<ProjectChecksPanel project={selectedProject} />{/if}
           <ProjectReadme
             state={readmeState}
@@ -2817,7 +2865,34 @@
           onActionItem={openProjectFromCard}
           onContinueItem={openProjectFromCard}
           onStartInspiration={handleStartProjectInspiration}
+          showAllMode={showAllProjects}
+          showAllLabel="Show all projects"
+          showAllTestId="projects-show-all"
+          allItemsHeading="All projects"
+          allItemsEmptyLabel={normalizedProjectSearch ? 'No projects match your search.' : 'No projects yet.'}
+          allItems={allProjectItems}
+          allItemsViewTestId="all-projects-view"
+          allItemsGridTestId="all-projects-grid"
+          allItemsToolbarTestId="projects-all-toolbar"
+          allItemTestId="project-landing-card"
+          backLabel="Back to recent"
+          backTestId="projects-back-to-recent"
+          searchLabel="Search"
+          searchTestId="projects-search"
+          onShowAll={openAllProjects}
+          onBackToRecent={closeAllProjects}
+          onSearchAll={openProjectSearch}
+          onAllItem={openProjectFromCard}
+          startSuggestions={{ items: [1, 2, 3].map((index) => $text(`projects.home.suggestion_${index}`)), onClick: (suggestion) => { newProjectName = suggestion; } }}
         >
+          <svelte:fragment slot="all-items-controls">
+            {#if projectSearchOpen}
+              <label class="projects-all-search" for="projects-all-search-input">
+                <span class="visually-hidden">Search projects</span>
+                <input id="projects-all-search-input" type="search" placeholder="Search projects" bind:value={projectSearchQuery} bind:this={projectSearchInput} data-testid="projects-search-input" />
+              </label>
+            {/if}
+          </svelte:fragment>
           <svelte:fragment slot="composer">
             <WorkspacePromptComposer
               surface="projects"
@@ -2999,6 +3074,33 @@
 <svelte:window onkeydown={handleRemoteFullscreenKeydown} />
 
 <style>
+  .projects-all-search {
+    display: flex;
+    width: min(420px, 100%);
+    margin: 0 auto 16px;
+  }
+
+  .projects-all-search input {
+    width: 100%;
+    /* The global search-input style caps the width; the label sets it here. */
+    max-width: none;
+    padding: 10px 16px;
+    border: 1px solid var(--color-grey-30);
+    border-radius: 999px;
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-p);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
   .projects-workspace-layout {
     position: relative;
     display: flex;

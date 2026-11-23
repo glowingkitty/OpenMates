@@ -35,6 +35,8 @@ pub struct ProjectCreate {
     pub name: String,
     pub description: String,
     pub icon: Option<String>,
+    /// Project category id (`presentation::PRESENTATION_CATEGORIES`).
+    pub category: Option<String>,
     pub color: Option<String>,
     pub slug: Option<String>,
     pub pinned: bool,
@@ -49,6 +51,8 @@ pub struct ProjectPatch {
     pub name: Option<String>,
     pub description: Option<String>,
     pub icon: Option<String>,
+    /// Project category id; written with the user presentation state.
+    pub category: Option<String>,
     pub color: Option<String>,
     pub slug: Option<String>,
     pub pinned: Option<bool>,
@@ -63,10 +67,23 @@ pub struct ProjectSettingsPatch {
     pub focus_activation_policy: Option<ProjectFocusActivationPolicy>,
     pub default_focus: Option<ProjectDefaultFocus>,
 }
+pub mod sandbox_key;
+#[cfg(feature = "workflow-yaml")]
+mod sandbox_change;
+#[cfg(all(test, feature = "workflow-yaml"))]
+mod sandbox_change_tests;
+#[cfg(test)]
+mod sandbox_key_tests;
+#[cfg(all(feature = "sandbox-host", not(target_arch = "wasm32")))]
+pub mod sandbox_host;
 mod ask;
 pub use ask::*;
 mod assistant_request;
 pub use assistant_request::*;
+mod presentation;
+pub use presentation::*;
+#[cfg(test)]
+mod presentation_tests;
 #[cfg(test)]
 mod assistant_request_tests;
 #[cfg(test)]
@@ -95,14 +112,17 @@ mod hosted_base;
 pub(crate) use adoption::TurnEmbed;
 pub use adoption::{AdoptEmbedKind, ProjectEmbedAdoptError};
 pub use hosted_base::{HostedFileError, HostedIdentityKind, HostedResult, hosted_file_identity};
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 mod hosted;
-/// Hosted Project file writer (native only: it shares the `source_host` path matcher).
-#[cfg(all(feature = "workflow-yaml", unix))]
+/// Hosted Project file writer (shares the platform-neutral `path_rules` matcher, so it also builds for the browser).
+#[cfg(feature = "workflow-yaml")]
 pub use hosted::{
     HostedApproval, HostedFile, HostedFileJob, HostedFileMutation, HostedFileOperation,
     HostedProposal, ProjectCommitRestoreResult, apply_exact_patch, content_hash, replacement_patch,
 };
+/// Display mutations of an applied cloud-command batch (local diff cards).
+#[cfg(feature = "workflow-yaml")]
+pub(crate) use hosted::applied_change_mutations;
 mod remote_command_stop;
 pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
 mod remote_files;
@@ -110,10 +130,10 @@ pub use remote_files::{
     ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path,
     select_source,
 };
-/// Assistant file jobs relayed to a remote source (native only, like the hosted writer).
-#[cfg(all(feature = "workflow-yaml", unix))]
+/// Assistant file jobs relayed to a remote source.
+#[cfg(feature = "workflow-yaml")]
 mod remote_file_jobs;
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 pub(crate) use remote_file_jobs::REMOTE_OPERATION_UNSUPPORTED;
 mod remote_ops;
 pub use remote_ops::{
@@ -293,12 +313,21 @@ impl<'a> Projects<'a> {
     }
     async fn prepare_create(&mut self, input: ProjectCreate) -> Result<(Value, Key)> {
         self.scope()?;
-        let wrapping = self
-            .backend
-            .wrapping(self.filters.team_id.as_deref())
-            .await?;
         let key = crypto::random_key();
-        let payload = encode_create(&input, &key, &wrapping, self.filters.team_id.as_deref())?;
+        let payload = match self.filters.team_id.clone() {
+            Some(team) => {
+                let wrapping = self.backend.wrapping(Some(&team)).await?;
+                encode_create(&input, &key, &wrapping, Some(&team))?
+            }
+            None => {
+                // Personal Projects wrap through the shell's master binding: the
+                // web Worker cannot export its master, so it wraps in WebCrypto
+                // and creates the Project without the optional slug index.
+                let wrapped = self.backend.wrap_with_master(&key[..]).await?;
+                let lookup = self.backend.slug_lookup_master().await?;
+                encode_create_wrapped(&input, &key, &wrapped, lookup.as_deref(), None)?
+            }
+        };
         Ok((payload, key))
     }
     pub async fn create(&mut self, input: ProjectCreate) -> Result<Value> {
@@ -333,33 +362,13 @@ impl<'a> Projects<'a> {
         } else {
             None
         };
-        let patch = encode_patch(&project, &input, wrapping.as_deref())?;
+        let mut patch = encode_patch(&project, &input, wrapping.as_deref())?;
+        self.merge_user_presentation(&project, &input, &mut patch)?;
         Ok((project, patch))
     }
     pub async fn update(&mut self, id: &str, input: ProjectPatch) -> Result<Value> {
         let (project, patch) = self.prepare_patch(id, input).await?;
-        let route = self.path(
-            &format!("/v1/projects/{}", string(&project.raw, "project_id")?),
-            &[],
-        );
-        let data = self
-            .backend
-            .request(Method::PATCH, &route, Some(patch), None)
-            .await?;
-        if data["project"]["project_id"] != project.raw["project_id"] {
-            return Err(Error::Forbidden);
-        }
-        // Like npm (`{...project.encrypted, ...updated}`), fields the PATCH
-        // response omits (for example mutation_permissions) keep the read value.
-        let mut merged = project.raw.clone();
-        if let (Some(row), Some(updated)) = (merged.as_object_mut(), data["project"].as_object()) {
-            row.extend(updated.iter().map(|(k, v)| (k.clone(), v.clone())));
-        }
-        let mut public = decode(merged, project.key)?.public;
-        if let Some(history) = data.get("history") {
-            public["history"] = history.clone();
-        }
-        Ok(public)
+        self.send_patch_with_history(project, patch).await
     }
     pub async fn edit(&mut self, id: &str, input: ProjectPatch) -> Result<Value> {
         self.update(id, input).await
@@ -583,13 +592,19 @@ fn decode(raw: Value, key: Key) -> Result<ResolvedProject> {
     ] {
         public[field] = raw[field].clone();
     }
-    for field in ["name", "description", "icon", "color", "slug"] {
+    for field in ["name", "description", "icon", "color", "slug", "category"] {
         public[field] = json!(super::task_crypto::text(
             &raw,
             &format!("encrypted_{field}"),
             &key
         )?);
     }
+    let state = super::task_crypto::text(&raw, "encrypted_presentation_state", &key)?;
+    public["presentation_state"] = if state.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_str(&state).map_err(|_| Error::Protocol)?
+    };
     Ok(ResolvedProject { raw, public, key })
 }
 fn validate_focus(focus: &ProjectDefaultFocus) -> Result<()> {
@@ -613,6 +628,19 @@ fn encode_create(
     wrapping: &[u8; 32],
     team: Option<&str>,
 ) -> Result<Value> {
+    let wrapped = crypto::server_fields::encrypt_bytes(key, wrapping, &[])?;
+    encode_create_wrapped(input, key, &wrapped, Some(wrapping), team)
+}
+/// Create payload with an already wrapped Project key. `lookup` keys the
+/// private slug index (`encrypted_slug` + `slug_lookup_hash`); `None` omits
+/// both optional fields, as the web's TypeScript create always did.
+fn encode_create_wrapped(
+    input: &ProjectCreate,
+    key: &[u8; 32],
+    wrapped: &str,
+    lookup: Option<&[u8; 32]>,
+    team: Option<&str>,
+) -> Result<Value> {
     if input.name.trim().is_empty()
         || input.name.len() > 100_000
         || input.description.len() > 1_000_000
@@ -633,8 +661,15 @@ fn encode_create(
     let focus=input.default_focus.clone().unwrap_or_else(||ProjectDefaultFocus{focus_id:uuid::Uuid::new_v4().to_string(),name:format!("Work on {name}"),instructions:format!("Help with work in {name}. Follow the user's instructions and the Project's connected source guidance."),source:"generated".into()});
     validate_focus(&focus)?;
     let slug = crypto::normalize_object_slug(input.slug.as_deref().unwrap_or(name))?;
-    let wrapped = crypto::server_fields::encrypt_bytes(key, wrapping, &[])?;
-    let mut value = json!({"project_id":id,"encrypted_project_key":if team.is_none(){json!(wrapped)}else{Value::Null},"encrypted_name":crypto::server_fields::encrypt_text(name,key, &[])?,"encrypted_description":crypto::server_fields::encrypt_text(&input.description,key, &[])?,"encrypted_icon":crypto::server_fields::encrypt_text(input.icon.as_deref().unwrap_or("folder"),key, &[])?,"encrypted_color":crypto::server_fields::encrypt_text(input.color.as_deref().unwrap_or("default"),key, &[])?,"encrypted_slug":crypto::server_fields::encrypt_text(&slug,key, &[])?,"slug_lookup_hash":crypto::object_slug_lookup_hash(&slug,wrapping)?,"pinned":input.pinned,"created_at":now(),"updated_at":now(),"last_opened_at":now(),"write_mode":input.write_mode,"chat_organization_only":input.chat_organization_only,"default_focus_id":focus.focus_id,"encrypted_settings":crypto::server_fields::encrypt_text(&serde_json::to_string(&json!({"default_focus":focus}))?,key, &[])?,"key_wrappers":[]});
+    let mut value = json!({"project_id":id,"encrypted_project_key":if team.is_none(){json!(wrapped)}else{Value::Null},"encrypted_name":crypto::server_fields::encrypt_text(name,key, &[])?,"encrypted_description":crypto::server_fields::encrypt_text(&input.description,key, &[])?,"encrypted_icon":crypto::server_fields::encrypt_text(input.icon.as_deref().unwrap_or("folder"),key, &[])?,"encrypted_color":crypto::server_fields::encrypt_text(input.color.as_deref().unwrap_or("default"),key, &[])?,"pinned":input.pinned,"created_at":now(),"updated_at":now(),"last_opened_at":now(),"write_mode":input.write_mode,"chat_organization_only":input.chat_organization_only,"default_focus_id":focus.focus_id,"encrypted_settings":crypto::server_fields::encrypt_text(&serde_json::to_string(&json!({"default_focus":focus}))?,key, &[])?,"key_wrappers":[]});
+    if let Some(lookup) = lookup {
+        value["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, key, &[])?);
+        value["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, lookup)?);
+    }
+    if let Some(category) = input.category.as_deref().filter(|c| !c.is_empty()) {
+        value["encrypted_category"] =
+            json!(crypto::server_fields::encrypt_text(category, key, &[])?);
+    }
     if let Some(team) = team {
         value["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":1,"wrapper_version":1,"encrypted_project_key":wrapped,"created_at":now()}]);
     }

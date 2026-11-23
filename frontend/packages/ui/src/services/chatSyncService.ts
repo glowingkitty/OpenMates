@@ -2156,6 +2156,21 @@ export class ChatSynchronizationService extends EventTarget {
         ),
       );
     });
+    webSocketService.on("request_e2b_upload_consent", (payload) => {
+      import("./chatSyncServiceHandlersE2bConsent").then((module) =>
+        module.handleRequestE2bUploadConsentImpl(
+          this,
+          payload as Parameters<typeof module.handleRequestE2bUploadConsentImpl>[1],
+        ),
+      );
+    });
+    webSocketService.on("e2b_upload_consent_updated", (payload) => {
+      import("./chatSyncServiceHandlersE2bConsent").then((module) =>
+        module.handleE2bUploadConsentUpdatedImpl(
+          payload as Parameters<typeof module.handleE2bUploadConsentUpdatedImpl>[0],
+        ),
+      );
+    });
     webSocketService.on("request_connected_account_permission", (payload) => {
       import("./chatSyncServiceHandlersConnectedAccounts").then((module) =>
         module.handleRequestConnectedAccountPermissionImpl(
@@ -3925,3 +3940,18 @@ export class ChatSynchronizationService extends EventTarget {
 }
 
 export const chatSyncService = new ChatSynchronizationService();
+
+// Dev-only Playwright hook (localhost and *.dev.openmates.org): a spec may
+// dispatch only the two events the call sounds listen to, through the real
+// service. Production hosts never receive the global.
+const E2E_CHAT_SYNC_EVENTS = new Set(["embedUpdated", "focusModeActivated"]);
+if (typeof window !== "undefined" && (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" || window.location.hostname.endsWith(".dev.openmates.org"))) {
+  (window as unknown as { __openmatesE2EChatSyncEvents?: { dispatch: (name: string, detail: unknown) => void } })
+    .__openmatesE2EChatSyncEvents = {
+      dispatch: (name, detail) => {
+        if (!E2E_CHAT_SYNC_EVENTS.has(name)) throw new Error(`E2E chat sync event not allowed: ${name}`);
+        chatSyncService.dispatchEvent(new CustomEvent(name, { detail }));
+      },
+    };
+}

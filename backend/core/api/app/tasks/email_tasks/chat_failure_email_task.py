@@ -7,17 +7,22 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
 from datetime import datetime, timezone
 
 from backend.core.api.app.tasks.celery_config import app
-from backend.shared.python_utils.chat_failure_notifications import CATEGORIES, EMAIL_TASK, STAGES, notification_environment
+from backend.shared.python_utils.chat_failure_notifications import (
+    CATEGORIES, EMAIL_TASK, REQUEST_REF_PATTERN, STAGES, notification_environment,
+)
 
 logger = logging.getLogger(__name__)
 DEDUP_SECONDS = 7 * 24 * 60 * 60
 COUNTER_SECONDS = 2 * 24 * 60 * 60
+DEV_FAILURE_LOG_KEY = "chat_failure_email:development:log"
+DEV_FAILURE_LOG_SECONDS = 2 * 24 * 60 * 60
 # No content/identifiers in values or logs; only a one-way deduplication key.
 DEDUPE_AND_COUNT_LUA = """
 if redis.call('EXISTS', KEYS[1]) == 1 then return {0, 0} end
@@ -28,7 +33,9 @@ return {1, failures}
 """
 
 
-async def deliver_chat_failure(failure_fingerprint: str, stage: str, category: str) -> str:
+async def deliver_chat_failure(
+    failure_fingerprint: str, stage: str, category: str, request_ref: str | None = None,
+) -> str:
     from backend.core.api.app.services.cache import CacheService
     from backend.core.api.app.services.email_template import EmailTemplateService
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -55,6 +62,9 @@ async def deliver_chat_failure(failure_fingerprint: str, stage: str, category: s
             return "dedupe_unavailable"
         if is_new == 0:
             return "duplicate"
+        if edition == "development":
+            # Dev never sends an instant email: the failure waits for the daily summary.
+            return await _record_for_daily_summary(redis, failure_fingerprint, stage, category, request_ref)
         recipient = os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL")
         if not recipient:
             logger.error("[CHAT_FAILURE_EMAIL] missing_admin_email environment=%s", edition)
@@ -88,7 +98,25 @@ async def deliver_chat_failure(failure_fingerprint: str, stage: str, category: s
                     logger.error("[CHAT_FAILURE_EMAIL] cleanup_failed")
 
 
+async def _record_for_daily_summary(redis, fingerprint: str, stage: str, category: str, request_ref: str | None) -> str:
+    """Keep one dev failure for the daily summary (see chat_failure_summary_task)."""
+    ref = request_ref if isinstance(request_ref, str) and REQUEST_REF_PATTERN.fullmatch(request_ref) else None
+    now = datetime.now(timezone.utc).timestamp()
+    entry = json.dumps({"fingerprint": fingerprint, "stage": stage, "category": category, "ref": ref, "ts": now})
+    try:
+        await redis.zadd(DEV_FAILURE_LOG_KEY, {entry: now})
+        await redis.zremrangebyscore(DEV_FAILURE_LOG_KEY, "-inf", now - DEV_FAILURE_LOG_SECONDS)
+        await redis.expire(DEV_FAILURE_LOG_KEY, DEV_FAILURE_LOG_SECONDS)
+    except Exception:
+        logger.error("[CHAT_FAILURE_EMAIL] summary_record_failed environment=development")
+        return "summary_record_failed"
+    logger.info("[CHAT_FAILURE_EMAIL] recorded_for_daily_summary environment=development")
+    return "recorded_for_daily_summary"
+
 @app.task(name=EMAIL_TASK, ignore_result=True)
-def send_chat_failure_email(failure_fingerprint: str, stage: str, category: str) -> str:
-    """Send once per fingerprint; ambiguous delivery remains deduplicated."""
-    return asyncio.run(deliver_chat_failure(failure_fingerprint, stage, category))
+def send_chat_failure_email(
+    failure_fingerprint: str, stage: str, category: str, request_ref: str | None = None,
+) -> str:
+    """Production: send once per fingerprint (ambiguous delivery stays deduplicated).
+    Development: record for the daily summary instead of sending."""
+    return asyncio.run(deliver_chat_failure(failure_fingerprint, stage, category, request_ref))

@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from pydantic import BaseModel as PydanticModel
 
 celery_module = ModuleType("celery")
 kombu_module = ModuleType("kombu")
@@ -214,3 +215,44 @@ async def test_recovery_rejection_keeps_its_status_through_skill_dispatch() -> N
             _batch_definition(), RecoveryRejectingSkill, {"requests": [{"query": "x"}]},
         )
     assert wrapped.value.status_code == 500
+
+
+class StrictRequest(PydanticModel):
+    model_config = {"extra": "forbid"}
+    command: str
+
+
+class StrictSkill:
+    fail_in_execute = False
+
+    def __init__(self, **_kwargs: Any) -> None:
+        pass
+
+    async def execute(self, request: StrictRequest, **_kwargs: Any) -> dict[str, Any]:
+        if self.__class__.fail_in_execute:
+            raise RuntimeError("the job broke after it started")
+        return {"success": True}
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.commands
+async def test_a_request_refused_at_validation_is_marked_as_dispatching_nothing() -> None:
+    """Recipe proof 22 Nov: an extra field in a code-run call failed the whole same-turn reply.
+
+    Only a refusal before execute() is a SkillRequestRejected (safe to hand back to the model
+    as a tool error); a failure inside execute() stays a plain 422.
+    """
+    from fastapi import HTTPException
+
+    from backend.shared.python_utils.chat_recovery_context import SkillRequestRejected
+
+    definition = _batch_definition()
+    StrictSkill.fail_in_execute = False
+    with pytest.raises(SkillRequestRejected) as refused:
+        await _fake_base_app()._dispatch_skill_with_class(
+            definition, StrictSkill, {"command": "npm test", "ready_url": "http://127.0.0.1:5173/"})
+    assert refused.value.status_code == 422
+    StrictSkill.fail_in_execute = True
+    with pytest.raises(HTTPException) as failed:
+        await _fake_base_app()._dispatch_skill_with_class(definition, StrictSkill, {"command": "npm test"})
+    assert failed.value.status_code == 422 and not isinstance(failed.value, SkillRequestRejected)

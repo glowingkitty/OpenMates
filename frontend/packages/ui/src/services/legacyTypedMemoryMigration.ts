@@ -113,7 +113,12 @@ function firstField(value: Record<string, unknown>): string {
 /** Builds the serialized Memory document for one legacy entry (Ask first). */
 export function buildMemoryDocumentFromLegacy(entry: LegacyTypedEntry, typeDescription: string): string {
   const typeName = humanize(entry.itemType);
-  const entryTitle = (entry.itemKey && entry.itemKey !== entry.id ? entry.itemKey : '') || firstField(entry.value) || humanize(entry.appId);
+  const rawKey = entry.itemKey && entry.itemKey !== entry.id ? entry.itemKey : '';
+  // Legacy keys were often "<item_type>.<title>" ("interests.Exploring cities"): the
+  // type already leads the title, so the raw prefix must not show up a second time.
+  const typePrefix = `${entry.itemType}.`;
+  const itemKey = rawKey.toLowerCase().startsWith(typePrefix.toLowerCase()) ? rawKey.slice(typePrefix.length).trim() : rawKey;
+  const entryTitle = itemKey || firstField(entry.value) || humanize(entry.appId);
   const title = `${typeName}: ${entryTitle.replace(/\s+/g, ' ')}`.slice(0, 180).trim();
   const body = renderEntryBody(entry.value) || `- ${entryTitle}`;
   const when = (typeDescription || `Relevant ${humanize(entry.appId)} ${typeName.toLowerCase()} preferences.`).trim().slice(0, 1200);

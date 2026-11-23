@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createProjectFileJobExecutor, type ProjectFileJob } from "../../ui/src/services/projectFileJobExecutor.js";
+import { createProjectFileJobExecutor, type ProjectFileJob } from "../src/projectFileJobExecutor.js";
 import { executeHostedProjectFileJob, hostedProjectFileIdentity, projectFileContentHash, type HostedProjectFileAdapter, type HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
 import { decryptWithAesGcmCombined, encryptWithAesGcmCombined, encryptBytesWithAesGcm, decryptBytesWithAesGcm } from "../src/crypto.js";
 import { prepareCliProjectFocusForPreflight, registerCliProjectFileExecutor } from "../src/projectFileExecutor.js";

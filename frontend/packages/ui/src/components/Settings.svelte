@@ -114,6 +114,8 @@ changes to the documentation (to keep the documentation up to date).
 
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore, resetSettingsNavigation } from '../stores/settingsNavigationStore';
+    import { firstMessageDisplayTitle } from '../utils/chatDisplayTitle';
+    import { knownMentionProjectName, mentionProjectNamesVersion } from '../services/chatFirstMessageTitle';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -229,10 +231,6 @@ changes to the documentation (to keep the documentation up to date).
     let navButtonLeft = $state(false);
     let hideNavButton = $state(false); // New variable to control nav button visibility
     
-    // Track viewport width for reactive dimmed class logic
-    // Settings menu becomes overlay at 1100px, so we need to track this
-    let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 0);
-
     // Add reference to settings content element
     let settingsContentElement: HTMLElement | undefined = $state();
     let profileContainer: HTMLElement | undefined = $state();
@@ -931,9 +929,6 @@ changes to the documentation (to keep the documentation up to date).
         if (navigationPath.length > 0) {
             updateBreadcrumbLabel();
         }
-        
-        // Update mobile state on resize
-        updateMobileState();
     }
 
     // Reactive variables
@@ -1240,11 +1235,16 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     let chatSettingsContext = $derived($chatSettingsStore);
+    let chatSettingsFirstMessageTitle = $derived.by(() => {
+        void $mentionProjectNamesVersion; // re-derive once a mentioned Project's name is known
+        return firstMessageDisplayTitle(chatSettingsContext?.messages, knownMentionProjectName);
+    });
     let chatSettingsTitle = $derived(
         chatSettingsContext?.display?.title ||
         chatSettingsContext?.chat.title ||
         [...(chatSettingsContext?.messages ?? [])].reverse().find((message) => message.current_chat_title)?.current_chat_title ||
-        $text('common.untitled_chat')
+        chatSettingsFirstMessageTitle ||
+        $text('common.new_chat')
     );
     let chatSettingsCategory = $derived(chatSettingsContext?.display?.category || chatSettingsContext?.chat.category || 'general_knowledge');
     let chatSettingsIcon = $derived(
@@ -2191,10 +2191,6 @@ changes to the documentation (to keep the documentation up to date).
             panelState.openSettings();
         } else {
             panelState.closeSettings();
-            // The overlay also applies this class imperatively. Remove it in
-            // the same close turn so the chat cannot remain washed out while
-            // reactive panel/store updates settle.
-            document.querySelector('.active-chat-container')?.classList.remove('dimmed');
         }
 
         // If menu is being closed, reset scroll position and view state
@@ -2270,14 +2266,6 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    // Handle window resize - update viewportWidth for reactive dimmed class logic
-    // Settings menu becomes overlay at 1100px, so we track viewport width
-    function updateMobileState() {
-        if (typeof window !== 'undefined') {
-            viewportWidth = window.innerWidth;
-        }
-    }
-
     function isSettingsOverlay(): boolean {
         const settingsMenu = document.querySelector<HTMLElement>('[data-testid="settings-menu"]');
         return settingsMenu !== null && getComputedStyle(settingsMenu).position === 'fixed';
@@ -2318,7 +2306,6 @@ changes to the documentation (to keep the documentation up to date).
     // Setup listeners
     onMount(() => {
         void initializeServerStatus();
-        updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
 
@@ -2572,16 +2559,6 @@ changes to the documentation (to keep the documentation up to date).
     // Update DOM elements opacity and classes based on menu state.
     $effect(() => {
         if (typeof window !== 'undefined') {
-            const activeChatContainer = document.querySelector('.active-chat-container');
-            if (activeChatContainer) {
-                void viewportWidth;
-                if (isSettingsOverlay() && isMenuVisible) {
-                    activeChatContainer.classList.add('dimmed');
-                } else {
-                    activeChatContainer.classList.remove('dimmed');
-                }
-            }
-            
             const chatContainer = document.querySelector('.chat-container');
             if (chatContainer) {
                 if (isMenuVisible) {
@@ -3628,9 +3605,15 @@ changes to the documentation (to keep the documentation up to date).
             bottom: 18px;
             height: auto;
             z-index: var(--z-index-modal);
-            /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
+            /* Override desktop width animation — keep full width, slide with GPU-accelerated transform.
+               Same ease-in-out and duration as the chat sidebar (tokens defined in routes/+page.svelte);
+               it slides, it does not fade. `visibility` flips after the slide-out so the panel stays
+               visible while it leaves. Reduced motion zeroes the duration. */
             width: var(--settings-panel-width);
-            transition: transform 0.12s ease-out, opacity 0.12s ease-out;
+            opacity: 1;
+            transition:
+                transform var(--sidebar-duration, 300ms) var(--sidebar-ease, cubic-bezier(0.65, 0, 0.35, 1)),
+                visibility 0s linear var(--sidebar-duration, 300ms);
             transform: translateX(calc(100% + 40px));
             visibility: hidden;
 
@@ -3639,6 +3622,9 @@ changes to the documentation (to keep the documentation up to date).
         .settings-menu.visible {
             transform: translateX(0);
             visibility: visible;
+            transition:
+                transform var(--sidebar-duration, 300ms) var(--sidebar-ease, cubic-bezier(0.65, 0, 0.35, 1)),
+                visibility 0s linear 0s;
         }
 
         :global(.settings-edge-dragging) .settings-menu.visible {
@@ -3952,14 +3938,6 @@ changes to the documentation (to keep the documentation up to date).
         opacity: 1;
         width: 25px;
         visibility: visible;
-    }
-
-    :global(.active-chat-container) {
-        transition: opacity var(--duration-slow) var(--easing-default);
-    }
-
-    :global(.active-chat-container.dimmed) {
-        opacity: 0.3;
     }
 
     /* Hide icon grids from Login/Signup components when embedded in settings menu */

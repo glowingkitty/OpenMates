@@ -24,3 +24,18 @@ export function isChatVisiblyActive(chatId: string): boolean {
   if (typeof window !== "undefined") return false;
   return activeChatStore.get() === chatId;
 }
+
+/**
+ * Chat-message notifications that belong to the chat now visible. They are
+ * dismissed when that chat opens, so a card raised just before the user opened
+ * the chat (or during boot, before the visible chat was known) never covers it.
+ */
+export function chatNotificationIdsForVisibleChat(
+  notifications: ReadonlyArray<{ id: string; type: string; chatId?: string; isExiting?: boolean }>,
+  visibleChatId: string | null,
+): string[] {
+  if (!visibleChatId) return [];
+  return notifications
+    .filter((item) => item.type === "chat_message" && item.chatId === visibleChatId && !item.isExiting)
+    .map((item) => item.id);
+}

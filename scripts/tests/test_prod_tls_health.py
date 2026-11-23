@@ -74,7 +74,9 @@ def test_alert_on_change_repeat_after_six_hours_and_recover_once():
     assert tls.alert_decision(failing, {"ok": False, "last_alert_ts": 1000.0}, 1000.0 + 6 * 3600) == "failure"
     assert tls.alert_decision(passing, {"ok": False}, 0.0) == "recovery"
     assert tls.alert_decision(passing, {"ok": True}, 0.0) is None
-    assert "x: expired" in tls.format_message(failing, "failure")
+    message = tls.format_message(failing, "failure")
+    assert message.startswith("🚨 ") and "x: expired" in message and "\n" not in message and len(message) <= 140
+    assert tls.format_message(passing, "recovery").startswith("✅ ")
 
 
 def test_dry_run_neither_posts_nor_saves_state(monkeypatch, tmp_path):

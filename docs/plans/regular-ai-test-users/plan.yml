@@ -1,0 +1,135 @@
+schema_version: 2
+profile: concise
+id: regular-ai-test-users
+title: Regular AI test users on dev and production
+status: implementing
+goal: >-
+  Marco, 19 Nov 2026 (TASK-7525, final brief plus activity notes): turn the
+  one-off AI test-user trial (TASK-1816) into daily automated user testing of
+  the web app on dev AND production with different, rotating tests. Each run
+  signs up a fresh disposable account through the real web signup (Inbox
+  Kitten address with a fixed prefix, strong random password), gets credits
+  from a single-use 1,000-credit test gift card (production: a batch created
+  over SSH on the production server, never by an online endpoint), is
+  labelled as a test account so it never counts in signup, active-user or
+  purchase numbers, reports its findings through the real Report issue form
+  (which must support multiple screenshots), and is deleted afterwards. The
+  judge also rates answer quality and flags demo-chat candidates; transcripts
+  are readable per persona. Reports from test accounts start investigation
+  chats that may only fix small, clear bugs (TASK-8809). One short Discord
+  summary per day. Monday to Friday 3 dev + 2 production personas, never on
+  weekends (owner, 21 Nov 2026), about 30 USD per month. Models stay as they are.
+scope:
+  - >-
+    Harness (scripts/ai_test_users.py, backend/scripts/ai_test_users/): target
+    dev or prod; scripted web signup, gift card redemption, Report issue
+    submission and web account deletion (no model sees credentials or codes);
+    judge adds answer quality and demo candidates; transcript.md per persona.
+  - >-
+    Label: users.is_test_account, set only when a gift card with
+    marks_test_account is redeemed; growth metrics and server stats leave such
+    accounts out. The dev host's AI test-user registry feeds the existing
+    growth exclusion list (email hashes), which also covers production before
+    the next release.
+  - >-
+    Report issue: up to 5 screenshots on web, API, storage and the admin/debug
+    readers; the legacy single field stays accepted (Apple, CLI).
+  - >-
+    Reports only collect findings (owner, 20 Nov 2026 evening): no
+    investigation chat starts from a test-user report. Test accounts send no
+    issue emails; real issue emails carry the first ~60 characters of the
+    title as subject.
+  - >-
+    Production gift card batch: backend/scripts/create_test_gift_card_batch.py
+    run by Marco inside the production api container over SSH; codes land in a
+    0600 file on the dev host, outside the repository.
+  - >-
+    Schedule: systemd user timer on the dev host, weekday rotation (3 dev, 2
+    prod, disjoint personas, every persona on each server within a week),
+    Monday to Friday only (no Saturday full run since 21 Nov 2026), one daily
+    summary push, one low-batch question push.
+contracts:
+  - issue-reporting.form.single-text-quick-actions
+  - issue-reporting.submission.confirmed-and-durable
+decisions:
+  - >-
+    Test users sign up with password only (no 2FA): the web flow allows
+    skipping 2FA and the account lives under an hour; deletion uses password
+    plus an email code read from the Inbox Kitten inbox.
+  - >-
+    Dev also redeems a single-use 1,000-credit test gift card in the web app,
+    created inside the dev api container like the existing invite codes, so
+    the production label path is exercised daily on dev; the existing top-up
+    script stays the fallback when a balance is short.
+  - >-
+    Production runs stay disabled until Marco has created a gift card batch
+    on the production server and production carries the is_test_account
+    release; until then the email-hash exclusion is the only production label.
+  - >-
+    Dev deviation (20 Nov 2026): the dev server only admits its approved test
+    email domain, so dev test users sign up there with the same fixed prefix,
+    read the signup code from the dev cache, and are deleted with the dev
+    admin deletion script (the web deletion code is session-bound and never
+    readable). Production keeps Inbox Kitten and the web deletion. Adding
+    inboxkitten.com to dev's approved test domains switches dev back
+    automatically.
+  - >-
+    Personas may end their own session (a reload without "Stay logged in"
+    signs out by design); the scripted report and deletion stages sign back
+    in with the password first. The judge and Jev get the run date and a short
+    list of intended behaviors so these are not reported as defects.
+  - >-
+    Owner, 20 Nov 2026: every failure reaches Discord. A daily run with any
+    problem (a persona that did not finish, a report not filed, a judge error,
+    an account left undeleted) sends its summary as a ❌ alert naming the
+    problems; a crash, timeout or kill of the unit sends one ❌ alert from the
+    unit's OnFailure hook. Manual runs push the same summary with --notify.
+  - >-
+    Owner, 20 Nov 2026: every run (dev and prod, daily, weekly, manual)
+    records each persona's browser session and uploads it to a private S3
+    bucket of its own through the response-media transport, deleted after 7
+    days (the response-media bucket's 2-day rule covers that whole bucket).
+    The link is signed before the session, so the reports it files carry it;
+    findings, reports, report.md and the Discord pushes link the video at the
+    problem's moment (step time plus the recorded video offset). `videos
+    --run <id>` adds links to earlier runs, with estimated moments.
+    Standing rule (owner, same day): every visual finding reaches Marco
+    with its screenshot or video moment, never as text alone.
+  - >-
+    Inbox Kitten (20 Nov 2026) no longer returns message bodies from getKey;
+    sensitive-action codes (account deletion) arrive under a generic subject,
+    so the harness reads them from getHtml, ignoring style/script/head
+    blocks. The first production run's 10 accounts were deleted this way.
+  - >-
+    Owner, 20 Nov 2026 evening (keep it small; the setup will be rebuilt
+    inside OpenMates): one Discord message per run with two summary lines and
+    one line per finding grouped by cause, with its verdict (bug, not a bug,
+    suspect) and video link. A finding is suspect when a product-code dev
+    deploy or an api/worker restart happened between the persona's start and
+    the finding, or the account was deleted by another process during the
+    run (production deploys are not visible from the dev host). The judge
+    treats overlap that can be scrolled away and short closable notices as
+    intended. The quiet window, Jev triage of every report and fix buckets
+    are written down in TASK-3434 for later. Investigation chats from
+    test-user reports are switched off.
+verification:
+  required:
+    - Backend pytest for the label, gift card redemption flag, growth and server-stats exclusion.
+    - Backend pytest and web component/E2E proof for multiple Report issue screenshots.
+    - Script tests for the dispatcher origin, the small-fix deploy guard, rotation and the daily summary.
+    - One full 10-persona run on dev from the deployed commit with a short report.
+  evidence: >-
+    Dev, 20 Nov 2026. CI on 9ac7ff85: pytest 7dd7885a (screenshots, label,
+    growth exclusion, harness), component 57c4ce47 (ReportIssueScreenshots),
+    e2e 583ea9de (report-issue-flow); pytest 859e0360 on 29e898c; script
+    tests local. Deployed 0bbe50d, 60a87dd, 3e72dfa; cms-setup ran on dev.
+    Full 10-persona run 20261120-130104 from 3e72dfa: 10/10 signed up,
+    redeemed the test gift card and were deleted; 14 of 15 reports filed with
+    5 screenshots each; investigation chats started for 3 (daily cap);
+    3 demo candidates; 2.81 USD (harness 1.40, E2B 0.19, app credits at list
+    price 1.22). Timer installed (Mon-Sat 06:30 UTC). Production stays off
+    until the owner's go-ahead (TASK-8620). Production, 20 Nov 2026 (owner
+    go-ahead): 50 single-use 1,000-credit cards created over SSH (prod has no
+    marks_test_account field, so the email-hash exclusion labels the
+    accounts); intro-video run 20261120-143143 with 10 accounts, all deleted
+    afterwards; session videos in the 7-day bucket.

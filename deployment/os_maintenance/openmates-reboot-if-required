@@ -1,0 +1,79 @@
+#!/bin/sh
+# Reboot this server only when an installed update requires it.
+# Usage: openmates-reboot-if-required [--dry-run|--status|--now]
+#   --dry-run  print the decision, change nothing
+#   --status   print state (reboot required, holds, running test work)
+#   --now      skip the dev busy/hold check (used for a KEV reboot Marco approved)
+# Role comes from /etc/openmates/os-maintenance.conf (ROLE=core|upload|preview|dev).
+# Test hooks: OPENMATES_REBOOT_ROOT prefixes all paths, OPENMATES_REBOOT_ROLE
+# overrides the role, OPENMATES_REBOOT_PROCLIST (file) replaces the process list.
+set -u
+ROOT="${OPENMATES_REBOOT_ROOT:-}"
+MODE=run
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) MODE=dry ;;
+        --status) MODE=status ;;
+        --now) MODE=now ;;
+        *) echo "unknown option: $arg" >&2; exit 2 ;;
+    esac
+done
+ROLE="${OPENMATES_REBOOT_ROLE:-}"
+if [ -z "$ROLE" ] && [ -r "$ROOT/etc/openmates/os-maintenance.conf" ]; then
+    ROLE=$(sed -n 's/^ROLE=//p' "$ROOT/etc/openmates/os-maintenance.conf" | head -n1)
+fi
+REQ="$ROOT/var/run/reboot-required"
+PKGS="$ROOT/var/run/reboot-required.pkgs"
+LOG="$ROOT/var/log/openmates-reboot.log"
+HOLDS="$ROOT/run/openmates-no-reboot $ROOT/home/superdev/.openmates/no-reboot"
+PATTERN='playwright|pytest|vitest|cargo test|heavy_slot\.py run|ci_coordinator\.py wait'
+
+say() {
+    echo "openmates-reboot: $*"
+    if [ "$MODE" != dry ] && [ "$MODE" != status ] && command -v logger >/dev/null 2>&1; then
+        logger -t openmates-reboot "$*"
+    fi
+    return 0
+}
+
+busy_processes() {
+    if [ -n "${OPENMATES_REBOOT_PROCLIST:-}" ]; then
+        cat "$OPENMATES_REBOOT_PROCLIST" 2>/dev/null
+    else
+        ps -eo args= 2>/dev/null
+    fi | grep -E "$PATTERN" | grep -vE 'grep|openmates-reboot-if-required' | head -n 3
+}
+
+active_hold() {
+    for h in $HOLDS; do
+        if [ -e "$h" ]; then echo "$h"; return 0; fi
+    done
+    return 1
+}
+
+required=no
+[ -e "$REQ" ] && required=yes
+hold=$(active_hold) || hold=""
+busy=""
+[ "$ROLE" = dev ] && busy=$(busy_processes)
+
+if [ "$MODE" = status ]; then
+    echo "role=${ROLE:-unknown} reboot_required=$required hold=${hold:-none}"
+    [ -n "$busy" ] && echo "running test work: $busy"
+    [ -r "$PKGS" ] && echo "packages: $(tr '\n' ' ' < "$PKGS")"
+    exit 0
+fi
+
+if [ "$required" = no ]; then say "no reboot required"; exit 0; fi
+if [ "$MODE" != now ]; then
+    if [ -n "$hold" ]; then say "deferred: hold file $hold"; exit 0; fi
+    if [ -n "$busy" ]; then say "deferred: test work running (retry next window)"; exit 0; fi
+fi
+reason="reboot required"
+[ -r "$PKGS" ] && reason="$reason by: $(tr '\n' ' ' < "$PKGS")"
+if [ "$MODE" = dry ]; then say "WOULD REBOOT ($reason)"; exit 0; fi
+mkdir -p "$(dirname "$LOG")" 2>/dev/null
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) role=${ROLE:-unknown} mode=$MODE $reason" >> "$LOG"
+say "rebooting ($reason)"
+[ -n "$ROOT" ] && exit 0
+exec systemctl reboot

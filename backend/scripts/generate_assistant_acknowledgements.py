@@ -27,7 +27,8 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from backend.apps.audio.assistant_speech.acknowledgements import (  # noqa: E402
-    ACKNOWLEDGEMENT_TEXTS, CHAT_START_CATEGORY, CHAT_START_TEXTS, SYSTEM_VOICE_PROFILE_ID,
+    ACKNOWLEDGEMENT_TEXTS, CHAT_START_CATEGORY, CHAT_START_TEXTS, PERMISSION_PROMPT_TEXTS,
+    PERMISSION_PROMPT_VARIANT, SYSTEM_VOICE_PROFILE_ID, WAITING_LINE_TEXTS,
 )
 from backend.apps.audio.assistant_speech.voice_profiles import (  # noqa: E402
     ASSISTANT_VOICE_PROVIDER_IDS, SYSTEM_VOICE_PROVIDER_ID,
@@ -85,6 +86,23 @@ def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
                     }
                     | build_generation_prompt(language=language, category=category, text=text)
                 )
+        for category, text in PERMISSION_PROMPT_TEXTS.get(language, {}).items():
+            relative_path = Path(profile_key) / language / f"{category}-{PERMISSION_PROMPT_VARIANT}.mp3"
+            plan.append(
+                {
+                    "clip_id": f"{profile_key}-{language}-{category}-{PERMISSION_PROMPT_VARIANT}",
+                    "voice_profile_id": profile_key,
+                    "voice_profile_version": 1,
+                    "language": language,
+                    "request_category": category,
+                    "variant": PERMISSION_PROMPT_VARIANT,
+                    "text": text,
+                    "relative_path": relative_path.as_posix(),
+                    "output_path": output_root / relative_path,
+                    "generation_prompt": text,
+                    "generation_tags": (),
+                }
+            )
     chat_start_text = CHAT_START_TEXTS.get(language)
     if chat_start_text:
         # Neutral system voice with a leading chime: a new chat has no Mate yet.
@@ -103,6 +121,24 @@ def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
                 "generation_prompt": chat_start_text,
                 "generation_tags": (),
                 "leading_chime": True,
+            }
+        )
+    for waiting_category, waiting_text in sorted(WAITING_LINE_TEXTS.get(language, {}).items()):
+        # Neutral system voice, no chime: the caller asked the assistant to wait.
+        relative_path = Path(SYSTEM_VOICE_PROFILE_ID) / language / f"{waiting_category}-1.mp3"
+        plan.append(
+            {
+                "clip_id": f"{SYSTEM_VOICE_PROFILE_ID}-{language}-{waiting_category}-1",
+                "voice_profile_id": SYSTEM_VOICE_PROFILE_ID,
+                "voice_profile_version": 1,
+                "language": language,
+                "request_category": waiting_category,
+                "variant": 1,
+                "text": waiting_text,
+                "relative_path": relative_path.as_posix(),
+                "output_path": output_root / relative_path,
+                "generation_prompt": waiting_text,
+                "generation_tags": (),
             }
         )
     return plan

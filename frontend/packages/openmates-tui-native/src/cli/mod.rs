@@ -3,6 +3,7 @@
 mod account;
 mod apps_metadata;
 mod apps_run;
+mod code_run_cmd;
 mod generated_files;
 pub use apps_run::execute_sdk_apps;
 mod chat_project;
@@ -47,6 +48,7 @@ mod projects;
 mod remote_access;
 #[cfg(unix)]
 mod remote_access_folder;
+mod e2b_consent_cmd;
 mod send;
 mod send_machine;
 pub mod signup;

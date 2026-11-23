@@ -14,7 +14,8 @@ contract. No per-skill contract or code exists in the repository:
   (``validate_generic_result``) and stamps ``provider`` / ``provider_id``;
 - regions: a provider may declare ``regions`` (ISO 3166-1 alpha-2); the delegates
   skip it when the request names regions (``country``, ``countries``, ``region``,
-  ``regions``) it does not cover (``filter_providers_by_region``).
+  ``regions``) it does not cover (``filter_providers_by_region``), and warn
+  about requested regions that no kept provider covers.
 
 Architecture: docs/architecture/apps/instance-app-packages.md ("Generic contract").
 """
@@ -66,22 +67,47 @@ def filter_providers_by_region(
     stay; a request with no region or ``WORLDWIDE`` keeps everything.
     """
     regions = requested_regions(item)
-    if not regions or WORLDWIDE_REGION in regions:
+    if not regions:
         return list(provider_ids), [], None
     by_id = {provider.provider_id: provider for provider in providers}
-    joined = ", ".join(regions)
-    kept: List[str] = []
-    warnings: List[str] = []
-    for provider_id in provider_ids:
+
+    def declared(provider_id: str) -> Tuple[str, ...]:
         provider = by_id.get(provider_id)
-        declared = getattr(provider, "regions", ()) if provider is not None else ()
-        if not declared or set(declared) & set(regions):
-            kept.append(provider_id)
-        else:
-            warnings.append(f"{provider.name} was not searched: it does not cover {joined}.")
-    if provider_ids and not kept:
-        return [], [], f"No installed provider covers {joined}."
+        return tuple(getattr(provider, "regions", ()) or ()) if provider is not None else ()
+
+    if WORLDWIDE_REGION in regions:
+        kept = list(provider_ids)
+        warnings: List[str] = []
+    else:
+        joined = ", ".join(regions)
+        kept = []
+        warnings = []
+        for provider_id in provider_ids:
+            covered = declared(provider_id)
+            if not covered or set(covered) & set(regions):
+                kept.append(provider_id)
+            else:
+                warnings.append(f"{by_id[provider_id].name} was not searched: it does not cover {joined}.")
+        if provider_ids and not kept:
+            return [], [], f"No installed provider covers {joined}."
+    gap = uncovered_regions(regions, [declared(provider_id) for provider_id in kept])
+    if gap:
+        searched = ", ".join(dict.fromkeys(r for provider_id in kept for r in declared(provider_id)))
+        warnings.append(f"No installed provider covers {', '.join(gap)}; only {searched} was searched.")
     return kept, warnings, None
+
+
+def uncovered_regions(regions: Sequence[str], kept_regions: Sequence[Sequence[str]]) -> List[str]:
+    """Requested regions that no kept provider covers.
+
+    A provider without declared regions covers everything, so a gap exists only
+    when every kept provider is region-limited. ``WORLDWIDE`` counts as covered
+    only by such an unlimited provider.
+    """
+    if not kept_regions or any(not covered for covered in kept_regions):
+        return []
+    union = {region for covered in kept_regions for region in covered}
+    return [region for region in regions if region not in union]
 
 
 MAX_DEPTH = 6                      # the result object itself is depth 1

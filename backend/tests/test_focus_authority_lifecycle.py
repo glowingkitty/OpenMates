@@ -34,6 +34,14 @@ class Cache:
     async def eval(self, script, key_count, *args):
         keys, argv = args[:key_count], args[key_count:]
         key = keys[0]
+        if 'string.sub' in script:
+            phase = self.values.get(key)
+            if phase == 'expired':
+                return -1
+            if phase and phase.startswith('pending:'):
+                self.values[key] = argv[0]
+                return 1
+            return 0
         if 'local phase' in script:
             if self.active != argv[0]:
                 return 0
@@ -295,6 +303,7 @@ async def test_legacy_production_child_envelope_binds_root_without_faking_recove
     assert child.resolved_recovery_inference_task_id() is None
     assert child.root_legacy_cutover_task_id == 'legacy-identity'
     assert focus.focus_authority_root(child, child_id) == child_id
+    cache.client = cache.connection()  # prepare marks the dispatch through the client
     await focus.bind_focus_execution(cache, child, child_id)
     assert focus.focus_authority_root(child, child_id) == 'root'
     assert recent_work_authority_task_id(child, child_id) == 'root'
@@ -462,3 +471,35 @@ def test_authority_mapping_codec_rejects_bad_shape_and_accepts_raw_transport(enc
     for malformed in ([], {'root_id': None, 'request': {}}, {'root_id': 'root', 'request': []}):
         with pytest.raises((TypeError, ValueError)):
             focus._decode_focus_authority_mapping(json.dumps(malformed) if encoded else malformed)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.restoration
+@pytest.mark.asyncio
+async def test_dispatched_continuation_survives_a_late_pause_watchdog():
+    """A busy AI queue may run the accepted continuation after the 35s pause watchdog."""
+    cache = Cache()
+    key = 'focus_authority_phase:owner:chat:root'
+    cache.values[key] = 'pending:root'
+    pending = {'task_id': 'root', 'message_id': 'source'}
+    child = await focus.prepare_focus_continuation_authority(cache, pending, request(True).model_dump())
+    assert cache.values[key] == f'dispatched:{child}'
+    cache.client = cache.connection()
+    assert await focus.expire_pending_focus_authority(cache, request(), 'root', {}, 'root') is False
+    cache.client = cache.connection()
+    await focus.bind_focus_execution(cache, request(True), child)
+    assert cache.values[key] == f'running:{child}'
+    cache.values[key] = 'expired'
+    cache.client = cache.connection()
+    with pytest.raises(RuntimeError, match='expired before'):
+        await focus.prepare_focus_continuation_authority(cache, pending, request(True).model_dump())
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.restoration
+def test_focus_timers_run_on_the_short_routing_lane_not_behind_ai_turns():
+    import importlib
+    config = importlib.import_module('backend.core.api.app.tasks.celery_config')
+    assert focus.FOCUS_TIMER_QUEUE == 'app_ai_routing'
+    for name in ('apps.ai.tasks.focus_mode_auto_confirm', 'apps.ai.tasks.expire_focus_authority'):
+        assert config._EXPLICIT_TASK_ROUTES[name] == focus.FOCUS_TIMER_QUEUE
+    source = inspect.getsource(importlib.import_module('backend.apps.ai.processing.main_processor'))
+    assert source.count('queue=FOCUS_TIMER_QUEUE') == 2

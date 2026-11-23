@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -73,6 +74,7 @@ FIX_ALLOWED_TOOLS: tuple[str, ...] = (
     "Bash(python3 scripts/heavy_slot.py run -- pip-compile:*)",
     "Bash(python3 scripts/heavy_slot.py run -- uv pip compile:*)",
     "Bash(python3 scripts/heavy_slot.py run -- uv lock:*)",
+    "Bash(python3 scripts/heavy_slot.py run -- cargo update:*)",
 )
 _FORBIDDEN_GLOBS = (
     "**/.claude/**", "**/.github/workflows/**", "**/deployment/**", "**/scripts/security_monitoring/**",
@@ -109,7 +111,9 @@ FIX_DISALLOWED_TOOLS: tuple[str, ...] = (
 FIX_SYSTEM_PROMPT = (
     "You are the OpenMates guarded security fix step. Follow .claude/skills/security-fix/SKILL.md exactly. "
     "Work only in your own sessions.py workspace, publish only with sessions.py deploy to dev, never to "
-    "production. Run the guard before deploy. Return only the JSON object required by the schema."
+    "production. Run the guard before deploy. Return only the JSON object required by the schema. "
+    "The fix request is the operator's standing authorization (owner decision 21 Nov): do not create Tasks, "
+    "send pushes or ask questions; the dispatcher reports the outcome."
 )
 
 
@@ -136,7 +140,6 @@ def fix_request(verdict: TriageVerdict, incident_id: str, assets: Sequence[Asset
     fix = verdict.proposed_fix
     if fix is None:
         raise ValueError("fix request requires a proposed fix")
-    exposed = known_exploited or any(asset.exposure == "internet_facing" for asset in assets)
     ecosystems = sorted({asset.ecosystem for asset in assets if fix.package and asset.name.lower() == fix.package.lower()})
     return {
         "incident_id": incident_id,
@@ -150,7 +153,7 @@ def fix_request(verdict: TriageVerdict, incident_id: str, assets: Sequence[Asset
         "target_version": fix.target_version,
         "mitigation": fix.mitigation,
         "environments": list(verdict.environments_assessed),
-        "urgent_reachable_exposed": bool(verdict.outcome == "urgent" and exposed),
+        "actively_exploited": bool(known_exploited),
         "release_age_required": bool(fix.fix_class == "dependency_bump" and ecosystems and ecosystems[0] in RELEASE_AGE_ECOSYSTEMS),
     }
 
@@ -247,7 +250,19 @@ def run_dev_smoke(settings: Settings, runner: Runner = subprocess.run) -> bool:
     return result.returncode == 0
 
 
-def run_fix(*, settings: Settings, request: Mapping[str, Any], runner: Runner = subprocess.run, smoke: Callable[[Settings], bool] | None = None) -> FixOutcome:
+def store_fix_transcript(settings: Settings, transcript_id: str | None, completed: subprocess.CompletedProcess) -> None:
+    """Keep the fix chat's output (private, dev host, bounded retention) so a refusal can be explained."""
+    if not transcript_id:
+        return
+    from security_monitoring.triage import _store_transcript  # noqa: PLC0415 - triage imports this module's peers
+
+    stderr = (completed.stderr or "")[-20_000:]
+    _store_transcript(settings, transcript_id, json.dumps({"exit_code": completed.returncode, "stdout": completed.stdout or "", "stderr_tail": stderr}),
+                      datetime.now(timezone.utc))
+
+
+def run_fix(*, settings: Settings, request: Mapping[str, Any], runner: Runner = subprocess.run, smoke: Callable[[Settings], bool] | None = None,
+            transcript_id: str | None = None) -> FixOutcome:
     """Launch one fix chat, then verify the deployed commit and dev smoke deterministically."""
     forbidden_targets = [path for path in request.get("target_files", []) if is_forbidden_path(path)]
     if forbidden_targets:
@@ -263,6 +278,7 @@ def run_fix(*, settings: Settings, request: Mapping[str, Any], runner: Runner = 
         return FixOutcome("failed", "timeout")
     except OSError:
         return FixOutcome("failed", "launch_failed")
+    store_fix_transcript(settings, transcript_id, completed)
     after = _checkout_status(settings.project_root, runner)
     if before != after:
         # Fail closed: the fix chat may only edit its own session worktree. Another

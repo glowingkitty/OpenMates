@@ -20,6 +20,7 @@ import time
 import uuid
 from typing import Any
 
+from backend.core.api.app.services.project_presentation_rules import normalize_category, normalize_icon
 from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationError,
     normalize_focus_id,
@@ -63,6 +64,7 @@ def build_project_create_action(
     *, request_id: str, name: str, chat_id: str | None, message_id: str | None,
     team_id: str | None, origin: str, kind: str | None = None, description: str = "",
     created_at: float | None = None, location: str = "cloud", machine_hint: str = "",
+    icon: str = "", category: str = "",
 ) -> dict[str, Any]:
     """Return the ``pending_client_action`` for one client-executed creation.
 
@@ -91,6 +93,9 @@ def build_project_create_action(
         "team_id": team_id,
         "name": project_name,
         "description": " ".join(str(description or "").split())[:MAX_PROJECT_DESCRIPTION_CHARS],
+        # Optional tile presentation (TASK-1807); the client validates and encrypts it.
+        "icon": normalize_icon(icon) or None,
+        "category": normalize_category(category) or None,
         "kind": kind,
         "subfolder": PROJECT_CREATE_KINDS.get(kind) if kind else None,
         "write_mode": PROJECT_CREATE_WRITE_MODE,

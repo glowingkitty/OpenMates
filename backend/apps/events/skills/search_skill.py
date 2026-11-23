@@ -938,6 +938,11 @@ class SearchSkill(BaseSkill):
             if query and not conference and "auto" in normalized:
                 # A topic that only the web can answer, on a call without the server's secrets.
                 return request_id, [], "Web search is unavailable for this request.", 0, [], []
+            if query:
+                # A named schedule source never broadens; say what it holds so the next call can use auto.
+                return request_id, [], (
+                    "The official conference schedules cover only GPN24, 39C3, 38C3 and 37C3, so nothing was "
+                    "searched. Search again with provider auto to find this conference."), 0, [], []
             return request_id, [], "Event search needs a topic or a known conference schedule.", 0, [], []
         criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         topic = f"Events about {query}" if query and (not conference or query.casefold() != conference.casefold()) else None
@@ -949,6 +954,9 @@ class SearchSkill(BaseSkill):
         failures: List[str] = []
         if progress is not None:
             await progress.add_sources(int(run_builtin) + len(selected_installed) + int(run_web))
+        # One list per source, interleaved before the bounded relevance cut, so a source that
+        # returns many rows (city listings) never pushes another source's matches out unscored.
+        source_lists: List[List[Dict[str, Any]]] = []
         web_search = asyncio.create_task(self._search_web(
             {**req, "query": query}, secrets_manager, progress, past_events=bool(req.get("past_events")),
             prices=prices,
@@ -961,7 +969,7 @@ class SearchSkill(BaseSkill):
                 past_events=bool(req.get("past_events")))
             if error:
                 failures.append("Conference schedule search is unavailable.")
-            events.extend(builtin_events)
+            source_lists.append(list(builtin_events))
             if progress is not None:
                 await progress.source_done(len(builtin_events))
         if selected_installed:
@@ -975,7 +983,7 @@ class SearchSkill(BaseSkill):
                 on_provider_done=provider_done)
             for outcome in outcomes:
                 dispatched.append(outcome.provider_id)
-                events.extend(outcome.results)
+                source_lists.append(list(outcome.results))
                 total += len(outcome.results)
                 if outcome.error:
                     failures.append(outcome.error)
@@ -984,10 +992,11 @@ class SearchSkill(BaseSkill):
             if web_usage is not None and outcome.usage:
                 web_usage.update(outcome.usage)
             dispatched.append(WEB_PROVIDER_ID)
-            events.extend(outcome.results)
+            source_lists.append(list(outcome.results))
             total += len(outcome.results)
             if outcome.error:
                 failures.append(outcome.error)
+        events.extend(_interleave_sources(source_lists))
         if failures and not events:
             return request_id, [], " ".join(failures), 0, dispatched, []
         results = []
@@ -1021,6 +1030,14 @@ class SearchSkill(BaseSkill):
                     retained = {id(event) for event in results}
                     results = [event for event in original_order if id(event) in retained]
         return request_id, results[:count], None, total, dispatched, failures
+
+
+def _interleave_sources(source_lists: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Round-robin the rows of each source, keeping each source's own order."""
+    merged: List[Dict[str, Any]] = []
+    for position in range(max((len(rows) for rows in source_lists), default=0)):
+        merged.extend(rows[position] for rows in source_lists if position < len(rows))
+    return merged
 
 
 def _event_result_url(event: Dict[str, Any]) -> str:

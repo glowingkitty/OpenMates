@@ -628,11 +628,13 @@ async def update_authored_results_embed(
         # Content-free reason for an empty carrier: the block itself is encrypted.
         logger.warning(
             "%s Authored results %s ended without members: parsed=%s parse_error=%s items=%d references=%d "
-            "warnings=%s index_size=%d",
+            "warnings=%s index_size=%d prefixed_refs=%d",
             log_prefix, embed_id, normalized is not None, bool(normalized and normalized.parse_error),
             len(normalized.items) if normalized else 0, len(normalized.references) if normalized else 0,
             sorted({str(warning.get("code")) for warning in warnings}),
             len(getattr(service, "authoring_reference_index", None) or {}),
+            sum(1 for reference in (normalized.references if normalized else [])
+                if reference.embed_ref.strip().startswith("embed:")),
         )
     requested = normalized.view if normalized else None
     requested_ids = requested.get("items", ordered_labels) if requested else ordered_labels

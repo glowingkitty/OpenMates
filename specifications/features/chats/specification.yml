@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chats
 version: 7
-status: draft
+status: approved
 title: Chats
 summary: 'OpenMates chats preserve client-side encryption boundaries, stable message identities, visible local message
   states, and cross-device completion recovery while synchronizing chat content across first-party clients.
@@ -242,6 +242,19 @@ assertions:
   type: behavior
   must: Eligible personal web and TUI submissions immediately hand off the user snapshot, clear the composer and send the encrypted durable admission with transient inference intent without waiting for its acknowledgement or unrelated context discovery. Saved turn, message, task and billing identities remain idempotent. Required private context may arrive in correlated phases, missing context fails safely, and pending encrypted recovery is retained until admission and required context are acknowledged. Team human-only messages do not start AI.
   depends_on: [examples.immediate_admission]
+- id: chats.titles.first-message-fallback
+  type: behavior
+  must: A chat is never shown as "Untitled chat". Until a generated title exists, the chat header, sidebar row,
+    start-screen card, Project tile and chat pickers show the readable beginning of the chat's first user message,
+    derived on the client from locally decrypted message text and never stored, encrypted into metadata or sent.
+    That text is readable only, so a mention shows its display name (the Project name, the Focus or skill title, the
+    file or folder name) and a privacy placeholder shows the same short label as in the message (such as [PERSON_NAME_1]), and no identifier or raw mention syntax ever appears. The generated title replaces it
+    everywhere once it arrives. A chat with no title, no draft and no user message
+    never appears as a start-screen card; a sidebar row for such a chat says "New chat". A chat summary shown on
+    a chat card, in the chat header or in the chat menu likewise shows privacy placeholders by that short label,
+    never with their identifier; editing the summary keeps the stored placeholders.
+  depends_on:
+  - models.ChatMessage
 - id: chats.offline-outbox.ordered-replay
   type: invariant
   must: Changes queued while offline replay in durable insertion order per chat, Team and component (draft or title), never by version counters that reset on deletion. A group whose chronology is ambiguous (several legacy rows, legacy mixed with ordered rows, or invalid or duplicate insertion orders) stays queued instead of being guessed. A deferred draft deletion replays only while the chat has no local draft and the editor has no unsaved changes, so an older delete never overwrites a newer draft. A batch receipt retires only the rows it covers, and a late acknowledgement cannot delete a row that was replaced under the same ID. Replay is idempotent, and web decisions are identical whether made by the TypeScript or the shared Rust implementation.
@@ -372,6 +385,27 @@ assertions:
     appears while the assistant turn is still streaming, processing or running skills, nor on a finished assistant
     message that has answer text; it appears only on a finished assistant turn whose skills failed and left no
     answer text.
+  depends_on:
+  - models.AssistantRenderDocument
+  - examples.assistant_rendering
+- id: chats.rendering.embed-references-never-raw
+  type: behavior
+  must: A message never shows the raw reference of an embed (the JSON code block with an embed id) in place of the
+    embed. A file attached to a message renders as its normal embed on every client, also when the message starts
+    with a model mention or other text on the same line. When a client still finds a raw embed reference in a
+    rendered user message, it records one content-free error (no message text, no embed id) that reaches the
+    error monitoring like any client error.
+  depends_on:
+  - models.AssistantRenderDocument
+  - examples.assistant_rendering
+- id: chats.rendering.skill-card-call-order
+  type: behavior
+  must: Skill cards of different skills in one assistant message appear in call order, left to right, and the
+    running or newest card is visible without scrolling the card row. Cards of one repeated skill keep the newest
+    first. An AI generation card uses the AI sparkle as its skill icon (the app icon is unchanged), except a skill
+    with its own icon (the needle of design.embroidery), and, while it
+    runs, shows a shortened prompt, the model, the input image thumbnail when one was given, and the vector draft
+    as it streams. A View card shows the uploaded file it refers to.
   depends_on:
   - models.AssistantRenderDocument
   - examples.assistant_rendering

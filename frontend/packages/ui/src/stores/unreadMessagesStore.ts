@@ -86,6 +86,20 @@ export const unreadMessagesStore = {
   },
 
   /**
+   * Align the badge with the server-authoritative count carried by a sync
+   * snapshot. A count of 0 clears a stale badge (the chat was read on another
+   * device while this one missed the live broadcast); an unchanged count is a no-op.
+   * @param chatId The chat ID
+   * @param serverCount The unread count the server stored for the chat
+   */
+  reconcileWithServer: (chatId: string, serverCount: number | null | undefined) => {
+    const count = serverCount ?? 0;
+    const local = get({ subscribe }).unreadCounts.get(chatId) ?? 0;
+    if (count === local) return;
+    return rustApply({ type: "set", chat: chatId, count });
+  },
+
+  /**
    * Clear unread count for a chat
    * Called when user opens/views the chat
    * @param chatId The chat ID

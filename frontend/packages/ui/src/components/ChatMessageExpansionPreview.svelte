@@ -3,7 +3,7 @@
   import type { MessageStatus } from '../types/chat';
   let { containerWidth = 700 }: { containerWidth?: number } = $props();
 
-  const text = 'Explain these saved appointments.\n\nResult context (data supplied by the user):\n' +
+  const text = 'Explain these saved appointments.\n\nMy notes on them:\n' +
     'Verified appointment data. '.repeat(55) + '\nSynthetic Practice alpha. Contact [EMAIL_PREVIEW].';
   let status = $state<MessageStatus>('sending');
   let piiRevealed = $state(false);

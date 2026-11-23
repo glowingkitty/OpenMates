@@ -10,11 +10,13 @@ import { UnitRefusal, type UnitHandlers } from '../host/unitPort';
 
 interface ProjectStateBinding {
 	chat_state_project_decide(op: string, inputJson: string): string;
+	chat_state_subchat_decide(op: string, inputJson: string): string;
 }
 
 // A type alias (not an interface) so the operation name stays a literal key of `UnitHandlers`.
 export type ProjectStateUnitProtocol = {
 	projectDecide: { request: { op: string; input: unknown }; response: unknown };
+	subchatDecide: { request: { op: string; input: unknown }; response: unknown };
 };
 
 export function createProjectStateHandlers(raw: object): UnitHandlers<ProjectStateUnitProtocol> {
@@ -26,6 +28,17 @@ export function createProjectStateHandlers(raw: object): UnitHandlers<ProjectSta
 			let json: string;
 			try {
 				json = binding.chat_state_project_decide(payload.op, JSON.stringify(payload.input ?? null));
+			} catch {
+				throw new UnitRefusal('protocol');
+			}
+			return JSON.parse(json) as unknown;
+		},
+		subchatDecide: (payload) => {
+			if (typeof payload !== 'object' || payload === null || typeof payload.op !== 'string') throw new UnitRefusal('protocol');
+			if (typeof binding.chat_state_subchat_decide !== 'function') throw new UnitRefusal('protocol');
+			let json: string;
+			try {
+				json = binding.chat_state_subchat_decide(payload.op, JSON.stringify(payload.input ?? null));
 			} catch {
 				throw new UnitRefusal('protocol');
 			}

@@ -1,0 +1,64 @@
+schema_version: 2
+profile: concise
+id: daily-inspiration-deferred-chat
+title: Daily inspiration opens as an unsaved preview until the first follow-up
+status: implementing
+goal: >-
+  Marco, 21 Nov 2026 (TASK-3406, point 3): opening a daily inspiration opens it
+  like a chat, but it is NOT saved as a real chat yet. It stays a daily
+  inspiration until the user sends a follow-up message; only then does it
+  become a normal user chat (saved, encrypted, in the chat list) and stop
+  showing as a daily inspiration. If the user leaves without sending, nothing
+  is saved.
+scope:
+  - >-
+    Web shell, ActiveChat.svelte: activating an inspiration (signed in, not yet
+    opened) builds the chat and its first assistant message in memory only and
+    shows them. No chat key is created, nothing is written to IndexedDB, no
+    embed key wrapper is created, nothing is sent to the server (no
+    set_active_chat, no sync_inspiration_chat) and the inspiration is not
+    marked opened. The pre-stored inspiration video embed (already local from
+    the inspiration download) renders as before.
+  - >-
+    New small module services/pendingInspirationChat.ts: one pending preview at
+    a time, keyed by its chat ID, with a materialise callback. Leaving the
+    preview (another chat, new chat, start screen) discards it.
+  - >-
+    First send (sendHandlers.handleSend, any path including deferred uploads and
+    follow-up suggestion chips) awaits materialisation for the pending chat ID
+    first. Materialisation runs the existing creation code unchanged: chat key,
+    IndexedDB chat + assistant message, embed key wrappers, follow-up
+    suggestions, mark opened (store, IndexedDB, API), chat list insert,
+    set_active_chat and sync_inspiration_chat. The user message then sends into
+    that chat with the inspiration message as history.
+  - >-
+    Draft saving is skipped for a pending preview chat ID, so typing without
+    sending does not create a draft chat (the core would otherwise create a
+    chat record and key for that ID).
+  - Already-opened inspirations (opened_chat_id present locally) keep opening the saved chat.
+decisions:
+  - >-
+    The chat ID is chosen when the preview opens and kept on materialisation,
+    so the URL, the composer and handleSend need no ID swap (unlike the public
+    example-chat fork, which swaps IDs).
+  - >-
+    Client-core boundary: inspiration chat creation and text send are still
+    TypeScript on web (capabilities.yml send: rust-default, "text-chat send is
+    still TypeScript"; the Rust core has no inspiration-chat logic). This change
+    only defers when the existing shell code runs and adds view state; it adds
+    no new protocol, crypto or cache logic. Apple follows through chat 061eb4be.
+  - Feature inspirations (open a settings page) and guests (signup) are unchanged.
+contracts:
+  - daily-inspiration.opened-state
+  - daily-inspiration.start-row-cards
+verification:
+  required:
+    - >-
+      E2E daily-inspiration-chat-flow: open an inspiration, the assistant
+      message shows, the chat is not in the sidebar and not in IndexedDB; leave
+      to the start screen, the inspiration card is still there; open it again,
+      send a follow-up, the chat is in the sidebar, the AI answers and the
+      inspiration no longer shows in the start row.
+    - Component spec start-screen-row (inspiration card uses the normal chat card).
+  evidence: >-
+    Pending.

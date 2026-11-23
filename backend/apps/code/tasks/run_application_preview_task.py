@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import math
 import os
 import time
 import uuid
@@ -19,9 +18,11 @@ from typing import Any, Awaitable, Callable
 
 import httpx
 
+from backend.shared.python_utils.metered_author_billing import code_execution_credits
+
 from backend.core.api.app.routes.application_preview import (
     APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS,
-    APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
+    APPLICATION_PREVIEW_CREDITS_PER_SECOND,
     APPLICATION_PREVIEW_SESSION_TTL_SECONDS,
     application_preview_session_key,
 )
@@ -451,8 +452,7 @@ async def _charge_preview_if_needed(
     if duration_seconds <= 0:
         return {}
 
-    charged_minutes = max(1, math.ceil(duration_seconds / 60))
-    charged_credits = charged_minutes * APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE
+    charged_credits = code_execution_credits(duration_seconds, APPLICATION_PREVIEW_CREDITS_PER_SECOND)
     await _charge_preview_credits(
         session=data,
         session_id=session_id,
@@ -460,13 +460,12 @@ async def _charge_preview_if_needed(
         usage_details={
             "billing_phase": billing_phase,
             "duration_seconds": round(duration_seconds, 3),
-            "charged_minutes": charged_minutes,
-            "total_charged_minutes": charged_minutes,
+            "charged_seconds": round(duration_seconds, 3),
         },
     )
     return {
         "billing_state.charged_credits": charged_credits,
-        "billing_state.charged_minutes": charged_minutes,
+        "billing_state.charged_seconds": round(duration_seconds, 3),
         "billing_state.duration_seconds": round(duration_seconds, 3),
     }
 
@@ -490,7 +489,7 @@ async def _charge_preview_credits(
             "preview_session_id": session_id,
             "application_embed_id": session.get("application_embed_id"),
             "chat_id": usage_context.get("chat_id"),
-            "credits_per_minute": APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
+            "credits_per_second": str(APPLICATION_PREVIEW_CREDITS_PER_SECOND),
             **usage_details,
         },
         "api_key_hash": None,
@@ -754,6 +753,9 @@ def _run_application_preview_session_sync(session_id: str, payload: dict[str, An
     try:
         cache_service = loop.run_until_complete(get_worker_cache_service())
         loop.run_until_complete(secrets_manager.initialize())
+        if payload.get("source") == "project_sandbox":
+            loop.run_until_complete(_run_project_sandbox_preview(cache_service, session_id, payload, secrets_manager))
+            return
         api_key = loop.run_until_complete(get_e2b_api_key_async(secrets_manager))
         loop.run_until_complete(run_application_preview_session(
             cache_service=cache_service,
@@ -767,6 +769,20 @@ def _run_application_preview_session_sync(session_id: str, payload: dict[str, An
     finally:
         loop.run_until_complete(secrets_manager.aclose())
         loop.close()
+
+
+async def _run_project_sandbox_preview(cache_service: Any, session_id: str, payload: dict[str, Any],
+                                       secrets_manager: Any) -> None:
+    """Preview from the chat's Project sandbox: no files are uploaded, no second sandbox is started."""
+    from backend.apps.code.project_sandbox_preview import run_project_sandbox_preview_session
+    from backend.core.api.app.services.project_sandbox_service import ProjectSandboxService
+
+    service = ProjectSandboxService(cache_service, DirectusService(cache_service=cache_service),
+                                    secrets_manager=secrets_manager)
+    await run_project_sandbox_preview_session(
+        cache_service=cache_service, session_id=session_id, payload=payload,
+        patch=lambda sid, data: _patch_session(cache_service, sid, data), service=service,
+        secrets_manager=secrets_manager)
 
 
 def _stop_application_preview_sandbox_sync(session_id: str, sandbox_id: str, *, only_if_unopened: bool = False) -> None:

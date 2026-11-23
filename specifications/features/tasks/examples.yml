@@ -93,6 +93,13 @@ task_detail_presentation:
     input: {viewport: phone, selected_task: task-1}
     expect: {fullscreen_overlay: true, close_restores_board: true}
 
+task_chat_presentation:
+  - id: chat-with-running-task
+    assertion_ids: [tasks.chat.settings-only]
+    given: Alex's chat has one linked Task that is running.
+    when: Alex opens the chat and then its chat settings.
+    then: The chat shows only its messages and composer, with no "Task 1/1" overlay or pause button; the chat settings list the running Task.
+
 task_activity_layout:
   - id: one-final-activity-section
     given: {task_detail: fullscreen, sections: [description, metadata, dependencies, links, activity]}

@@ -103,6 +103,24 @@ describe('core client borrow', () => {
 		expect(tryBorrowCoreClient(PRINCIPAL, undefined, { allowLocal: true })).toMatchObject({ status: { principal: PRINCIPAL } });
 	});
 
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('lends only the preferred client while a dispatcher still holds it, and any client once it is gone', () => {
+		const first = fakeClient();
+		const second = fakeClient();
+		const a = fakeRuntime(first);
+		const b = fakeRuntime(second);
+		cleanups.push(registerCoreClientBorrows(a), registerCoreClientBorrows(b));
+		const preferred = tryBorrowCoreClient(PRINCIPAL, undefined, { prefer: second }) as CoreClientBorrow;
+		expect(preferred.client, 'the preferred client is lent although another one is idle').toBe(second);
+		expect(tryBorrowCoreClient(PRINCIPAL, undefined, { prefer: second }), 'a busy preferred client is waited for').toBe('busy');
+		preferred.release();
+		const unregisterB = cleanups.pop() as () => void;
+		unregisterB();
+		const fallback = tryBorrowCoreClient(PRINCIPAL, undefined, { prefer: second }) as CoreClientBorrow;
+		expect(fallback.client, 'a retired preferred client no longer pins the borrow').toBe(first);
+		fallback.release();
+	});
+
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
 	it('refuses other principals, local-only admissions and unregistered dispatchers', () => {
 		const local = fakeRuntime(fakeClient({ local_read_only: true }));

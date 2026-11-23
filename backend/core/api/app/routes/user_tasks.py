@@ -369,6 +369,10 @@ async def _validate_task_create_context(request: Request, user_id: str, body: Us
         body.parent_task_id, user_id, body.team_id
     ):
         raise ValueError("Task parent must belong to the selected workspace")
+    if body.plan_id and not await request.app.state.directus_service.user_plan.get_plan(
+        body.plan_id, user_id, body.team_id
+    ):
+        raise ValueError("Task plan must belong to the selected workspace")
     if body.team_id:
         if not any(wrapper.key_type == "team" for wrapper in body.key_wrappers):
             raise ValueError("Team task requires a Team key wrapper")

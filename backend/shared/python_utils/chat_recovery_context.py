@@ -8,9 +8,23 @@ from __future__ import annotations
 from contextvars import ContextVar
 from dataclasses import dataclass
 
+from fastapi import HTTPException
+
 
 class RequiredRecoveryOutputError(RuntimeError):
     """A required sealed output could not be saved before dependent work."""
+
+
+class SkillRequestRejected(HTTPException):
+    """A skill call refused while its request was validated, before any work started.
+
+    Nothing was dispatched, so even an async skill of a same-turn batch can report it to the
+    model as an ordinary tool error instead of failing the turn (recipe proof, 22 Nov: an
+    extra field in a code-run call ended the whole reply and left it running forever).
+    """
+
+    def __init__(self, detail: object) -> None:
+        super().__init__(status_code=422, detail=detail)
 
 
 @dataclass(frozen=True)

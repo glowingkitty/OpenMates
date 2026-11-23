@@ -38,6 +38,7 @@ import { isActiveTeamContext } from "../stores/teamStore";
 import { captureOfflineSyncContext, consumeOfflineSyncBatch, finishOfflineSyncBatch, isOfflineSyncContextCurrent } from "./offlineSyncBatch";
 import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { announceChatMessageOnce, noteChatMessageCard } from "./chatMessageNotificationReceipt";
 import type {
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
@@ -67,7 +68,7 @@ async function notifyBackgroundAssistantBatchMessage(
   messages: Message[],
   chat: Chat,
 ): Promise<void> {
-  if (chat.is_sub_chat || chat.parent_id || isChatVisiblyActive(chatId)) return;
+  if (chat.is_sub_chat || chat.parent_id) return;
 
   const nowSeconds = Math.floor(Date.now() / 1000);
   const assistantMessage = messages.find((message) =>
@@ -76,8 +77,11 @@ async function notifyBackgroundAssistantBatchMessage(
     nowSeconds - message.created_at <= RECENT_ASSISTANT_BATCH_NOTIFICATION_WINDOW_SECONDS
   );
   if (!assistantMessage) return;
+  // A reply already seen in its open chat, or already announced, is not new.
+  if (!announceChatMessageOnce(chatId, assistantMessage.message_id, isChatVisiblyActive(chatId))) return;
 
   unreadMessagesStore.incrementUnread(chatId, assistantMessage.message_id);
+  noteChatMessageCard("batch-sync", chatId);
 
   let chatTitle = chat.title || "New message";
   if (!chat.title && chat.encrypted_title) {
@@ -1091,6 +1095,15 @@ export async function handleChatContentBatchResponseImpl(
         continue;
       }
 
+      // Replies already stored on this device were shown here before (for example a
+      // call answer heard live); only replies new to this device may be announced.
+      const storedBefore = await Promise.all(
+        persistableMessages.map((message) =>
+          message.role === "assistant" ? chatDB.getMessage(message.message_id) : Promise.resolve(null),
+        ),
+      );
+      const newToDevice = persistableMessages.filter((_message, index) => !storedBefore[index]);
+
       // Save messages to IndexedDB
       await chatDB.batchSaveMessages(persistableMessages);
 
@@ -1118,7 +1131,7 @@ export async function handleChatContentBatchResponseImpl(
 
         await chatDB.updateChat(chat);
         chatListCache.upsertChat(chat);
-        await notifyBackgroundAssistantBatchMessage(chatId, persistableMessages, chat);
+        await notifyBackgroundAssistantBatchMessage(chatId, newToDevice, chat);
         updatedChatCount++;
         serviceInstance.dispatchEvent(
           new CustomEvent("chatUpdated", {

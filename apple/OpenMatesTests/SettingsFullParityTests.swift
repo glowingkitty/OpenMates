@@ -748,7 +748,7 @@ final class SettingsFullParityTests: XCTestCase {
         manager.show("Latest", duration: 0)
         XCTAssertEqual(manager.visibleNotifications.map(\.message), ["Latest", "Persistent connection", "Timed middle"])
         manager.show("Connection updated", type: .connection, duration: 0, isProcessing: true, dedupeKey: "connection")
-        XCTAssertEqual(manager.notifications.first(where: { $0.dedupeKey == "connection" })?.id, connectionID)
+        XCTAssertEqual(manager.notifications.first(where: { $0.dedupeKeys.contains("connection") })?.id, connectionID)
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(manager.visibleNotifications.map(\.message), ["Latest", "Connection updated", "Oldest retained"])
         manager.dismiss()
@@ -768,6 +768,34 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(manager.currentToast?.duration, 0)
         manager.dismiss()
         XCTAssertNil(manager.currentToast)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=notifications.web.duplicate-grouping,notifications.web.duplicate-lifecycle
+    @MainActor
+    func testSameNotificationFiredTenTimesIsOneCardWithCounterThatOneCloseRemoves() {
+        let manager = ToastManager()
+        defer { manager.dismissAll() }
+        for index in 0..<10 {
+            manager.show("A saved result has a conflicting revision.", type: .warning, duration: 0,
+                         dedupeKey: "embed-write-conflict:embed-\(index)")
+        }
+        XCTAssertEqual(manager.notifications.count, 1)
+        XCTAssertEqual(manager.currentToast?.count, 10)
+        manager.dismiss()
+        XCTAssertTrue(manager.notifications.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.web.duplicate-lifecycle
+    @MainActor
+    func testMergedNotificationStaysUntilItsLastKeyIsResolved() {
+        let manager = ToastManager()
+        defer { manager.dismissAll() }
+        manager.show("Review the chat", type: .warning, duration: 0, dedupeKey: "conflict:a")
+        manager.show("Review the chat", type: .warning, duration: 0, dedupeKey: "conflict:b")
+        manager.dismiss(dedupeKey: "conflict:a")
+        XCTAssertEqual(manager.notifications.map(\.count), [2])
+        manager.dismiss(dedupeKey: "conflict:b")
+        XCTAssertTrue(manager.notifications.isEmpty)
     }
 
     // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell

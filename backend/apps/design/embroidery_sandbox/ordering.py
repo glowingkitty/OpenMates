@@ -47,11 +47,12 @@ def _closure(colour: str, available_done: set[int], items: dict[int, OrderItem],
     return count
 
 
-def plan_order(items: list[OrderItem], deps: dict[int, set[int]], start_colour: str | None = None) -> list[int]:
+def plan_order(items: list[OrderItem], deps: dict[int, set[int]], end_colour: str | None = None) -> list[int]:
     """Return item indexes in sewing order. ``deps[i]`` must be sewn before ``i``.
 
-    ``start_colour`` is the thread sewn just before these items (a sew-on
-    border), so available items of that colour come first.
+    ``end_colour`` is the thread sewn right after these items (a sew-on border),
+    so items of that colour wait until no other colour can be sewn and run on
+    into the border without a thread change.
     """
     by_index = {item.index: item for item in items}
     remaining = set(by_index)
@@ -60,7 +61,7 @@ def plan_order(items: list[OrderItem], deps: dict[int, set[int]], start_colour: 
         raise ValueError(f"dependencies reference unknown shapes {sorted(unknown)}")
     done: set[int] = set()
     order: list[int] = []
-    current_colour: str | None = start_colour
+    current_colour: str | None = None
     position: tuple[float, float] | None = None
     while remaining:
         available = [index for index in remaining if deps.get(index, set()) <= done]
@@ -70,14 +71,14 @@ def plan_order(items: list[OrderItem], deps: dict[int, set[int]], start_colour: 
         if not same:
             colours = sorted({by_index[index].colour for index in available})
 
-            def colour_key(colour: str) -> tuple[int, int, int, int]:
+            def colour_key(colour: str) -> tuple[int, int, int, int, int]:
                 members = [index for index in available if by_index[index].colour == colour]
                 best_kind = min(KIND_RANK[by_index[index].kind] for index in members)
                 run = _closure(colour, done, by_index, deps, remaining)
                 left = sum(1 for index in remaining if by_index[index].colour == colour)
                 # Prefer a colour that can be finished now: starting one that is
                 # still needed later costs an extra thread change.
-                return best_kind, 0 if run == left else 1, -run, min(members)
+                return int(colour == end_colour), best_kind, 0 if run == left else 1, -run, min(members)
 
             current_colour = min(colours, key=colour_key)
             same = [index for index in available if by_index[index].colour == current_colour]

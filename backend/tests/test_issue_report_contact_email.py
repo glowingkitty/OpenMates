@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """
 Regression coverage for issue-report contact email resolution.
 
@@ -69,3 +70,34 @@ def test_issue_report_trace_ids_are_bounded_for_yaml() -> None:
 
     assert normalize_issue_report_trace_ids([long_trace_id, "trace-2", ""]) == ["a" * 64, "trace-2"]
     assert normalize_issue_report_trace_ids(None) == []
+
+
+class FakeUserFields:
+    def __init__(self, fields):
+        self.fields = fields
+
+    async def get_user_fields_direct(self, user_id: str, fields: list[str]):
+        assert fields == ["is_test_account"]
+        return self.fields
+
+
+@pytest.mark.anyio
+async def test_only_labelled_test_accounts_skip_issue_emails():
+    from backend.core.api.app.utils.issue_report_contact_email import reporter_is_test_account
+
+    assert await reporter_is_test_account(FakeUserFields({"is_test_account": True}), "user-123") is True
+    assert await reporter_is_test_account(FakeUserFields({"is_test_account": None}), "user-123") is False
+    assert await reporter_is_test_account(FakeUserFields(None), "user-123") is False
+    assert await reporter_is_test_account(FakeUserFields({"is_test_account": True}), None) is False
+
+
+def test_issue_email_subject_uses_the_first_part_of_the_title():
+    from backend.core.api.app.utils.issue_report_text import short_issue_subject_title
+
+    assert short_issue_subject_title("Chat answer missing") == "Chat answer missing"
+    long = "Voice and video call abruptly disconnects with transcript saving error after two seconds"
+    short = short_issue_subject_title(long)
+    assert len(short) <= 61 and short.endswith("…") and long.startswith(short[:-1])
+    assert short == "Voice and video call abruptly disconnects with transcript…"
+    escaped = "A" * 57 + "&amp;B"
+    assert "&" not in short_issue_subject_title(escaped)

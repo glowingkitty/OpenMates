@@ -11,35 +11,8 @@ final class AppsWorkspaceParityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-apps-workspace"]
         app.launch()
-        XCTAssertTrue(app.descendants(matching: .any)["apps-daily-inspiration-area"].waitForExistence(timeout: 15))
-        let next = app.buttons["apps-inspiration-next"]
-        let previous = app.buttons["apps-inspiration-previous"]
-        XCTAssertTrue(next.waitForExistence(timeout: 5)); XCTAssertTrue(next.isHittable)
-        XCTAssertTrue(previous.exists); XCTAssertTrue(previous.isHittable)
-        let inspiration = app.descendants(matching: .any)["daily-inspiration-card"].firstMatch
-        XCTAssertTrue(inspiration.waitForExistence(timeout: 5))
-        let searchInspiration = inspiration.value as? String
-        XCTAssertNotNil(searchInspiration)
-        XCTAssertFalse(searchInspiration?.isEmpty ?? true)
-        next.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["apps-daily-inspiration-area"].exists,
-            "Arrow navigation must keep the inspiration banner on the home screen")
-        XCTAssertFalse(app.descendants(matching: .any)["apps-detail-fullscreen"].exists,
-            "The arrow hit area must not open the underlying inspiration skill")
-        let changed = NSPredicate { _, _ in
-            guard inspiration.exists, let value = inspiration.value as? String else { return false }
-            return !value.isEmpty && value != searchInspiration
-        }
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: changed, object: nil)], timeout: 5), .completed,
-            "Next must change the real inspiration content")
-        previous.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["apps-daily-inspiration-area"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["apps-detail-fullscreen"].exists)
-        let restored = NSPredicate { _, _ in
-            inspiration.exists && inspiration.value as? String == searchInspiration
-        }
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: restored, object: nil)], timeout: 5), .completed,
-            "Previous must restore the original inspiration content")
+        XCTAssertFalse(app.descendants(matching: .any)["apps-daily-inspiration-area"].exists,
+            "The Apps start screen no longer shows a daily inspiration banner")
         let card = app.buttons["apps-app-card-web"]
         XCTAssertTrue(card.waitForExistence(timeout: 15)); XCTAssertTrue(card.isHittable); card.tap()
         XCTAssertTrue(app.descendants(matching: .any)["apps-detail-fullscreen"].waitForExistence(timeout: 8))
@@ -65,6 +38,27 @@ final class AppsWorkspaceParityUITests: XCTestCase {
         XCTAssertTrue(open.isHittable); open.tap()
         XCTAssertTrue(app.descendants(matching: .any)["apps-result-fullscreen"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.webViews.firstMatch.exists); XCTAssertFalse(app.tables.firstMatch.exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.start-row-cards,daily-inspiration.start-row-actions
+    func testAppsStartScreenHasNoBannerAndActionsTileIsLastRowItem() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-apps-workspace"]
+        app.launch()
+        let actions = app.descendants(matching: .any)["apps-row-actions"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 15))
+        XCTAssertFalse(app.descendants(matching: .any)["apps-daily-inspiration-area"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["daily-inspiration-card"].exists)
+        XCTAssertFalse(app.staticTexts["Daily inspiration"].exists)
+        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'apps-app-card-'"))
+        XCTAssertGreaterThan(cards.count, 0); XCTAssertLessThanOrEqual(cards.count, 10)
+        for card in cards.allElementsBoundByIndex {
+            XCTAssertLessThan(card.frame.minX, actions.frame.minX, "The actions tile is the last item of the row")
+            XCTAssertEqual(card.frame.height, 200, accuracy: 1, "Apps use the same 200pt large cards as Chats")
+        }
+        XCTAssertTrue(app.buttons["apps-show-all"].exists)
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "apple-apps-start"; attachment.lifetime = .keepAlways; add(attachment)
     }
 
     private func revealDetailControl(_ control: XCUIElement, in app: XCUIApplication) {

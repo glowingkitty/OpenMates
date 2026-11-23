@@ -11,6 +11,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
+    import SettingsE2bConsent from './privacy/SettingsE2bConsent.svelte';
     import { authStore } from '../../stores/authStore';
     import { personalDataStore } from '../../stores/personalDataStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
@@ -318,6 +319,9 @@ Based on Figma design: settings/privacy (node 1895:20576)
     checked={debugLoggingEnabled}
     onClick={toggleDebugLogging}
 />
+
+<!-- E2B cloud sandbox upload decision (assertion code-run.e2b.upload-consent) -->
+<SettingsE2bConsent />
 
 <!-- Encrypted content disclaimer -->
 <div class="settings-note">

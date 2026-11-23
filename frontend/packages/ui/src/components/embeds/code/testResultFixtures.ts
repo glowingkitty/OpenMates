@@ -37,8 +37,9 @@ const base = {
   is_current: true,
 };
 
+/** The run (19.6 s) includes install and server start; the test and its video took 8 s. */
 export const browserPassed = {
-  ...base, kind: 'browser', target: 'e2b', run_status: 'passed', duration_ms: 8000,
+  ...base, kind: 'browser', target: 'e2b', run_status: 'passed', duration_ms: 19600,
   passed: 4, failed: 0, preview_step_index: 2, steps: browserSteps(false), evidence: browserEvidence,
   tests: [{ name: 'Signing in opens the dashboard', status: 'passed', duration_ms: 8000 }],
 };

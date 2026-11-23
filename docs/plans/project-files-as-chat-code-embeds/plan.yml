@@ -1,0 +1,56 @@
+schema_version: 2
+profile: concise
+id: project-files-as-chat-code-embeds
+title: Files the assistant writes in a cloud Project are normal code embeds in the reply
+status: implementing
+goal: |
+  Marco (22 Nov, receipt ba57243847b51eee), replacing the earlier "File changed
+  as system events" instruction: one flow, the same as when a user asks for
+  code in a normal chat. Every file the assistant creates appears as a normal
+  code embed inside the assistant message, streaming live as it is written.
+  Edits to existing files appear as the existing diff embeds. These embeds are
+  the Project's files, saved in the Project. A step's files sit in the existing
+  horizontal embed row (show more at the end). The reply references files with
+  the existing inline embed references. The collapsed skill view shows only app
+  skills, never file content. The separate "File changed" / "Project file
+  changed" entries are removed completely. "Project created" stays a system
+  event with the small Undo link, followed by the focus activation embed. Use
+  the existing code embed creation, streaming and diff mechanisms; no separate
+  UI. Keep the earlier fixes (icons, the real command on the code-run card, the
+  thought process staying visible).
+notes: |
+  Design (hosted cloud Projects, the E2B Project sandbox):
+  - The model writes a new file as a normal code fence with its Project path
+    (```tsx:web-app/src/App.tsx). It streams and is stored as the normal chat
+    code embed (chat key, every device). When the fence closes, the stream
+    consumer also commits the same content through the chat's Project sandbox
+    (create_file; an existing file becomes a whole-file update_file), the one
+    write path of hosted files (P11), so later commands of the turn see it.
+    This applies to fences that stream and to blocks that arrive in one chunk.
+    The reply keeps the chat code embed: the sandbox holds only the Project
+    key (never the chat key), so the committed file embed has only a Project
+    wrapper and is read in Project views (recipe proof 22 Nov: swapping the
+    reply to it left "Code snippet" cards the chat could not open).
+  - An edit is a ```diff:<Project path> fence, applied to the Project file
+    through the sandbox (read_text for the current revision, then
+    update_file); the reply shows the existing diff embed of this turn's chat
+    code embed of that path.
+  - The model links files inline as [name](embed:<Project path>); at the end of
+    the turn the server points these links at this reply's chat code embeds,
+    and the web resolver accepts an embed id as the link target.
+  - Sandbox creation retries an E2B rate limit and the stream consumer passes
+    the secrets manager, so the first file of a turn can start the sandbox.
+  - project_create_file and project_update_file are not offered to the model in
+    a hosted Project chat; read, list, search, rename, delete and commit stay.
+  - No projects/change event is published anymore. Old ones in existing chats,
+    and the applied-change cards under the chat history, are not rendered.
+  - Machine-folder Projects keep the file tools for now (separate Task).
+
+  Encryption: file content crosses the server exactly as for a normal chat code
+  embed (model output); the committed Project row is sealed in the sandbox with
+  the Project key only, as today.
+
+  Proof: agentic-cloud-project-web-real.spec.ts (recipe app) asserts code
+  embeds in the reply and no File changed entries; pytest of fence commit,
+  diff routing and the tool list; component/unit tests of the removed event
+  rendering.

@@ -58,8 +58,6 @@ def editorial_review_digest(entry: Mapping[str, Any]) -> str:
 def is_inspiration_media_coherent(entry: Mapping[str, Any]) -> bool:
     """Require current scheduled proof for persisted external videos and wiki."""
     content_type = entry.get("content_type") or "video"
-    if content_type == "feature":
-        return True
     if content_type not in {"video", "wiki"}:
         return False
     try:

@@ -4055,7 +4055,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									handleKeyDown(e, chat);
 								}}
 								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-								aria-label={chat.title || $text('common.untitled_chat')}
+								aria-label={chat.title || undefined}
 							>
 								<ChatComponent
 									chat={chat}
@@ -4167,6 +4167,24 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					</div>
 				{/if}
 			{/snippet}
+{#snippet searchButton()}
+	<button
+		class="clickable-icon icon_search top-button"
+		data-testid="search-button"
+		aria-label="Search"
+		onclick={() => openSearch()}
+		use:tooltip
+	></button>
+{/snippet}
+{#snippet closeButton()}
+	<button
+		class="clickable-icon icon_close top-button right"
+		data-testid="chats-close-button"
+		aria-label={$text('common.close')}
+		onclick={handleClose}
+		use:tooltip
+	></button>
+{/snippet}
 <div class="activity-history-wrapper" data-testid="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
@@ -4219,21 +4237,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{$text('common.cancel')}
 						</button>
 					{:else}
-						<!-- Search button + close button -->
-						<button
-							class="clickable-icon icon_search top-button"
-							data-testid="search-button"
-							aria-label="Search"
-							onclick={() => openSearch()}
-							use:tooltip
-						></button>
-						<button
-							class="clickable-icon icon_close top-button right"
-							data-testid="chats-close-button"
-							aria-label={$text('common.close')}
-							onclick={handleClose}
-							use:tooltip
-						></button>
+						<!-- Close first (it takes the menu button's place), search at the end, on every screen size -->
+						{@render closeButton()}
+						{@render searchButton()}
 					{/if}
 				</div>
 			{/if}
@@ -4704,30 +4710,42 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         background-color: rgba(128, 128, 128, 0.7);
     }
 
+    /* The bar uses the header's geometry on every screen size, so the close button lands
+       exactly on the menu button that opened the sidebar: one tap spot opens and closes. */
     .top-buttons-container {
         flex-shrink: 0;
         z-index: var(--z-index-dropdown-1);
         background-color: var(--color-grey-20);
-        padding: var(--spacing-8) var(--spacing-10);
+        padding: var(--spacing-4) var(--spacing-10);
+        /* Side by side, the chat area (and its header) sits one sidebar margin from the screen edge
+           while the sidebar is closed; the close button must land where the menu button was. */
+        padding-inline-start: calc(var(--spacing-10) + var(--sidebar-margin, 0px));
         border-bottom: 1px solid var(--color-grey-30);
+    }
+
+    /* Overlay sidebar (phones): the header sits at the screen edge. */
+    @media (max-width: 600px) {
+        .top-buttons-container {
+            padding-inline-start: var(--spacing-10);
+        }
     }
 
     .top-buttons {
         position: relative;
-        height: 32px; /* Ensure container fits buttons */
-        display: flex; /* Use flexbox for easier alignment if needed */
-        justify-content: flex-end; /* Align close button to the right */
+        height: 2.75rem; /* same as the header's nav row */
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
     }
 
     .top-button {
-        /* Removed absolute positioning if using flexbox */
         display: flex;
         align-items: center;
     }
 
-    .top-button.right {
-       /* Logical property: pushes close button to inline-end (right in LTR, left in RTL) */
-       margin-inline-start: auto;
+    /* Search sits at the inline-end (right in LTR, left in RTL). */
+    .top-button.icon_search {
+        margin-inline-start: auto;
     }
 
     .select-mode-button {

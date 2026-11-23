@@ -24,7 +24,7 @@
   let failed = $state(false);
   let request = 0;
   let processing = $derived(suppliedProcessing ?? $processingChatIds.has(item.target_id));
-  let title = $derived(presentation?.title || item.displayName || $text('common.untitled_chat'));
+  let title = $derived(presentation?.title || item.displayName || $text('common.new_chat'));
   let href = $derived(presentation ? `/#chat-id=${encodeURIComponent(item.target_id)}${presentation.teamId ? `&team-id=${encodeURIComponent(presentation.teamId)}` : ''}` : null);
   let iconName = $derived(getValidIconName(presentation?.icon || '', presentation?.category || 'general_knowledge'));
   let IconComponent = $derived(getLucideIcon(iconName));

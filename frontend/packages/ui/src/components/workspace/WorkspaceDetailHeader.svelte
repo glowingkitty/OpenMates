@@ -9,6 +9,9 @@
   import { tick } from 'svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { text } from '@repo/ui';
+  // The shown description uses the message view's short privacy labels ([PERSON_NAME_1]); the edit
+  // field keeps the stored text so saving an edit never loses a placeholder.
+  import { aliasEnhancedPlaceholders } from '../../services/piiDisplayAliases';
 
   type SaveCallback = (value: string) => void | Promise<void>;
 
@@ -228,7 +231,7 @@
           data-testid={descriptionTestId}
           disabled={!writable}
           onclick={() => beginEdit('description')}
-        >{description}</button>
+        >{aliasEnhancedPlaceholders(description)}</button>
         {#if writable}
           <button class="edit-affordance" type="button" data-testid="workspace-detail-description-edit" aria-label={$text('common.edit')} onclick={() => beginEdit('description')}><EditIcon size={18} /></button>
         {/if}

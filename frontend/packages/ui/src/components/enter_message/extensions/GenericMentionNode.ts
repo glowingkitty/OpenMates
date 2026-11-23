@@ -4,6 +4,63 @@
 // Displays hyphenated name (e.g., "@Code-Get-Docs") but serializes to backend syntax.
 
 import { Node, mergeAttributes } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
+import { knownProjectMentionName, resolveProjectMentionNamesById } from "../../../utils/mentionProjectNames";
+
+/** The label a Project chip carries while its Project's name is not known yet. */
+const GENERIC_PROJECT_LABEL = "Project";
+
+/**
+ * Relabels Project chips that still show the generic label (for example a
+ * draft restored before the Project's name was loaded) once the name is known.
+ * Only the visible label changes; the serialized mention syntax stays the same.
+ */
+function projectChipNamesPlugin(): Plugin {
+  return new Plugin({
+    key: new PluginKey("projectChipNames"),
+    view: (view: EditorView) => {
+      const attempted = new Set<string>();
+      let destroyed = false;
+      const genericChipIds = (): string[] => {
+        const ids = new Set<string>();
+        view.state.doc.descendants((node) => {
+          if (node.type.name === "genericMention" && node.attrs.mentionType === "project"
+            && node.attrs.projectId && node.attrs.displayName === GENERIC_PROJECT_LABEL) ids.add(node.attrs.projectId);
+        });
+        return [...ids];
+      };
+      const relabel = () => {
+        if (destroyed) return;
+        let tr = view.state.tr;
+        view.state.doc.descendants((node, pos) => {
+          if (node.type.name !== "genericMention" || node.attrs.mentionType !== "project"
+            || node.attrs.displayName !== GENERIC_PROJECT_LABEL || !node.attrs.projectId) return;
+          const name = knownProjectMentionName(node.attrs.projectId);
+          if (name) tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, displayName: name });
+        });
+        if (!tr.docChanged) return;
+        view.dispatch(tr.setMeta("addToHistory", false).setMeta("preventUpdate", true));
+      };
+      const refresh = () => {
+        const ids = genericChipIds();
+        if (!ids.length) return;
+        relabel();
+        const missing = ids.filter((id) => !attempted.has(id) && !knownProjectMentionName(id));
+        if (!missing.length) return;
+        missing.forEach((id) => attempted.add(id));
+        void resolveProjectMentionNamesById(missing).then(relabel);
+      };
+      refresh();
+      return {
+        update: refresh,
+        destroy: () => {
+          destroyed = true;
+        },
+      };
+    },
+  });
+}
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface GenericMentionNodeOptions {}
@@ -208,6 +265,10 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
           });
         },
     };
+  },
+
+  addProseMirrorPlugins() {
+    return [projectChipNamesPlugin()];
   },
 
   addKeyboardShortcuts() {

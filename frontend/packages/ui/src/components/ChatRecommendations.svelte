@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/ChatRecommendations.svelte
      Container of the Recommendations card for one owned chat: hydrates the chat's
-     encrypted recommendations and opens drafts (Memory draft in Settings > Memories,
-     Workflow draft in the side panel). Project focus suggestions of the active
+     encrypted recommendations and opens Memory drafts in Settings > Memories.
+     Workflow recommendations stay in the stored data but are never shown in the chat. Project focus suggestions of the active
      Project (project_authoring_recommendation events, passed in by ChatHistory) are
      shown in the same card; their action starts the existing Project authoring job,
      whose progress and Save step stay in the chat history. Clicking an action never removes a
@@ -20,14 +20,13 @@
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
   import { notificationStore } from '../stores/notificationStore';
-  import { openWorkflowSidePanel } from '../stores/workflowSidePanelStore';
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
   import { hydrateChatRecommendations } from '../services/chatRecommendationsPersistence';
   import { listenForWorkflowRecommendationSaves } from '../services/contextEntryEvents';
   import {
-    RecommendationDraftError, buildWorkflowInstruction, loadRecommendationTurn,
+    RecommendationDraftError,
     requestCreateMemoryDraft, requestUpdatePreview, updateMemoryDraft,
   } from '../services/recommendationDrafts';
   import type { ChatRecommendation, RecommendationCardItem } from '../types/recommendations';
@@ -56,7 +55,10 @@
       title: entry.title || $text(entry.action === 'update' ? 'recommendations.focus_update_title' : 'recommendations.focus_create_title'),
       summary: $text(entry.action === 'update' ? 'recommendations.focus_update_summary' : 'recommendations.focus_create_summary'),
     })));
-  let items = $derived<RecommendationCardItem[]>([...($chatRecommendations[chatId]?.items ?? []), ...focusItems]);
+  // Workflow suggestions never appear in the open chat view (same rule as linked Tasks).
+  let memoryItems = $derived(($chatRecommendations[chatId]?.items ?? [])
+    .filter((entry): entry is ChatRecommendation & { kind: 'memory' } => entry.kind === 'memory'));
+  let items = $derived<RecommendationCardItem[]>([...memoryItems, ...focusItems]);
   let statusText = $derived(
     upToDateId && items.some((item) => item.id === upToDateId) ? $text('memories.suggestion_up_to_date') : null,
   );
@@ -128,16 +130,6 @@
     openMemoryDraft(await requestCreateMemoryDraft(chatId, item), item.id);
   }
 
-  async function openWorkflow(item: ChatRecommendation): Promise<void> {
-    const turn = await loadRecommendationTurn(chatId);
-    const instruction = buildWorkflowInstruction(item, turn);
-    openWorkflowSidePanel({
-      chatId, recommendationId: item.id, mode: item.action,
-      workflowId: item.action === 'update' ? item.target_id : null, instruction,
-      ...(turn.messageId ? { sourceMessageId: turn.messageId } : {}),
-    });
-  }
-
   async function startFocus(item: RecommendationCardItem): Promise<void> {
     const recommendationId = item.id.slice(FOCUS_ID_PREFIX.length);
     const recommendation = projectFocus.find((entry) => entry.recommendation_id === recommendationId);
@@ -152,8 +144,7 @@
     upToDateId = null;
     try {
       if (item.kind === 'focus') await startFocus(item);
-      else if (item.kind === 'memory') await openMemory(item as ChatRecommendation);
-      else await openWorkflow(item as ChatRecommendation);
+      else await openMemory(item as ChatRecommendation);
     } catch (error) {
       console.error('[Recommendations] Could not open the recommendation draft', error);
       notificationStore.error(item.kind === 'focus' ? $text('rules.authoring_failed') : failureMessage(error), 5000);

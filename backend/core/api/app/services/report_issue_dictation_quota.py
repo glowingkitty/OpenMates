@@ -2,6 +2,8 @@
 
 Report dictation is not charged, so abuse is bounded here instead:
 - one recording may contain at most REPORT_DICTATION_MAX_RECORDING_SECONDS of audio;
+  audio past the cap is dropped and the input ends there, so the transcript of
+  the first two minutes is still returned (cap_report_dictation_chunk);
 - each user may transcribe at most REPORT_DICTATION_DAILY_SECONDS per UTC day.
 
 Usage is reserved in whole seconds *before* each audio chunk is forwarded to
@@ -41,6 +43,23 @@ class ReportDictationDenied(RuntimeError):
         }
         super().__init__(messages.get(code, messages["quota_unavailable"]))
         self.code = code
+
+
+def cap_report_dictation_chunk(
+    bytes_already_forwarded: int, chunk: bytes, pcm_bytes_per_second: int
+) -> tuple[bytes, bool]:
+    """Trim a PCM16 chunk to the per-recording cap.
+
+    Returns the part of ``chunk`` that still fits and whether the cap is now
+    reached. The stream then ends its input normally, so the transcript of the
+    first two minutes is kept instead of the whole recording being refused.
+    """
+    cap_bytes = pcm_bytes_per_second * REPORT_DICTATION_MAX_RECORDING_SECONDS
+    room = max(0, cap_bytes - bytes_already_forwarded)
+    if len(chunk) < room:
+        return chunk, False
+    room -= room % 2  # keep whole 16-bit samples
+    return chunk[:room], True
 
 
 def _utc_day(now: datetime.datetime | None = None) -> str:

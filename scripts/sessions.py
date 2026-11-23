@@ -7666,6 +7666,19 @@ def _binding_problem(record: dict, behind_fn=_worktree_commits_behind_dev) -> st
     return ""
 
 
+def _requested_change_scope() -> str:
+    """Scope from OPENMATES_CHANGE_SCOPE (set by claude_dispatch for AI test-user chats)."""
+    try:
+        from scripts import change_scope
+    except ModuleNotFoundError:
+        import change_scope
+    value = os.environ.get("OPENMATES_CHANGE_SCOPE", "").strip()
+    if value and value not in change_scope.VALID_SCOPES:
+        print(f"ERROR: unknown OPENMATES_CHANGE_SCOPE {value!r}", file=sys.stderr)
+        raise SystemExit(2)
+    return value
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Bind a task to its workspace and emit a compact receipt."""
     repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
@@ -7717,6 +7730,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         def refresh(state):
             current = state["sessions"][sid]
             current.update(last_active=_now_iso(), mode=mode, tags=tags)
+            if _requested_change_scope():
+                current["change_scope"] = _requested_change_scope()  # never removed once set
             if getattr(args, "require_proof_video", False):
                 current["proof_video_required"] = True
             if args.task:
@@ -7733,6 +7748,8 @@ def cmd_start(args: argparse.Namespace) -> None:
                   "agent_task_id": task_id or None,
                   "agent_host": socket.gethostname() if task_id else None,
                   "binding_mode": "legacy_grandfathered", "auto_integration_policy": "disabled"}
+        if _requested_change_scope():
+            record["change_scope"] = _requested_change_scope()
         sid, _, _, _, created = register_session_record(record)
         if ended:
             _mutate_sessions(lambda st: (st.get("ended_agent_tasks") or {}).pop(task_id, None))
@@ -12205,6 +12222,8 @@ def _validate_specification_commit_message(files: list[str], message: str) -> No
         raise RuntimeError(
             "Specification-governed commit is missing required trailers: "
             + ", ".join(missing)
+            + ". Changed bundles: "
+            + ", ".join(sorted({str(Path(path).parent.relative_to("specifications")) for path in governed}))
             + '. Use repeatable one-line arguments such as --trailer "Specifications: feature.example@1" '
             + '--trailer "Assertions: example.behavior" --trailer "Plan: example" '
             + '--trailer "Specification-Impact: implementation-only"; do not use ANSI-C shell quoting.'
@@ -12228,8 +12247,55 @@ def _validate_shell_logic_guard(session: dict, files: list[str], message: str) -
         print(f"Shell logic guard (warn-only until {shell_logic_guard.BLOCKING_FROM.isoformat()}): {error}")
 
 
+def _change_scope_stats(session: dict, files: list[str]) -> tuple[list[tuple[str, int, int, bool]], list[str]]:
+    """Per-file (path, added, removed, is_new) plus files that add API route decorators."""
+    try:
+        from scripts import change_scope
+    except ModuleNotFoundError:
+        import change_scope
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    root = str(_session_checkout_root(session))
+    base = str(metadata.get("base_commit") or "HEAD")
+    new_files = _worktree_new_files(metadata, set(files)) if metadata else set()
+    untracked = _worktree_untracked_files(metadata) if metadata else set()
+    changes: list[tuple[str, int, int, bool]] = []
+    route_paths: list[str] = []
+    for path in files:
+        if path in untracked:
+            text = (Path(root) / path).read_text(encoding="utf-8", errors="replace") if (Path(root) / path).is_file() else ""
+            added_lines = text.splitlines()
+            changes.append((path, len(added_lines), 0, True))
+        else:
+            rc, out, err = _run_cmd(["git", "diff", "-U0", base, "--", path], cwd=root)
+            if rc != 0:
+                raise RuntimeError(f"Failed to inspect diff of {path}: {err}")
+            added_lines = [ln[1:] for ln in out.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+            removed = sum(1 for ln in out.splitlines() if ln.startswith("-") and not ln.startswith("---"))
+            changes.append((path, len(added_lines), removed, path in new_files))
+        if change_scope.has_new_route_decorator(added_lines):
+            route_paths.append(path)
+    return changes, route_paths
+
+
+def _enforce_change_scope(session: dict, files: list[str]) -> None:
+    """Refuse deploys that exceed the session's change scope (AI test-user reports)."""
+    scope = str(session.get("change_scope") or "")
+    if not scope:
+        return
+    try:
+        from scripts import change_scope
+    except ModuleNotFoundError:
+        import change_scope
+    changes, route_paths = _change_scope_stats(session, files)
+    reasons = change_scope.check_small_fix(changes, route_paths)
+    if reasons:
+        print(f"ERROR: {change_scope.REFUSAL}\nReasons: " + "; ".join(reasons), file=sys.stderr)
+        raise SystemExit(2)
+
+
 def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, files: list[str]) -> str:
     """Reject deterministic commit-message errors before expensive deploy gates."""
+    _enforce_change_scope(session, files)
     message = _integration_commit_message(args, session)
     _validate_specification_commit_message(files, message)
     _validate_shell_logic_guard(session, files, message)
@@ -12854,6 +12920,18 @@ def _auto_track_lane_untracked_files(sid: str, root: Path, modified: list[str]) 
     return _record_session_tracked_files(sid, modified, newly, "new lane worktree file(s)")
 
 
+def _auto_track_worktree_dirty_files(
+    sid: str, root: Path, dirty: set[str], modified: list[str], exclude: set[str]
+) -> list[str]:
+    """Track every dirty file of the session's own managed worktree (Bash and sub-agent edits too)."""
+    try:
+        from scripts.lane_deploy_scope import dirty_session_worktree_files
+    except ModuleNotFoundError:
+        from lane_deploy_scope import dirty_session_worktree_files
+    newly = [path for path in dirty_session_worktree_files(root, dirty, modified) if path not in exclude]
+    return _record_session_tracked_files(sid, modified, newly, "dirty worktree file(s)")
+
+
 def _require_tracked_deploy_files(dirty_but_untracked, file_tracking, allow_untracked: bool) -> None:
     """Stop a deploy that would silently leave dirty files out of the commit.
 
@@ -12924,6 +13002,11 @@ def _auto_fast_forward_worktree_for_deploy(sid: str, args: argparse.Namespace, w
 
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
+    try:  # a dev deploy freeze set by the owner refuses every deploy first (scripts/deploy_freeze.py)
+        from scripts import deploy_freeze
+    except ModuleNotFoundError:
+        import deploy_freeze
+    deploy_freeze.refuse_if_frozen()
     data = _load_sessions()
     sid = args.session
 
@@ -12970,6 +13053,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             modified = session.get("modified_files", [])
             worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
+    if (worktree_metadata and not use_staged and not getattr(args, "only", None)
+            and is_valid_managed_worktree_path(checkout_root)):
+        modified = _auto_track_worktree_dirty_files(sid, checkout_root, dirty_files, modified, exclude)
+        session = {**session, "modified_files": modified}
     try:
         to_commit, selector = _resolve_deploy_selection(
             session,
@@ -12985,11 +13072,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
+    # Deterministic problems are collected and reported together, so one retry fixes all of them.
+    preflight_problems: list[str] = []
     try:
         _preflight_deploy_commit_message(args, session, to_commit)
     except RuntimeError as exc:
-        print(f"WORKTREE DEPLOY FAILED — {exc}", file=sys.stderr)
-        sys.exit(1)
+        preflight_problems.append(str(exc))
     manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
     expected_manifest_id = str(getattr(args, "expected_manifest_id", "") or "")
     if expected_manifest_id and manifest["manifest_id"] != expected_manifest_id:
@@ -13035,9 +13123,23 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         from lane_deploy_scope import omitted_only_files, omitted_only_message
     omitted = omitted_only_files(selector, to_commit, dirty_files, modified, exclude)
     if omitted:
-        print(omitted_only_message(sid, omitted), file=sys.stderr)
-        sys.exit(1)
+        preflight_problems.append(omitted_only_message(sid, omitted))
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
+    if (preflight_problems and dirty_but_untracked and to_commit and is_control_plane_repo
+            and not getattr(args, "allow_untracked", False)):
+        preflight_problems.append(
+            "Dirty files NOT tracked by this session (they would not be committed): "
+            + ", ".join(sorted(dirty_but_untracked))
+            + ". Track them (sessions.py track --session <ID> --file <path>) or pass --allow-untracked."
+        )
+    if preflight_problems:
+        print(
+            f"WORKTREE DEPLOY FAILED — {len(preflight_problems)} problem(s); fix all of them, then retry once:",
+            file=sys.stderr,
+        )
+        for number, problem in enumerate(preflight_problems, 1):
+            print(f"{number}. {problem}", file=sys.stderr)
+        sys.exit(1)
 
     if not is_control_plane_repo:
         try:

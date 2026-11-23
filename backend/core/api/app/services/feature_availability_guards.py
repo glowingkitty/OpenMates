@@ -50,7 +50,7 @@ def ensure_plans_enabled(request: Request) -> None:
 
 def ensure_workflows_enabled(request: Request) -> None:
     availability = FeatureAvailabilityService(
-        definitions=[FeatureDefinition(id="platform:workflows", kind="platform", default_enabled=False)],
+        definitions=[FeatureDefinition(id="platform:workflows", kind="platform", default_enabled=True)],
         config=_backend_config_from_request(request),
     )
     if not availability.is_enabled("platform:workflows"):

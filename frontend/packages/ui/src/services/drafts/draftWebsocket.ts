@@ -227,11 +227,13 @@ const handleDraftUpdated = async (
           currentUserDraftVersion: newUserDraftVersion, // Use newUserDraftVersion from payload
           hasUnsavedChanges: false, // Mark changes as saved/confirmed from server
         };
+        // Never log the state object: it holds the cleartext draft, and browser
+        // logs can be forwarded to the server.
         console.debug(
           "[DraftService] draftEditorUIState WILL BE UPDATED. Chat ID:",
           chat_id,
-          "New State:",
-          newState,
+          "Draft version:",
+          newUserDraftVersion,
         );
         return newState;
       }

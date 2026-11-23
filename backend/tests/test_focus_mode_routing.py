@@ -9,6 +9,7 @@ from pathlib import Path
 
 from backend.apps.ai.processing.focus_mode_routing import (
     gate_tools_for_deep_research,
+    gate_tools_for_spec_handoff,
     resolve_deep_research_tool_choice,
     resolve_subchat_enablement,
     should_expose_subchat_tool,
@@ -72,6 +73,20 @@ def test_relevant_deep_research_does_not_enable_subchats_by_itself() -> None:
 
 def test_active_deep_research_enables_subchats() -> None:
     assert should_enable_subchats_for_active_focus("web-research") is True
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.guided-spec-authoring,chat-orchestration.sub-chats.general-delegation
+def test_write_specification_always_offers_sub_chats_at_the_top_level() -> None:
+    # Its hand-off checks each assumption and implements each Task in a sub-chat.
+    assert should_enable_subchats_for_active_focus("code-write_specification") is True
+    assert resolve_subchat_enablement(False, active_focus_id="code-write_specification") is True
+    assert resolve_subchat_enablement(False, active_focus_id=None) is False
+    # Only Deep research forces delegation and hides the other tools; the spec chat keeps its skills.
+    assert should_force_deep_research_delegation(
+        active_focus_id="code-write_specification", chat_depth=0, is_sub_chat_continuation=False) is False
+    tools = [{"function": {"name": "plans-create"}}]
+    assert gate_tools_for_deep_research(
+        tools, active_focus_id="code-write_specification", start_sub_chats_tool={"function": {"name": "start_sub_chats"}}) == tools
 
 
 def test_active_deep_research_overrides_preprocessing_subchat_decision() -> None:
@@ -447,3 +462,19 @@ def test_layered_focus_states_precedence_over_the_project_base() -> None:
     assert "never overridden by the layered focus" in joined
     plain, _ = _focus_prompt_scope()
     assert "--- Focus layering ---" not in "\n".join(plain["prompt_parts"])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.guided-spec-authoring,plans.sub-chats.assumption-and-task-chats
+def test_spec_handoff_main_chat_delegates_research_and_code_to_sub_chats() -> None:
+    names = ["web-search", "web-read", "code-run", "plans-create", "tasks-create", "start_sub_chats", "ask_user_input"]
+    tools = [{"function": {"name": name}} for name in names]
+
+    def kept(**kwargs):
+        return [t["function"]["name"] for t in gate_tools_for_spec_handoff(tools, **kwargs)]
+
+    assert kept(active_focus_id="code-write_specification", chat_depth=0, phase_id="handoff") == [
+        "plans-create", "tasks-create", "start_sub_chats", "ask_user_input"]
+    # Earlier phases, sub-chats and other focuses keep every tool.
+    assert kept(active_focus_id="code-write_specification", chat_depth=0, phase_id="design") == names
+    assert kept(active_focus_id="code-write_specification", chat_depth=1, phase_id="handoff") == names
+    assert kept(active_focus_id="web-research", chat_depth=0, phase_id="handoff") == names

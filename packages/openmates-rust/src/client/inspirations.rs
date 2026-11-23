@@ -15,12 +15,12 @@ pub struct Inspiration {
     pub phrase: String,
     pub title: String,
     pub category: String,
-    /// Feature title when the inspiration promotes an app feature.
+    /// Title of a client-side workspace tip; server rows never set it (feature cards are retired).
     pub feature_title: Option<String>,
     /// `chats` when the server sets no surface.
     pub surface: String,
     /// The row exactly as the npm CLI `DailyInspiration` JSON shows it
-    /// (assistant response, content type, video, follow-ups, feature, ...).
+    /// (assistant response, content type, video, follow-ups, ...).
     pub legacy_json: Value,
 }
 
@@ -38,18 +38,12 @@ fn decrypted(row: &Value, field: &str, key: &[u8; 32]) -> String {
 /// Decode the persisted rows; rows whose phrase does not decrypt are skipped.
 pub(crate) fn personal_inspirations(rows: &[Value], master: &[u8; 32]) -> Vec<Inspiration> {
     rows.iter()
+        .filter(|row| !is_retired_feature_card(row))
         .filter_map(|row| {
             let phrase = decrypted(row, "encrypted_phrase", master);
             if phrase.is_empty() {
                 return None;
             }
-            let feature = serde_json::from_str::<Value>(&decrypted(row, "encrypted_feature_metadata", master))
-                .ok()
-                .filter(Value::is_object);
-            let feature_title = feature
-                .as_ref()
-                .and_then(|feature| feature.get("title").and_then(Value::as_str).map(str::to_owned))
-                .filter(|title| !title.is_empty());
             let video = serde_json::from_str::<Value>(&decrypted(row, "encrypted_video_metadata", master)).unwrap_or(Value::Null);
             let follow_ups = serde_json::from_str::<Value>(&decrypted(row, "encrypted_follow_up_suggestions", master))
                 .ok()
@@ -63,7 +57,6 @@ pub(crate) fn personal_inspirations(rows: &[Value], master: &[u8; 32]) -> Vec<In
                 "assistant_response": decrypted(row, "encrypted_assistant_response", master),
                 "category": category, "content_type": content_type(row), "video": video,
                 "generated_at": generated_at(row), "follow_up_suggestions": follow_ups,
-                "feature": feature.unwrap_or(Value::Null),
                 "is_opened": row.get("is_opened").and_then(Value::as_bool) == Some(true),
             });
             with_surface(&mut legacy, row);
@@ -72,7 +65,7 @@ pub(crate) fn personal_inspirations(rows: &[Value], master: &[u8; 32]) -> Vec<In
                 phrase,
                 title,
                 category,
-                feature_title,
+                feature_title: None,
                 surface: surface(row),
                 legacy_json: legacy,
             })
@@ -82,14 +75,13 @@ pub(crate) fn personal_inspirations(rows: &[Value], master: &[u8; 32]) -> Vec<In
 
 pub(crate) fn public_inspirations(rows: &[Value]) -> Vec<Inspiration> {
     rows.iter()
+        .filter(|row| !is_retired_feature_card(row))
         .map(|row| {
-            let feature = row.get("feature").filter(|f| f.is_object()).cloned();
             let mut legacy = json!({
                 "id": string(row, "inspiration_id"), "phrase": string(row, "phrase"), "title": string(row, "title"),
                 "assistant_response": string(row, "assistant_response"), "category": string(row, "category"),
                 "content_type": content_type(row), "video": public_video(row.get("video")),
                 "generated_at": generated_at(row),
-                "feature": feature.clone().unwrap_or(Value::Null),
                 "follow_up_suggestions": row.get("follow_up_suggestions").and_then(Value::as_array).map(|items| strings(items)).unwrap_or_default(),
             });
             with_surface(&mut legacy, row);
@@ -98,13 +90,18 @@ pub(crate) fn public_inspirations(rows: &[Value]) -> Vec<Inspiration> {
                 phrase: string(row, "phrase"),
                 title: string(row, "title"),
                 category: string(row, "category"),
-                feature_title: feature.as_ref().and_then(|f| f.get("title")).and_then(Value::as_str).map(str::to_owned).filter(|t| !t.is_empty()),
+                feature_title: None,
                 surface: surface(row),
                 legacy_json: legacy,
             }
         })
         .filter(|inspiration| !inspiration.phrase.is_empty())
         .collect()
+}
+
+/// Legacy `feature` cards were retired; stored rows of that type are never listed.
+fn is_retired_feature_card(row: &Value) -> bool {
+    row.get("content_type").and_then(Value::as_str) == Some("feature")
 }
 
 fn surface(row: &Value) -> String {
@@ -180,7 +177,8 @@ mod tests {
         let personal = personal_inspirations(
             &[
                 json!({"daily_inspiration_id": "i1", "encrypted_phrase": enc("Learn Rust"), "encrypted_title": enc("Rust"),
-                       "encrypted_category": enc("software_development"), "encrypted_feature_metadata": enc("{\"title\":\"Feature\"}")}),
+                       "encrypted_category": enc("software_development")}),
+                json!({"daily_inspiration_id": "i4", "encrypted_phrase": enc("Old tip"), "encrypted_content_type": enc("feature"), "content_type": "feature"}),
                 json!({"daily_inspiration_id": "i2", "encrypted_phrase": "not-ciphertext"}),
                 json!({"daily_inspiration_id": "i3", "encrypted_phrase": enc("Apps tip"), "surface": "apps"}),
             ],
@@ -188,7 +186,7 @@ mod tests {
         );
         assert_eq!(personal.len(), 2);
         assert_eq!(personal[0].phrase, "Learn Rust");
-        assert_eq!(personal[0].feature_title.as_deref(), Some("Feature"));
+        assert_eq!(personal[0].feature_title, None);
         assert_eq!(personal[0].surface, "chats");
         assert_eq!(personal[1].surface, "apps");
         let public = public_inspirations(&[json!({"inspiration_id": "p1", "phrase": "Hello", "title": "T", "category": "travel"}), json!({"inspiration_id": "p2"})]);
@@ -197,7 +195,7 @@ mod tests {
         assert_eq!(public[0].legacy_json["content_type"], "video");
         assert_eq!(public[0].legacy_json["video"], Value::Null);
         assert!(public[0].legacy_json.get("surface").is_none());
-        assert_eq!(personal[0].legacy_json["feature"]["title"], "Feature");
+        assert!(personal[0].legacy_json.get("feature").is_none());
         assert_eq!(personal[0].legacy_json["is_opened"], false);
         assert_eq!(personal[1].legacy_json["surface"], "apps");
     }

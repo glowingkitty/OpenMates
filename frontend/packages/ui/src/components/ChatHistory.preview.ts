@@ -73,6 +73,9 @@ export const variants = {
   draftOnly: { ...props, isDraftOnly: true, chatTitle: '{"type":"image","embed_id":"fictional-image"}', sourceMessages: [] },
   titlePending: { ...props, chatTitle: '', provisionalChatTitle: user.content, isNewChatGeneratingTitle: true, sourceMessages: [user] },
   titleReady: { ...props, chatTitle: 'Photography reply', provisionalChatTitle: user.content, isNewChatGeneratingTitle: false, sourceMessages: [user] },
+  // Owned chat reopened before its generated title arrives: the header keeps the first message.
+  titleMissing: { ...props, currentChatId: 'preview-owned-untitled', isExampleChat: false, chatTitle: '', chatCategory: null,
+    provisionalChatTitle: user.content, isNewChatGeneratingTitle: false, sourceMessages: [{ ...user, chat_id: 'preview-owned-untitled' }] },
   savedAssistant: { ...props, pendingAssistantResponse: null, sourceMessages: [user, savedAssistant, queuedUser] },
   activeResponseSendingFollowUp: { ...activeResponseProps, sourceMessages: [user, activeAssistant, sendingFollowUp] },
   activeResponseQueuedFollowUp: { ...activeResponseProps, sourceMessages: [user, activeAssistant, queuedUser] },

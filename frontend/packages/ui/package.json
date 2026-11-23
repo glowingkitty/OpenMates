@@ -1,6 +1,6 @@
 {
   "name": "@repo/ui",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "type": "module",
   "module": "index.ts",
   "main": "index.ts",
@@ -29,6 +29,7 @@
     },
     "./components/*": "./src/components/*",
     "./types/embedPreviewPresentation": "./src/types/embedPreviewPresentation.ts",
+    "./types/recommendations": "./src/types/recommendations.ts",
     "./services/voiceCall": {
       "types": "./src/services/voiceCall.ts",
       "default": "./src/services/voiceCall.ts"
@@ -92,6 +93,10 @@
     "./services/workflowMemorySnapshotService": {
       "types": "./src/services/workflowMemorySnapshotService.ts",
       "default": "./src/services/workflowMemorySnapshotService.ts"
+    },
+    "./services/workflowStartSuggestions": {
+      "types": "./src/services/workflowStartSuggestions.ts",
+      "default": "./src/services/workflowStartSuggestions.ts"
     },
     "./utils/appsWorkspaceRoute": {
       "types": "./src/utils/appsWorkspaceRoute.ts",

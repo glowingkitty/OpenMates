@@ -51,6 +51,13 @@ assertions:
       Documents written by the assistant, empty documents created by the user
       and uploaded Word files are edited in the same way with the same tools.
     depends_on: [examples.sources]
+  - id: doc-editor.preview.structured-model
+    type: behavior
+    must: >
+      A document the assistant writes as structured blocks always previews as
+      the formatted document, never as the raw JSON; a document model that is
+      not valid JSON with a blocks array is shown as an error and no file is
+      generated from it.
   - id: doc-editor.export.latest-version
     type: behavior
     must: >

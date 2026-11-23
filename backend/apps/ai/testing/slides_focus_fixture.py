@@ -166,7 +166,10 @@ _STEPS: dict[str, tuple[Any, int, bool]] = {
     "p1": ("Let us build it together. Three simple questions. 1) What should the jury think afterwards? (That the "
            "idea is worth a pilot.) 2) How long do you have, and is it on stage or online? (Five minutes on stage is "
            "typical.) 3) Who is in the jury? (Mostly engineers and one manager.)", 0, True),
-    "p2": ("Summary: goal is to win the jury for a pilot, five minutes on stage, jury of engineers and one manager. "
+    # GSLQ7: the model may repeat the Focus activation card it sees in history as a toon
+    # block; the reply must show only the prose, never a code embed of that block.
+    "p2": ("```toon\nfocus_id: plan_presentation\napp_id: slides\nfocus_mode_name: Plan a presentation\n"
+           "status: activated\n```\n\nSummary: goal is to win the jury for a pilot, five minutes on stage, jury of engineers and one manager. "
            "A pitch story fits best: problem, demo, solution, impact, ask. It keeps the jury focused on the result.",
            2, True),
     "p3": ("Here is the outline, about one slide per minute:\n\n" + _outline(False)
@@ -233,6 +236,14 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
         if kind == "noul":
             answers[question_id] = {"type": kind, "noul": 0.0}
             continue
+        if kind == "score":
+            # Safety scores (answer_safety, postprocessing harm): every fixture answer is safe.
+            if not isinstance(criteria, list) or not criteria:
+                return None
+            legend = {str(index): str(label) for index, label in enumerate(criteria)}
+            answers[question_id] = {"type": kind, "score": 0.0, "legend": legend, "confidence": 1.0,
+                                    "probabilities": {key: float(key == "0") for key in legend}}
+            continue
         if kind != "choice" or not isinstance(criteria, Mapping) or not criteria:
             return None
         if question_id.startswith("requirement_"):
@@ -243,7 +254,9 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
             chosen = "none"
         else:
             chosen = preferred.get(question_id)
-            chosen = chosen if chosen in criteria else next(iter(criteria))
+            # Safety categories (harmful_purpose, illegal_category, ...) list "none" last;
+            # the first option there is a decline category, so prefer "none".
+            chosen = chosen if chosen in criteria else ("none" if "none" in criteria else next(iter(criteria)))
         answers[question_id] = {"type": kind, "choice": chosen, "confidence": 1.0,
                                 "probabilities": {str(key): float(key == chosen) for key in criteria}}
     return DecisionResponse.model_validate({"provider": "slides_focus_fixture", "model": model,

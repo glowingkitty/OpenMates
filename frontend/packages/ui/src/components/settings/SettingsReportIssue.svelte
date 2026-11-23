@@ -17,6 +17,7 @@
     import { externalLinks } from '../../config/links';
     import Toggle from '../Toggle.svelte';
     import ReportIssueComposer from './ReportIssueComposer.svelte';
+    import ReportIssueScreenshots from './ReportIssueScreenshots.svelte';
     import { SettingsGradientLink, SettingsInfoBox, SettingsInput } from './elements';
     import InputWarning from '../common/InputWarning.svelte';
     import { onMount, createEventDispatcher } from 'svelte';
@@ -551,9 +552,11 @@
                     // Screenshot PNG captured via getDisplayMedia() — only sent for authenticated users.
                     // The data URI prefix ("data:image/png;base64,") is stripped server-side.
                     // Null if no screenshot was captured or user is a guest.
-                    screenshot_png_base64: ($authStore.isAuthenticated && screenshotDataUrl)
-                        ? screenshotDataUrl
+                    screenshots_png_base64: ($authStore.isAuthenticated && screenshotDataUrls.length > 0)
+                        ? screenshotDataUrls
                         : null,
+                    // Legacy single-screenshot field; web uses the array above.
+                    screenshot_png_base64: null,
                     // outerHTML of the DOM element the user picked via the element picker overlay.
                     // Null if the user did not pick an element.
                     picked_element_html: pickedElementHtml ?? null,
@@ -634,7 +637,7 @@
 
                 // Clear picked element and screenshot state so they don't persist after submission
                 pickedElementHtml = null;
-                screenshotDataUrl = null;
+                screenshotDataUrls = [];
                 screenshotError = '';
                 if (screenshotFileInput) screenshotFileInput.value = '';
 
@@ -964,7 +967,7 @@
             sendEmailNotification,
             sendToClaudeChat,
             pickedElementHtml,
-            screenshotDataUrl
+            screenshotDataUrls
         });
     }
 
@@ -1143,9 +1146,12 @@
     // Authenticated users only (stored in the issue_logs bucket). The image
     // button under the report text opens this hidden file input.
 
-    /** Image data URL (metadata stripped) or null if nothing is attached */
-    let screenshotDataUrl = $state<string | null>(null);
-    /** Human-readable attachment error shown below the preview */
+    const MAX_SCREENSHOTS = 5;
+    const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024;
+
+    /** Image data URLs (metadata stripped), at most MAX_SCREENSHOTS */
+    let screenshotDataUrls = $state<string[]>([]);
+    /** Human-readable attachment error shown below the previews */
     let screenshotError = $state('');
     let screenshotFileInput = $state<HTMLInputElement | null>(null);
 
@@ -1161,39 +1167,44 @@
     }
 
     /**
-     * Handle a file chosen via the upload fallback <input type="file">.
-     * Reads the image as a base64 data URL and stores it in screenshotDataUrl.
-     * Validates the 2 MB size limit before accepting.
+     * Handle files chosen via the hidden <input type="file" multiple>.
+     * Appends each accepted image (2 MB limit, metadata stripped) until
+     * MAX_SCREENSHOTS is reached; the rest is skipped with an error message.
      */
     async function handleScreenshotUpload(event: Event) {
         screenshotError = '';
         const input = event.target as HTMLInputElement;
-        const file = input.files?.[0];
-        if (!file) return;
+        const files = Array.from(input.files ?? []);
+        input.value = '';
+        if (files.length === 0) return;
 
-        if (file.size > 2 * 1024 * 1024) {
-            screenshotError = $text('settings.report_issue.screenshot_size_too_large');
-            input.value = '';
-            return;
+        const added: string[] = [];
+        for (const file of files) {
+            if (screenshotDataUrls.length + added.length >= MAX_SCREENSHOTS) {
+                screenshotError = $text('settings.report_issue.screenshot_limit_reached');
+                break;
+            }
+            if (file.size > MAX_SCREENSHOT_BYTES) {
+                screenshotError = $text('settings.report_issue.screenshot_size_too_large');
+                continue;
+            }
+            try {
+                added.push(await prepareScreenshotDataUrl(file));
+            } catch {
+                screenshotError = $text('settings.report_issue.screenshot_upload_failed');
+                console.warn('[SettingsReportIssue] FileReader error on screenshot upload');
+            }
         }
-
-        try {
-            screenshotDataUrl = await prepareScreenshotDataUrl(file);
-            console.debug(
-                `[SettingsReportIssue] Screenshot uploaded: ~${Math.round(file.size / 1024)} KB`
-            );
-        } catch {
-            screenshotError = $text('settings.report_issue.screenshot_upload_failed');
-            console.warn('[SettingsReportIssue] FileReader error on screenshot upload');
+        if (added.length > 0) {
+            screenshotDataUrls = [...screenshotDataUrls, ...added].slice(0, MAX_SCREENSHOTS);
+            console.debug(`[SettingsReportIssue] Screenshots attached: ${screenshotDataUrls.length}`);
         }
     }
 
-    /** Remove the attached screenshot and clear any error. */
-    function removeScreenshot() {
-        screenshotDataUrl = null;
+    /** Remove one attached screenshot and clear any error. */
+    function removeScreenshot(index: number) {
+        screenshotDataUrls = screenshotDataUrls.filter((_, i) => i !== index);
         screenshotError = '';
-        // Reset the file input so the same file can be re-selected if needed
-        if (screenshotFileInput) screenshotFileInput.value = '';
     }
 
     // State for copy debug info button
@@ -1343,7 +1354,7 @@
             if (draft.sendEmailNotification !== undefined) sendEmailNotification = draft.sendEmailNotification;
             if (draft.sendToClaudeChat !== undefined) sendToClaudeChat = draft.sendToClaudeChat;
             pickedElementHtml = draft.pickedElementHtml;
-            screenshotDataUrl = draft.screenshotDataUrl;
+            screenshotDataUrls = draft.screenshotDataUrls ?? [];
             // Clear the draft now that it has been consumed
             reportIssueFormDraftStore.set(null);
             console.debug('[SettingsReportIssue] Restored form draft from store after remount');
@@ -1421,6 +1432,7 @@
                 bind:this={screenshotFileInput}
                 type="file"
                 accept="image/*"
+                multiple
                 class="screenshot-file-input"
                 data-testid="screenshot-file-input"
                 onchange={handleScreenshotUpload}
@@ -1429,31 +1441,13 @@
             />
         {/if}
 
-        {#if screenshotDataUrl || screenshotError}
-            <div class="input-group screenshot-section" data-testid="screenshot-section">
-                {#if screenshotDataUrl}
-                    <div class="screenshot-preview-wrapper" data-testid="screenshot-preview">
-                        <img
-                            src={screenshotDataUrl}
-                            alt={$text('settings.report_issue.screenshot_preview_alt')}
-                            class="screenshot-preview"
-                        />
-                        <button
-                            type="button"
-                            class="screenshot-remove-btn"
-                            data-testid="screenshot-remove"
-                            onclick={removeScreenshot}
-                            disabled={isSubmitting}
-                        >
-                            {$text('settings.report_issue.screenshot_remove')}
-                        </button>
-                    </div>
-                {/if}
-                {#if screenshotError}
-                    <p class="screenshot-error" data-testid="screenshot-error">{screenshotError}</p>
-                {/if}
-            </div>
-        {/if}
+        <ReportIssueScreenshots
+            screenshots={screenshotDataUrls}
+            error={screenshotError}
+            disabled={isSubmitting}
+            maxCount={MAX_SCREENSHOTS}
+            onRemove={removeScreenshot}
+        />
 
         {#if pickedElementHtml}
             <div class="input-group element-picker-section" data-testid="picked-element-preview">
@@ -2027,51 +2021,6 @@
     }
 
     /* ===================== SCREENSHOT SECTION ===================== */
-
-    .screenshot-section {
-        gap: var(--spacing-4);
-    }
-
-    .screenshot-preview-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-4);
-        align-items: flex-start;
-    }
-
-    .screenshot-preview {
-        max-width: 100%;
-        max-height: 200px;
-        border-radius: var(--border-radius-md, 6px);
-        border: 1px solid var(--color-border, #ccc);
-        object-fit: contain;
-    }
-
-    .screenshot-remove-btn {
-        padding: var(--spacing-3) var(--spacing-6);
-        border: 1px solid var(--color-danger, #e53935);
-        border-radius: var(--border-radius-md, 6px);
-        background: transparent;
-        color: var(--color-danger, #e53935);
-        font-size: var(--font-size-xs);
-        cursor: pointer;
-        transition: background var(--duration-fast);
-    }
-
-    .screenshot-remove-btn:hover:not(:disabled) {
-        background: rgba(229, 57, 53, 0.08);
-    }
-
-    .screenshot-remove-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .screenshot-error {
-        font-size: var(--font-size-xs);
-        color: var(--color-danger, #e53935);
-        margin: 0;
-    }
 
     /* Hide the native file input — the styled button triggers it programmatically */
     .screenshot-file-input {

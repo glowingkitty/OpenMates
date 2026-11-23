@@ -115,6 +115,9 @@ final class NativeChatActivityStore: ObservableObject {
     }
 
     static func orderedRootIDs(processingChatIDs: [String], chats: [Chat], ancestry: [String: String] = [:]) -> [String] {
+        // The sidebar reads this on every body pass; with nothing running, skip
+        // indexing every stored chat.
+        guard !processingChatIDs.isEmpty else { return [] }
         let rows = Dictionary(chats.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var seen: Set<String> = [], result: [String] = []
         for id in processingChatIDs {
@@ -126,6 +129,7 @@ final class NativeChatActivityStore: ObservableObject {
     }
 
     func rootIDs(chats: [Chat]) -> Set<String> {
+        guard !processingIDs.isEmpty else { return [] }
         let rows = Dictionary(chats.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return Set(processingIDs.map { id in
             var root = id, visited: Set<String> = []

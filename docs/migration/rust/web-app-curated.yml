@@ -155,6 +155,17 @@ units:
     - packages/openmates-rust/src/client/voice_turn.rs
     - packages/openmates-rust/src/client/voice_turn_public.rs
     - packages/openmates-rust/src/client/send_turn_stages.rs
+  e2bConsent:
+    specs: []
+    vectors: []
+    open_gaps: []
+    spec_assertions:
+    - code-run.e2b.upload-consent
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_e2b_consent.rs
+    - packages/openmates-rust/src/client/e2b_consent.rs
+    - packages/openmates-rust/src/client/e2b_consent_steps.rs
   projectTimeline:
     specs: []
     vectors: []
@@ -169,6 +180,18 @@ units:
     - packages/openmates-browser-bindings/src/browser_project_timeline.rs
     - packages/openmates-rust/src/work/projects/timeline.rs
     - packages/openmates-rust/src/work/projects/timeline_presentation.rs
+  projectFileJobs:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on web-rust-core spec yet for hosted Project file jobs (approval card, applied change).
+    - The core's applied event carries no mutation, so an apply-and-show card has no diff preview.
+    spec_assertions: []
+    spec_gaps:
+    - Hosted file-job approval and applied-change behavior has no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_project_file_jobs.rs
+    - packages/openmates-rust/src/client/project_file_job_steps.rs
   embedEdit:
     specs: []
     vectors: []

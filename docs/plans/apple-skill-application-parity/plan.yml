@@ -59,7 +59,7 @@ context_discovery:
     - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
     - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
     - frontend/apps/web_app/tests/pdf-flow.spec.ts
-    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
     - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
     - frontend/apps/web_app/tests/embed-json-leak.spec.ts
     - frontend/apps/web_app/tests/code-repo-embed.spec.ts

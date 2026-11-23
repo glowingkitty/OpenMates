@@ -7,6 +7,8 @@
   import type { IndicatorLine } from '../../services/rustCore/chatState/transitionProtocol';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
+  import { knownMentionProjectName, loadFirstMessageDisplayTitle } from '../../services/chatFirstMessageTitle';
+  import { firstMessageDisplayTitle } from '../../utils/chatDisplayTitle';
   import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
   import { notificationStore } from '../../stores/notificationStore';
   import { unreadMessagesStore } from '../../stores/unreadMessagesStore';
@@ -376,7 +378,10 @@
   let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
   let plaintextChatTitle = $derived(normalizePlaintextChatTitle(chat?.title));
   let messageChatTitle = $state<string | null>(null);
-  let displayChatTitle = $derived(cachedMetadata?.title ?? messageChatTitle ?? plaintextChatTitle);
+  // Without a generated title the row shows the first user message, never
+  // "Untitled chat" (rule: utils/chatDisplayTitle.ts).
+  let firstMessageTitle = $state<string | null>(null);
+  let displayChatTitle = $derived(cachedMetadata?.title ?? messageChatTitle ?? plaintextChatTitle ?? firstMessageTitle);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
   // This ensures we keep showing "Processing..." until title is ready
@@ -391,6 +396,7 @@
       displayLabel = '';
       displayText = '';
       messageChatTitle = null;
+      firstMessageTitle = null;
       cachedMetadata = null;
       return;
     }
@@ -412,6 +418,7 @@
         const { incognitoChatService } = await import('../../services/incognitoChatService');
         const messages = await incognitoChatService.getMessagesForChat(currentChat.chat_id);
         lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+        firstMessageTitle = firstMessageDisplayTitle(messages, knownMentionProjectName) || null;
       } catch (error) {
         console.debug(`[Chat] Error loading incognito messages for ${currentChat.chat_id}:`, error);
         lastMessage = null;
@@ -440,6 +447,7 @@
         const { anonymousChatStorage } = await import('../../services/anonymousChatStorage');
         const messages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
         lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+        firstMessageTitle = firstMessageDisplayTitle(messages, knownMentionProjectName) || null;
       } catch (error) {
         console.debug(`[Chat] Error loading anonymous messages for ${currentChat.chat_id}:`, error);
         lastMessage = null;
@@ -673,6 +681,16 @@
           messageChatTitle = normalizePlaintextChatTitle(titledMessage?.current_chat_title);
         } catch (error) {
           console.debug(`[Chat] Error loading message title fallback for ${currentChat.chat_id}:`, error);
+        }
+      }
+      if (messageChatTitle || cachedMetadata?.title || normalizePlaintextChatTitle(currentChat.title)) {
+        firstMessageTitle = null;
+      } else {
+        try {
+          firstMessageTitle = await loadFirstMessageDisplayTitle(currentChat.chat_id);
+        } catch (error) {
+          console.warn(`[Chat] Could not read the first message for the title of ${currentChat.chat_id}:`, error);
+          firstMessageTitle = null;
         }
       }
 
@@ -2207,7 +2225,7 @@
           {/if}
           <div class="chat-content">
             <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
-            <!-- CRITICAL: Never show "Untitled chat" - show "Processing..." status instead if title not ready -->
+            <!-- CRITICAL: Never show "Untitled chat": generated title, else first message, else "Processing..." -->
             <!-- Using {@html} to render HTML styling (e.g., OpenMates branding) -->
              <div class="chat-title-wrapper">
               {#if highlightedTitle}
@@ -2221,9 +2239,8 @@
                 <!-- Show "Processing..." as title when waiting for metadata -->
                 <span class="chat-title processing-title" data-testid="chat-title">{$text('common.processing')}</span>
               {:else}
-                <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title" data-testid="chat-title">{@html $text('common.untitled_chat')}</span>
+                <!-- No generated title and no user message yet: the chat is still new, never "Untitled chat". -->
+                <span class="chat-title" data-testid="chat-title">{$text('common.new_chat')}</span>
               {/if}
               {#if isPinned}
                 <span class="pin-indicator" data-testid="pin-indicator">

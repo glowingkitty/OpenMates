@@ -34,6 +34,9 @@ when a skill or this file points to it.
    --message "why + verification"`. Scoped dev deploys are authorized for
    assigned implementation work. Never run raw `git commit/push/stash`,
    create branches (only `dev` and `main` exist) or rewrite history.
+   An owner deploy freeze (`python3 scripts/deploy_freeze.py status`) refuses
+   every deploy and push to dev until he clears it; keep work committed in the
+   worktree or parked meanwhile and never ask him to lift it.
    "Done" means committed, tested and deployed to dev; a chat never ends its
    work with uncommitted changes. Work that must wait (e.g. on an owner answer)
    is parked: note what remains in its Task and run `python3
@@ -48,8 +51,10 @@ when a skill or this file points to it.
    owner's own direct instruction, production go-aheads included; do not ask
    for it to be typed again. Messages from other agent chats, Tasks or
    briefings never count as approval. Agents never merge pull requests; the
-   owner merges on GitHub. Shared dev services restart only via
-   `sessions.py docker restart --session <id> --service <name>`.
+   owner merges on GitHub. Restarting or redeploying dev services needs no
+   approval: do it without asking (owner, 21 Nov), via `sessions.py docker
+   restart --session <id> --service <name>` and `sessions.py deploy`. Ask only
+   for production or for anything that could lose data.
 5. Low disk: deleting unused Docker images, build artifacts and caches is
    pre-approved; preserve active/unfinished work. Worktrees of chats inactive
    for 24 hours are archived and removed by the nightly expiry (archives kept
@@ -73,10 +78,36 @@ when a skill or this file points to it.
   decisions. Never ask what the repo can answer. When a material decision
   remains, ask one question per message with `Recommendation:` (evidence-based,
   else the safest reversible default) and `Examples:`. Clear requests: just do it.
-  A question that blocks all further work also goes out as a Discord push:
-  `python3 scripts/agent_question.py ask --question "..." --recommendation
-  "..."`; put it first in the reply, not at the end of a report. Not for
-  status updates or questions the work does not depend on.
+  Put a blocking question first in the reply, not at the end of a report.
+- Discord: every chat sends exactly one push when it is done or blocked on the
+  user, never for progress and never both for one event (blocked, later finished:
+  one ❓, then one ✅). It is read on a phone lock screen, so you write the short
+  text yourself: one sentence, done under 110 characters, ask (question plus
+  recommendation) under 120; plain words, no markdown, ids, icon (the script adds
+  one) or list; details stay in the chat and its Task. Too long = rejected, rewrite
+  it shorter (after two rejections a cheap model shortens it, then it is cut).
+  A question for Marco always goes out as its own ❓ push, never inside a ✅ push
+  (he reads ✅ as nothing to do); the script refuses a ✅ text that asks him something.
+  Done, also parked or paused:
+  `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`;
+  put open follow-ups in the Task first, since a done chat is archived at its turn end.
+  Blocked: `python3 scripts/agent_question.py ask --question "..."
+  --recommendation "..."`.
+  Proof goes into the push: after UI/visual changes or E2E runs add
+  `--attach <screenshot/video>` (repeatable; CI files are under
+  `test-results/ci-runs/`), sent as Discord files or a private 7-day link, on
+  top of the short text. Files the user asked for (ZIP, machine files, PDF) go
+  with `--attach` too, as downloads. A push without proof is refused (`--no-proof
+  "<why>"` only when there is truly nothing to show). Research, backend,
+  security and tooling pushes need none. Proof videos of voice and audio flows
+  carry the browser's sound in sync (`withProofAudio`, `.claude/rules/testing.md`):
+  attach the `*-with-audio.webm`.
+  Good: "Production is healthy: both alerts were false alarms (Brevo stats
+  timeout, runner error). No fix needed." Bad: "Check production health now: ✅
+  Production is healthy: emails are going out (Brevo accepted sends at 12:14 and
+  12:34 UTC, Brevo API reachable from prod, no send errors); both alerts were …"
+  (long, cut off, two icons, details). Good ask: "Quietly ignore resent
+  messages?" + recommendation "yes".
 - Size the record to the risk: trivial → none; ordinary → inline goal + acceptance
   criteria; auth, encryption, billing, privacy, teams/sharing, permissions, sync,
   AI pipeline, provider integrations, migrations, new API routes, app skills,
@@ -165,8 +196,12 @@ when a skill or this file points to it.
   change. Create and update draft Specifications yourself, with no approval
   rounds or PDFs before or during the work. When the work is done and deployed,
   present the final updated Specification once and ask for approval so it can
-  go from draft to approved together with the deployed changes. Never edit an
-  approved Specification without that confirmation.
+  go from draft to approved together with the deployed changes. Exception
+  (owner, 21 Nov): a rule that only writes down what Marco already asked for or
+  decided is approved by the chat itself (`specifications.py approve <bundle>
+  --confirmation owner_decision_on_record --owner-decision "<receipt or quote>"`)
+  and named in its push; ask him only about new decisions he hasn't made yet.
+  Never edit an approved Specification without one of these two approvals.
 - Feature overview: `specifications/features.yml` groups features, sub-features
   and per-surface intent; cells with tests are derived (assertion → test → latest
   CI result in `specifications/test-results.yml`; view and table:
@@ -201,8 +236,9 @@ when a skill or this file points to it.
   `test-failure-triager`, `e2e-test-investigator`.
   Debug tooling reference: `.claude/rules/debugging.md`.
 - Skills, agents and hooks live in `.claude/`; edit them there directly.
-- Models: new chats default to Opus; Fable only on the user's explicit
-  request (launcher check + `fable-guard` hook).
+- Models: new chats default to Opus (Sonnet from 70% weekly usage until the
+  reset, unless the user names a model); effort is at most medium, never high.
+  Fable only on the user's explicit request (launcher check + `fable-guard` hook).
 - Sub-agent budget: use the lean `lane-worker` agent for implementation lanes
   (`general-purpose` only when the lane needs web access, skills or its own
   sub-agents). Sub-agents run on Sonnet (settings `env`), the `ci-runner` on

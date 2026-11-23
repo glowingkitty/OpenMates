@@ -46,6 +46,7 @@ import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte"
 import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
+import CodeRunEmbedPreview from "../../../embeds/code/CodeRunEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
@@ -464,6 +465,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Render based on skill type - use Svelte components for ALL states (including processing)
     // This ensures consistent styling and proper preview display during streaming
     if (appId && skillId) {
+      if (appId === "projects" && skillId === "change") {
+        return this.renderProjectFileChangeEvent(content);
+      }
       if (appId === "projects" && (skillId === "search" || skillId === "read")) {
         return this.renderProjectReferenceComponent(attrs, embedData, decodedContent, content, skillId);
       }
@@ -898,6 +902,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "code" && skillId === "run") {
+        return this.renderCodeRunComponent(attrs, embedData, decodedContent, content);
+      }
+
       if (appId === "code" && skillId === "search_repos") {
         return this.renderCodeRepoSearchComponent(
           attrs,
@@ -941,6 +949,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
               : embedData?.status || decodedContent?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
             resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
             childEmbedIds: generatedMediaChildIds(decodedContent),
+            // The invocation's input graphics show on the card from the first frame (TASK-1610).
+            inputEmbedIds: Array.isArray(decodedContent?.input_embed_ids)
+              ? decodedContent.input_embed_ids.filter((value: unknown): value is string => typeof value === "string" && value.length > 0)
+              : [],
             error: typeof decodedContent?.error === "string" ? decodedContent.error : undefined,
             taskId: decodedContent?.skill_task_id || decodedContent?.task_id || "",
             onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
@@ -1190,6 +1202,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       console.error("[AppSkillUseRenderer] Error mounting TaskCreateEmbedPreview:", error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
+  }
+
+  /**
+   * A projects/change embed (older chats) shows nothing: the files a reply writes are its
+   * code embeds (plan project-files-as-chat-code-embeds).
+   */
+  private renderProjectFileChangeEvent(content: HTMLElement): void {
+    this.prepareMount(content);
+    content.hidden = true;
   }
 
   private async renderProjectReferenceComponent(
@@ -4000,6 +4021,38 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
+  /** Render the Code app's cloud command card: command line, status and exit code. */
+  private renderCodeRunComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status || embedData?.status || attrs.status || "processing";
+    this.prepareMount(content);
+    const component = mount(CodeRunEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || attrs.id || "",
+        command: decodedContent?.command,
+        argv: Array.isArray(decodedContent?.argv) ? decodedContent.argv.map(String) : undefined,
+        cwd: decodedContent?.cwd,
+        exitCode: decodedContent?.exit_code,
+        durationSeconds: typeof decodedContent?.duration_seconds === "number" ? decodedContent.duration_seconds : undefined,
+        outputTail: typeof decodedContent?.output_tail === "string" ? decodedContent.output_tail : undefined,
+        error: decodedContent?.error,
+        status: status as "processing" | "finished" | "error" | "cancelled",
+        taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
+        isMobile: false,
+        onFullscreen: () => {
+          void this.openAppSkillOutputFullscreen(attrs, embedData, decodedContent);
+        },
+      },
+    });
+    mountedComponents.set(content, component);
+  }
+
   /**
    * Render reminder set_reminder embed using Svelte component
    * Uses Svelte 5's mount() API to mount the component into the DOM
@@ -4876,7 +4929,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded image embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Filename from the original embed (backend includes it in the skill output text)
     const filename = decodedContent?.filename || "";
@@ -5131,7 +5184,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded PDF embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Pages viewed (the LLM passes this as an array)
     const pages: number[] = Array.isArray(decodedContent?.pages)
@@ -5225,7 +5278,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded PDF embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Pages returned and skipped from the read skill response
     const pagesReturned: number[] = Array.isArray(
@@ -5335,7 +5388,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded PDF embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Search-specific fields from the search skill response
     const query = decodedContent?.query || "";

@@ -371,3 +371,12 @@ def test_missing_target_defaults_to_project_only_without_personal_jobs():
     assert "target" not in tool.with_default_project_target(GOOD, personal_available=True)
     explicit = {**GOOD, "target": "personal"}
     assert tool.with_default_project_target(explicit, personal_available=False) == explicit
+
+
+def test_project_write_guidance_routes_focus_requests_to_create_focus_not_memories():
+    # A user asking for a Project Focus got a Project Memory instead (dev web proof, layered focus case 2).
+    text = tool.SAVE_PROJECT_MEMORY_TOOL_INSTRUCTION
+    assert "A request to create a Focus is not a Memory" in text
+    assert "never save it with save_memory" in text
+    assert "Create Focus suggestion" in text
+    assert "Never write a link or button of your own" in text

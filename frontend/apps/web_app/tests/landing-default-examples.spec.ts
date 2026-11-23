@@ -12,23 +12,28 @@ test('default guest examples match landing order and preserve a curated catalog'
 		test.setTimeout(60_000);
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+		await expect(page.getByTestId('chat-welcome-heading')).toBeVisible();
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-		const bannerHeight = (await page.getByTestId('daily-inspiration-banner').boundingBox())?.height ?? 0;
-		expect(bannerHeight).toBeGreaterThan(0);
-		expect(bannerHeight).toBeLessThanOrEqual(420);
+		const startRow = page.getByTestId('recent-chats-scroll-container');
+		await expect(startRow).toBeVisible();
+		expect(await startRow.locator('[data-testid="resume-chat-large-card"], [data-testid="start-row-inspiration-card"]').count()).toBeLessThanOrEqual(10);
+		await expect(startRow.getByTestId('start-row-actions')).toBeVisible();
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible();
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
-		await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
-		const beforeSlide = await page.getByTestId('resume-chat-card').evaluateAll((cards: HTMLElement[]) =>
+		// The guest row shows large cards only (TASK-1321: the compact pill view is gone).
+		const guestRowCards = page.getByTestId('recent-chats-scroll-container').getByTestId('resume-chat-large-card');
+		await expect(guestRowCards.first()).toBeVisible();
+		await expect(page.getByTestId('resume-chat-card')).toHaveCount(0);
+		const beforeSlide = await guestRowCards.evaluateAll((cards: HTMLElement[]) =>
 			cards.map((card) => card.dataset.chatId).filter(Boolean)
 		);
-		expect(beforeSlide).toEqual(landingDefaults.map(example => example.chatId));
-		await page.getByTestId('daily-inspiration-next').click();
-		const afterSlide = await page.getByTestId('resume-chat-card').evaluateAll((cards: HTMLElement[]) =>
-			cards.map((card) => card.dataset.chatId).filter(Boolean)
-		);
-		expect(afterSlide).toEqual(beforeSlide);
+		// The row holds at most 10 cards with inspiration cards interleaved, so example chats keep landing order as a prefix.
+		expect(beforeSlide.length).toBeGreaterThan(0);
+		expect(beforeSlide).toEqual(landingDefaults.map(example => example.chatId).slice(0, beforeSlide.length));
+		await expect(startRow.getByTestId('start-row-inspiration-card').first()).toBeVisible();
+		await expect(startRow.getByTestId('start-row-inspiration-label').first()).toBeVisible();
 		await page.getByTestId('guest-show-all-examples').click();
 		const allGrid = page.getByTestId('guest-all-examples-grid');
 		await expect(allGrid.getByTestId('resume-chat-large-card').first()).toBeVisible();

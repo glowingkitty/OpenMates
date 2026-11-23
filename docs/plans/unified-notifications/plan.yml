@@ -8,6 +8,24 @@ goal: >
   Chat assistant notifications must never expose chat titles or assistant
   response content to APNs, browser push providers, or developer notification
   streams unless the content is explicitly encrypted for a user device.
+  Amended 2026-11-19 (owner decisions, TASK-390): the post-answer processing step
+  that already runs once per answer also returns a notification type
+  (done | question | info) and a one-line summary of about 90 characters in the
+  chat language, with no extra LLM request and no user charge (platform cost).
+  Push title = icon + summary, push body = in "<chat title>"; both are sealed to
+  the user's own device inside the encrypted envelope and shown by the
+  notification extension, so APNs, FCM and push services only see ciphertext and
+  generic alert text. Default on (includeChatTitle); an optional preview of the
+  first lines of the answer (includePreview) is default off and sealed the same
+  way. Email stays generic by default; the opt-in includeContent setting (default
+  off, existing consent) gives subject = icon + summary and a body with chat
+  title, first lines and the open-chat link, and its text states plainly that
+  this content then travels as plain text through the mail provider and stays in
+  the mailbox. No content notification is ever created for incognito or hidden
+  chats; a failed or missing summary falls back to generic text. The summary
+  reaches the dispatcher through a Vault-sealed, ten-minute Redis hand-off keyed
+  by (user, chat, task). The matching edits to the approved Specifications wait
+  for owner approval in spec-amendment-task-390.patch.
 
 scope:
   in:
@@ -22,6 +40,10 @@ scope:
     - Foreground-visible client detection for assistant completion notification suppression.
     - Multiple browser/APNs push targets per user without a Directus schema migration.
     - Tests proving plaintext assistant responses and chat titles are not sent to APNs alert fields or public notification streams.
+    - Device-sealed "<icon> <summary>" title and in "<chat title>" body in the APNs encrypted envelope, default on, opt-out via push preference includeChatTitle; optional device-sealed answer preview, default off (includePreview) (TASK-390).
+    - Notification type and summary from the existing post-processing call, benchmarked on synthetic replies (backend/scripts/benchmark_notification_summary_models.py), never billed to users (TASK-390).
+    - Opt-in email content (subject summary, chat title, first lines, open-chat link), default off, with plain-text-in-mailbox wording; warning in settings when email and push are both off (TASK-390).
+    - In-app chat notice on web uses the same summary headline (post_processing_completed carries notification_headline to the user's own clients, display only, never stored); the notice upgrades in place and shows the mate image; the generic "New AI response ready" is only the last-resort text (TASK-390 follow-up).
   out:
     - Restoring browser Web Push service worker support.
     - Android FCM or UnifiedPush implementation.
@@ -84,7 +106,7 @@ scenarios:
     then:
       - aps.alert contains only generic app/title text and localized fallback body.
       - aps.alert contains no assistant response preview.
-      - aps.alert contains no chat title.
+      - aps.alert contains no chat title (the title travels only inside the device-sealed envelope, see S-3).
       - Tapping or replying still routes to the target chat using safe metadata.
   - id: S-3
     title: Apple can decrypt an optional encrypted preview locally
@@ -97,6 +119,7 @@ scenarios:
       - Apple servers only receive ciphertext for the preview.
       - The Notification Service Extension decrypts locally.
       - The displayed notification may show decrypted preview lines on device.
+      - The displayed notification title is "<Mate> in <chat title>" unless the user turned includeChatTitle off; Apple Watch and pushes whose title the server never receives keep the generic text.
       - If decryption fails, the notification displays the generic fallback.
   - id: S-4
     title: Developer SSE receives safe events only

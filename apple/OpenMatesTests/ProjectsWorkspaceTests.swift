@@ -598,6 +598,16 @@ final class ProjectsWorkspaceTests: XCTestCase {
         XCTAssertTrue(activity.processingIDs.isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.workspace-start-screens
+    func testProjectRowInspirationsKeepOnlyUnopenedProjectsSurface() {
+        let mine = DailyInspirationData(inspirationId: "p1", text: "p1", surface: "projects")
+        let opened = DailyInspirationData(inspirationId: "p2", text: "p2", startedChatId: "chat", surface: "projects")
+        let chats = DailyInspirationData(inspirationId: "c1", text: "c1", contentType: "video")
+        XCTAssertEqual(StartScreenRow.projectRowInspirations([mine, opened, chats]).compactMap(\.inspirationId), ["p1"])
+        let row = StartScreenRow.interleave(own: [String](), inspirations: StartScreenRow.projectRowInspirations([mine]))
+        XCTAssertEqual(row.count, 1, "Without projects the inspirations fill the row alone")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
     func testRemoteFolderDTORetainsChildrenAndSizesWithLegacyCompatibility() throws {
         let legacy = try ProjectRemoteEntry.decode(["path": "src", "kind": "directory"])

@@ -113,3 +113,19 @@ async fn archived_selectors_and_destructive_confirmation_preserve_scope() {
         Err(Error::Invalid(_))
     ));
 }
+#[test]
+fn create_without_slug_lookup_key_omits_the_slug_index_and_keeps_the_wrapped_key() {
+    // The web Worker's master cannot be exported: its create has no slug
+    // index, exactly like the web's former TypeScript create.
+    let created = encode_create_wrapped(&input(), &[8; 32], "wrapped-key", None, None).unwrap();
+    assert_eq!(created["encrypted_project_key"], "wrapped-key");
+    assert!(created.get("encrypted_slug").is_none());
+    assert!(created.get("slug_lookup_hash").is_none());
+    let indexed = raw();
+    assert!(
+        indexed["slug_lookup_hash"]
+            .as_str()
+            .is_some_and(|h| h.len() == 64)
+    );
+    assert!(indexed["encrypted_slug"].is_string());
+}

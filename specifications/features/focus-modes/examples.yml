@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.focus-modes@3
+specification: feature.focus-modes@4
 project_write_gate:
 - id: model-cannot-mint-write-access
   given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
@@ -171,6 +171,14 @@ guided_spec_authoring:
   then: Every turn asks at most three questions with a recommendation; every summary lists Open assumptions; the drafted
     Specification embed carries the requirements, design decisions and the still-open assumptions, followed by acceptance
     Checks; the Plan and Tasks are created only after the owner wrote that they approve the Specification.
+  assertion_ids:
+  - focus-modes.guided-spec-authoring
+- id: assumptions-and-tasks-in-sub-chats
+  given: In her Project "Garden planner" a user approved the Specification for watering reminders with two open assumptions.
+  when: The hand-off runs.
+  then: A Plan carrying both assumptions is created, two sub-chats each check one assumption and are linked to it, the main
+    chat summarises their results and asks the user's remaining decisions, and then each Task of the Plan runs in its own
+    linked sub-chat that shows the Garden planner focus pill; the main chat itself does no research or implementation.
   assertion_ids:
   - focus-modes.guided-spec-authoring
 - id: split-only-after-agreement

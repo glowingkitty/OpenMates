@@ -76,7 +76,18 @@ final class AuthManager: ObservableObject {
     }
     /// Cached identity unlocks local history; only this grant permits protected IO.
     /// Granted on every `Session(Admitted)`, dropped on any other state.
-    @Published private(set) var networkAuthority: AuthSessionRecoveryContext?
+    @Published private(set) var networkAuthority: AuthSessionRecoveryContext? {
+        didSet {
+            guard (oldValue == nil) != (networkAuthority == nil) else { return }
+            // Scalar-only transition record: a drop while still signed in is
+            // the start of every "Can't connect to server" window (TASK-1410).
+            let granted = networkAuthority != nil
+            NativeDiagnostics.event(granted ? "network_authority_granted" : "network_authority_dropped",
+                category: "auth", level: granted || state != .authenticated ? .info : .warning,
+                flags: ["signed_in": state == .authenticated],
+                counts: ["validation_state": sessionValidationState.diagnosticCode])
+        }
+    }
 
     var hasNetworkAuthority: Bool {
         guard state == .authenticated, let authority = networkAuthority else { return false }
@@ -121,6 +132,11 @@ final class AuthManager: ObservableObject {
     private var applyTask: Task<Void, Never>?
     private var checkTask: Task<Void, Never>?
     private var pairDeadlineTask: Task<Void, Never>?
+    /// The one running core readmit; concurrent callers await it.
+    private var readmitTask: Task<Void, Never>?
+    /// Foreground retry loop that restores a lost network authority.
+    private var authorityRecoveryTask: Task<Void, Never>?
+    private var authorityRecoveryID = UUID()
 
     /// Static accessor for the current user ID (used by ChatViewModel for key loading).
     private static weak var _shared: AuthManager?
@@ -158,6 +174,25 @@ final class AuthManager: ObservableObject {
         case onlineAuthenticated
         case requiresReauthentication(reason: String)
         case unauthenticated
+
+        /// Stable scalar for diagnostics (events accept no strings).
+        var diagnosticCode: Int {
+            switch self {
+            case .initializing: 0
+            case .offlineAuthenticated: 1
+            case .validating: 2
+            case .onlineAuthenticated: 3
+            case .requiresReauthentication: 4
+            case .unauthenticated: 5
+            }
+        }
+    }
+
+    /// What `ensureAdmitted` does for one core state.
+    enum AdmissionStep: Equatable {
+        case checkSession
+        case readmit
+        case none
     }
 
     /// - Parameters:
@@ -282,21 +317,95 @@ final class AuthManager: ObservableObject {
         if Self.isSyntheticOfflineFixture { return }
         #endif
         guard let core else { return }
-        switch core.state {
-        case .notStarted, .starting:
+        let holdsAuthority = hasNetworkAuthority && sessionValidationState == .onlineAuthenticated
+        switch Self.admissionStep(for: core.state, forceReadmit: forceReadmit, holdsNetworkAuthority: holdsAuthority) {
+        case .none:
+            return
+        case .checkSession:
             await checkSession()
             return
-        case .admitted:
-            guard forceReadmit else { return }
-        case .restored, .failed:
+        case .readmit:
             break
-        case .signedOut, .expired, .accessDenied, .verificationRequired:
+        }
+        // One readmit at a time: a second one would reset the core's client
+        // while the first is admitting, and both rotate the same ws_token.
+        if let readmitTask {
+            await readmitTask.value
             return
         }
-        sessionValidationState = .validating
-        do { try await core.readmit() } catch { logCoreFailure("readmit", error) }
-        await drainCoreEvents()
-        if sessionValidationState == .validating { sessionValidationState = .offlineAuthenticated }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            sessionValidationState = .validating
+            do { try await core.readmit() } catch { logCoreFailure("readmit", error) }
+            await drainCoreEvents()
+            if sessionValidationState == .validating { sessionValidationState = .offlineAuthenticated }
+        }
+        readmitTask = task
+        await task.value
+        if readmitTask == task { readmitTask = nil }
+    }
+
+    /// An admitted core whose admission this app no longer holds as network
+    /// authority (a readmit failed while the app went to the background or
+    /// the network dropped) is admitted again. Returning early there left
+    /// foreground recovery a no-op and the main socket closed (TASK-1410).
+    static func admissionStep(for coreState: CoreSessionState, forceReadmit: Bool,
+                              holdsNetworkAuthority: Bool) -> AdmissionStep {
+        switch coreState {
+        case .notStarted, .starting:
+            return .checkSession
+        case .admitted:
+            return forceReadmit || !holdsNetworkAuthority ? .readmit : .none
+        case .restored, .failed:
+            return .readmit
+        case .signedOut, .expired, .accessDenied, .verificationRequired:
+            return .none
+        }
+    }
+
+    /// Signed in, but protected IO is blocked until the core admits again.
+    var needsNetworkAuthorityRecovery: Bool {
+        guard state == .authenticated, !hasNetworkAuthority else { return false }
+        switch sessionValidationState {
+        case .offlineAuthenticated, .validating, .onlineAuthenticated: return true
+        case .initializing, .requiresReauthentication, .unauthenticated: return false
+        }
+    }
+
+    /// Delays between foreground re-admission attempts, in seconds.
+    static let authorityRecoveryDelays: [UInt64] = [2, 4, 8, 15]
+
+    /// While `isForeground` holds, re-admit a signed-in session that lost
+    /// its network authority, with backoff capped at 15 s, so the main
+    /// socket returns without the user pressing retry. Regaining authority
+    /// reconnects through `MainAppView.networkAuthorityDidChange`.
+    func recoverNetworkAuthorityWhileForeground(isForeground: @escaping @MainActor () -> Bool) {
+        guard authorityRecoveryTask == nil, needsNetworkAuthorityRecovery else { return }
+        let id = UUID()
+        authorityRecoveryID = id
+        authorityRecoveryTask = Task { @MainActor [weak self] in
+            var attempt = 0
+            while let manager = self, !Task.isCancelled, isForeground(), manager.needsNetworkAuthorityRecovery {
+                await manager.ensureAdmitted()
+                guard !Task.isCancelled, isForeground(), manager.needsNetworkAuthorityRecovery else { break }
+                let delays = AuthManager.authorityRecoveryDelays
+                let delay = delays[min(attempt, delays.count - 1)]
+                attempt += 1
+                NativeDiagnostics.event("network_authority_retry_scheduled", category: "auth", level: .warning,
+                    counts: ["attempt": attempt, "delay_s": Int(delay),
+                             "validation_state": manager.sessionValidationState.diagnosticCode])
+                do { try await Task.sleep(nanoseconds: delay * 1_000_000_000) } catch { break }
+            }
+            guard let manager = self, manager.authorityRecoveryID == id else { return }
+            manager.authorityRecoveryTask = nil
+        }
+    }
+
+    /// Ends the foreground re-admission loop (app left the foreground).
+    func stopNetworkAuthorityRecovery() {
+        authorityRecoveryTask?.cancel()
+        authorityRecoveryTask = nil
+        authorityRecoveryID = UUID()
     }
 
     /// The core's socket grant (session id, `ws_token`) for the admitted

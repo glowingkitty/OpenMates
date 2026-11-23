@@ -41,7 +41,7 @@ context_discovery:
   code_patterns:
     - frontend/apps/web_app/tests/chat-flow.spec.ts
     - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
-    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
     - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
     - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
     - frontend/packages/ui/src/services/sendersChatMessages.ts
@@ -63,7 +63,7 @@ context_discovery:
   tests:
     - frontend/apps/web_app/tests/chat-flow.spec.ts
     - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
-    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
     - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
     - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
     - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
@@ -181,7 +181,7 @@ scenarios:
   - id: S-6
     title: Web-created real sub-chat flow syncs into Apple
     given:
-      - The web app runs the live sub-chat inference flow from `sub-chats-real-inference.spec.ts`.
+      - The web app runs the live sub-chat inference flow from `real-inference-sub-chats.spec.ts`.
       - The backend creates at least one sub-chat under a parent chat.
     when:
       - Alice opens the same account in Apple after sync.
@@ -476,8 +476,8 @@ tests:
 
   - id: T-WEB-E2E-002
     type: playwright
-    file: frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
-    command: python3 scripts/run_tests.py --spec sub-chats-real-inference.spec.ts
+    file: frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
+    command: python3 scripts/run_tests.py --spec real-inference-sub-chats.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-2
@@ -633,7 +633,7 @@ implementation_notes:
     - xcodebuild unit tests for model/sub-chat/focus send contracts on remote Mac.
     - xcodebuild UI tests for real-account Apple chat, sub-chat, and focus flows on remote Mac.
     - python3 scripts/run_tests.py --spec chat-flow.spec.ts
-    - python3 scripts/run_tests.py --spec sub-chats-real-inference.spec.ts
+    - python3 scripts/run_tests.py --spec real-inference-sub-chats.spec.ts
     - python3 scripts/run_tests.py --spec focus-mode-ui-after-activation.spec.ts
     - python3 scripts/plan_verify.py docs/plans/apple-sub-chat-focus-parity/plan.yml
 

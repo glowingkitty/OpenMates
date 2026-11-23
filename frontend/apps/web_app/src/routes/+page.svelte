@@ -114,12 +114,19 @@
 	import TasksRoute from './tasks/+page.svelte';
 	import { isLegacyAppsWorkspaceHash, readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
 	import { readWorkflowChatHandoff } from '$lib/workflowCompletionRoute';
+	import {
+		getSidebarAnimationMs, getSidebarOpenWidthPx, isSidebarOverlayViewport, focusSidebarAfterOpen,
+		readSidebarEscapeContext, restoreMenuButtonFocus, shouldCloseSidebarOnEscape, trackMenuButtonPress
+	} from '$lib/sidebarOverlay';
 
 	// --- State ---
 	let isInitialLoad = $state(true);
 	// Match Settings.svelte's overlay breakpoint, including the 1100px boundary.
 	const SETTINGS_OVERLAY_MAX_WIDTH = 1100;
 	let viewportWidth = $state(0);
+	// Phone/small viewports: the chat sidebar is an overlay with a backdrop (TASK-4266).
+	const sidebarOverlayLayout = $derived(isSidebarOverlayViewport(viewportWidth));
+	let sidebarElement = $state<HTMLDivElement | undefined>();
 	const settingsOverlayOpen = $derived($panelState.isSettingsOpen && viewportWidth > 0 && viewportWidth <= SETTINGS_OVERLAY_MAX_WIDTH);
 	// Developer console — activated via /#console-on hash, toggled off via close button
 	let devConsoleOpen = $state(false);
@@ -153,6 +160,13 @@
       window.removeEventListener(APPS_WORKSPACE_CHAT_HANDOFF_EVENT, navigateAppsChatHandoff);
       window.removeEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, workflow);
     };
+  });
+  // A guest who chose "Describe new workflow" returns to Workflows after signing up.
+  $effect(() => {
+    if (!$authStore.isAuthenticated || $isInSignupProcess) return;
+    if (sessionStorage.getItem('openmates.workflows.describeAfterSignup') !== '1') return;
+    if (workspaceHash === '#workflows') return;
+    replaceState('/#workflows', {}); workspaceHash = '#workflows';
   });
   $effect(() => {
     const request = appsChatNavigation.request;
@@ -512,7 +526,7 @@
 	}
 
 	function getChatOpenOffsetPx(): number {
-		return window.innerWidth <= 600 ? window.innerWidth : 325;
+		return getSidebarOpenWidthPx(window.innerWidth);
 	}
 
 	function openGiftCardRedeemSettings(): void {
@@ -3834,16 +3848,43 @@
 	}
 
 	// Present the split layout before mounting the sidebar list. Cancel both
-	// frames on close/reopen; no hidden chat-list instance is retained.
+	// frames on close/reopen; the list stays mounted while the closing animation
+	// plays so the sidebar never slides out empty, then it is unmounted.
 	let sidebarContentReady = $state(false);
 	$effect(() => {
-		if (!$panelState.isActivityHistoryOpen) { sidebarContentReady = false; return; }
+		if (!$panelState.isActivityHistoryOpen) {
+			const unmountTimer = setTimeout(() => { sidebarContentReady = false; }, getSidebarAnimationMs() + 50);
+			return () => clearTimeout(unmountTimer);
+		}
 		let secondFrame = 0;
 		const firstFrame = requestAnimationFrame(() => {
-			secondFrame = requestAnimationFrame(() => { sidebarContentReady = true; });
+			secondFrame = requestAnimationFrame(() => {
+				sidebarContentReady = true;
+				// Focus the close button once the list is mounted (user-initiated opens only).
+				tick().then(() => focusSidebarAfterOpen(sidebarElement));
+			});
 		});
 		return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
 	});
+
+	// Focus returns to the header menu button after the sidebar closes.
+	let sidebarWasOpen = false;
+	$effect(() => {
+		const open = $panelState.isActivityHistoryOpen;
+		if (open === sidebarWasOpen) return;
+		sidebarWasOpen = open;
+		if (open) return;
+		return restoreMenuButtonFocus(sidebarElement);
+	});
+
+	onMount(() => trackMenuButtonPress());
+
+	function handleSidebarEscape(event: KeyboardEvent): void {
+		if (!$panelState.isActivityHistoryOpen) return;
+		if (!shouldCloseSidebarOnEscape(event, sidebarOverlayLayout, readSidebarEscapeContext(sidebarElement))) return;
+		event.preventDefault();
+		panelState.closeChats();
+	}
 
 
 	// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'). In default
@@ -3887,7 +3928,7 @@
 	<link rel="canonical" href="https://openmates.org" />
 </svelte:head>
 
-<svelte:window bind:innerWidth={viewportWidth} />
+<svelte:window bind:innerWidth={viewportWidth} onkeydown={handleSidebarEscape} />
 
 {#if workspaceHashRoute.workspace === 'apps'}
 	<AppsRoute />
@@ -3910,9 +3951,30 @@
 <!-- Notification overlay - positioned outside main-content to stay visible when chats menu is open on mobile -->
 <NotificationStack />
 
-<div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
-	{#if $panelState.isActivityHistoryOpen && sidebarContentReady}
-		<!-- Sidebar content - transition handled by parent sidebar transform -->
+<!-- Dim backdrop behind the overlay sidebar (small viewports only); tapping it closes the sidebar. -->
+<button
+	class="sidebar-backdrop"
+	class:visible={$panelState.isActivityHistoryOpen}
+	class:edge-dragging={edgeSwipeDragging && (edgeSwipeTarget === 'open-chats' || edgeSwipeTarget === 'close-chats')}
+	data-testid="sidebar-backdrop"
+	style={`--chat-drag-progress: ${edgeSwipeProgress};`}
+	tabindex="-1"
+	aria-hidden="true"
+	onclick={() => panelState.closeChats()}
+></button>
+
+<div
+	class="sidebar"
+	class:closed={!$panelState.isActivityHistoryOpen}
+	class:edge-dragging={edgeSwipeDragging && (edgeSwipeTarget === 'open-chats' || edgeSwipeTarget === 'close-chats')}
+	data-testid="chat-sidebar"
+	bind:this={sidebarElement}
+	tabindex="-1"
+	aria-label={$text('common.chats')}
+	style={`--chat-drag-offset: ${edgeSwipeChatOffsetPx}px;`}
+>
+	{#if sidebarContentReady}
+		<!-- Sidebar content stays mounted while the closing animation plays -->
 		<div class="sidebar-content">
 			<Chats on:chatSelected={handleChatSelected} on:chatDeselected={handleChatDeselected} />
 		</div>
@@ -3921,7 +3983,9 @@
 
 <div
 	class="main-content"
+	data-testid="main-content"
 	use:fitVisualViewport
+	inert={sidebarOverlayLayout && $panelState.isActivityHistoryOpen}
 	class:menu-closed={!$panelState.isActivityHistoryOpen}
 	class:edge-dragging={edgeSwipeDragging &&
 		(edgeSwipeTarget === 'open-chats' || edgeSwipeTarget === 'close-chats')}
@@ -3946,15 +4010,19 @@
 					onVisibleChatReady={(chatId) => { visibleChatReadyId = chatId; }}
 				/>
 			</div>
-			{#if settingsOverlayOpen}
-				<button
-					class="settings-chat-backdrop"
-					data-testid="settings-chat-backdrop"
-					aria-label={$text('common.close')}
-					onclick={() => settingsMenuVisible.set(false)}
-				></button>
-			{/if}
 		</div>
+		<!-- Dim backdrop behind the settings overlay (small screens): tapping it closes the menu. -->
+		<button
+			class="settings-chat-backdrop"
+			class:visible={settingsOverlayOpen}
+			class:edge-dragging={edgeSwipeDragging &&
+				(edgeSwipeTarget === 'open-settings' || edgeSwipeTarget === 'close-settings')}
+			data-testid="settings-chat-backdrop"
+			style={`--settings-drag-progress: ${edgeSwipeProgress};`}
+			tabindex="-1"
+			aria-hidden="true"
+			onclick={() => window.dispatchEvent(new CustomEvent('closeSettingsMenu'))}
+		></button>
 		<div class="settings-wrapper">
 			<Settings isLoggedIn={$authStore.isAuthenticated} on:chatSelected={handleChatSelected} />
 		</div>
@@ -3976,6 +4044,14 @@
 	:root {
 		--sidebar-width: 325px;
 		--sidebar-margin: 10px;
+		/* Overlay width on phones; keep in sync with lib/sidebarOverlay.ts */
+		--sidebar-overlay-width: min(88vw, 360px);
+		/* Ease-in-out cubic: speeds up, then slows down. Shared by sidebar, chat area and backdrop. */
+		--sidebar-duration: 300ms;
+		--sidebar-ease: cubic-bezier(0.65, 0, 0.35, 1);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		:root { --sidebar-duration: 0ms; }
 	}
 	.sidebar {
 		/* Fixed positioning relative to viewport */
@@ -4001,28 +4077,35 @@
 		/* LTR: inner shadow on the right edge of the sidebar */
 		box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
 
-		/* Smooth transition for sidebar reveal/hide */
+		/* Large viewports: the sidebar grows in width (its content keeps the full
+		   width and is clipped), while the chat area's inset moves in step. */
 		transition:
-			opacity 0.12s ease-out;
-		transform: translateX(0);
-		opacity: 1;
+			width var(--sidebar-duration) var(--sidebar-ease),
+			visibility 0s linear 0s;
 		visibility: visible;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.sidebar, .main-content { transition: none !important; }
+		.sidebar, .main-content, .sidebar-backdrop { transition: none !important; }
+	}
+
+	.sidebar:focus {
+		outline: none;
 	}
 
 	.sidebar.closed {
-		/* LTR: slide off-screen to the left (inline-start direction) */
-		transform: translateX(-100%);
-		opacity: 0;
+		width: 0;
 		visibility: hidden;
+		/* Hide after the width collapse has finished */
+		transition:
+			width var(--sidebar-duration) var(--sidebar-ease),
+			visibility 0s linear var(--sidebar-duration);
 	}
 
-	/* RTL: slide off-screen to the right (inline-start direction is right in RTL) */
-	:global([dir='rtl']) .sidebar.closed {
-		transform: translateX(100%);
+	/* Finger-following edge swipe on touch tablets: width tracks the drag. */
+	.sidebar.edge-dragging {
+		width: var(--chat-drag-offset);
+		transition: none;
 	}
 
 	/* RTL: inner shadow flips to the left edge of the sidebar (its inline-end side) */
@@ -4032,8 +4115,13 @@
 
 	.sidebar-content {
 		height: 100%;
-		width: 100%;
+		/* Fixed width: the list is never reflowed while the sidebar width animates. */
+		width: var(--sidebar-width);
 		overflow: hidden;
+	}
+
+	.sidebar-backdrop {
+		display: none;
 	}
 
 	.main-content {
@@ -4052,9 +4140,8 @@
 		bottom: 0;
 		background-color: var(--color-grey-0);
 		z-index: 11;
-		/* Commit desktop geometry once; only the narrow-screen translation animates. */
-		transition:
-			transform 0.12s ease-out;
+		/* The chat area narrows in step with the sidebar growing (same duration and easing). */
+		transition: inset-inline-start var(--sidebar-duration) var(--sidebar-ease);
 	}
 
 	.main-content > :global(header.webapp) {
@@ -4140,51 +4227,112 @@
 			padding-inline-end: 10px;
 			padding-bottom: 10px;
 		}
-		.sidebar {
-			width: 100%;
-			/* On mobile, sidebar slides from the inline-start edge */
-			/* transform is handled by .sidebar.closed class */
-		}
 
+		/* The chat stays where it is; the sidebar is an overlay above it. */
 		.main-content {
-			/* Position main content over the sidebar by default */
 			inset-inline-start: 0;
 			inset-inline-end: 0;
-			z-index: 20; /* Higher than sidebar to cover it */
-			transform: translateX(0);
+			z-index: 20;
 			min-height: unset;
-			/* Ensure smooth sliding transition on mobile */
-			transition: transform 0.3s ease;
+			transition: none;
 		}
 
-		/* When menu is open (sidebar visible), slide main content to inline-end
-		   to reveal the sidebar beneath it */
-		/* LTR: sidebar is on the left, slide main content right */
 		.main-content:not(.menu-closed) {
 			/* Repeat the zero offset at this specificity: the build lowers the
 			   desktop logical inset to :lang() selectors that outrank the plain
-			   mobile rule above, which left a sliver of the main content (profile
-			   picture, header icons) on top of the open sidebar. */
+			   mobile rule above. */
 			inset-inline-start: 0;
+		}
+
+		.main-content.menu-closed {
+			inset-inline-start: 0;
+		}
+
+		.sidebar {
+			width: var(--sidebar-overlay-width);
+			z-index: 31; /* above the backdrop (30) and the chat (20) */
+			transform: translateX(0);
+			/* Existing inner edge shadow plus an outer shadow that lifts the overlay. */
+			box-shadow:
+				inset -6px 0 12px -4px rgba(0, 0, 0, 0.25),
+				6px 0 24px rgba(0, 0, 0, 0.3);
+			transition:
+				transform var(--sidebar-duration) var(--sidebar-ease),
+				visibility 0s linear 0s;
+		}
+
+		:global([dir='rtl']) .sidebar {
+			box-shadow:
+				inset 6px 0 12px -4px rgba(0, 0, 0, 0.25),
+				-6px 0 24px rgba(0, 0, 0, 0.3);
+		}
+
+		.sidebar-content {
+			width: 100%;
+		}
+
+		/* Closed: slide off the inline-start edge, hide once the slide has finished. */
+		.sidebar.closed {
+			width: var(--sidebar-overlay-width);
+			transform: translateX(-100%);
+			box-shadow: none;
+			transition:
+				transform var(--sidebar-duration) var(--sidebar-ease),
+				visibility 0s linear var(--sidebar-duration);
+		}
+
+		:global([dir='rtl']) .sidebar.closed {
 			transform: translateX(100%);
 		}
 
-		/* When menu is closed, keep main content over sidebar */
-		.main-content.menu-closed {
-			inset-inline-start: 0;
-			transform: translateX(0);
+		/* Finger-following edge swipe: the sidebar tracks the drag. */
+		.sidebar.edge-dragging {
+			width: var(--sidebar-overlay-width);
+			transform: translateX(calc(var(--chat-drag-offset) - 100%));
+			transition: none;
 		}
 
-	}
-
-	/* RTL mobile: sidebar is on the right, so slide main content left to reveal it */
-	@media (max-width: 600px) {
-		:global([dir='rtl']) .main-content:not(.menu-closed) {
-			transform: translateX(-100%);
+		:global([dir='rtl']) .sidebar.edge-dragging {
+			transform: translateX(calc(100% - var(--chat-drag-offset)));
 		}
 
-		:global([dir='rtl']) .main-content.edge-dragging {
-			transform: translateX(calc(var(--chat-drag-offset) * -1));
+		.sidebar-backdrop {
+			/* Reset the global button look (fixed height, min-width, margin, shadow, hover scale). */
+			display: block;
+			position: fixed;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			min-width: 0;
+			margin: 0;
+			z-index: 30;
+			border: 0;
+			border-radius: 0;
+			padding: 0;
+			filter: none;
+			scale: none;
+			background: rgba(0, 0, 0, 0.45);
+			opacity: 0;
+			visibility: hidden;
+			cursor: pointer;
+			-webkit-tap-highlight-color: transparent;
+			transition:
+				opacity var(--sidebar-duration) var(--sidebar-ease),
+				visibility 0s linear var(--sidebar-duration);
+		}
+
+		.sidebar-backdrop.visible {
+			opacity: 1;
+			visibility: visible;
+			transition:
+				opacity var(--sidebar-duration) var(--sidebar-ease),
+				visibility 0s linear 0s;
+		}
+
+		.sidebar-backdrop.edge-dragging {
+			opacity: var(--chat-drag-progress);
+			visibility: visible;
+			transition: none;
 		}
 	}
 
@@ -4206,22 +4354,59 @@
 		min-width: 0;
 	}
 
-	/* Catch pointer input before it reaches chat controls; Settings sits above
-	   this local stacking context and retains its existing close/reset path. */
+	/* Dim backdrop behind the settings overlay. It fades with the same duration and easing as the
+	   panel slides, sits below the panel and the profile/close button, and catches pointer input
+	   before it reaches the chat. Hidden (and not clickable) unless the overlay is open. */
 	.settings-chat-backdrop {
-		position: absolute;
+		display: block;
+		position: fixed;
 		inset: 0;
-		z-index: 1;
+		width: 100%;
+		height: 100%;
+		min-width: 0;
+		margin: 0;
+		z-index: calc(var(--z-index-modal) - 1);
 		border: 0;
+		border-radius: 0;
 		padding: 0;
-		background: transparent;
+		background: rgba(0, 0, 0, 0.45);
+		opacity: 0;
+		visibility: hidden;
 		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition:
+			opacity var(--sidebar-duration) var(--sidebar-ease),
+			visibility 0s linear var(--sidebar-duration);
 	}
 
-	/* Smooth transition for main content */
-	.main-content {
+	.settings-chat-backdrop.visible {
+		opacity: 1;
+		visibility: visible;
 		transition:
-			transform 0.12s ease-out;
+			opacity var(--sidebar-duration) var(--sidebar-ease),
+			visibility 0s linear 0s;
+	}
+
+	.settings-chat-backdrop.edge-dragging {
+		opacity: var(--settings-drag-progress);
+		visibility: visible;
+		transition: none;
+	}
+
+	/* The global button hover/active look (orange, scaled, shadow) must not show on a backdrop. */
+	.settings-chat-backdrop:hover,
+	.settings-chat-backdrop:active,
+	.sidebar-backdrop:hover,
+	.sidebar-backdrop:active {
+		background: rgba(0, 0, 0, 0.45);
+		scale: none;
+		filter: none;
+	}
+
+	/* The overlay's backdrop is the dim; the chat itself is no longer washed out. ActiveChat still
+	   sets its legacy `dimmed` class (opacity 0.3) on small screens; this wins until that code is removed. */
+	.main-content :global(.active-chat-container.dimmed) {
+		opacity: 1 !important;
 	}
 
 	.main-content.edge-dragging.menu-closed,
@@ -4232,15 +4417,10 @@
 	}
 
 	@media (max-width: 600px) {
+		/* The chat does not move while the overlay sidebar is dragged. */
 		.main-content.edge-dragging.menu-closed,
 		.main-content.edge-dragging:not(.menu-closed) {
 			inset-inline-start: 0;
-			transform: translateX(var(--chat-drag-offset));
-		}
-
-		:global([dir='rtl']) .main-content.edge-dragging.menu-closed,
-		:global([dir='rtl']) .main-content.edge-dragging:not(.menu-closed) {
-			transform: translateX(calc(var(--chat-drag-offset) * -1));
 		}
 	}
 

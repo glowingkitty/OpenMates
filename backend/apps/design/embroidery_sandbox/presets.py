@@ -64,6 +64,24 @@ def satin_params(fabric: str, width_mm: float) -> dict[str, str]:
     return params
 
 
+# A sew-on border is a patch edge: denser than a plain satin band so the cut edge stays closed.
+_BORDER_SATIN_SPACING = {"light": "0.38", "normal": "0.34", "stretchy": "0.30"}
+
+
+def border_satin_params(fabric: str, width_mm: float) -> dict[str, str]:
+    """Satin edge of a sew-on border: dense, with contour and zigzag underlay at any width.
+
+    Where the edge bends outward the stitches fan around the inner rail; short
+    stitches there (Ink/Stitch ``short_stitch_*``) keep the thread from piling up.
+    """
+    params = satin_params(fabric, width_mm)
+    params.pop("center_walk_underlay", None)
+    params.update({"zigzag_spacing_mm": _BORDER_SATIN_SPACING[fabric], "contour_underlay": "true",
+                   "contour_underlay_inset_mm": "0.4", "zigzag_underlay": "true",
+                   "short_stitch_inset": "15", "short_stitch_distance_mm": "0.25"})
+    return params
+
+
 def running_params(width_mm: float) -> dict[str, str]:
     """Running stitch; lines from 0.6 mm get a triple (bean) stitch to stay visible."""
     params = {"stroke_method": "running_stitch", "running_stitch_length_mm": "2.0"}

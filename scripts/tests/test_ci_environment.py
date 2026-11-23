@@ -1190,3 +1190,13 @@ def test_voice_fixture_queue_imports_register_the_real_shared_speech_tasks():
         assert task_name in app.tasks
         assert app.tasks[task_name]._get_exec_options()["queue"] == "app_music"
     app.close()
+
+
+# contract-test: tooling
+def test_every_voice_call_spec_selects_the_voice_call_stack():
+    from scripts.ci_environment import selects_voice_call_stack
+
+    for spec in ("voice-call.spec.ts", "voice-call-screen-share.spec.ts", "voice-call-ambient-sounds.spec.ts"):
+        assert selects_voice_call_stack([spec]), spec
+    for spec in ("voice-input.spec.ts", "chat-voice-call.spec.ts", "voice-call.spec.ts.bak"):
+        assert not selects_voice_call_stack([spec]), spec

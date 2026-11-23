@@ -129,6 +129,48 @@ test('fullscreen opens on the interactive visual and switches to code and back',
 	await proof.attach();
 });
 
+// contract-test: direct surface=gui.web assertions=interactive-html.render.live-preview-and-code-switch
+test('a visual moved out of view and back stays live without the paused notice', async ({ page }, testInfo) => {
+	await page.goto(FULLSCREEN);
+	await waitForComponentPreview(page);
+	const frame = page.getByTestId('interactive-html-frame');
+	await expect(page.getByTestId('interactive-html-iframe')).toBeVisible({ timeout: 30_000 });
+	await expect.poll(() => readTicks(page)).toBeGreaterThan(5);
+	// Far outside the viewport the frame is unmounted, as when a chat scrolls on.
+	await frame.evaluate((element) => { (element as HTMLElement).style.transform = 'translateY(20000px)'; });
+	await expect(page.getByTestId('interactive-html-iframe')).toHaveCount(0);
+	await frame.evaluate((element) => { (element as HTMLElement).style.transform = ''; });
+	await expect(page.getByTestId('interactive-html-iframe')).toBeVisible();
+	await expect.poll(() => readTicks(page)).toBeGreaterThan(5);
+	await page.waitForTimeout(1000);
+	await expect(page.getByTestId('interactive-html-blocked')).toHaveCount(0);
+	await testInfo.attach('visual-live-after-scroll-back', { body: await page.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: direct surface=gui.web assertions=interactive-html.render.live-preview-and-code-switch
+test('a second document in the same frame shows a plain notice and the visual can be reloaded', async ({ page }, testInfo) => {
+	await page.goto(FULLSCREEN);
+	await waitForComponentPreview(page);
+	const iframe = page.getByTestId('interactive-html-iframe');
+	await expect(iframe).toBeVisible({ timeout: 30_000 });
+	await expect.poll(() => readTicks(page)).toBeGreaterThan(5);
+	// Stands in for a navigation that slipped past the guards: the same
+	// iframe element loads a second document.
+	await iframe.evaluate((element) => { (element as HTMLIFrameElement).srcdoc = '<p>other page</p>'; });
+	const notice = page.getByTestId('interactive-html-blocked');
+	await expect(notice).toBeVisible();
+	await expect(notice).toContainText('tried to open a different page');
+	await expect(iframe).toHaveCount(0);
+	const reload = page.getByTestId('interactive-html-reload');
+	await expect(reload).toBeVisible();
+	await testInfo.attach('visual-paused-notice', { body: await page.screenshot(), contentType: 'image/png' });
+	await reload.click();
+	await expect(notice).toHaveCount(0);
+	await expect(iframe).toBeVisible();
+	await expect.poll(() => readTicks(page)).toBeGreaterThan(5);
+	await testInfo.attach('visual-reloaded', { body: await page.screenshot(), contentType: 'image/png' });
+});
+
 const SVG_PREVIEW = '/dev/preview/embeds/code/CodeEmbedPreview?variant=svg&theme=light&width=420&chrome=0';
 const SVG_STREAMING_PREVIEW = '/dev/preview/embeds/code/CodeEmbedPreview?variant=svgStreaming&theme=light&width=420&chrome=0';
 

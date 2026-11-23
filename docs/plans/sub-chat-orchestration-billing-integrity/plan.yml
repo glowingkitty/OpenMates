@@ -65,7 +65,7 @@ context_discovery:
     - backend/tests/test_stream_consumer_recovery.py
     - backend/tests/test_chat_directus_encryption_guards.py
     - backend/tests/test_teams_billing.py
-    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
     - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
     - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
     - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
@@ -633,8 +633,8 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-E2E-SUB-CHAT
     type: playwright
-    file: frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
-    command: python3 scripts/tests.py run --spec sub-chats-real-inference.spec.ts
+    file: frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
+    command: python3 scripts/tests.py run --spec real-inference-sub-chats.spec.ts
     target: app.dev.openmates.org
     covers: [AC-3, AC-5, AC-9]
     assertions:
@@ -1168,7 +1168,7 @@ tasks:
     expected_files:
       - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
       - frontend/packages/ui/src/components/chats/chatUsageRows.ts
-      - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+      - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
       - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
@@ -1180,7 +1180,7 @@ tasks:
       files:
         - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
         - frontend/packages/ui/src/components/chats/chatUsageRows.ts
-        - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+        - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
         - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
       shared_files:
         - frontend/apps/web_app/tests/sub-chats-flow.spec.ts

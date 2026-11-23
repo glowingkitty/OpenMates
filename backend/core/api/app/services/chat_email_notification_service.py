@@ -7,17 +7,20 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from html import escape
 from typing import Any
 from urllib.parse import quote
 
 from backend.core.api.app.services.notification_email_preferences import (
-    load_notification_user, notification_category_enabled, preview_enabled,
-    resolve_notification_email,
+    load_notification_user, notification_category_enabled,
+    notification_headline, preview_enabled, resolve_notification_email,
 )
 from backend.core.api.app.services.notification_presence import has_active_human, is_message_viewed
 from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
+
+logger = logging.getLogger(__name__)
 
 CANDIDATE_TTL = 86400
 RECONNECT_GRACE_SECONDS = 15
@@ -39,19 +42,24 @@ def shorten_preview(content: str | None) -> str:
 
 def message_email_content(
     sender: str, chat_id: str, *, title: str = "", preview: str = "", team_id: str | None = None,
-    workflow_routing: dict[str, Any] | None = None,
+    workflow_routing: dict[str, Any] | None = None, summary_headline: str = "",
 ) -> tuple[str, dict]:
     from backend.shared.python_utils.frontend_url import get_frontend_base_url
     sender = " ".join(sender.split())[:120] or "Mate"
     title = shorten_title(title)
-    subject = f"{title}: New message from {sender}" if title else f"{sender} messaged you in OpenMates."
+    # "<icon> <summary>" subject when post-processing supplied one (title and
+    # preview then follow in the body); else "<Mate> in <title>", else generic.
+    headline = " ".join(summary_headline.split())[:200] or notification_headline(sender, title)
+    subject = headline or f"{sender} messaged you in OpenMates."
     chat_url = f"{get_frontend_base_url()}/#chat-id={quote(chat_id, safe='')}" + (f"&team-id={quote(team_id, safe='')}" if team_id else "")
     if workflow_routing:
         from backend.core.api.app.services.workflow_chat_notification_service import message_url
         chat_url = message_url(workflow_routing)
     return subject, {
-        "notification_text": escape(f"{sender} messaged you in OpenMates."),
+        "notification_text": escape(headline or f"{sender} messaged you in OpenMates."),
         "chat_title": escape(title),
+        # The "<Mate> in <title>" headline already names the chat; with a summary subject the body does.
+        "chat_title_in_body": bool(summary_headline and title),
         "response_preview": escape(shorten_preview(preview)).replace("\n", "<br/>") if preview else "",
         "chat_url": chat_url,
         "settings_url": f"{get_frontend_base_url()}/#settings/notifications/chat",
@@ -77,6 +85,12 @@ async def notification_chat_access(directus: Any, user_id: str, chat_id: str, te
         membership = await directus.team.get_membership(team_id, user_id)
         return isinstance(membership, dict) and membership.get("status") == "active"
     return not metadata.get("hashed_team_id") and metadata.get("hashed_user_id") == hashlib.sha256(user_id.encode()).hexdigest()
+
+
+async def notification_chat_hidden(directus: Any, chat_id: str) -> bool:
+    """Hidden chats never show content in a notification; unknown state counts as hidden."""
+    metadata = await directus.chat.get_chat_metadata(chat_id, admin_required=True)
+    return not isinstance(metadata, dict) or bool(metadata.get("is_hidden") or metadata.get("is_hidden_candidate"))
 
 
 async def _email_user(directus: Any, user_id: str, candidate: dict[str, Any]) -> dict[str, Any] | None:
@@ -105,7 +119,7 @@ async def enqueue_chat_email(
     source: str = "chat", sender_user_id: str | None = None, preview: str | None = None,
     title: str | None = None, team_id: str | None = None, completed_at: float | None = None,
     mate_category: str | None = None, workflow_delivery_id: str | None = None,
-    queue_dispatch: bool = True,
+    queue_dispatch: bool = True, task_id: str | None = None,
 ) -> bool:
     """Accept a real completed message; tentative workflow outputs are excluded."""
     if source not in {"chat", "team", "workflow_delivery"} or not all((user_id, chat_id, message_id)) or sender_user_id == user_id:
@@ -130,6 +144,8 @@ async def enqueue_chat_email(
         "sender_name": "A team member" if source == "team" else " ".join(sender_name.split())[:120], "source": source,
         "sender_user_id": sender_user_id, "team_id": team_id,
         "workflow_delivery_id": workflow_delivery_id,
+        # Identifies the sealed post-processing summary (read only under content consent).
+        "task_id": task_id if source == "chat" else None,
         "completed_at": completed_at if completed_at is not None else now,
         "not_before": now + RECONNECT_GRACE_SECONDS,
     }
@@ -142,6 +158,9 @@ async def enqueue_chat_email(
                 candidate["encrypted_sender_name"] = encrypted_sender_name
         except Exception:
             pass  # Optional identity envelope; retain the generic sender fallback.
+    # Email titles stay behind the existing "include private titles and previews"
+    # consent: a mail provider and the mailbox keep plaintext subjects. The title
+    # is this inference's request value, never a decrypted stored title.
     if preview_enabled(user) and (preview or title) and user.get("vault_key_id"):
         plaintext = json.dumps({"title": shorten_title(title), "preview": shorten_preview(preview)})
         try:
@@ -228,27 +247,51 @@ async def dispatch_chat_email(task: Any, *, user_id: str, chat_id: str, message_
             return False
         if await has_active_human(task.cache_service, user_id, chat_id) or await is_message_viewed(task.cache_service, user_id, chat_id, message_id):
             return False
+        envelope: dict[str, Any] = {}
         if preview_enabled(fresh) and candidate.get("encrypted_preview") and fresh.get("vault_key_id"):
             try:
                 plaintext = await task.encryption_service.decrypt_with_user_key(candidate["encrypted_preview"], fresh["vault_key_id"])
-                if plaintext:
-                    envelope = json.loads(plaintext)
-                    preview_subject, preview_context = message_email_content(
-                        sender, chat_id, title=envelope.get("title", ""), preview=envelope.get("preview", ""),
-                        team_id=candidate.get("team_id"), workflow_routing=workflow_routing,
-                    )
-                    context.update(preview_context)
-                    send_options["subject"] = preview_subject
+                envelope = json.loads(plaintext) if plaintext else {}
             except Exception:
-                pass
+                envelope = {}  # Optional content; the generic email still goes out.
+
+        summary_headline = ""
+        if preview_enabled(fresh) and await notification_chat_hidden(task.directus_service, chat_id):
+            envelope = {}  # Hidden chats never get content notifications.
+        elif preview_enabled(fresh) and candidate.get("task_id") and fresh.get("vault_key_id"):
+            try:
+                from backend.core.api.app.services.notification_headline_handoff import read_headline
+                summary_headline = await read_headline(
+                    cache_service=task.cache_service, encryption_service=task.encryption_service,
+                    vault_key_id=fresh["vault_key_id"], user_id=user_id, chat_id=chat_id,
+                    task_id=candidate["task_id"],
+                ) or ""
+            except Exception as exc:  # Optional summary; title/generic subject still goes out.
+                logger.warning("Notification summary unavailable for email (%s)", type(exc).__name__)
+
+        def apply_envelope(row: dict[str, Any]) -> None:
+            """Show only what the user's current settings allow, title and preview separately."""
+            context.update(private_context)
+            send_options["subject"] = subject
+            allowed = preview_enabled(row)
+            title = envelope.get("title", "") if allowed else ""
+            body = envelope.get("preview", "") if allowed else ""
+            if title or body or (allowed and summary_headline):
+                shown_subject, shown_context = message_email_content(
+                    sender, chat_id, title=title, preview=body,
+                    team_id=candidate.get("team_id"), workflow_routing=workflow_routing,
+                    summary_headline=summary_headline if allowed else "",
+                )
+                context.update(shown_context)
+                send_options["subject"] = shown_subject
+
+        apply_envelope(fresh)
         # Decrypting an optional envelope is awaited work. Recheck after it so
         # a foreground return, read receipt or opt-out during crypto wins.
         current = await _email_user(task.directus_service, user_id, candidate)
         if not current or current.get("status") != "active" or not notification_category_enabled(current, "aiResponses"):
             return False
-        if not preview_enabled(current):
-            context.update(private_context)
-            send_options["subject"] = subject
+        apply_envelope(current)
         if not await _email_access(task.directus_service, user_id, chat_id, message_id, candidate):
             return False
         if await resolve_notification_email(task.directus_service, task.encryption_service, current) != recipient:

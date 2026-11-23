@@ -17,6 +17,7 @@ const {
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
+	allowE2bUpload,
 	startNewChat,
 	sendMessage,
 	deleteActiveChat
@@ -88,6 +89,7 @@ test('generated application embed starts explicit isolated live preview', async 
 	});
 
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await allowE2bUpload(page);
 	await startNewChat(page, logCheckpoint);
 
 	// Hold the real authenticated POST response until fullscreen is mounted.

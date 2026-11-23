@@ -33,6 +33,7 @@
         reconcilePreservedDraftVersion,
         shouldPreserveSameChatDraftRestore,
         shouldPreserveFocusedSameChatDraftRestore,
+        clearCurrentDraft,
         triggerSaveDraft,
         flushSaveDraft,
         flushSaveDraftAndWaitForIdle,
@@ -57,7 +58,7 @@
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus, markAnonymousFreeUsageExhausted } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
-    import { composerFocusRequested } from '../../stores/composerFocusStore';
+    import { composerFocusRequested, composerDismissRequested } from '../../stores/composerFocusStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -156,11 +157,12 @@
     
     // PII Detection
     import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
-    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, isWebPIIModelSupported, webPIIDetectorState } from './services/webPIIDetectionService';
+    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, isWebPIIModelSupported, webPIIDetectorState, type WebPIIScanContext } from './services/webPIIDetectionService';
     import { mergeWebPIIMatches } from './services/webPIIMatches';
     import { piiScanText } from './services/piiScanText';
     import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
+    import { carryOverModelMatches } from './services/piiModelCarryOver';
     import { createComposerInteractionFocusHold } from './services/composerInteractionFocusHold';
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
@@ -302,6 +304,18 @@
             ($voiceCallController.status === 'connecting' && !currentChatId && !$voiceCallController.chatId)));
 
     const callLiveTranscript = $derived(callOwnsComposer ? $voiceCallController.liveTranscript ?? null : null);
+
+    // Text of the latest clipboard paste; a call text submit that still contains it
+    // is flagged `pasted` so the assistant summarises it instead of reading it aloud.
+    let lastPastedCallText = '';
+    const rememberPastedCallText = (event: ClipboardEvent) => {
+        // The editor and the composer both see one paste; the second sees no clipboard
+        // data and must not erase what the first remembered.
+        if (!event.clipboardData) return;
+        lastPastedCallText = event.clipboardData.getData('text/plain')?.trim() ?? '';
+        // Lengths only, never the pasted text.
+        console.info('[VoiceCall] Paste remembered', { length: lastPastedCallText.length, hasData: !!event.clipboardData });
+    };
 
     function plainCallTextOnly(): boolean {
         if (!editor || editor.isDestroyed) return false;
@@ -1265,6 +1279,14 @@
     });
     // Debounce timer for PII detection - safety net fallback for edge cases
     let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    /** Drops the banner and highlights of sent text and cancels any scan still running for it. */
+    function clearPIIPreviewState() {
+        piiPreviewGeneration += 1;
+        if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+        detectedPII = [];
+        currentPIIDecorations = [];
+        lastPIIText = '';
+    }
     // Fallback debounce: if no delimiter is typed for this long, run detection anyway.
     // This catches edge cases like slow typing followed by an immediate send.
     const PII_DEBOUNCE_MS = isWebPIIModelEnabled() ? 400 : 800;
@@ -1933,8 +1955,7 @@
             }
             
             console.debug('[MessageInput] Updated editor from markdown:', {
-                length: markdown.length,
-                preview: markdown.substring(0, 100)
+                length: markdown.length
             });
             
         } catch (error) {
@@ -2049,7 +2070,7 @@
                         const youtubePattern = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
                         if (block.content && youtubePattern.test(block.content)) {
                             className = 'unclosed-block-video';
-                            console.debug('[MessageInput] Detected YouTube URL in url block, using video highlight color (red):', block.content.substring(0, 50));
+                            console.debug('[MessageInput] Detected YouTube URL in url block, using video highlight color (red)');
                         } else {
                             className = 'unclosed-block-url';
                         }
@@ -2416,16 +2437,31 @@
 
     onMount(() => {
         let previousModelStatus: string | undefined;
+        let previousEnhancedRevision: number | undefined;
         const stopModelState = webPIIDetectorState.subscribe((state) => {
             const finishedBackgroundLoad = previousModelStatus === 'loading' && state.status === 'ready';
             previousModelStatus = state.status;
+            // A partial preview kept scanning its remaining windows in the background.
+            const revisionChanged = state.enhancedRevision !== undefined && state.enhancedRevision !== previousEnhancedRevision;
+            previousEnhancedRevision = state.enhancedRevision;
+            if (revisionChanged && cachedPIISettings?.masterEnabled && editor && !editor.isDestroyed) {
+                lastPIIText = '';
+                void runPIIDetectionImmediate(editor);
+            }
             if (finishedBackgroundLoad && cachedPIISettings?.masterEnabled && editor && !editor.isDestroyed) {
                 // A bounded preview can finish with basic checks while assets
                 // keep downloading. Recheck the current draft once they arrive.
                 lastPIIText = '';
                 void runPIIDetectionImmediate(editor);
             }
-            if ((state.status !== 'error' && !state.fallbackReason) || !cachedPIISettings?.masterEnabled
+            // A preview that outran its budget while the model is still downloading
+            // is not "unavailable": the download continues, the draft is rechecked when
+            // it finishes and a send waits for the model. Only a failed or stalled
+            // model gets the notice. A 'partial' preview is a working but slow model
+            // whose remaining scan finishes in the background, so it gets none either.
+            const stalled = state.fallbackReason === 'timeout' || state.fallbackReason === 'size';
+            const unavailable = state.status === 'error' || (stalled && state.status !== 'loading');
+            if (!unavailable || !cachedPIISettings?.masterEnabled
                 || !isWebPIIModelEnabled() || !claimWebPIIFallbackNotice()) return;
             notificationStore.addNotificationWithOptions('info', {
                 message: get(text)('enter_message.pii.basic_detection_notice'),
@@ -2473,6 +2509,7 @@
             editorProps: {
                 // Handle paste events at the ProseMirror level to intercept before default handling
                 handlePaste: (view, event, _slice) => {
+                    rememberPastedCallText(event);
                     // ── Embed paste detection (highest priority) ───────────────────────
                     // Two detection paths:
                     //
@@ -2783,6 +2820,8 @@
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
         chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        // A resumed turn or another device's turn is only learned from typing-started.
+        chatSyncService.addEventListener('aiTypingStarted', handleAiTaskOrChatChange);
         chatSyncService.addEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         chatSyncService.addEventListener('messageQueued', handleMessageQueued as EventListener);
         // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
@@ -2820,6 +2859,11 @@
             if (!requested || startNewChatOnClick) return;
             focus();
             composerFocusRequested.set(false);
+        });
+        const unsubscribeComposerDismiss = composerDismissRequested.subscribe((requested) => {
+            if (!requested) return;
+            composerDismissRequested.set(false);
+            if (isFocused) dismissFocus();
         });
 
         // Listen for docs page deep link prefill events (/#message= handler in +page.svelte)
@@ -2867,6 +2911,7 @@
             unsubscribeAiTyping();
             unsubscribeText();
             unsubscribeComposerFocus();
+            unsubscribeComposerDismiss();
             appsHandoffEditorReady = false;
             unsubscribeAppsHandoff();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
@@ -3389,11 +3434,22 @@
         // Keep known secrets responsive while the on-device model starts.
         // Full basic protection stays immediate during download and on failure.
         // The same hybrid adapter reserves exclusions before adding model spans.
+        const previousMatches = detectedPII;
+        const withModelCarryOver = (basic: PIIMatch[]) => carryOverModelMatches(
+            previousMatches, scanText, basic, detectionOptions.excludedIds ?? new Set());
         publish(isWebPIIModelEnabled()
-            ? mergeWebPIIMatches(scanText, [], detectionOptions)
+            ? withModelCarryOver(mergeWebPIIMatches(scanText, [], detectionOptions))
             : detectPII(scanText, detectionOptions));
         try {
-            publish(await detectPIIForWeb(scanText, detectionOptions, { purpose: 'preview' }));
+            const previewContext: WebPIIScanContext = { purpose: 'preview' };
+            const previewMatches = await detectPIIForWeb(scanText, detectionOptions, previewContext);
+            publish(previewContext.budgetExceeded ? withModelCarryOver(previewMatches) : previewMatches);
+            if (previewContext.budgetExceeded && stillCurrent()) {
+                // The bounded preview ran out of time. The send waits for the
+                // model and replaces its spans, so finish the check in the
+                // background and show those spans once they are known.
+                publish(await detectPIIForWeb(scanText, detectionOptions, { purpose: 'document' }));
+            }
         } catch {
             // Final send independently verifies this snapshot and blocks on model
             // failure. A preview must never log the SDK exception or private text.
@@ -4041,6 +4097,7 @@
         window.removeEventListener('language-changed', languageChangeHandler);
         window.removeEventListener('language-changed-complete', languageChangeHandler);
         chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        chatSyncService.removeEventListener('aiTypingStarted', handleAiTaskOrChatChange);
         chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         chatSyncService.removeEventListener('messageQueued', handleMessageQueued as EventListener);
         if (embedUpdatedFromServerHandler) {
@@ -4551,6 +4608,7 @@
     }
 
     async function handlePaste(event: ClipboardEvent) {
+        rememberPastedCallText(event);
         if (!$authStore.isAuthenticated && hasClipboardFiles(event)) {
             setPendingAnonymousFileAttachment(true);
         }
@@ -4827,7 +4885,11 @@
             if (!settled) watch(run => userProfile.subscribe(run));
             if (!settled) watch(run => activeTeamContext.subscribe(run));
         });
-        if (!ready || !stillOwned() || !capturedEditor) return false;
+        if (!ready || !stillOwned() || !capturedEditor) {
+            // Category only: why a call could not bind to this draft.
+            console.info('[VoiceCall] Draft handoff not ready', { ready, owned: stillOwned(), switching: get(draftEditorUIState).isSwitchingContext, sameDraft: get(draftEditorUIState).currentChatId === capturedChatId });
+            return false;
+        }
         syncTextOnlyDomToEditorBeforeDraftSave(capturedEditor);
         // The call binds to this draft chat, so an untouched Project prefill
         // mention is persisted here even though autosave skips it.
@@ -4835,8 +4897,10 @@
             suppressQueuedEditResaves: false,
             persistAutoInserted: true,
         });
-        return saved && stillOwned() && get(draftEditorUIState).currentChatId === capturedChatId &&
+        const bound = saved && stillOwned() && get(draftEditorUIState).currentChatId === capturedChatId &&
             !get(draftEditorUIState).isSwitchingContext;
+        if (!bound) console.info('[VoiceCall] Draft save before call failed', { saved, owned: stillOwned() });
+        return bound;
     }
 
     function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
@@ -5760,8 +5824,7 @@
 
             console.info('[MessageInput] Paste as text: replacing embed with text', {
                 type: attrs.type,
-                textLength: textContent.length,
-                preview: textContent.substring(0, 50)
+                textLength: textContent.length
             });
 
             // For web / video URL embeds: add the URL to the ignore list so that
@@ -6140,6 +6203,7 @@
             const chatId = currentChatId;
             const submittedEditor = editor;
             const submittedText = submittedEditor?.getText().trim() ?? '';
+            const submittedDocument = submittedEditor?.state.doc;
             if (!chatId || !submittedText || sendClickInProgress) return;
             if (submittedText.length > 8_000) {
                 notificationStore.error($text('voicecall.text_too_long'));
@@ -6147,9 +6211,16 @@
             }
             sendClickInProgress = true;
             try {
-                const accepted = await voiceCallController.submitText(chatId, submittedText);
+                const pasted = lastPastedCallText.length > 0 && submittedText.includes(lastPastedCallText);
+                console.info('[VoiceCall] Call text submit', { length: submittedText.length, pastedLength: lastPastedCallText.length, pasted });
+                const accepted = await voiceCallController.submitText(chatId, submittedText, { pasted });
                 if (!accepted) throw new Error('Call transport unavailable');
                 if (editor === submittedEditor && currentChatId === chatId && submittedEditor.getText().trim() === submittedText) {
+                    // Like an ordinary send, the sent text's saved draft goes too; otherwise
+                    // it comes back in the composer when the chat is reopened during the call.
+                    if (submittedEditor && submittedDocument && submittedEditor.state.doc === submittedDocument) {
+                        await clearCurrentDraft({ editor: submittedEditor, document: submittedDocument, chatId });
+                    }
                     await clearMessageField(false, false);
                 }
             } catch {
@@ -6251,6 +6322,9 @@
         // editor document intact until the send is accepted.
         hasContent = false;
         draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
+        // The composer collapses and drops focus (and the iOS keyboard) right
+        // at Send, not after the send pipeline: a rejected send restores it.
+        const composerStateAtSend = collapseComposerForSend();
 
         // Heavy parsing was flushed before waiting for preview persistence.
         const draftStateBeforeSend = get(draftEditorUIState);
@@ -6313,6 +6387,11 @@
             (value) => {
                 hasContent = value;
                 refreshDraftPreviewState(editor);
+                // The send empties the editor without an update event, so the PII scan
+                // never sees the empty text: drop the banner and highlights right here
+                // instead of when the server accepts the send. A rejected send restores
+                // the draft and rescans it (lastPIIText is reset).
+                if (!value && !editor.isDestroyed && editor.isEmpty) clearPIIPreviewState();
             },
             currentChatId,
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
@@ -6374,8 +6453,8 @@
             // send restores the draft and controls, restore this editor's DOM
             // focus without a later blur frame stealing it.
             await tick();
-            if (isFocused && editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
-                editor.view.focus();
+            if (editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
+                restoreComposerAfterRejectedSend(composerStateAtSend);
             }
             return false;
         }
@@ -6392,8 +6471,9 @@
         })) return true;
         dismissFocus();
         
-        // Clear PII state after sending
-        detectedPII = [];
+        // Clear PII state after sending; a preview still running for the sent
+        // text must not bring the banner back.
+        clearPIIPreviewState();
         piiExclusions = new Set();
         // Clear the URL ignore list — a new message starts with a clean slate
         ignoredEmbedUrls = new Set();
@@ -6501,8 +6581,7 @@
                 sessionStorage.setItem('pendingDraftAfterSignup', JSON.stringify(draftData));
                 console.debug('[MessageInput] Saved draft to sessionStorage for restoration after signup:', {
                     chatId: draftData.chatId,
-                    markdownLength: markdown.length,
-                    preview: markdown.substring(0, 50) + '...'
+                    markdownLength: markdown.length
                 });
             } catch (error) {
                 console.error('[MessageInput] Failed to save draft to sessionStorage:', error);
@@ -6792,6 +6871,45 @@
         isFocused = true;
         editor.commands.focus('end');
     }
+    type ComposerStateAtSend = { focused: boolean; fullscreen: boolean };
+
+    /** Collapse and blur at Send without saving the outgoing text as a draft. */
+    function collapseComposerForSend(): ComposerStateAtSend {
+        const state = { focused: isMessageFieldFocused || isFocused, fullscreen: isFullscreen };
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+        restoreEditorFocusTimer = null;
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) clearTimeout(preserveComposerFocusResetTimer);
+        preserveComposerFocusResetTimer = null;
+        forceDraftActionsVisible = false;
+        isFullscreen = false;
+        panelTransitionOverride = '';
+        isMessageFieldFocused = false;
+        isFocused = false;
+        showMentionDropdown = false;
+        if (editor && !editor.isDestroyed) {
+            // view.dom.blur() is synchronous (commands.blur() waits a frame);
+            // Safari keeps the keyboard up while a caret range remains.
+            editor.view.dom.blur();
+            const selection = window.getSelection();
+            if (selection?.anchorNode && editor.view.dom.contains(selection.anchorNode)) selection.removeAllRanges();
+        }
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && messageInputWrapper?.contains(active)) active.blur();
+        if (blurTimeoutId) clearTimeout(blurTimeoutId);
+        blurTimeoutId = null;
+        return state;
+    }
+
+    /** A rejected send gives the draft back in the layout it was sent from. */
+    function restoreComposerAfterRejectedSend(state: ComposerStateAtSend) {
+        if (state.fullscreen) isFullscreen = true;
+        if (!state.focused || !editor || editor.isDestroyed) return;
+        isMessageFieldFocused = true;
+        isFocused = true;
+        editor.view.focus();
+    }
+
     export function dismissFocus() {
         if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
         restoreEditorFocusTimer = null;
@@ -6950,6 +7068,7 @@
         hasContent = !isContentEmptyExceptMention(editor);
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
+        piiPreviewGeneration += 1;
         detectedPII = [];
         currentPIIDecorations = [];
         lastPIIText = '';
@@ -7246,8 +7365,7 @@
     export function setOriginalMarkdown(markdown: string) {
         originalMarkdown = markdown;
         console.debug('[MessageInput] Set original markdown from draft:', {
-            length: markdown.length,
-            preview: markdown.substring(0, 100)
+            length: markdown.length
         });
     }
 
@@ -7729,8 +7847,11 @@
                             aria-hidden="true"
                         ></span>
                     {/if}
-                    <span class="focus-pill-label" data-testid="focus-pill-label" title={focusPillLabel}>
-                        {focusPillLabel}
+                    <!-- A layered focus keeps its own name readable; the Project name shrinks first
+                         (focus-modes.project-layering). The title keeps the full identity. -->
+                    <span class="focus-pill-label" class:layered={!!(activeProjectFocusName && specialistName)}
+                        data-testid="focus-pill-label" title={focusPillLabel}>
+                        {#if activeProjectFocusName && specialistName}<span class="focus-pill-base">{activeProjectFocusName}</span><span class="focus-pill-separator">{' | '}</span><span class="focus-pill-layer" data-testid="focus-pill-layer">{specialistName}</span>{:else}{focusPillLabel}{/if}
                     </span>
                     {#if !activeProjectFocusName}
                         <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>
@@ -7956,9 +8077,10 @@
             </div>
         {/if}
 
-        <!-- Stop Processing Icon - shown when AI task is active -->
-        <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
-        {#if showStopProcessingButton && !recordingLayoutActive}
+        <!-- Stop Processing Icon - shown when AI task is active. A call bound to this
+             chat owns the controls (speaking interrupts the answer), so the pulsing red
+             stop icon never shows in its composer (TASK-5166). -->
+        {#if showStopProcessingButton && !recordingLayoutActive && !callOwnsComposer}
             <button
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 data-testid="stop-processing-button"

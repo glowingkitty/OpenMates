@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
-// proof-video: not_required reason=visual_smoke_not_needed (fixture replay; the result video comes from slides-focus-modes-real.spec.ts on dev)
+// proof-video: not_required reason=visual_smoke_not_needed (fixture replay; the result video comes from real-inference-slides-focus-modes.spec.ts on dev)
 /**
  * Slides focus mode "Plan a presentation" (web). Real focus activation, Jev phase
  * gates, stream consumer and embeds; only the Jev and model providers are replaced by
@@ -129,6 +129,10 @@ test('the presentation planner focus takes a beginner from idea to a reviewed de
 
 		await reply('Win the jury for a pilot, five minutes on stage, mostly engineers. Yes, that summary is right.', 'p2', 'goal-answers');
 		await expect(last()).toContainText('problem, demo, solution, impact, ask');
+		// GSLQ7: the replayed reply starts with a copied Focus activation toon block;
+		// it is dropped, so no code embed or its fields show in the reply.
+		await expect(last().locator('[data-testid="embed-preview"][data-app-id="code"]')).toHaveCount(0);
+		await expect(last()).not.toContainText('focus_mode_name');
 		await screenshot(page, 'planner-story-arc');
 
 		await reply('Sounds good, use that story.', 'p3', 'arc-confirmed');

@@ -116,7 +116,9 @@ assertions:
     (1-60 unique ISO 3166-1 alpha-2 codes; absent means worldwide); a generic-contract request that names regions
     through country, countries, region or regions runs such a provider only when one of its regions is named or
     WORLDWIDE is requested, lists every skipped provider in its warnings, and when no provider is left starts no
-    provider process and reports that no installed provider covers the requested regions. Every built-in skill
+    provider process and reports that no installed provider covers the requested regions. When every provider
+    that runs declares regions and together they miss requested regions (WORLDWIDE included), the response is
+    partial and warns which regions no installed provider covers. Every built-in skill
     that is paused because it has no provider
     (provider_required with no built-in providers and no declared contract) also accepts the generic contract
     skill.requests@1 without any per-skill contract or code. Its input is one request item validated by the

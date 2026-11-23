@@ -24,6 +24,7 @@ import {
 } from "../../../services/drafts/draftSave"; // Import clearCurrentDraft + debounced save (for cancellation)
 import { tipTapToCanonicalMarkdown } from "../../../message_parsing/serializers"; // Import TipTap to markdown converter
 import { isPublicChat } from "../../../demo_chats/convertToChat";
+import { materializePendingInspirationChat } from "../../../services/pendingInspirationChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
 import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
@@ -811,6 +812,8 @@ export async function handleSend(
   const voiceCall = get(voiceCallController);
   if ((voiceCall.status === 'connecting' || voiceCall.status === 'live') &&
       voiceCall.chatId === currentChatId) return false;
+  // An opened daily inspiration is an unsaved preview until its first message (TASK-3406).
+  await materializePendingInspirationChat(currentChatId);
   // Bind this click to its workspace before URL, PII, and draft work can yield.
   const sendContext = getActiveTeamContextSnapshot();
   const senderProfile = get(userProfile);
@@ -906,6 +909,11 @@ export async function handleSend(
   try {
   recordSendDebugStep("send_guard_acquired", { currentChatId });
   recordSendPreparationPhase('send_accepted');
+  // The accepted click owns the composer content. A debounced draft save still
+  // pending here would fire during the privacy wait below, reload the new chat and
+  // change the composer's owner, so the model restore aborts the send after its row
+  // shows "sending" (TASK-1843: first send right after login never left).
+  if (!options.preserveDraft) saveDraftDebounced.cancel();
   const submittedEditorDoc = editor.state.doc;
   const submittedEditorText = editor.getText();
   const submittedEditorJSON = structuredClone(editor.getJSON());

@@ -11696,6 +11696,30 @@ report_issue.screenshot_size_too_large:
   sv: Skärmbild för stor. Försök med ett mindre fönster.
   he: צילום המסך גדול מדי. כדאי לנסות חלון קטן יותר.
   verified_by_human: []
+report_issue.screenshot_limit_reached:
+  context: Error shown when the user tries to attach more than 5 screenshots to a report
+  en: You can attach up to 5 screenshots.
+  de: Du kannst bis zu 5 Screenshots anhängen.
+  zh: 最多可附加 5 张截图。
+  es: Puedes adjuntar hasta 5 capturas.
+  fr: Vous pouvez joindre jusqu'à 5 captures d'écran.
+  pt: Você pode anexar até 5 capturas.
+  ru: Можно прикрепить не более 5 снимков экрана.
+  ja: スクリーンショットは最大5枚まで添付できます。
+  ko: 스크린샷은 최대 5개까지 첨부할 수 있습니다.
+  it: Puoi allegare fino a 5 screenshot.
+  tr: En fazla 5 ekran görüntüsü ekleyebilirsiniz.
+  vi: Bạn có thể đính kèm tối đa 5 ảnh chụp màn hình.
+  id: Anda dapat melampirkan hingga 5 tangkapan layar.
+  pl: Możesz dołączyć do 5 zrzutów ekranu.
+  nl: Je kunt maximaal 5 schermafbeeldingen bijvoegen.
+  ar: يمكنك إرفاق ما يصل إلى 5 لقطات شاشة.
+  hi: आप अधिकतम 5 स्क्रीनशॉट संलग्न कर सकते हैं।
+  th: คุณแนบภาพหน้าจอได้สูงสุด 5 ภาพ
+  cs: Můžete přiložit nejvýše 5 snímků obrazovky.
+  sv: Du kan bifoga upp till 5 skärmbilder.
+  he: אפשר לצרף עד 5 צילומי מסך.
+  verified_by_human: []
 report_issue.screenshot_preview_alt:
   context: Alt text for the screenshot preview image
   en: Screenshot preview

@@ -727,6 +727,55 @@ permissions.reject_all:
   he: דחה הכל
   verified_by_human: []
 
+permissions.continue_without_memories:
+  context: Button on the app memories request that declines sharing and lets the assistant answer without any memories
+  en: Continue without memories
+  de: Ohne Erinnerungen fortfahren
+  zh: 不使用记忆继续
+  es: Continuar sin recuerdos
+  fr: Continuer sans souvenirs
+  pt: Continuar sem memórias
+  ru: Продолжить без воспоминаний
+  ja: 記憶を使わずに続ける
+  ko: 기억 없이 계속
+  it: Continua senza ricordi
+  tr: Anılar olmadan devam et
+  vi: Tiếp tục không dùng ký ức
+  id: Lanjutkan tanpa kenangan
+  pl: Kontynuuj bez wspomnień
+  nl: Doorgaan zonder herinneringen
+  ar: المتابعة بدون ذكريات
+  hi: यादों के बिना जारी रखें
+  th: ดำเนินการต่อโดยไม่ใช้ความทรงจำ
+  cs: Pokračovat bez vzpomínek
+  sv: Fortsätt utan minnen
+  he: להמשיך בלי זיכרונות
+  verified_by_human: []
+permissions.call_countdown_label:
+  context: Accessible label of the countdown bar on an app memories request during a voice call; when it runs out the assistant answers without memories
+  en: Time left before answering without memories
+  de: Zeit, bis ohne Erinnerungen geantwortet wird
+  zh: 在不使用记忆回答前的剩余时间
+  es: Tiempo restante antes de responder sin recuerdos
+  fr: Temps restant avant de répondre sans souvenirs
+  pt: Tempo restante antes de responder sem memórias
+  ru: Время до ответа без воспоминаний
+  ja: 記憶なしで回答するまでの残り時間
+  ko: 기억 없이 답변하기까지 남은 시간
+  it: Tempo rimasto prima di rispondere senza ricordi
+  tr: Anılar olmadan yanıtlamadan önce kalan süre
+  vi: Thời gian còn lại trước khi trả lời không dùng ký ức
+  id: Sisa waktu sebelum menjawab tanpa kenangan
+  pl: Czas do odpowiedzi bez wspomnień
+  nl: Resterende tijd tot antwoord zonder herinneringen
+  ar: الوقت المتبقي قبل الإجابة بدون ذكريات
+  hi: यादों के बिना जवाब देने से पहले बचा समय
+  th: เวลาที่เหลือก่อนตอบโดยไม่ใช้ความทรงจำ
+  cs: Zbývající čas do odpovědi bez vzpomínek
+  sv: Tid kvar innan svaret ges utan minnen
+  he: הזמן שנותר עד מענה בלי זיכרונות
+  verified_by_human: []
+
 connected_account_permissions.title:
   context: Header for a connected account approval dialog in chat.
   en: Connected account approval

@@ -62,6 +62,21 @@ class World:
     indexed: list[dict] = field(default_factory=list)
     source: Any = None
     resolve_calls: list[dict] = field(default_factory=list)
+    progress: list[dict] = field(default_factory=list)
+    order: list[str] = field(default_factory=list)  # progress updates and conversions, in call order
+
+
+class FakeEmbedService:
+    """Records the processing updates the progress publisher sends."""
+
+    def __init__(self, world: "World") -> None:
+        self._world = world
+
+    async def send_embed_data_to_client(self, **kwargs: Any) -> None:
+        from toon_format import decode as toon_decode
+
+        self._world.order.append(f"progress:{toon_decode(kwargs['content_toon'])['progress_stage']}")
+        self._world.progress.append({**kwargs, "content": toon_decode(kwargs["content_toon"])})
 
 
 class FakeSession:
@@ -86,6 +101,7 @@ class FakeSession:
 
     async def convert(self, svg: str, options: EmbroideryOptions) -> Any:
         self.world.converted.append((svg, options))
+        self.world.order.append("convert")
         if self.world.convert_error:
             raise self.world.convert_error
         files = {name: f"{name}-bytes".encode() for name in RESULT_VARIANTS}
@@ -160,7 +176,7 @@ def world(monkeypatch: pytest.MonkeyPatch) -> World:
     monkeypatch.setattr(pipeline, "_assert_can_generate", noop)
     monkeypatch.setattr(pipeline, "initialize_task_storage", storage)
     monkeypatch.setattr(pipeline, "require_storage_available", noop)
-    monkeypatch.setattr(pipeline, "_embed_service", lambda _task: object())
+    monkeypatch.setattr(pipeline, "_embed_service", lambda _task: FakeEmbedService(state))
     monkeypatch.setattr(pipeline, "get_bucket_name", lambda *_args: "chatfiles-dev")
     monkeypatch.setattr(pipeline, "resolve_vector_source_embed", resolve)
     monkeypatch.setattr(pipeline, "send_generated_media_child", publish)
@@ -350,11 +366,28 @@ async def test_an_uploaded_svg_is_sewn_as_it_is_and_its_findings_are_only_named(
     await _run(world)
 
     assert world.author_calls == [] and world.sessions == 1
+    assert world.checked == []  # the conversion reports the findings; no separate check run
     assert world.converted[0][0] == SOURCE_SVG
     content = world.published[-1]["content"]
     assert content["reworked"] is False
     codes = [note["code"] for note in content["notes"]]
     assert "rework_failed" not in codes and not any(code.startswith("solved_") for code in codes)
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.convert.sandbox-inkstitch
+@pytest.mark.asyncio
+async def test_one_timing_line_names_the_steps_without_user_content(
+    world: World, caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO", logger=pipeline.logger.name)
+
+    await _run(world)
+
+    lines = [record.getMessage() for record in caplog.records if "Timings (s)" in record.getMessage()]
+    assert len(lines) == 1 and lines[0].startswith("[design.embroidery task:task-1]")
+    for step in ("source", "sandbox_create", "check", "convert", "store"):
+        assert f"'{step}'" in lines[0]
+    assert "Fox logo" not in lines[0] and "fox-logo" not in lines[0]
 
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.prepare.model-rework-only-when-needed,design-embroidery.billing.metered
@@ -453,7 +486,8 @@ async def test_failed_rework_continues_with_original_and_names_remaining_finding
     assert content["reworked"] is False
     codes = [note["code"] for note in content["notes"]]
     assert "rework_failed" in codes and "unsolved_more_than_12_colours" in codes
-    assert world.charges[0]["credits"] == 4
+    # Per-second sandbox billing: 2 x 21 s at 4 credits/minute = 2.8, rounded up to 3; no tokens.
+    assert world.charges[0]["credits"] == 3
 
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.convert.sandbox-inkstitch,design-embroidery.billing.metered
@@ -518,3 +552,56 @@ async def test_assistant_result_has_numbers_and_notes_but_no_keys(world: World) 
         assert key in completion, key
     for secret in ("aes_key", "aes_nonce", "vault_wrapped_aes_key", "s3_base_url", "files"):
         assert secret not in completion
+
+
+# contract-test: direct surface=rest_api assertions=design-embroidery.progress.input-and-stages
+@pytest.mark.asyncio
+async def test_progress_shows_the_input_graphic_first_then_each_stage_in_order(world: World) -> None:
+    world.source = ResolvedVectorSource(svg=SOURCE_SVG, origin="uploaded_svg", label="fire-tail.svg")
+
+    await _run(world, instructions="", title="Red tail patch")
+
+    stages = [update["content"]["progress_stage"] for update in world.progress]
+    assert stages == ["reading", "stitching", "saving"]
+    first = world.progress[0]
+    assert first["status"] == "processing" and first["embed_id"] == EMBED_ID
+    assert first["content"]["input_embed_ids"] == ["source-embed-1"]
+    assert first["content"]["prompt"] == "Red tail patch"
+    for update in world.progress:
+        assert not {"aes_key", "files", "s3_base_url", "vault_wrapped_aes_key"} & set(update["content"])
+    # The stage reaches the card before the slow conversion starts.
+    assert world.order == ["progress:reading", "progress:stitching", "convert", "progress:saving"]
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.progress.input-and-stages
+@pytest.mark.asyncio
+async def test_progress_names_the_check_and_the_model_rework_of_a_generated_graphic(world: World) -> None:
+    world.author_result = VectorAuthorResult(
+        svg=REWORKED_SVG, model_id="openai/gpt-6.1-sol", attempts=1, review_status="skipped",
+        usage=[VectorUsage("drawing", "openai/gpt-6.1-sol", 1000, 100)],
+    )
+
+    await _run(world, instructions="sew the outline as a thick satin border")
+
+    stages = [update["content"]["progress_stage"] for update in world.progress]
+    assert stages[:3] == ["reading", "checking", "adjusting"]
+    assert stages[-2:] == ["stitching", "saving"]
+    assert world.progress[0]["content"]["prompt"] == "sew the outline as a thick satin border"
+
+
+# contract-test: direct surface=rest_api assertions=design-embroidery.result.meaningful-title
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("label", "title_arg", "expected"), [
+    ("source.svg", "Red tail patch", "Red tail patch"),
+    ("source.svg", None, "Embroidery design"),
+    ("IMG_1234.svg", "Mountain badge", "Mountain badge"),
+    ("fire-tail.svg", "Red tail patch", "Fire tail"),
+])
+async def test_result_title_is_the_files_own_name_or_the_given_design_name_never_a_generic_word(
+    world: World, label: str, title_arg: str | None, expected: str,
+) -> None:
+    world.source = ResolvedVectorSource(svg=SOURCE_SVG, origin="uploaded_svg", label=label)
+
+    await _run(world, source=label, **({"title": title_arg} if title_arg else {}))
+
+    assert world.published[-1]["content"]["title"] == expected

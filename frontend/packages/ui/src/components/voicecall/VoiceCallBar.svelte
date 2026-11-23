@@ -4,10 +4,11 @@
   import { voiceCallController, initialVoiceCallState, type VoiceCallControllerLike, type VoiceCallState } from '../../services/voiceCall';
   import VoiceCallWaveform from './VoiceCallWaveform.svelte';
   import VoiceCallMedia from './VoiceCallMedia.svelte';
+  import { isScreenShareSupported } from '../../services/voiceCallScreenShare';
 
   let { controller = voiceCallController, onReturn: _onReturn, boundChatVisible: _boundChatVisible = true,
     underFloatingHeader: _underFloatingHeader = false, underGlobalHeader: _underGlobalHeader = false,
-    fixed = false, moreActions, onMore, onCloseChat }: {
+    fixed = false, moreActions, onMore, onCloseChat, screenShareSupported = isScreenShareSupported() }: {
     controller?: VoiceCallControllerLike;
     onReturn: (chatId: string) => void;
     boundChatVisible?: boolean;
@@ -17,6 +18,8 @@
     moreActions?: Snippet;
     onMore?: () => void;
     onCloseChat?: () => void;
+    /** Defaults to browser feature detection; previews pass it explicitly. */
+    screenShareSupported?: boolean;
   } = $props();
   let state = $state<VoiceCallState>({ ...initialVoiceCallState });
   onMount(() => controller.subscribe(next => { state = next; }));
@@ -25,7 +28,7 @@
   const duration = $derived(`${String(Math.floor(state.activeElapsedSeconds / 60)).padStart(2, '0')}:${String(state.activeElapsedSeconds % 60).padStart(2, '0')}`);
   const statusKey = $derived(state.status === 'connecting' ? 'connecting' :
     state.connection === 'reconnecting' ? 'reconnecting' : state.connection === 'paused' ? 'paused' :
-    state.userSpeaking ? 'live' : state.assistantSpeaking ? 'assistant_speaking' : state.billingActivity?.processing ? 'working' :
+    state.waiting ? 'waiting' : state.userSpeaking ? 'live' : state.assistantSpeaking ? 'assistant_speaking' : state.billingActivity?.processing ? 'working' :
     state.muted ? 'muted' : state.inputIdle && state.billingActivity?.inputListening === false &&
       state.billingActivity.processing === false ? 'input_idle' : 'live');
 </script>
@@ -42,10 +45,20 @@
         onclick={() => controller.setCameraEnabled(!state.cameraEnabled && !state.cameraPending)}>
         <span class="clickable-icon icon_video_call" aria-hidden="true"></span>
       </button>
+      {#if screenShareSupported}
+        <button class="round" class:camera-active={state.screenSharing} data-testid="voice-call-screen-share"
+          aria-label={$text(state.screenSharing ? 'voicecall.screen_share_off' : 'voicecall.screen_share_on')}
+          aria-pressed={state.screenSharing} aria-busy={state.cameraPending}
+          disabled={state.status !== 'live' || !state.cameraAvailable}
+          onclick={() => controller.setScreenShareEnabled(!state.screenSharing && !state.cameraPending)}>
+          <span class="clickable-icon icon_screen_share" aria-hidden="true"></span>
+        </button>
+      {/if}
     </div>
-    <div class="call-center" class:inactive={!activityActive}>
+    <div class="call-center" class:inactive={!activityActive} class:waiting={state.waiting}>
       {#if state.status === 'connecting'}<span class="connecting-spinner" data-testid="voice-call-connecting" aria-hidden="true"></span>{/if}
       <strong data-testid="voice-call-timer">{duration}</strong>
+      {#if state.waiting}<span class="waiting-label" data-testid="voice-call-waiting">{$text('voicecall.waiting')}</span>{/if}
       <div class="wave">
         <VoiceCallWaveform levels={state.audioLevels} />
         <button class="round microphone" class:muted={state.muted} data-testid="voice-call-mute" data-activity-active={activityActive}
@@ -63,10 +76,18 @@
       {#if fixed && onCloseChat}<button class="round" data-testid="voice-call-close-chat" aria-label={$text('voicecall.close_chat')} onclick={onCloseChat}><span class="clickable-icon icon_close" aria-hidden="true"></span></button>{/if}
     </div>
     <span class="sr-only" id="voice-call-accessible-status" role="status" data-testid="voice-call-status"><span data-testid="voice-call-status-text">{$text(`voicecall.${statusKey}`)}</span></span>
+    {#if state.waitingLine}<span class="sr-only" role="status" data-testid="voice-call-waiting-line">{state.waitingLine.text}</span>{/if}
+    {#if active && state.screenSharing}
+      <div class="screen-share-indicator" data-testid="voice-call-screen-share-indicator" role="status">
+        <span class="clickable-icon icon_screen_share small" aria-hidden="true"></span>
+        <strong>{$text('voicecall.screen_sharing')}</strong>
+        <button type="button" data-testid="voice-call-screen-share-stop" onclick={() => controller.setScreenShareEnabled(false)}>{$text('voicecall.screen_share_stop')}</button>
+      </div>
+    {/if}
     {#if active && (state.cameraEnabled || state.displayedMedia)}
       <div class="media-stage">
         <VoiceCallMedia cameraStream={state.cameraStream} cameraEnabled={state.cameraEnabled}
-          cameraFacing={state.cameraFacing} expanded={state.mediaExpanded} displayedMedia={state.displayedMedia}
+          cameraFacing={state.cameraFacing} screenSharing={state.screenSharing} expanded={state.mediaExpanded} displayedMedia={state.displayedMedia}
           mediaCount={state.mediaItems.length} mediaIndex={state.mediaIndex}
           onExpandedChange={expanded => controller.setMediaExpanded(expanded)} onShowCamera={() => controller.showCamera()}
           onFlipCamera={() => controller.flipCamera()} onPrevious={() => controller.selectMedia(state.mediaIndex - 1)}
@@ -87,6 +108,11 @@
   .voice-call-bar .round:hover { background:color-mix(in srgb,var(--color-font-button) 30%,transparent); }
   .voice-call-bar .camera-active { background:color-mix(in srgb,var(--color-font-button) 40%,transparent); }
   .voice-call-bar .round:disabled { cursor:default; opacity:.5; }
+  .icon_screen_share { mask-image:url("@openmates/ui/static/icons/desktop.svg"); -webkit-mask-image:url("@openmates/ui/static/icons/desktop.svg"); mask-size:contain; -webkit-mask-size:contain; mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat; mask-position:center; -webkit-mask-position:center; }
+  .icon_screen_share.small { width:1.25rem; height:1.25rem; flex:none; }
+  .screen-share-indicator { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:var(--spacing-4); padding:var(--spacing-3) var(--spacing-6); border-radius:var(--radius-full); background:color-mix(in srgb,var(--color-font-button) 20%,transparent); }
+  .screen-share-indicator strong { font-size:var(--font-size-small); font-weight:var(--font-weight-bold); }
+  .voice-call-bar .screen-share-indicator button { padding:var(--spacing-2) var(--spacing-6); border-radius:var(--radius-full); background:var(--color-grey-0); color:var(--color-font-primary); font-size:var(--font-size-small); font-weight:var(--font-weight-bold); }
   .icon_more { mask-image:url("@openmates/ui/static/icons/more.svg"); -webkit-mask-image:url("@openmates/ui/static/icons/more.svg"); }
   .clickable-icon { display:block; width:1.75rem; height:1.75rem; margin:0; background:currentColor; }
   .hangup .icon_call { color:var(--color-button-primary); transform:rotate(135deg); }
@@ -97,11 +123,15 @@
   .fixed .wave { width:clamp(2.5rem,20vw,22rem); }
   .voice-call-bar .microphone { position:absolute; inset-block-start:50%; inset-inline-start:50%; transform:translate(-50%,-50%); z-index:1; }
   .voice-call-bar .microphone.muted { color:var(--color-button-primary); }
+  .waiting-label { font-size:var(--font-size-small); font-weight:var(--font-weight-bold); white-space:nowrap; }
   .microphone-slash { position:absolute; width:1.5rem; height:.19rem; border-radius:var(--radius-full); background:currentColor; transform:rotate(-45deg); }
   .microphone:disabled { cursor:default; }
   .connecting-spinner { width:1rem; height:1rem; flex:none; border:2px solid color-mix(in srgb,currentColor 35%,transparent); border-top-color:currentColor; border-radius:var(--radius-full); animation:spin 1s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-  @media(max-width:700px) { .voice-call-bar { padding:var(--spacing-4); gap:var(--spacing-2); } .edge { gap:var(--spacing-2); } .fixed .round { width:2.25rem; height:2.25rem; padding:var(--spacing-3); } .fixed .wave { width:clamp(2.5rem,16vw,4rem); } }
+  @media(max-width:700px) { .voice-call-bar { grid-template-columns:auto minmax(0,1fr) auto; padding:var(--spacing-4); gap:var(--spacing-2); } .call-center { min-width:0; gap:var(--spacing-2); padding-inline:0; } .wave { width:clamp(2.75rem,12vw,4rem); min-width:2.75rem; flex:0 1 auto; } .edge { gap:var(--spacing-2); } .fixed .round { width:2.25rem; height:2.25rem; padding:var(--spacing-3); } .fixed .wave { width:clamp(2.5rem,16vw,4rem); } }
+  /* Narrow bars: while waiting, "Waiting for you" takes the timer's place and wraps onto two short lines,
+     so it never runs into the mic even with the camera and screen buttons shown. */
+  @media(max-width:700px) { .waiting-label { flex:0 1 auto; min-width:0; white-space:normal; line-height:1.1; text-align:center; } .call-center.waiting [data-testid="voice-call-timer"] { display:none; } }
   @media(prefers-reduced-motion:reduce) { .call-center strong { transition:none; } .connecting-spinner { animation:none; } }
 </style>

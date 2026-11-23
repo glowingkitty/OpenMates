@@ -126,7 +126,7 @@ assertions:
     depends_on: [examples.billing]
   - id: images-generate.vector.token-metered-billing
     type: invariant
-    must: A vector drawing is charged for everything it used and nothing else. Every author draft, correction and review call is priced from that call's reported input and output tokens at that model's price, and the exact sum is rounded down once to whole credits. Every sandbox run adds the Code Run price per started minute. A Recraft drawing costs its flat price, plus the review and follow-up calls when requirements were given. The platform minimum charge applies. A call without reported usage or without a price fails the request instead of being free or estimated.
+    must: A vector drawing is charged for everything it used and nothing else. Every author draft, correction and review call is priced from that call's reported input and output tokens at that model's price, and the exact sum is rounded down once to whole credits. Every sandbox run adds the Code Run price per second, rounded up to whole credits once per run. A Recraft drawing costs its flat price, plus the review and follow-up calls when requirements were given. The platform minimum charge applies. A call without reported usage or without a price fails the request instead of being free or estimated.
     depends_on: [models.VectorAuthoring, examples.billing]
   - id: images-generate.draft.flash-text-only
     type: behavior

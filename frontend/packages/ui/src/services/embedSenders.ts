@@ -648,6 +648,12 @@ async function settleOperation(operation: PendingEmbedOperation): Promise<EmbedP
       failure_code, origin: operation.origin ?? "legacy",
       version: operation.store_embed_payload.version_number ?? 1,
     });
+    // A conflicting AI result save is not something the user changed, so there
+    // is nothing for them to review or save again: the server's stored copy
+    // stays authoritative and the queued evidence above is kept unchanged.
+    if (!denied && operation.origin === STREAM_COMPLETION_ORIGIN) {
+      return { status: state, operation_id: operation.operation_id, failure_code };
+    }
     notificationStore.addNotificationWithOptions("warning", {
       message: get(text)(denied ? "chats.embed_sync.denied" : "chats.embed_sync.conflict"),
       duration: 0, dedupeKey: `embed-write-conflict:${operation.embed_id}`,
@@ -700,6 +706,19 @@ async function persistQueuedEmbedOperation(
   }
 }
 
+/** Origin of saves that persist a finished AI result streamed by the server. */
+const STREAM_COMPLETION_ORIGIN = "stream-completion";
+
+/** The pending (not yet settled) stream-completion save of this embed version, if any. */
+async function queuedStreamCompletion(payload: StoreEmbedPayload): Promise<PendingEmbedOperation | undefined> {
+  const version = payload.version_number ?? 1;
+  return (await chatDB.getPendingEmbedOperations())
+    .filter((candidate) => candidate.embed_id === payload.embed_id && !terminalResult(candidate)
+      && candidate.origin === STREAM_COMPLETION_ORIGIN
+      && (candidate.store_embed_payload.version_number ?? 1) === version)
+    .sort((a, b) => a.created_at - b.created_at)[0];
+}
+
 /** Persist one durable operation; reconnects reuse its identity and original encrypted payload. */
 export async function sendStoreEmbedOperationImpl(
   serviceInstance: ChatSynchronizationService,
@@ -709,6 +728,20 @@ export async function sendStoreEmbedOperationImpl(
   origin = "canonical-embed-sender",
 ): Promise<EmbedPersistenceResult> {
   if (lease) assertCanonicalEmbedWriteLease(lease, payload.embed_id);
+  const replayed = origin === STREAM_COMPLETION_ORIGIN ? await queuedStreamCompletion(payload) : undefined;
+  if (replayed) {
+    // The server replays an unconfirmed AI result after a reconnect or page
+    // reload. The save queued before keeps its original ciphertext and wrappers;
+    // a second save of the same version would only race it and be judged a
+    // conflicting revision once the first one lands.
+    console.info("[EmbedSenders] Reusing the queued save of a replayed AI result", {
+      version: payload.version_number ?? 1,
+    });
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+      return { status: "waiting", operation_id: replayed.operation_id };
+    }
+    return persistQueuedEmbedOperation(replayed, lease);
+  }
   const createdAt = Math.max(Date.now(), lastPendingEmbedOperationTime + 0.001);
   lastPendingEmbedOperationTime = createdAt;
   const operation: PendingEmbedOperation = {

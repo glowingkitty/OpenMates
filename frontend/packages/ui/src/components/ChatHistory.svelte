@@ -6,6 +6,7 @@ import { storageArchiveFetch } from "../config/api";
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
   import { embedStore, embedRefIndexVersion } from '../services/embedStore';
   import { publishChatMessageOrder } from '../services/rustCore/embeds/messageEmbedVersion';
+  import { composerDismissRequested } from '../stores/composerFocusStore';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { Snippet, SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
@@ -24,6 +25,8 @@ import { storageArchiveFetch } from "../config/api";
   import ChatRecommendations from './ChatRecommendations.svelte';
   import ContextEntryEventNotice from './ContextEntryEventNotice.svelte';
   import EmbedUpdatedEventNotice from './EmbedUpdatedEventNotice.svelte';
+  import E2bUploadConsentRequest, { isE2bConsentResponseContent, parseE2bConsentRequest } from './E2bUploadConsentRequest.svelte';
+  import { e2bConsentAnswerOf } from '../services/rustCore/e2bConsent/e2bConsentClient';
   import { embedEventRows, embedUpdatedCandidateKey, isEmbedUpdatedCandidate, placeEmbedUpdatedGroups, type EmbedUpdatedPlacement } from './embedUpdatedHistory';
   import { EMBED_EDITS_ENABLED, groupEmbedUpdatedEvents, reconcileEmbedNotices } from '../services/rustCore/embeds/embedEditSession';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
@@ -54,6 +57,7 @@ import { storageArchiveFetch } from "../config/api";
   import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
   import { voiceTranscriptDisplayText } from '../utils/voiceTranscriptDisplay';
+  import { appsResultContextDisplayText } from '../utils/appsResultContextDisplay';
   import type { PIIMapping } from '../types/chat';
   import { piiVisibilityStore } from '../stores/piiVisibilityStore';
   import { editMessageStore } from '../stores/editMessageStore';
@@ -88,6 +92,8 @@ import { storageArchiveFetch } from "../config/api";
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
   import ConnectedAccountPermissionDialog from './ConnectedAccountPermissionDialog.svelte';
   import ProjectFileApprovalCard from './projects/ProjectFileApprovalCard.svelte';
+  import ProjectCreatedEvent from './projects/ProjectCreatedEvent.svelte';
+  import { readProjectCreatedEvent } from './projects/projectCreatedEvent';
   import RemoteCommandReviewCard from './projects/RemoteCommandReviewCard.svelte';
   import { remoteCommandEntries, resolveRemoteCommandApproval, requestRemoteCommandStop } from '../stores/remoteCommandApprovalStore';
   import { projectFileApprovals, resolveProjectFileApproval } from '../stores/projectFileApprovalStore';
@@ -121,6 +127,7 @@ import { storageArchiveFetch } from "../config/api";
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
   import { chatSyncService } from '../services/chatSyncService';
+  import { headerPreviewBubbleKey } from './headerImageBubbleKey';
   import {
     NORMAL_MESSAGE_PAGE_LIMIT,
     pruneDecryptedMessageWindow,
@@ -218,6 +225,7 @@ import { storageArchiveFetch } from "../config/api";
     title?: string;
     image_url?: string;
     thumbnail_url?: string;
+    embed_id?: string;
   };
 
   interface InternalMessage {
@@ -354,7 +362,7 @@ import { storageArchiveFetch } from "../config/api";
     let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
-      let contentToProcess = voiceTranscriptDisplayText(normalizeRawChatErrorMessage(incomingMessage.content), incomingMessage.role);
+      let contentToProcess = appsResultContextDisplayText(voiceTranscriptDisplayText(normalizeRawChatErrorMessage(incomingMessage.content), incomingMessage.role), incomingMessage.role);
       
       // PII RESTORATION: Restore PII placeholders with original values before parsing
       // This applies to both user and assistant messages when mappings are available
@@ -399,7 +407,7 @@ import { storageArchiveFetch } from "../config/api";
     const shouldTruncate = incomingMessage.role === 'user' && 
                           incomingMessage.content && 
                           typeof incomingMessage.content === 'string' && 
-                          incomingMessage.content.length > 1000;
+                          appsResultContextDisplayText(incomingMessage.content, incomingMessage.role).length > 1000;
 
     return {
       id: incomingMessage.message_id,
@@ -688,7 +696,9 @@ import { storageArchiveFetch } from "../config/api";
           bubbles,
           seen,
           candidate.parentEmbedId,
-          `${candidate.parentEmbedId}:preview:${index}`,
+          // A preview row may name its stored child; otherwise this key only
+          // identifies the bubble and must never be requested as an embed.
+          parentPreviewResults[index].embed_id || headerPreviewBubbleKey(candidate.parentEmbedId, index),
         )) {
           return bubbles;
         }
@@ -1217,9 +1227,37 @@ import { storageArchiveFetch } from "../config/api";
     ? { taskId: pendingAssistantResponse.taskId, userMessageId: pendingAssistantResponse.userMessageId, chatId: currentChatId }
     : null));
 
+  /** request_id -> answer of every e2b_upload_consent_request card; the core pairs request and response. */
+  let e2bConsentAnswers = $state(new Map<string, 'allow' | 'own_machine' | 'not_now'>());
+  $effect(() => {
+    const contents: string[] = [];
+    const requestIds: string[] = [];
+    for (const msg of messages) {
+      if (msg.role !== 'system') continue;
+      const content = msg.original_message?.content;
+      if (typeof content !== 'string') continue;
+      const request = parseE2bConsentRequest(content);
+      if (request) requestIds.push(request.request_id);
+      else if (isE2bConsentResponseContent(content)) contents.push(content);
+    }
+    if (requestIds.length === 0) return;
+    let stale = false;
+    void Promise.all(requestIds.map(async (id) => [id, await e2bConsentAnswerOf(contents, id)] as const))
+      .then((pairs) => {
+        if (stale) return;
+        const next = new Map<string, 'allow' | 'own_machine' | 'not_now'>();
+        for (const [id, choice] of pairs) if (choice) next.set(id, choice);
+        e2bConsentAnswers = next;
+      })
+      .catch(() => undefined);
+    return () => { stale = true; };
+  });
+
   let displayMessages = $derived.by(() => {
     return candidateDisplayMessages.filter(msg => {
       if (msg.role === 'system') {
+        // The answer is shown inside its e2b_upload_consent_request card, never as a bubble.
+        if (isE2bConsentResponseContent(msg.original_message?.content)) return false;
         if (loadedMemoryAssociation.attachedReceiptIds.has(msg.id)) return false;
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         // Filter out app_settings_memories_response system messages
@@ -1643,6 +1681,7 @@ import { storageArchiveFetch } from "../config/api";
     onQueuedSteer = undefined,
     queuedActionBusyMessageId = null,
     queuedActionErrors = {},
+    onE2bConsentAnswer,
     canAnnotate = true,
     voiceCallBridge = undefined,
     timelineOverlayOpen = $bindable(false),
@@ -1737,6 +1776,8 @@ import { storageArchiveFetch } from "../config/api";
     onQueuedSteer?: (message: GlobalMessage) => void | Promise<void>;
     queuedActionBusyMessageId?: string | null;
     queuedActionErrors?: Record<string, string>;
+    /** Answer to an e2b_upload_consent_request card (the core sends and persists it). */
+    onE2bConsentAnswer?: (choice: 'allow' | 'own_machine' | 'not_now', requestId: string, chatId: string) => void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
@@ -1932,6 +1973,23 @@ import { storageArchiveFetch } from "../config/api";
     currentChatId &&
     $currentConnectedAccountPermissionRequest.chatId === currentChatId
   );
+
+  // A memory request answers the turn the user just sent, often typed in a live
+  // call. The composer stays focused and expanded after that send, which can
+  // push the inline dialog out of view; the first tap on "Include" would then
+  // only collapse the composer, the layout jumps between pointer down and up and
+  // the click never reaches the button. Collapse the composer once when the
+  // dialog appears (the draft stays) and bring the dialog into view.
+  let permissionDialogWrapper = $state<HTMLDivElement | null>(null);
+  let permissionDialogShown = false;
+  $effect(() => {
+    const visible = !!shouldShowPermissionDialog;
+    if (!visible) { permissionDialogShown = false; return; }
+    if (permissionDialogShown) return;
+    permissionDialogShown = true;
+    composerDismissRequested.set(true);
+    void tick().then(() => permissionDialogWrapper?.scrollIntoView({ block: 'nearest' }));
+  });
 
   /**
    * Derived state: Detect unpaired app settings/memories requests.
@@ -3563,12 +3621,28 @@ import { storageArchiveFetch } from "../config/api";
                             onUndo={(event) => undoAssistantContextEntry(msg.original_message?.chat_id ?? currentChatId ?? '', event)} />
                         </SystemMessageNotice>
                       </div>
+                    {:else if msg.role === 'system' && parseE2bConsentRequest(msg.original_message?.content)}
+                      {@const e2bRequest = parseE2bConsentRequest(msg.original_message?.content)}
+                      {#if e2bRequest}
+                        <E2bUploadConsentRequest requestId={e2bRequest.request_id}
+                          privacyPolicyUrl={e2bRequest.privacy_policy_url} remoteAccessCommand={e2bRequest.remote_access_command}
+                          answeredChoice={e2bConsentAnswers.get(e2bRequest.request_id) ?? null}
+                          onAnswer={(choice, requestId) => onE2bConsentAnswer?.(choice, requestId, msg.original_message?.chat_id ?? currentChatId ?? '')} />
+                      {/if}
                     {:else if msg.role === 'system' && embedUpdated.shownAt[msg.id]}
                       {@const updatedGroup = embedUpdated.shownAt[msg.id]}
                       <div class="context-entry-row">
                         <EmbedUpdatedEventNotice group={updatedGroup} onOpen={() => openUpdatedEmbed(updatedGroup.embed_id)} />
                       </div>
                     {:else}
+                    {#if msg.role === 'assistant'}
+                      {@const createdProject = readProjectCreatedEvent(msg.original_message?.content ?? msg.content)}
+                      {#if createdProject}
+                        <div class="context-entry-row">
+                          <ProjectCreatedEvent chatId={msg.original_message?.chat_id ?? currentChatId ?? ''} projectId={createdProject.projectId} projectName={createdProject.projectName} />
+                        </div>
+                      {/if}
+                    {/if}
                     <ChatMessage
                         role={msg.role}
                         teamId={$activeTeamId ?? undefined}
@@ -3687,7 +3761,7 @@ import { storageArchiveFetch } from "../config/api";
             <!-- Placed BEFORE the spacer so it appears right under the user message, not pushed below -->
             <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
             {#if shouldShowPermissionDialog}
-                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                <div class="permission-dialog-wrapper" bind:this={permissionDialogWrapper} in:fade={{ duration: 200 }}>
                     <AppSettingsMemoriesPermissionDialog />
                 </div>
             {/if}
@@ -3698,7 +3772,7 @@ import { storageArchiveFetch } from "../config/api";
                 </div>
             {/if}
 
-            {#each $projectFileApprovals.filter((entry) => entry.request.chatId === currentChatId) as entry (entry.id)}
+            {#each $projectFileApprovals.filter((entry) => entry.status === 'pending' && entry.request.chatId === currentChatId) as entry (entry.id)}
                 <div class="permission-dialog-wrapper">
                     <ProjectFileApprovalCard {entry} onDecision={resolveProjectFileApproval} />
                 </div>
@@ -4210,6 +4284,13 @@ import { storageArchiveFetch } from "../config/api";
 
   .message-wrapper.system { /* System messages (e.g., insufficient credits) centered */
     justify-content: center;
+  }
+
+  /* A system event shown above its assistant reply (e.g. "Created <name> project · Undo")
+     takes its own full-width line instead of a stretched column beside the message. */
+  .message-wrapper:has(> .context-entry-row) {
+    flex-wrap: wrap;
+    row-gap: var(--spacing-3, 8px);
   }
 
   .message-wrapper.compression-boundary-wrapper {

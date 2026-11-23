@@ -136,6 +136,22 @@ describe('socket frame forwarding', () => {
 		warn.mockRestore();
 	});
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('detailed admission re-admits once when the session is revoked while it is queued (TASK-950)', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		// A workspace invalidation closes the session after admission was queued.
+		(sink.admit as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => { live = false; throw new Error('session_expired'); });
+		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: true, admission: { chatId: CHAT, messagesV: 5, historyRows: 2 } });
+		expect(sink.ensureServerSession).toHaveBeenCalledTimes(1);
+		expect(sink.admit).toHaveBeenCalledTimes(2);
+		expect(warn.mock.calls.filter((call) => call[0] === '[RustCore] chat admission failed:' && call[1] === 'session_expired')).toHaveLength(1);
+		// Only once: a second revocation refuses with its code instead of looping.
+		(sink.admit as ReturnType<typeof vi.fn>).mockImplementation(async () => { live = false; throw new Error('session_expired'); });
+		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: false, reason: 'session_expired' });
+		expect(sink.admit).toHaveBeenCalledTimes(4);
+		expect(document.documentElement.dataset.rustCoreAdmit).toBe('failed:session_expired');
+		warn.mockRestore();
+	});
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
 	it('detailed admission is bounded overall and marks the stage it stalled in', async () => {
 		vi.useFakeTimers();
 		try {
@@ -153,7 +169,7 @@ describe('socket frame forwarding', () => {
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
 	it('forwards the messages_v receipts of calls, system messages and queued follow-ups', async () => {
 		for (const type of ['call_message_confirmed', 'call_message_changed', 'system_message_confirmed', 'message_deleted',
-			'message_queued', 'queued_message_status', 'queued_message_updated']) {
+			'message_queued', 'queued_message_status', 'queued_message_updated', 'ai_response_storage_confirmed']) {
 			expect(isCoreAppliedFrame({ type, payload: { chat_id: CHAT, messages_v: 3 } }), type).toBe(true);
 		}
 	});

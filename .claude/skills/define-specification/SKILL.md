@@ -79,5 +79,12 @@ argument-hint: "<feature or existing specification ID>"
   known defects as approved truth.
 - New features and semantic changes require approval. Implementation-only work
   references an existing approved Specification and refreshes evidence.
+- Owner rule 2026-11-21: when every changed rule only writes down what the owner
+  already asked for or decided (a verified receipt or a typed instruction in this
+  chat), skip steps 4-5 and approve it yourself:
+  `python3 scripts/specifications.py approve <bundle> --session <SESSION_ID>
+  --confirmation owner_decision_on_record --owner-decision "<receipt id(s) or quote>"`,
+  then name the approved Specification in your Discord push. Any rule that adds a
+  decision the owner has not made goes through the PDF approval above.
 - Canonical surfaces are REST API, CLI, SDKs (npm/pip), and GUI (web/Apple).
 - Do not add Specification references to product source headers.

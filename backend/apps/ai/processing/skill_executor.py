@@ -484,7 +484,7 @@ async def execute_skill(
             )
 
     if skill_succeeded:
-        return await sanitize_app_skill_output(
+        sanitized = await sanitize_app_skill_output(
             successful_result,
             AppSkillOutputSafetyContext(
                 app_id=app_id,
@@ -497,6 +497,14 @@ async def execute_skill(
                 log_prefix=f"[SkillExecutor {app_id}.{skill_id}] ",
             ),
         )
+        # Plans are client-encrypted: ask a capable client to create the Plan
+        # (openmates.plan_create_request v1). The action is returned either way.
+        if app_id == "plans" and skill_id == "create" and user_id and isinstance(sanitized, dict):
+            action = sanitized.get("pending_client_action")
+            if isinstance(action, dict):
+                from backend.core.api.app.services.plan_create_request_service import publish_plan_create_request
+                await publish_plan_create_request(cache_service=cache_service, user_id=user_id, action=action)
+        return sanitized
 
     logger.error(
         f"Skill '{app_id}.{skill_id}' failed after {total_attempts} attempts. "

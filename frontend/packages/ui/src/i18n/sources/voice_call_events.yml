@@ -8,3 +8,37 @@ ended:
   en: You ended a voice call
   de: Du hast einen Sprachanruf beendet
   verified_by_human: []
+memory_request_timed_out:
+  context: Encrypted chat history system event when an app memories request during a voice call got no answer in time, so the assistant answered without memories
+  en: Memory request timed out, answered without memories
+  de: Erinnerungsanfrage abgelaufen, ohne Erinnerungen beantwortet
+  zh: 记忆请求已超时，已在不使用记忆的情况下回答
+  es: La solicitud de recuerdos caducó; se respondió sin recuerdos
+  fr: Demande de souvenirs expirée, réponse sans souvenirs
+  pt: O pedido de memórias expirou; respondido sem memórias
+  ru: Запрос воспоминаний истёк, ответ дан без воспоминаний
+  ja: 記憶リクエストがタイムアウトし、記憶なしで回答しました
+  ko: 기억 요청 시간이 초과되어 기억 없이 답변했습니다
+  it: Richiesta di ricordi scaduta, risposta senza ricordi
+  tr: Anı isteğinin süresi doldu, anılar olmadan yanıtlandı
+  vi: Yêu cầu ký ức đã hết hạn, đã trả lời không dùng ký ức
+  id: Permintaan kenangan habis waktu, dijawab tanpa kenangan
+  pl: Prośba o wspomnienia wygasła, odpowiedź bez wspomnień
+  nl: Herinneringsverzoek verlopen, beantwoord zonder herinneringen
+  ar: انتهت مهلة طلب الذكريات، تمت الإجابة بدون ذكريات
+  hi: यादों का अनुरोध समय-सीमा पार कर गया, यादों के बिना जवाब दिया गया
+  th: คำขอความทรงจำหมดเวลา ตอบโดยไม่ใช้ความทรงจำ
+  cs: Žádost o vzpomínky vypršela, odpověď bez vzpomínek
+  sv: Begäran om minnen gick ut, besvarad utan minnen
+  he: בקשת הזיכרונות פגה, נענתה בלי זיכרונות
+  verified_by_human: []
+waiting_start:
+  context: Encrypted chat history system event with the ready-made assistant line when the call enters the waiting state, followed by its timestamp
+  en: Okay, I'm waiting.
+  de: Okay, ich warte.
+  verified_by_human: []
+waiting_resume:
+  context: Encrypted chat history system event with the ready-made assistant line when the caller is back and the call leaves the waiting state, followed by its timestamp
+  en: Okay, go on.
+  de: Okay, sprich weiter.
+  verified_by_human: []

@@ -908,6 +908,12 @@ project_authoring.ready:
   de: Dein Projektergebnis ist bereit.
   verified_by_human: []
 
+project_authoring.ready_named:
+  context: Safe notification after a private Project Focus or Workflow has been saved; {project} is the Project name decrypted on the device.
+  en: Your result in {project} is ready.
+  de: Dein Ergebnis in {project} ist bereit.
+  verified_by_human: []
+
 project_authoring.view:
   context: Notification action opening the saved Project Focus or Workflow without creating a chat.
   en: View result

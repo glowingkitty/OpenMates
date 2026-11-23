@@ -22,6 +22,7 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.team_workspace_service import move_workspace_record_to_team
 from backend.core.api.app.services.user_plan_service import (
     UserPlanConflictError,
+    UserPlanIdConflictError,
     UserPlanNotFoundError,
     UserPlanService,
 )
@@ -73,7 +74,7 @@ class PlanVerificationTaskKeyWrapperRequest(BaseModel):
 
 
 class UserPlanCreateRequest(BaseModel):
-    plan_id: str = Field(min_length=1)
+    plan_id: str = Field(pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
     encrypted_title: str = Field(min_length=1)
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
@@ -509,6 +510,8 @@ async def _invalidate_material_plan(request: Request, user_id: str, plan_id: str
 def _handle_plan_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    if isinstance(exc, UserPlanIdConflictError):
+        raise HTTPException(status_code=409, detail="PLAN_ID_CONFLICT") from exc
     if isinstance(exc, UserPlanConflictError):
         raise HTTPException(status_code=409, detail="PLAN_VERSION_CONFLICT") from exc
     if isinstance(exc, DuplicateObjectSlugError):

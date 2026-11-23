@@ -2,7 +2,7 @@
 # contract-test-file: infrastructure
 """Opt-in dev-only real-inference browser proof: a press style saved to a Project's Memories is reused.
 
-Runs frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts without mocks against
+Runs frontend/apps/web_app/tests/real-inference-press-release-project-memory.spec.ts without mocks against
 https://app.dev.openmates.org with the personal dev test account: chat 1 (Project mentioned
 read/write) saves a synthetic press style into the Project's Memories, chat 2 of the same Project
 writes a press release as a Word document, and the document must contain "3,000", which only the
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from design_embroidery_web_real_test import main
 
-SPEC = "tests/press-release-project-memory-real.spec.ts"
+SPEC = "tests/real-inference-press-release-project-memory.spec.ts"
 
 if __name__ == "__main__":
     raise SystemExit(main(spec=SPEC, title="Press release Project memory", doc=__doc__))

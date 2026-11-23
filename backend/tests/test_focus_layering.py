@@ -12,6 +12,7 @@ from backend.apps.ai.processing.focus_layering import (
     build_layer_precedence_section,
     deactivate_focus_tool,
     deactivation_result,
+    layer_end_client_event,
     resolve_focus_layers,
 )
 from backend.shared.python_utils.focus_mode_skill_loader import load_focus_mode_from_skill_md
@@ -86,9 +87,35 @@ def test_write_specification_is_proposed_automatically_for_new_features():
     assert "bug fix" in focus["preprocessor_hint"]
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.guided-spec-authoring,plans.sub-chats.assumption-and-task-chats
+def test_write_specification_handoff_checks_assumptions_and_runs_tasks_in_linked_sub_chats():
+    focus = load_focus_mode_from_skill_md(
+        str(BACKEND / "apps/code/focus_modes/write-specification/SKILL.md"), "code")
+    handoff = next(phase for phase in focus["phases"] if phase["id"] == "handoff")
+    flat = " ".join(handoff["instructions"].split())
+    assert "This chat only coordinates" in flat
+    assert 'link {kind: "assumption", plan_id, id}' in flat
+    assert 'link {kind: "task", plan_id, id}' in flat
+    assert "one sub-chat per assumption" in flat
+    assert "you never research an assumption or implement a Task here yourself" in flat
+    assert {requirement["id"] for requirement in handoff["requirements"]} == {"plan_started", "tasks_delegated"}
+
+
 # contract-test: supporting surface=rest_api assertions=focus-modes.project-layering,focus-modes.natural-request
 def test_main_processor_does_not_let_the_project_base_block_proposals():
     source = (BACKEND / "apps/ai/processing/main_processor.py").read_text()
     assert "has_active_focus_mode = bool(request_data.active_focus_id or active_project_focus)" not in source
     assert "set(private_candidates) if focus_layers.base_only else set()" in source
     assert "deactivate_focus_tool(\n        focus_layers, request_data.active_focus_id)" in source
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.layer-end
+def test_layer_end_tells_clients_the_project_base_is_active_again():
+    layered = resolve_focus_layers("code-write_specification", BASE)
+    assert layer_end_client_event(layered, "chat-1") == {
+        "event_type": "focus_mode_activated",
+        "payload": {"chat_id": "chat-1", "focus_id": "garden-planner-base"},
+    }
+    # Leaving the Project or ending a focus outside a Project announces no base.
+    assert layer_end_client_event(resolve_focus_layers(None, BASE), "chat-1") is None
+    assert layer_end_client_event(resolve_focus_layers("web-research", None), "chat-1") is None

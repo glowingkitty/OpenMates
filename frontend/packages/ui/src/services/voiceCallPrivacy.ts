@@ -24,12 +24,16 @@ let requestInProgress = false;
 
 /** Always check the authoritative profile; share the existing global notification UI. */
 export async function ensureVoiceCallPrivacyAcknowledgement(signal: AbortSignal, onContinueGesture: () => void): Promise<boolean> {
-  if (signal.aborted || requestInProgress) return false;
+  if (signal.aborted || requestInProgress) {
+    console.info('[VoiceCall] Privacy check skipped', signal.aborted ? 'aborted' : 'already in progress');
+    return false;
+  }
   requestInProgress = true;
   try {
     const profile = await acknowledgement(signal, false);
     if (signal.aborted) return false;
     if (profile.acknowledged) return true;
+    console.info('[VoiceCall] Privacy acknowledgement required');
     return await new Promise<boolean>((resolve) => {
       let settled = false;
       let saving = false;
@@ -83,6 +87,7 @@ export async function ensureVoiceCallPrivacyAcknowledgement(signal: AbortSignal,
       });
       unsubscribe = notificationStore.subscribe(state => {
         const owned = state.notifications.find(notification => notification.id === notificationId);
+        if ((!owned || owned.isExiting) && !settled) console.info('[VoiceCall] Privacy notice closed', saving ? 'while saving' : 'before saving');
         if (!owned || owned.isExiting) finish(false);
       });
       // A store may synchronously remove the notice during initial subscription.

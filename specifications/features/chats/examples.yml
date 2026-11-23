@@ -58,6 +58,24 @@ identity_idempotency:
     assistant_message_id: assistant-1
   expect:
     treated_as_handled: true
+- id: resend-of-finished-turn-is-acknowledged-quietly
+  given: A client resends a user message whose turn the server already answered (preflight TERMINAL or CONSUMED), for example
+    a stale outbox replay after reconnect or app restart.
+  when: The resend arrives as a message, a turn preflight or an enqueue, with or without its original preflight identity.
+  then: The origin client gets an ordinary confirmation marked turn_already_completed with the existing turn and assistant ids,
+    never an error frame; the server writes nothing, starts no inference, dispatches nothing and charges nothing; clients
+    finish the send with the existing answer; one WARNING log line per resend keeps the stale-resend cause visible.
+  input:
+    preflight_state: TERMINAL
+    resent_message_id: user-1
+    assistant_message_id: assistant-1
+  expect:
+    error_frames: 0
+    confirmation_turn_already_completed: true
+    new_inference_tasks: 0
+    new_assistant_messages: 0
+    credits_charged: 0
+    warning_log_lines: 1
     duplicate_messages: 0
 - id: confirmed-local-message-haptic-in-either-receipt-order
   assertion_ids: [chats.message.confirmed-haptic]
@@ -479,3 +497,14 @@ october_apple_response:
   given: A saved conversation is opened on an Apple phone, tablet or Mac using the current rendered web response as its reference.
   when: History appears, later text streams and the workspace width changes, including with reduced motion enabled.
   then: Canonical content, preview actions and existing paragraph identities remain usable; initial-history and new-chunk presentation do not repeatedly animate earlier content, and reduced motion shows content immediately.
+first_message_title:
+- id: pending-title-shows-first-message
+  assertion_ids: [chats.titles.first-message-fallback]
+  given: The user sends "Plan a relaxed weekend in Lisbon with one museum" as the first message of a new chat and the generated title has not arrived yet.
+  when: The chat header, the sidebar row and the start-screen card for that chat render, before and after the generated title "Lisbon weekend" arrives.
+  then: Each place shows the beginning of the first message, decrypted on the device and never stored or sent, and then "Lisbon weekend"; "Untitled chat" never appears. A chat with no title, draft or message is not shown as a start-screen card.
+- id: pending-title-shows-mention-names
+  assertion_ids: [chats.titles.first-message-fallback]
+  given: The user starts a chat from the Project "Garden planner", so the first message is the Project mention followed by "Add a harvest log to the planner", and the generated title has not arrived yet.
+  when: The chat header and the sidebar row render the temporary title.
+  then: Both show "@Garden planner Add a harvest log to the planner"; no Project id and no raw mention text appears at any moment, before the generated title replaces it.

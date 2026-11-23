@@ -154,6 +154,16 @@ async def execute_task_tool_call(
         title_key = _normalize_task_title(title)
         if title_key and title_key in context.client_persisted_create_titles:
             return _already_applied_result("create", {"task_id": context.client_persisted_create_titles[title_key], "version": 1})
+        plan_id = args.get("plan_id")
+        if plan_id is not None:
+            plan_id = str(plan_id).strip()
+            if not plan_id:
+                raise ValueError("plan_id must not be empty")
+            if directus_service is not None and not await directus_service.user_plan.get_plan(plan_id, context.user_id):
+                raise ValueError(
+                    f"Plan {plan_id} was not found for this user; it may not be saved yet. "
+                    "Wait until the Plan is saved, then retry."
+                )
         task_id = str(uuid.uuid4())
         position = _safe_int(args.get("position"), default=now + context.created_task_sequence)
         context.created_task_sequence += 1
@@ -174,6 +184,7 @@ async def execute_task_tool_call(
                 "position": position,
                 "created_at": now,
                 "updated_at": now,
+                **({"plan_id": plan_id} if plan_id else {}),
             },
             expected_version=0,
             context=context,
@@ -197,6 +208,7 @@ async def execute_task_tool_call(
             "created_at": now,
             "updated_at": now,
             "version": 1,
+            **({"plan_id": plan_id} if plan_id else {}),
         })
         return result
 

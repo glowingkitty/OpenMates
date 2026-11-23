@@ -1,0 +1,15 @@
+import unittest
+
+from textstats.words import longest_word, unique_words
+
+
+class WordTests(unittest.TestCase):
+    def test_unique_words(self):
+        self.assertEqual(unique_words("The cat. the dog!"), ["cat", "dog", "the"])
+
+    def test_longest_word(self):
+        self.assertEqual(longest_word("a bb ccc"), "ccc")
+
+
+if __name__ == "__main__":
+    unittest.main()

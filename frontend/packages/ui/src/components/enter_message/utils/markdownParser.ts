@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-case-declarations */
 // Markdown Parser for converting markdown text to TipTap JSON
 // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
+import { repairInlineEmbedFences } from "../../../message_parsing/embedFenceRepair";
 import MarkdownIt from "markdown-it";
 import { preserveUserBlankLines } from "../../../message_parsing/userReadSpacing";
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
 import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
 import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
+import { knownProjectMentionName } from "../../../utils/mentionProjectNames";
 import {
   getRenderableInternalHref,
   isInternalHashLink,
@@ -334,6 +336,12 @@ export function preprocessMarkdown(markdownText: string, preserveUserLineBreaks 
     /^(?:[^\S\n]*[^`\w\s][^\S\n]*|[ \t]+)(```json)\n([ \t]*\{[^\n]*"embed_id"[^\n]*\})\n[ \t]*(```)/gm,
     "$1\n$2\n$3",
   );
+
+  // 3. Preceded by inline text on the same line, e.g. a model mention that a
+  //    client prefixed with only a space: `@ai-model:x:y ```json`. Messages
+  //    sent that way before TASK-1610 still render their file as an embed:
+  //    the text stays, the fence moves to its own block.
+  markdownText = repairInlineEmbedFences(markdownText);
 
   // Fix LLM hallucination: writing both an https:// URL and a bare (embed:ref)
   // next to a markdown link. The LLM sometimes writes:
@@ -731,7 +739,8 @@ function formatProjectMentionDisplayName(
   projectId: string,
   projectPath?: string,
 ): string {
-  if (mentionType === "project") return `Project-${projectId.slice(0, 8)}`;
+  // A chip never shows an id: the Project's name when known, else a generic label.
+  if (mentionType === "project") return knownProjectMentionName(projectId) ?? "Project";
 
   const pathLabel = projectPath
     ?.replace(/\/+$/, "")
@@ -741,7 +750,7 @@ function formatProjectMentionDisplayName(
     ?.trim()
     .replace(/\s+/g, "-");
   const prefix = mentionType === "project_folder" ? "Folder" : "File";
-  return `${prefix}-${pathLabel || projectId.slice(0, 8)}`;
+  return pathLabel ? `${prefix}-${pathLabel}` : prefix;
 }
 
 function convertNodeToTiptap(node: Node): any {

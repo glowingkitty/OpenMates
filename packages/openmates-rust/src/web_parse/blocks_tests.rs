@@ -32,6 +32,12 @@ fn plan_blocks_equal_typescript() {
         )
         .unwrap();
         let want = &case["out"];
+        if case["phase"] == "final" && want["failed"] == json!(true) {
+            // Deliberate deviation from npm: see final_divergence_renders_the_final_text_fresh.
+            assert_eq!(out["failed"], json!(false), "{case}");
+            assert_eq!(out["operations"][0]["kind"], "replace-document", "{case}");
+            continue;
+        }
         assert_eq!(out["failed"], want["failed"], "{case}");
         assert_eq!(out["operations"], want["operations"], "{case}");
         if want["failed"] == json!(false) {
@@ -60,4 +66,34 @@ fn malformed_input_is_a_protocol_error() {
     assert_eq!(plan_blocks_json("x", "final", "not json"), Err("protocol".into()));
     assert_eq!(plan_blocks_json("x", "final", r#"{"phase":"final"}"#), Err("protocol".into()));
     assert_eq!(normalize_json("[]"), Err("protocol".into()));
+}
+
+// contract-test: supporting surface=sdks.rust assertions=chats.rendering.assistant-document-convergence
+#[test]
+fn final_divergence_renders_the_final_text_fresh() {
+    // An async continuation rewrote the reply: the final text drops earlier blocks.
+    let previous = json!({"phase": "streaming", "committed": [
+        {"id": "assistant-block:a:0", "markdown": "Running the test."},
+        {"id": "assistant-block:b:0", "markdown": "Setting up."},
+        {"id": "assistant-block:c:0", "markdown": "Still working."}], "tail": null});
+    let markdown = "The test passed.\n\nCommitted as abc1234.";
+    let out: Value = serde_json::from_str(&plan_blocks_json(markdown, "final", &previous.to_string()).unwrap()).unwrap();
+    assert_eq!(out["failed"], json!(false));
+    assert_eq!(out["operations"], json!([{"kind": "replace-document", "reason": "non-local-divergence"}]));
+    let blocks = out["committed"].as_array().unwrap();
+    let texts: Vec<&str> = blocks.iter().map(|b| b["markdown"].as_str().unwrap()).collect();
+    assert_eq!(texts, ["The test passed.", "Committed as abc1234."]);
+    assert!(blocks.iter().all(|b| b["reuse"].is_null()));
+    assert_eq!(blocks[0]["id"], format!("assistant-block:{}:0", hash_text("The test passed.")));
+}
+
+// contract-test: supporting surface=sdks.rust assertions=chats.rendering.assistant-document-convergence
+#[test]
+fn streaming_divergence_still_fails() {
+    let previous = json!({"phase": "streaming", "committed": [
+        {"id": "assistant-block:a:0", "markdown": "One."},
+        {"id": "assistant-block:b:0", "markdown": "Two."}], "tail": {"id": "assistant-tail", "markdown": "Partial"}});
+    let out: Value = serde_json::from_str(&plan_blocks_json("Different start", "streaming", &previous.to_string()).unwrap()).unwrap();
+    assert_eq!(out["failed"], json!(true));
+    assert_eq!(out["operations"][0]["kind"], "convergence-failure");
 }

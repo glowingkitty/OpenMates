@@ -278,11 +278,34 @@ final class ProjectsFilesParityUITests: XCTestCase {
         XCTAssertFalse(element(app, "project-remote-file-error").exists)
     }
 
-    private func launch(variant: String) -> XCUIApplication {
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.workspace-start-screens
+    func testProjectsStartScreenHasNoBannerAndActionsTileLast() throws {
+        let app = launch(variant: "landing", extra: ["--ui-test-project-inspirations"])
+        XCTAssertTrue(element(app, "projects-home-greeting").waitForExistence(timeout: 10))
+        XCTAssertFalse(element(app, "daily-inspiration-card").exists, "Projects has no inspiration banner")
+        let inspiration = element(app, "welcome-row-inspiration-card")
+        XCTAssertTrue(inspiration.waitForExistence(timeout: 5), "A seeded Projects inspiration is a row card")
+        // The only "Daily inspiration" text is the small label on the card itself, never a header.
+        for label in app.staticTexts.matching(identifier: "Daily inspiration").allElementsBoundByIndex
+            + app.staticTexts.matching(NSPredicate(format: "label == %@", "Daily inspiration")).allElementsBoundByIndex {
+            XCTAssertTrue(inspiration.frame.contains(CGPoint(x: label.frame.midX, y: label.frame.midY)),
+                "No Daily inspiration header outside the card")
+        }
+        XCTAssertFalse(element(app, "welcome-row-inspiration-image").exists, "Normal chat card, no picture background")
+        XCTAssertLessThanOrEqual(app.descendants(matching: .any).matching(identifier: "welcome-row-inspiration-card").count, 10)
+        let actions = element(app, "welcome-row-actions")
+        XCTAssertTrue(actions.exists)
+        XCTAssertGreaterThanOrEqual(actions.frame.minX, inspiration.frame.maxX - 1, "Actions tile is the last row item")
+        XCTAssertTrue(element(app, "projects-show-all").exists)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "apple-projects-start"; shot.lifetime = .keepAlways; add(shot)
+    }
+
+    private func launch(variant: String, extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "projects", "--dev-preview-variant", variant,
             "--dev-preview-theme", "dark", "--dev-preview-width", "390", "--dev-preview-height", "844",
-            "--ui-test-embed-presentation", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+            "--ui-test-embed-presentation", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extra
         app.launch()
         let root = element(app, "dev-preview-root")
         XCTAssertTrue(root.waitForExistence(timeout: 10))

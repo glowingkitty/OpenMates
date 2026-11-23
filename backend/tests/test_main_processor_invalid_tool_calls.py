@@ -598,6 +598,44 @@ async def test_argument_normalization_failure_returns_tool_error_without_dispatc
     assert "I could not search" in "".join(chunk for chunk in output if isinstance(chunk, str))
 
 
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("first_turn_prefix", ["", "Let me check the current return policy. "])
+async def test_answer_after_tool_turn_streams_without_ai_error(monkeypatch, first_turn_prefix) -> None:
+    """DBWDT: text streamed after a tool turn must not crash the answer.
+
+    The published-chunk list was once overwritten with a bool after each turn,
+    so the next turn's text raised AttributeError and the user got a cut-off
+    answer with the generic AI error.
+    """
+    dispatched = AsyncMock(return_value=[{"status": "finished", "results": []}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    first_turn = ([first_turn_prefix] if first_turn_prefix else []) + [
+        {"fake_google_tool_call": "web-search", "arguments": {"query": "return policy"}, "tool_call_id": "call-1"},
+    ]
+    answer = "You can return the item within 30 days. Keep the receipt."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [first_turn, [answer]],
+        generated_tools=[tool],
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(
+                id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+            )], instructions=[], focuses=[]),
+        },
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"]},
+    )
+
+    assert len(calls) == 2
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output
+    )
+    published_text = "".join(chunk for chunk in output if isinstance(chunk, str))
+    assert published_text.endswith(answer)
+    assert published_text.startswith(first_turn_prefix)
+
+
 # contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.safe-boundary
 async def test_queued_steer_joins_only_after_complete_tool_batch_and_is_not_replayed(monkeypatch) -> None:
     """The real loop must preserve every completed result before a queued steer."""
@@ -913,6 +951,7 @@ async def _run_project_dispatch_batch(monkeypatch, tool_batch):
     cached_context = AsyncMock()
     continuation_module.cache_async_skill_continuation_context = cached_context
     continuation_module.async_skill_continuation_key = lambda operation_id: f"continuation:{operation_id}"
+    continuation_module.release_unoffered_async_recovery_handoff = AsyncMock()
     operation_tasks = types.ModuleType("backend.core.api.app.tasks.project_file_operation_tasks")
     operation_tasks.schedule_project_file_operation_deadlines = Mock()
     monkeypatch.setitem(sys.modules, tasks_package.__name__, tasks_package)
@@ -926,7 +965,9 @@ async def _run_project_dispatch_batch(monkeypatch, tool_batch):
         client=client, get=AsyncMock(return_value=None),
         set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True),
     )
-    directus = SimpleNamespace(project=SimpleNamespace(list_sources=AsyncMock(return_value=[])))
+    # No E2B consent on record: Project file tools keep the device path (projects.sandbox.device-fallback).
+    directus = SimpleNamespace(project=SimpleNamespace(list_sources=AsyncMock(return_value=[])),
+                               get_user_fields_direct=AsyncMock(return_value={}))
     web_execution = AsyncMock(side_effect=AssertionError("Web skill must wait for the file continuation"))
     monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", web_execution)
     user_intent = "Read README and search the web after the Project file result arrives."
@@ -1288,6 +1329,11 @@ async def test_tool_guidance_matches_final_forwarded_capability(monkeypatch, for
     assert (discipline in primary) is not expose_subchats
     assert (proactive in primary) is (forwarded_kind == "app_skill")
     assert ("### Sub-Chats (Sub-Agents) Orchestration Instruction:" in primary) is expose_subchats
+    if expose_subchats:
+        # Delegation is a general rule for splittable work, not a Deep research special case.
+        assert "two or more independent, substantial parts" in primary
+        assert "Do not delegate simple, short or single-answer requests" in primary
+        assert "For Deep research, explicitly require web-read" not in primary
     assert "A safe answer." in "".join(chunk for chunk in output if isinstance(chunk, str))
 
     if forwarded_kind == "task_create":
@@ -3337,6 +3383,35 @@ async def test_actual_image_batch_is_clamped_and_video_retry_is_reported_without
     final_history = str(calls[-1]["message_history"])
     assert "omitted_requests" in final_history and "style 4" in final_history
     assert "retrieval/enrichment query budget is used" in final_history
+
+
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+async def test_refused_search_round_makes_next_provider_call_answer_only(monkeypatch):
+    """A call refused by the search budget must not start another tool round.
+
+    Each extra round would stream one more lead-in sentence before being refused
+    again, so the user saw the same sentence repeated.
+    """
+    dispatched = AsyncMock(return_value=[{"results": [{"id": 1, "results": []}]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    metadata = {app: SimpleNamespace(skills=[SimpleNamespace(
+        id="search", parallel_safe=True, exclude_fields_for_llm=None, pricing=None, providers=[],
+        tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+    )], instructions=[], focuses=[]) for app in ("images", "videos")}
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "images-search", "arguments": {"requests": [{"query": "a"}]}, "tool_call_id": "one"}],
+         [{"fake_google_tool_call": "videos-search", "arguments": {"requests": [{"query": "b"}]}, "tool_call_id": "two"}],
+         ["Here is the answer."]],
+        generated_tools=[{"type": "function", "function": {"name": f"{app}-search", "description": "Search."}} for app in metadata],
+        discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": list(metadata), "relevant_app_skills": ["images-search", "videos-search"]},
+        request_overrides={"current_user_content": "Show me Gothic architecture."},
+    )
+    assert len(calls) == 3
+    assert calls[2]["tool_choice"] == "none"
+    assert "No further searches are possible" in str(calls[2]["message_history"])
 
 
 # contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set

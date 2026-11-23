@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from scripts import discord_summary  # noqa: E402 (repo path bootstrap)
 from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 
 PROD_STATUS_URL = "https://api.openmates.org/v1/status"
@@ -173,19 +174,19 @@ def alert_decision(result: dict[str, Any], state: dict[str, Any], now_ts: float)
 
 
 def format_message(result: dict[str, Any], kind: str) -> str:
+    """One short line for the lock screen; the full reasons stay in the printed check result and the runbook."""
     if kind == "recovery":
-        return "✅ **Prod email recovered**: transactional email sending works again (Brevo)."
+        return discord_summary.alert("✅", "Prod email recovered: sending works again.")
     reasons = [check["reason"] for check in result["checks"].values() if not check["ok"] and check.get("reason")]
-    lines = ["🚨 **Prod email check FAILED**: users may not be receiving emails (login codes, receipts, recovery)."]
-    lines += [f"- {reason}" for reason in reasons]
-    lines.append("Runbook: docs/architecture/infrastructure/transactional-email-monitoring.md")
-    return "\n".join(lines)
+    more = f" (+{len(reasons) - 1} more)" if len(reasons) > 1 else ""
+    text = f"Prod email failing, users may miss login codes: {reasons[0]}{more}" if reasons else "Prod email check failing."
+    return discord_summary.alert("🚨", text)
 
 
 def post_discord(webhook_url: str, content: str, opener: Callable[..., Any] = urllib.request.urlopen) -> bool:
     request = urllib.request.Request(
         webhook_url,
-        data=json.dumps({"content": content[:1900]}).encode(),
+        data=json.dumps({"content": content}).encode(),
         headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
         method="POST",
     )

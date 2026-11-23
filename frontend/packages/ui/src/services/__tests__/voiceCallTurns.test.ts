@@ -10,7 +10,7 @@ vi.mock('../../stores/userProfile', async () => {
 vi.mock('../chatSyncService', () => ({chatSyncService:{
   get webSocketConnected_FOR_SENDERS_ONLY() { return mocks.connected; }, sendNewMessage:mocks.send, dispatchEvent:mocks.event, sendSetActiveChat:mocks.setActive,
 }}));
-import { createVoiceCallSendDiagnostics, sendVoiceCallTurn } from '../voiceCallTurns';
+import { createVoiceCallSendDiagnostics, reportVoiceCallTurnDelivery, sendVoiceCallTurn } from '../voiceCallTurns';
 const turn = {callId:'call-1',chatId:'chat-1',turnId:'turn-1',text:'Explain this image',createdAt:1700000000};
 beforeEach(()=>{mocks.identity='owner-1';mocks.epoch=1;mocks.connected=true;mocks.save.mockReset().mockResolvedValue(undefined);mocks.event.mockClear();mocks.setActive.mockReset().mockResolvedValue(undefined);mocks.updateChat.mockReset().mockResolvedValue(undefined);mocks.send.mockReset().mockResolvedValue(undefined);mocks.row.mockReset().mockResolvedValue({status:'sending'});});
 
@@ -208,4 +208,18 @@ it.each([
     expect((events.at(-1)?.failure as Record<string, unknown>).errorCode).toBeUndefined();
     expect(JSON.stringify(events)).not.toMatch(/PRIVATE|Personal privacy/);
   } finally { window.removeEventListener('voiceCallTurnDelivery', observe); }
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+it('logs only the fixed reason of a refused or failed turn so issue reports carry it (NRUV9)', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    reportVoiceCallTurnDelivery(turn, 'started');
+    reportVoiceCallTurnDelivery(turn, 'refused', 'disconnected');
+    reportVoiceCallTurnDelivery(turn, 'failed', 'message_saving:version_conflict');
+    expect(warn.mock.calls).toEqual([
+      ['[VoiceCall] Turn delivery refused:', 'disconnected'],
+      ['[VoiceCall] Turn delivery failed:', 'message_saving:version_conflict'],
+    ]);
+  } finally { warn.mockRestore(); }
 });

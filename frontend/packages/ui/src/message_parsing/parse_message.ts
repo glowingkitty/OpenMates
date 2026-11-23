@@ -3,6 +3,7 @@
 // Handles both write_mode (editing) and read_mode (display) parsing
 
 import type { ParseMessageOptions } from "./types";
+import { flattenWriteModeBlocks } from "./writeModeBlocks";
 import { stripVoiceDeliveryCues } from "./voiceDeliveryCues";
 import { markdownToTipTap } from "./serializers";
 import { parseEmbedNodes } from "./embedParsing";
@@ -12,6 +13,7 @@ import { groupConsecutiveEmbedsInDocument } from "./embedGrouping";
 import { migrateEmbedNodes, needsMigration } from "./migration";
 import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
 import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
+import { repairInlineEmbedFences, reportRawEmbedReferences } from "./embedFenceRepair";
 import {
   resolveEmbedRefIndexReference,
 } from "../services/embedRefIndex";
@@ -1181,6 +1183,21 @@ export function parse_message(
   mode: "write" | "read",
   opts: ParseMessageOptions = {},
 ): any {
+  const doc = parseMessageDocument(repairInlineEmbedFences(markdown), mode, opts);
+  // A user message that still shows a raw embed reference is a rendering
+  // defect nobody sees in error logs: report it (content-free) so the error
+  // monitoring picks it up (TASK-1610).
+  if (mode === "read" && opts.role === "user") {
+    reportRawEmbedReferences(doc, { role: "user", messageKey: String(markdown.length) + ":" + markdown.slice(-24) });
+  }
+  return doc;
+}
+
+function parseMessageDocument(
+  markdown: string,
+  mode: "write" | "read",
+  opts: ParseMessageOptions,
+): any {
   if (mode === "read" && opts.role === "assistant") {
     markdown = stripVoiceDeliveryCues(markdown);
   }
@@ -1192,7 +1209,7 @@ export function parse_message(
       const withLinks = convertEmbedLinks(doc, opts.role, typeof opts.chatId === "string" ? opts.chatId : undefined);
       return convertSourceQuotes(withLinks);
     }
-    return stripWriteModeLinkMarks(doc);
+    return flattenWriteModeBlocks(stripWriteModeLinkMarks(doc));
   }
 
   // First, parse basic markdown structure using existing parser
@@ -1259,7 +1276,7 @@ export function parse_message(
   }
 
   if (mode === "write") {
-    return stripWriteModeLinkMarks(unifiedDoc);
+    return flattenWriteModeBlocks(stripWriteModeLinkMarks(unifiedDoc));
   }
 
   return unifiedDoc;

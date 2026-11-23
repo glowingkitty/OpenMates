@@ -1318,3 +1318,36 @@ async def test_worker_prefix_rejects_missing_or_changed_immutable_admission(monk
         await ask_skill_task._ack_running_recovery_queue_prefix(request, "task-B", cache, directus)
     recovery.assert_not_called()
     assert await cache.has_queued_messages("chat")
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_running_batch_task_releases_its_own_unacked_prefix_instead_of_new_handoff(monkeypatch):
+    """A task whose own batch prefix was never ACKed must not queue a second hand-off."""
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    cache = _Cache()
+    cache.mark_sync_message_processing = AsyncMock(return_value=True)
+    directus = SimpleNamespace(chat=SimpleNamespace(mark_queued_message_started=AsyncMock(
+        return_value={"status": "started", "messages_v": 2},
+    )))
+    member = _member("second", "second")
+    await cache.queue_message("chat", member)
+    lease = await cache.lease_queued_message_prefix("chat", limit=20)
+    request = AskSkillRequest(**member)
+    own_task_id = _legacy_queued_batch_proof(request, lease, ["second"])["celery_task_id"]
+
+    assert await ask_skill_task._ack_own_legacy_queue_prefix(
+        request_data=request, task_id=own_task_id, queued_lease=lease,
+        cache_service=cache, directus_service=directus,
+    )
+    assert not await cache.has_queued_messages("chat")
+    directus.chat.mark_queued_message_started.assert_awaited_once()
+
+    # A different running task treats the same batch as a real follower.
+    await cache.queue_message("chat", member)
+    lease = await cache.lease_queued_message_prefix("chat", limit=20)
+    assert not await ask_skill_task._ack_own_legacy_queue_prefix(
+        request_data=request, task_id="some-other-task", queued_lease=lease,
+        cache_service=cache, directus_service=directus,
+    )
+    assert await cache.has_queued_messages("chat")

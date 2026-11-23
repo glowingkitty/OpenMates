@@ -108,6 +108,7 @@ export interface EncryptedUserTaskRecord {
   encrypted_linked_project_ids?: string | null;
   parent_task_id?: string | null;
   plan_id?: string | null;
+  linked_sub_chat_id?: string | null;
   due_at?: number | null;
   priority?: number;
   position?: number;
@@ -158,6 +159,7 @@ export interface UserTaskViewModel {
   externalChat: ExternalChatContext | null;
   linkedProjectIds: string[];
   planId: string | null;
+  linkedSubChatId: string | null;
   dueAt: number | null;
   priority: number;
   position: number;
@@ -575,6 +577,7 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     } : null,
     linkedProjectIds: await decryptStringArray(record.encrypted_linked_project_ids, taskKey),
     planId: record.plan_id ?? null,
+    linkedSubChatId: record.linked_sub_chat_id ?? null,
     dueAt: record.due_at ?? null,
     priority: record.priority ?? 0,
     position: record.position ?? 0,

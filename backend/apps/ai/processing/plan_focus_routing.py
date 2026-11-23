@@ -13,6 +13,12 @@ from typing import Any, Collection, Sequence
 GENERIC_PLAN_FOCUS_ID = "openmates-plan"
 CODE_PLAN_FOCUS_ID = "code-project_planner"
 PLANNER_FOCUS_IDS = frozenset({GENERIC_PLAN_FOCUS_ID, CODE_PLAN_FOCUS_ID})
+WRITE_SPECIFICATION_FOCUS_ID = "code-write_specification"
+# Spec-driven focuses that layer over a Project's base focus (focus-modes v3,
+# focus-modes.layer-over-project). A new-feature request in a Project chat must
+# be able to auto-select them even when the app shortlist picked only the
+# request's subject apps (for example reminders for a garden feature).
+PROJECT_LAYER_FOCUS_IDS = frozenset({WRITE_SPECIFICATION_FOCUS_ID, *PLANNER_FOCUS_IDS})
 
 
 def select_explicit_plan_focus(

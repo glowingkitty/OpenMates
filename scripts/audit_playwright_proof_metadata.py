@@ -5,6 +5,10 @@ This is intentionally path-scoped for hooks: when an agent edits one web spec,
 the hook can ask for proof-video metadata or a deliberate not-required note
 without forcing a noisy repository-wide backfill.
 
+Voice and audio specs (owner, 22 Nov 2026) must also record the browser's sound into their proof
+video with tests/helpers/proof-audio.ts (withProofAudio / installProofAudio), or say why not with
+`// proof-audio: not_required reason=<why>`.
+
 Usage: python3 scripts/audit_playwright_proof_metadata.py <spec.ts> [...]
 """
 
@@ -30,6 +34,12 @@ VALID_CLASSIFICATION_REASONS = {
     "storage_audit",
     "visual_smoke_not_needed",
 }
+
+
+AUDIO_NAME_RE = re.compile(r"voice|audio|speech|speak|dictat|chime|sound", re.IGNORECASE)
+AUDIO_CONTENT_MARKERS = ("--use-fake-device-for-media-stream", "use-file-for-fake-audio-capture", "proofAudioLaunchArgs")
+PROOF_AUDIO_HELPERS = ("withProofAudio", "installProofAudio")
+AUDIO_WAIVER_RE = re.compile(r"proof-audio:\s*not_required\s+reason=\S+")
 
 
 def repo_relative(path: Path) -> Path:
@@ -67,24 +77,43 @@ def proof_definition_problems(text: str) -> list[str]:
     return problems
 
 
+def plays_audio(path: Path, text: str) -> bool:
+    return bool(AUDIO_NAME_RE.search(path.name)) or any(marker in text for marker in AUDIO_CONTENT_MARKERS)
+
+
+def proof_audio_problems(path: Path, text: str) -> list[str]:
+    """A voice or audio spec records its sound into the proof video, or says why not."""
+    if not plays_audio(path, text) or AUDIO_WAIVER_RE.search(text):
+        return []
+    if any(helper in text for helper in PROOF_AUDIO_HELPERS):
+        return []
+    return [
+        f"{repo_relative(path)}: voice/audio spec records no sound into its proof video. Use "
+        "`const test = withProofAudio(baseTest)` and `proofAudioLaunchArgs()` from ./helpers/proof-audio "
+        "(test voice on the fake microphone, page audio muxed in sync), or add "
+        "`// proof-audio: not_required reason=<why>`."
+    ]
+
+
 def audit_path(path: Path) -> list[str]:
     if not is_web_playwright_spec(path):
         return []
     if not path.is_file():
         return [f"{repo_relative(path)}: file does not exist"]
     text = path.read_text(encoding="utf-8")
+    audio = proof_audio_problems(path, text)
     reason = classification_reason(text)
     if reason:
         if reason not in VALID_CLASSIFICATION_REASONS:
             return [
                 f"{repo_relative(path)}: invalid proof-video not_required reason={reason}; "
                 f"use one of {', '.join(sorted(VALID_CLASSIFICATION_REASONS))}"
-            ]
-        return []
+            ] + audio
+        return audio
     problems = proof_definition_problems(text)
     if not problems:
-        return []
-    return [
+        return audio
+    return audio + [
         f"{repo_relative(path)}: {', '.join(problems)}. Add defineVideoProof(...) "
         "with transcript/assertions/checkpoints/devices, or add a top-of-file "
         "classification comment like `// proof-video: not_required reason=non_visual_setup`."

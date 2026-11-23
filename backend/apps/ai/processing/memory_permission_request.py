@@ -71,6 +71,9 @@ async def issue_memory_permission_request(
     encryption_service: Any,
     user_vault_key_id: Optional[str],
     log_prefix: str,
+    mates: Optional[List[Any]] = None,
+    answering_mate_id: Optional[str] = None,
+    output_language: Optional[str] = None,
 ) -> Optional[str]:
     """Create the request message, store pending context and return the request id.
 
@@ -99,6 +102,17 @@ async def issue_memory_permission_request(
 
     if request_id:
         logger.info(f"{log_prefix} Created app settings/memories request {request_id} - storing pending context and returning")
+        # A call turn says out loud that it waits for the user's tap.
+        from backend.apps.ai.assistant_speech.call_permission_prompt import (
+            build_call_permission_prompt, publish_call_permission_prompt,
+        )
+        await publish_call_permission_prompt(
+            cache_service=cache_service, user_id=request_data.user_id, log_prefix=log_prefix,
+            payload=build_call_permission_prompt(
+                request_data=request_data, mates=mates or [], mate_id=answering_mate_id or request_data.mate_id,
+                language=output_language, request_id=request_id, kind="memory",
+            ),
+        )
         # IMPORTANT: Store the pending request context so we can re-trigger processing
         # when user confirms or rejects. The confirmation/rejection acts as a trigger
         # for a NEW AI processing pass - not a continuation of this task.

@@ -36,6 +36,9 @@ test('Plan fullscreen lists goal, assumptions, criteria, tasks, checks and binds
   await expect(page.getByTestId('plan-assumption-open-chat')).toHaveCount(1);
   await expect(page.getByTestId('plan-criterion-row')).toHaveCount(1);
   await expect(page.getByTestId('plan-task-row')).toHaveCount(3);
+  await expect(page.getByTestId('plan-assumption-open-chat')).toHaveText('Checking chat');
+  await expect(page.getByTestId('plan-task-open-chat')).toHaveCount(1);
+  await expect(page.getByTestId('plan-task-open-chat')).toHaveText('Working chat');
   await expect(page.getByTestId('plan-check-row')).toHaveCount(1);
   await expect(page.getByTestId('plan-approval-bar')).toHaveAttribute('data-revision-id', 'rev-1');
   await expect(page.getByTestId('plan-approve-button')).toBeEnabled();

@@ -38,6 +38,7 @@ import type { InteractiveQuestionPayload } from "../../../interactive_questions/
 import { parseInteractiveQuestionPayloadCandidate } from "../../../interactive_questions/utils/questionState";
 import NotebookEmbedPreview from "../../../embeds/code/NotebookEmbedPreview.svelte";
 import ApplicationEmbedPreview from "../../../embeds/code/ApplicationEmbedPreview.svelte";
+import { applicationProjectSource } from "../../../embeds/code/applicationProjectSource";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
@@ -327,6 +328,34 @@ type IndividualMounter = (
  * visible "flash" caused by destroying and re-mounting every component on
  * each streaming update.
  */
+/** True when a group holds cards of more than one app skill (a call sequence). */
+function isMixedSkillGroup(items: EmbedNodeAttributes[]): boolean {
+  return new Set(items.map((item) => `${item.app_id ?? ""}/${item.skill_id ?? ""}`)).size > 1;
+}
+
+/**
+ * Scrolls the horizontal group row so the processing card (else the newest,
+ * last card) is visible without the user scrolling. Only the row scrolls, never the page.
+ */
+function revealActiveGroupItem(
+  scrollContainer: HTMLElement,
+  items: EmbedNodeAttributes[],
+): void {
+  const processing = items.findIndex((item) => item.status === "processing");
+  const active = scrollContainer.children[processing >= 0 ? processing : items.length - 1] as HTMLElement | undefined;
+  if (!active) return;
+  // Measure against the row's padding box (where overflow clips): offsetLeft is
+  // relative to the offset parent, not the row, and over-scrolled the card.
+  const row = scrollContainer.getBoundingClientRect();
+  const card = active.getBoundingClientRect();
+  const visibleLeft = row.left + scrollContainer.clientLeft;
+  const visibleRight = visibleLeft + scrollContainer.clientWidth;
+  if (card.right > visibleRight) {
+    // Never scroll so far that the card's own left edge leaves the row.
+    scrollContainer.scrollLeft += Math.min(card.right - visibleRight, card.left - visibleLeft);
+  }
+}
+
 export class GroupRenderer implements EmbedRenderer {
   type = "group"; // This is a generic type - actual matching happens in the registry
 
@@ -796,7 +825,13 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     // Reverse the items so the most recently added appears on the left
-    const reversedItems = [...groupedItems].reverse();
+    // Cards of different skills (e.g. View, then Generate) are a call sequence:
+    // they stay in call order, left to right (the group node stores call order),
+    // and the active card is scrolled into view after mounting. Same-skill
+    // groups keep the newest-left layout.
+    const reversedItems = isMixedSkillGroup(groupedItems)
+      ? [...groupedItems]
+      : [...groupedItems].reverse();
 
     // Determine the group display name
     const groupDisplayName = this.getGroupDisplayName(baseType, groupCount);
@@ -1638,7 +1673,11 @@ export class GroupRenderer implements EmbedRenderer {
 
     // Sort finished items so embeds with results appear before those without.
     // This ensures users see useful results first in the horizontal scroll row.
-    const items = await this.sortItemsByResults(args.items);
+    // Mixed-skill call sequences keep call order; results-first sorting only
+    // makes sense among cards of one skill.
+    const items = isMixedSkillGroup(args.items)
+      ? args.items
+      : await this.sortItemsByResults(args.items);
 
     // DEBUG: Log incoming items to verify contentRef is set
     console.debug("[GroupRenderer] renderAppSkillUseGroup called:", {
@@ -1717,6 +1756,7 @@ export class GroupRenderer implements EmbedRenderer {
     // Error embeds are now rendered inline, so count should match items.length.
     this.reconcileGroupHeader(scrollContainer, header, baseType);
     this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
+    if (isMixedSkillGroup(items)) revealActiveGroupItem(scrollContainer, items);
 
     console.debug(
       `[GroupRenderer] ✅ Finished mounting all ${items.length} items in group`,
@@ -2008,6 +2048,36 @@ export class GroupRenderer implements EmbedRenderer {
           },
         });
         mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "code" && skillId === "run") {
+        // Cloud command: the same Run card (command, status, exit, duration) as standalone.
+        const { default: CodeRunEmbedPreview } = await import("../../../embeds/code/CodeRunEmbedPreview.svelte");
+        const component = mount(CodeRunEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            command: decodedContent?.command,
+            argv: Array.isArray(decodedContent?.argv) ? decodedContent.argv.map(String) : undefined,
+            cwd: decodedContent?.cwd,
+            exitCode: decodedContent?.exit_code,
+            durationSeconds: typeof decodedContent?.duration_seconds === "number" ? decodedContent.duration_seconds : undefined,
+            outputTail: typeof decodedContent?.output_tail === "string" ? decodedContent.output_tail : undefined,
+            error: decodedContent?.error,
+            status: status as "processing" | "finished" | "error" | "cancelled",
+            taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "projects" && skillId === "change") {
+        // Older chats' projects/change embeds show nothing: the reply's code embeds are the files.
+        target.hidden = true;
         return;
       }
 
@@ -2657,7 +2727,7 @@ export class GroupRenderer implements EmbedRenderer {
       // asynchronously to populate the S3 preview data.
       if (appId === "images" && skillId === "view") {
         // embed_id in the skill-use content references the original uploaded image embed
-        const originalEmbedId = decodedContent?.embed_id || "";
+        const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
         const filename = decodedContent?.filename || "";
 
         const handleImageViewFullscreen = () => {
@@ -3014,7 +3084,7 @@ export class GroupRenderer implements EmbedRenderer {
 
       // Handle pdf.view skill — opens original uploaded PDF fullscreen on click
       if (appId === "pdf" && skillId === "view") {
-        const originalEmbedId = decodedContent?.embed_id || "";
+        const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
         const filename = decodedContent?.filename || "";
         const pages: number[] = decodedContent?.pages || [];
         const pageCount: number | undefined =
@@ -4678,6 +4748,7 @@ export class GroupRenderer implements EmbedRenderer {
           status: status as "processing" | "finished" | "error",
           taskId: decodedContent?.task_id,
           chatId: item.sourceChatId,
+          projectSource: applicationProjectSource(decodedContent),
           isMobile: false,
           onFullscreen: handleFullscreen,
         },

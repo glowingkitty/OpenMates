@@ -34,6 +34,7 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from audit_frontend_dependency_pins import collect_package_versions  # noqa: E402 - sibling script module, path set above
+from security_monitoring.config import dotenv_value  # noqa: E402 - package import after path setup
 from security_monitoring.models import Asset, HostReport, Inventory  # noqa: E402 - package import after path setup
 
 try:
@@ -323,6 +324,22 @@ def _read_cargo(builder: _Builder, relative: str, environments: tuple[str, ...],
             builder.add("package", "crates.io", str(package["name"]), str(package["version"]), environments, exposure, relative)
 
 
+EXTRA_CARGO_LOCKS_KEY = "SECURITY_MONITORING_EXTRA_CARGO_LOCKS"
+
+
+def _read_extra_cargo(builder: _Builder, path: Path, label: str) -> None:
+    """Read an operator-supplied Cargo.lock outside the repo; only the neutral label is ever recorded."""
+    if not path.is_file():
+        raise SourceUnreadable("extra Cargo.lock missing")
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    packages = data.get("package")
+    if not isinstance(packages, list):
+        raise SourceUnreadable("Cargo.lock without package entries")
+    for package in packages:
+        if str(package.get("source", "")).startswith("registry+"):
+            builder.add("package", "crates.io", str(package["name"]), str(package["version"]), ("prod", "dev"), "internal", label)
+
+
 def _swift_name(url: str) -> str:
     return re.sub(r"\.git$", "", re.sub(r"^https?://", "", url.strip().rstrip("/")))
 
@@ -349,7 +366,11 @@ def _read_swift(builder: _Builder) -> None:
         name = _swift_name(url.group(1))
         exact = re.search(r"kind = exactVersion;\s*version = \"?([^\";]+)\"?;", block)
         revision = re.search(r"revision = \"?([0-9a-f]{7,40})\"?;", block)
-        version = pins.get(name) or (exact.group(1) if exact else revision.group(1) if revision else None)
+        # Without a committed Package.resolved the declared floor (minimumVersion) is the best known version;
+        # OSV then answers for that floor and the match is reported as a range lower bound.
+        floor = re.search(r"(?:minimumVersion|version) = \"?([0-9][^\";\s]*)\"?;", block)
+        version = pins.get(name) or (exact.group(1) if exact else revision.group(1) if revision
+                                     else floor.group(1) if floor else None)
         builder.add("package", "SwiftURL", name, version, ("apple_client",), "client_only", "apple/OpenMates.xcodeproj")
 
 
@@ -616,6 +637,10 @@ def build_inventory(project_root: Path, host_reports: Mapping[str, HostReport | 
     for relative, (environments, exposure) in CARGO_LOCKS.items():
         builder.guard(relative, _read_cargo, builder, relative, environments, exposure)
     builder.guard("apple/OpenMates.xcodeproj", _read_swift, builder)
+    extra_locks = [item for item in dotenv_value(root, EXTRA_CARGO_LOCKS_KEY).split(os.pathsep) if item.strip()]
+    for index, item in enumerate(extra_locks, start=1):
+        label = f"extra-cargo-lock:{index}"
+        builder.guard(label, _read_extra_cargo, builder, Path(item.strip()), label)
     image_roots = [root / "backend", root / "deployment", root / "frontend" / "apps"]
     dockerfiles = [path for start in image_roots for path in builder.walk(start, lambda name: name.startswith("Dockerfile"))]
     composes = [path for start in image_roots for path in builder.walk(start, lambda name: "compose" in name and name.endswith((".yml", ".yaml")))]

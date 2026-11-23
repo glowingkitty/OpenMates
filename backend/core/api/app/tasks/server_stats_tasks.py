@@ -55,7 +55,7 @@ async def run_flush_server_stats(task: BaseServiceTask):
         total_liability = await task.cache_service.get_total_liability()
         
         # 2. Get system-wide totals (non-incremental)
-        total_users = await task.directus_service.get_total_users_count()
+        total_users = await task.directus_service.get_total_users_count(exclude_test_accounts=True)
         
         # Count active subscriptions
         active_subs_count = 0
@@ -67,6 +67,7 @@ async def run_flush_server_stats(task: BaseServiceTask):
                 'filter': json.dumps({
                     '_and': [
                         {'is_admin': {'_eq': False}},
+                        {'is_test_account': {'_neq': True}},
                         {'stripe_subscription_id': {'_nnull': True}},
                         {'subscription_status': {'_eq': 'active'}}
                     ]

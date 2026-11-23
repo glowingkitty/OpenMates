@@ -1,0 +1,12 @@
+diff --git a/textstats/sentences.py b/textstats/sentences.py
+index 2fd1d15..71ef3fa 100644
+--- a/textstats/sentences.py
++++ b/textstats/sentences.py
+@@ -1,6 +1,6 @@
+ """Sentence statistics for plain text."""
+ 
+-ENDINGS = (".", "!")
++ENDINGS = (".", "!", "?")
+ 
+ 
+ def count_sentences(text):

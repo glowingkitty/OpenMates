@@ -38,9 +38,57 @@ def test_apple_ui_plan_runs_exactly_the_selected_tests_serially():
     assert selected == specs
     assert command[command.index("-parallel-testing-enabled") + 1] == "NO"
     assert "/out/OpenMatesUITests.xcresult" in command
-    # The UI fixtures seed the core: Rust feature and Swift condition come together.
-    assert "OPENMATES_CORE_TEST_SUPPORT=YES" in command
-    assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in command
+    # The UI fixtures seed the core: Rust feature and Swift condition come together in the build.
+    build = next(step[1] for step in plan if step[0] == ci_apple.BUILD_STEP)
+    assert "OPENMATES_CORE_TEST_SUPPORT=YES" in build
+    assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in build
+
+
+def test_focused_ui_runs_keep_passing_recordings_before_the_tests():
+    plan = ci_apple.xcode_plan("apple-ui", Path("/out"), ["OpenMatesUITests/A"])
+    names = [step[0] for step in plan]
+    keep = names.index(ci_apple.KEEP_RECORDINGS_STEP)
+    assert names.index(ci_apple.BUILD_STEP) < keep < len(names) - 1
+    assert plan[keep][1][-2:] == ["keep-recordings", "/out/DerivedData/Build/Products"]
+    large = ["OpenMatesUITests/A"] * (ci_apple.MAX_RECORDED_UI_SPECS + 1)
+    assert ci_apple.KEEP_RECORDINGS_STEP not in [s[0] for s in ci_apple.xcode_plan("apple-ui", Path("/out"), large)]
+    unit = [s[0] for s in ci_apple.xcode_plan("apple-unit", Path("/out"), ["all"])]
+    assert ci_apple.KEEP_RECORDINGS_STEP not in unit
+
+
+def test_keep_recordings_writes_a_patched_copy_for_ui_targets_only(tmp_path):
+    import plistlib
+
+    run = {
+        "TestConfigurations": [{"TestTargets": [
+            {"BlueprintName": "OpenMatesUITests", "IsUITestBundle": True, "SystemAttachmentLifetime": "deleteOnSuccess"},
+            {"BlueprintName": "OpenMatesTests", "SystemAttachmentLifetime": "deleteOnSuccess"},
+        ]}],
+        "__xctestrun_metadata__": {"FormatVersion": 2},
+    }
+    built = tmp_path / "OpenMates_iOS_iphonesimulator26.0-arm64.xctestrun"
+    built.write_bytes(plistlib.dumps(run))
+    assert ci_apple.keep_recordings(tmp_path) == 1
+    assert plistlib.loads(built.read_bytes()) == run  # Xcode's own file is untouched
+    copy = plistlib.loads((tmp_path / ci_apple.RECORDED_XCTESTRUN).read_bytes())
+    ui, unit = copy["TestConfigurations"][0]["TestTargets"]
+    for key in ci_apple.KEEP_ALL_KEYS:
+        assert ui[key] == "keepAlways"
+    assert ui["PreferredScreenCaptureFormat"] == "screenRecording"
+    assert unit["SystemAttachmentLifetime"] == "deleteOnSuccess"
+    assert ci_apple.keep_recordings(tmp_path) == 1  # a rerun ignores its own copy
+    with pytest.raises(ValueError):
+        ci_apple.keep_recordings(tmp_path / "empty")
+
+
+def test_recorded_runs_test_from_the_patched_xctestrun():
+    command = ci_apple.xcode_plan("apple-ui", Path("/out"), ["OpenMatesUITests/A"])[-1][1]
+    assert command[command.index("-xctestrun") + 1] == f"/out/DerivedData/Build/Products/{ci_apple.RECORDED_XCTESTRUN}"
+    assert "-scheme" not in command and "-project" not in command
+    assert command[command.index("-destination") + 1] == f"platform=iOS Simulator,name={ci_apple.SIMULATOR}"
+    large = ["OpenMatesUITests/A"] * (ci_apple.MAX_RECORDED_UI_SPECS + 1)
+    unrecorded = ci_apple.xcode_plan("apple-ui", Path("/out"), large)[-1][1]
+    assert "-xctestrun" not in unrecorded and "-scheme" in unrecorded
 
 
 def test_apple_unit_plan_selects_only_the_unit_target():
@@ -107,14 +155,17 @@ def test_apple_build_plan_compiles_all_targets_and_keeps_going():
 )
 def test_test_lanes_build_once_then_test_on_those_products(mode, specs):
     build_only = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])[-2]
-    plan = ci_apple.xcode_plan(mode, Path("/out"), specs)
+    plan = [s for s in ci_apple.xcode_plan(mode, Path("/out"), specs) if s[0] != ci_apple.KEEP_RECORDINGS_STEP]
     build, test = plan[-2], plan[-1]
     # The compile step is the build lane's, so every test job lists all Swift errors itself.
     assert build[:2] == build_only[:2]
     assert test[1][:2] == ["xcodebuild", "test-without-building"]
     assert "-IDEBuildingContinueBuildingAfterErrors=YES" not in test[1]
     derived = build[1][build[1].index("-derivedDataPath") + 1]
-    assert test[1][test[1].index("-derivedDataPath") + 1] == derived
+    if "-xctestrun" in test[1]:  # a recorded run uses the products' patched .xctestrun
+        assert test[1][test[1].index("-xctestrun") + 1].startswith(f"{derived}/Build/Products/")
+    else:
+        assert test[1][test[1].index("-derivedDataPath") + 1] == derived
     assert sum(1 for _, command, *_ in plan if command[:2] == ["xcodebuild", "build-for-testing"]) == 1
 
 

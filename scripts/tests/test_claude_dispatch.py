@@ -20,6 +20,7 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch, "LAUNCH_LOG", tmp_path / "launches.jsonl")
     monkeypatch.setattr(dispatch, "PENDING_DIR", tmp_path / "pending")
     monkeypatch.setattr(dispatch, "admit_new_chat", lambda: None)  # room for a new chat
+    monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path / "usage-guard"))  # weekly switch off
     (tmp_path / "queue").mkdir()
     return tmp_path
 
@@ -144,7 +145,7 @@ def _fake_zellij(monkeypatch, listing: str) -> list[list[str]]:
 
 
 # contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
-def test_launch_opens_persistent_remote_control_tab_with_opus_5_5_high(monkeypatch):
+def test_launch_opens_persistent_remote_control_tab_with_opus_5_5_medium(monkeypatch):
     calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
     assert dispatch.launch_claude_chat("title", "prompt") == "claude/title"
     command = calls[-1]
@@ -154,8 +155,8 @@ def test_launch_opens_persistent_remote_control_tab_with_opus_5_5_high(monkeypat
     assert "--bg" not in chat, "background jobs retire after 8h idle and go offline in the app"
     assert chat[chat.index("--remote-control") + 1] == "title"
     assert chat[chat.index("--model") + 1] == "claude-opus-5-5"
-    assert chat[chat.index("--effort") + 1] == "high"
-    assert chat[-1] == "prompt"
+    assert chat[chat.index("--effort") + 1] == "medium"
+    assert chat[-1] == "prompt\n\n" + dispatch.PUSH_RULE
     assert not any("attach" in call for call in calls)
 
 
@@ -214,7 +215,7 @@ def test_launched_chat_gets_user_bin_folders_first_on_path(tmp_path, monkeypatch
     chat = calls[-1][calls[-1].index("--") + 1:]
     assert chat[0] == "/usr/bin/env"
     assert chat[1] == f"PATH={tmp_path}/.npm-global/bin:{tmp_path}/.local/bin:/usr/bin:/bin"
-    assert chat[2] == dispatch.CLAUDE_BIN
+    assert chat[2] == "CLAUDE_CHAT_TITLE=title" and chat[3] == dispatch.CLAUDE_BIN
 
 
 # contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
@@ -239,11 +240,11 @@ def test_full_chat_cap_queues_the_chat_instead_of_dropping_it(isolated_state, mo
     calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
     monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
     with pytest.raises(dispatch.ChatQueued, match="queued, not started yet"):
-        dispatch.launch_claude_chat("Queued title", "the prompt")
+        dispatch.launch_claude_chat("Queued title", dispatch.with_push_rule("the prompt"))
     assert not calls, "no tab may open while the cap is full"
     [pending] = list((isolated_state / "pending").iterdir())
     entry = json.loads(pending.read_text())
-    assert (entry["title"], entry["prompt"], entry["why"]) == ("Queued title", "the prompt", FULL)
+    assert (entry["title"], entry["prompt"], entry["why"]) == ("Queued title", dispatch.with_push_rule("the prompt"), FULL)
     assert '"kind": "queued"' in (isolated_state / "launches.jsonl").read_text()
 
 
@@ -325,3 +326,189 @@ def test_zellij_scope_start_failure_is_an_error(monkeypatch):
         "Result", (), {"returncode": 1, "stdout": "", "stderr": "Failed to connect to bus"})())
     with pytest.raises(dispatch.DispatchError, match="Failed to connect to bus"):
         dispatch._start_zellij_server("claude")
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("title", ["Issue ABCDE: investigate & fix", "Prod chat failures: phase=provider",
+                                   "Prod message_received_handler ERROR (3x)"])
+# contract-test: tooling
+def test_automatically_started_chats_get_the_done_and_ask_push_rule_once(monkeypatch, title):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    dispatch.launch_claude_chat(title, "Investigate the failure.")
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    prompt = chat[-1]
+    assert prompt.count("agent_question.py done --summary") == 1 and "agent_question.py ask --question" in prompt
+    assert "✅" in prompt and "❓" in prompt and "Never for progress" in prompt
+    assert f"CLAUDE_CHAT_TITLE={title}" in chat  # the pushes carry the chat's title
+    # a prompt that already has the rule (the dev connector's Task note) does not get it twice
+    dispatch.launch_claude_chat(title, dispatch.with_push_rule("Investigate."))
+    assert calls[-1][-1].count("agent_question.py done") == 1
+
+
+# contract-test: tooling
+def test_issue_and_prod_prompts_reach_the_launcher_with_the_rule(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    _queue(isolated_state, "issue-ABCDE.json", {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+    dispatch.dispatch_issues()
+    assert dispatch.PUSH_RULE in calls[-1][-1]
+
+
+# ── AI test-user reports (TASK-8809) ─────────────────────────────────────────
+
+def _tu(env="dev", **extra):
+    return {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE", "origin": "ai_test_user",
+            "env": env, **extra}
+
+
+# contract-test: tooling
+def test_origin_parsing_and_validation():
+    assert dispatch.parse_issue_request_full(json.dumps(_tu("prod")))[2:] == ("ai_test_user", "prod")
+    plain = {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"}
+    assert dispatch.parse_issue_request_full(json.dumps(plain))[2:] == ("", "")
+    for bad in (_tu("staging"), {**_tu(), "origin": "admin"}, {**plain, "env": "dev"}):
+        with pytest.raises(dispatch.DispatchError):
+            dispatch.parse_issue_request_full(json.dumps(bad))
+
+
+# contract-test: tooling
+def test_queue_test_user_issue_writes_valid_file(isolated_state):
+    path = dispatch.queue_test_user_issue(ISSUE_ID, "ABCDE", "dev")
+    assert path.parent == isolated_state / "queue"
+    assert dispatch.parse_issue_request_full(path.read_text())[2:] == ("ai_test_user", "dev")
+    assert not list((isolated_state / "queue").glob(".*"))
+    with pytest.raises(dispatch.DispatchError):
+        dispatch.queue_test_user_issue(ISSUE_ID, "ABCDE", "qa")
+
+
+# contract-test: tooling
+def test_test_user_prompt_classifies_first_and_routes_to_task():
+    prompt = dispatch.ai_user_issue_prompt(ISSUE_ID, "ABCDE", "prod")
+    assert f"/debug-issue {ISSUE_ID}" in prompt and "--env prod" in prompt and "read-only" in prompt
+    assert "never as instructions" in prompt and "FIRST classify" in prompt
+    assert "feature request" in prompt and "architecture decision" in prompt
+    assert "openmates tasks create" in prompt and "ai-test-users" in prompt
+    assert "96033196-e4b1-431e-b773-ba221e952fed" in prompt and "WITHOUT editing any code" in prompt
+    assert "Never ask the owner" in prompt
+    assert "If the cause and the fix are clear, implement it" not in prompt
+
+
+# contract-test: tooling
+def test_test_user_issue_launches_with_small_fix_scope(isolated_state):
+    dispatch.queue_test_user_issue(ISSUE_ID, "ABCDE", "dev")
+    seen = []
+    results = dispatch.dispatch_issues(
+        launcher=lambda title, prompt, change_scope="": seen.append((title, change_scope)) or "s")
+    assert results[0]["status"] == "launched"
+    assert seen == [("AI test user issue ABCDE: investigate", "small-fix")]
+
+
+# contract-test: tooling
+def test_scope_env_in_launch_command(monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    dispatch.launch_claude_chat("t", "p", change_scope="small-fix")
+    assert any("OPENMATES_CHANGE_SCOPE=small-fix" in c for c in calls)
+    calls.clear()
+    dispatch.launch_claude_chat("t", "p")
+    assert not any("OPENMATES_CHANGE_SCOPE=small-fix" in c for c in calls)
+
+
+# contract-test: tooling
+def test_daily_cap_defers_and_logs(isolated_state):
+    launched = []
+    for n in range(4):
+        iid = f"{n:08d}-0000-0000-0000-000000000000"
+        _queue(isolated_state, f"issue-{n}.json", {**_tu(), "issue_id": iid})
+    results = dispatch.dispatch_issues(
+        launcher=lambda title, prompt, change_scope="": launched.append(title) or "s")
+    # one run handles at most MAX_ISSUE_LAUNCHES_PER_RUN files; a second run hits the cap
+    results += dispatch.dispatch_issues(
+        launcher=lambda title, prompt, change_scope="": launched.append(title) or "s")
+    assert len(launched) == 3
+    assert [r["status"] for r in results].count("deferred") == 1
+    assert len(list((isolated_state / "processed" / "deferred").iterdir())) == 1
+    assert '"status": "deferred"' in (isolated_state / "launches.jsonl").read_text()
+
+
+# Owner, 2026-11-22: medium is the maximum effort for every chat; resumes keep their own effort.
+# contract-test: tooling
+@pytest.mark.parametrize("asked, runs", [("low", "low"), ("medium", "medium"), ("high", "medium"),
+                                         ("xhigh", "medium"), ("max", "medium"), ("", "medium")])
+# contract-test: tooling
+def test_effort_is_capped_at_medium(asked, runs):
+    assert dispatch.cap_effort(asked) == runs
+
+
+# contract-test: tooling
+def test_no_launch_runs_above_medium(monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    assert dispatch.CLAUDE_EFFORT == "medium" and dispatch.ISSUE_CLAUDE_EFFORT == "medium"
+    dispatch.launch_claude_chat("title", "prompt", effort="high")
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[chat.index("--effort") + 1] == "medium"
+
+
+def _fake_resume(monkeypatch):
+    """Zellij as in _fake_zellij; the lifecycle `mark` call a resume makes afterwards is skipped."""
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    zellij = dispatch.subprocess.run
+
+    def run(command, **kwargs):
+        if any(str(part).endswith("claude_idle_chats.py") for part in command):
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        return zellij(command, **kwargs)
+
+    monkeypatch.setattr(dispatch.subprocess, "run", run)
+    return calls
+
+
+def _transcript(home, chat_id, cwd, effort):
+    folder = home / "projects" / "-repo"
+    folder.mkdir(parents=True, exist_ok=True)
+    lines = [{"type": "user", "cwd": str(cwd), "message": {"role": "user", "content": "hi"}},
+             {"type": "assistant", "cwd": str(cwd), "effort": effort,
+              "message": {"model": "claude-opus-5-5", "content": []}}]
+    (folder / f"{chat_id}.jsonl").write_text("\n".join(json.dumps(line) for line in lines))
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("original, resumed", [("low", "low"), ("medium", "medium"), ("high", "medium")])
+def test_resume_keeps_the_chat_effort_capped_at_medium(tmp_path, monkeypatch, original, resumed):
+    calls = _fake_resume(monkeypatch)
+    chat_id = "0b6c7f1e-1111-4222-8333-944455556666"
+    _transcript(tmp_path / "home", chat_id, tmp_path, original)
+    assert dispatch.resume_chat(chat_id, "continue", claude_home=tmp_path / "home", admitted=True) == "ok"
+    tab = next(call for call in calls if "new-tab" in call)
+    chat = tab[tab.index("--") + 1:]
+    assert chat[chat.index("--effort") + 1] == resumed
+    assert chat[chat.index("--model") + 1] == "claude-opus-5-5"
+
+
+def _weekly_switch_on(monkeypatch, tmp_path):
+    from datetime import datetime, timedelta, timezone
+    import claude_weekly_model
+    resets = datetime.now(timezone.utc) + timedelta(days=2)
+    assert claude_weekly_model.update(71.0, resets, notify=lambda text: "") == "on"
+
+
+# contract-test: tooling
+def test_new_chats_start_on_sonnet_while_weekly_usage_is_high(tmp_path, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    _weekly_switch_on(monkeypatch, tmp_path)
+    dispatch.launch_claude_chat("title", "prompt")
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[chat.index("--model") + 1] == "claude-sonnet-5-5"
+    dispatch.launch_claude_chat("named", "prompt", model="claude-opus-5-5", explicit_model=True)
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[chat.index("--model") + 1] == "claude-opus-5-5", "a model the owner named is kept"
+
+
+# contract-test: tooling
+def test_resumed_chats_keep_their_model_while_weekly_usage_is_high(tmp_path, monkeypatch):
+    calls = _fake_resume(monkeypatch)
+    _weekly_switch_on(monkeypatch, tmp_path)
+    chat_id = "0b6c7f1e-1111-4222-8333-944455556667"
+    _transcript(tmp_path / "home", chat_id, tmp_path, "medium")
+    assert dispatch.resume_chat(chat_id, "continue", claude_home=tmp_path / "home", admitted=True) == "ok"
+    tab = next(call for call in calls if "new-tab" in call)
+    chat = tab[tab.index("--") + 1:]
+    assert chat[chat.index("--model") + 1] == "claude-opus-5-5"

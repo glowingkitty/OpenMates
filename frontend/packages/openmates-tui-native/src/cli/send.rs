@@ -36,6 +36,7 @@ struct Presentation {
     approve_subchats: bool,
     approve_memories: bool,
     ephemeral: bool,
+    e2b_answers: Option<mpsc::UnboundedSender<(String, openmates_sdk::client::E2bConsentChoice)>>,
 }
 impl Presentation {
     fn content(&mut self, current: &str, writer: &mut impl Write) {
@@ -107,6 +108,13 @@ impl Presentation {
                 };
                 let _ = writeln!(stderr, "{message}").and_then(|()| stderr.flush());
             }
+            StreamUpdate::Status(status)
+                if status.starts_with(openmates_sdk::client::E2B_CONSENT_STATUS_PREFIX) =>
+            {
+                if let Some(answers) = &self.e2b_answers {
+                    super::e2b_consent_cmd::prompt(&status, answers);
+                }
+            }
             StreamUpdate::Status(status) => {
                 let _ =
                     writeln!(stderr, "{}", terminal_text(&status)).and_then(|()| stderr.flush());
@@ -122,8 +130,16 @@ impl Presentation {
         }
         // The server explicitly refused the durable preflight: nothing was
         // admitted, so this is not an uncertain turn needing recovery.
-        if matches!(error, Error::Unavailable { code: "chat_turn_rejected", .. })
-            && !self.pending.as_ref().is_some_and(|(_, _, admitted)| *admitted)
+        if matches!(
+            error,
+            Error::Unavailable {
+                code: "chat_turn_rejected",
+                ..
+            }
+        ) && !self
+            .pending
+            .as_ref()
+            .is_some_and(|(_, _, admitted)| *admitted)
         {
             return CliError::Contract {
                 code: "chat_turn_rejected",
@@ -232,7 +248,11 @@ impl Presentation {
             SendStatus::WaitingForUser => output.stderr = "OpenMates needs more input to continue. Rerun with --json to inspect the structured waiting state.\n".into(),
             SendStatus::Completed=>{},
         }
-        if outcome.project_creations.iter().any(|card| card["status"] == "confirmation_required") {
+        if outcome
+            .project_creations
+            .iter()
+            .any(|card| card["status"] == "confirmation_required")
+        {
             output.stderr.push_str(super::send_machine::HINT);
         }
         Ok(output)
@@ -289,6 +309,7 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         "team",
         "auto-approve",
         "auto-approve-memories",
+        "allow-e2b-upload",
         "no-task-update-jobs",
         "slug",
         "response-timeout-seconds",
@@ -361,6 +382,11 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
             SendConsentPolicy::ApproveRequested
         } else {
             SendConsentPolicy::Reject
+        },
+        e2b_consent: if invocation.boolean("allow-e2b-upload") {
+            openmates_sdk::client::E2bConsentPolicy::Approve
+        } else {
+            openmates_sdk::client::E2bConsentPolicy::Caller
         },
         ..SendOptions::default()
     };
@@ -443,9 +469,23 @@ async fn send_with_writers_mode(
     stdout: &mut impl Write,
     stderr: &mut impl Write,
 ) -> Result<CliOutput, CliError> {
-    observe_with_writers_mode(invocation, client, anonymous_id, cancel, stdout, stderr)
-        .await?
-        .finish(invocation.boolean("json"), stdout)
+    let observed =
+        match observe_with_writers_mode(invocation, client, anonymous_id, cancel, stdout, stderr)
+            .await
+        {
+            Ok(observed) => observed,
+            Err(error) => {
+                return match super::e2b_consent_cmd::refusal_output(&error) {
+                    Some(output) => Ok(output),
+                    None => Err(error),
+                };
+            }
+        };
+    let json = invocation.boolean("json");
+    if let Some(output) = super::e2b_consent_cmd::settle(&observed.outcome) {
+        return Ok(output);
+    }
+    observed.finish(json, stdout)
 }
 pub(super) async fn observe_saved(
     invocation: &Invocation,
@@ -518,7 +558,10 @@ async fn observe_with_writers_mode(
             questions::answer(&parse("question-json")?, &parse("answer-json")?)
         })();
         answered.map_err(|error| match error {
-            CliError::Invalid(message) => CliError::Contract { code: "invalid_argument", message },
+            CliError::Invalid(message) => CliError::Contract {
+                code: "invalid_argument",
+                message,
+            },
             other => other,
         })?
     } else {
@@ -557,6 +600,7 @@ async fn observe_with_writers_mode(
     let (tx, mut updates) = mpsc::channel(64);
     let (consent, receiver) = mpsc::unbounded_channel();
     client.set_consent_receiver(receiver);
+    let e2b_answers = super::e2b_consent_cmd::attach(client, invocation);
     let operation = async {
         match anonymous_id {
             Some(id) => {
@@ -576,6 +620,7 @@ async fn observe_with_writers_mode(
         approve_subchats: invocation.boolean("auto-approve"),
         approve_memories: invocation.boolean("auto-approve-memories"),
         ephemeral,
+        e2b_answers,
         ..Default::default()
     };
     let mut updates_open = true;
@@ -610,7 +655,10 @@ pub(crate) fn unresolved_mentions_message(
         if index > 0 {
             message.push_str("\nError: ");
         }
-        message.push_str(&format!("Unknown mention {}", terminal_text(&mention.original)));
+        message.push_str(&format!(
+            "Unknown mention {}",
+            terminal_text(&mention.original)
+        ));
         if !mention.suggestions.is_empty() {
             message.push_str(&format!(
                 "\n  Did you mean: {}?",
@@ -630,8 +678,14 @@ mod tests {
         use openmates_sdk::mentions::UnresolvedMention;
         assert!(unresolved_mentions_message(&[]).is_none());
         let message = unresolved_mentions_message(&[
-            UnresolvedMention { original: "@Sophie".into(), suggestions: vec!["@Sophia".into()] },
-            UnresolvedMention { original: "@Nope".into(), suggestions: vec![] },
+            UnresolvedMention {
+                original: "@Sophie".into(),
+                suggestions: vec!["@Sophia".into()],
+            },
+            UnresolvedMention {
+                original: "@Nope".into(),
+                suggestions: vec![],
+            },
         ])
         .unwrap();
         assert!(message.starts_with("Unknown mention @Sophie\n  Did you mean: @Sophia?"));
@@ -702,10 +756,13 @@ mod tests {
                     Err(CliError::Invalid(_))
                 ));
                 assert_eq!(
-                    options(&parse(&["--project", "11111111-1111-4111-8111-11111111111A"]), false)
-                        .unwrap_or_else(|e| panic!("{e}"))
-                        .project_id
-                        .as_deref(),
+                    options(
+                        &parse(&["--project", "11111111-1111-4111-8111-11111111111A"]),
+                        false
+                    )
+                    .unwrap_or_else(|e| panic!("{e}"))
+                    .project_id
+                    .as_deref(),
                     Some("11111111-1111-4111-8111-11111111111a")
                 );
                 // Anonymous new/send share options(), but cannot silently
@@ -932,7 +989,10 @@ mod tests {
                 .incognito
         );
         assert!(matches!(
-            options(&invocation(&[("accept-task-proposals", json!(true))]), false),
+            options(
+                &invocation(&[("accept-task-proposals", json!(true))]),
+                false
+            ),
             Err(CliError::Unsupported { .. })
         ));
         assert!(options(&invocation(&[("project", json!(true))]), false).is_err());
@@ -1112,7 +1172,10 @@ mod tests {
         .await;
         assert!(matches!(
             result,
-            Err(CliError::Contract { code: "invalid_argument", .. })
+            Err(CliError::Contract {
+                code: "invalid_argument",
+                ..
+            })
         ));
         assert!(out.bytes.is_empty() && err.bytes.is_empty());
     }
@@ -1189,14 +1252,23 @@ mod tests {
     }
     #[test]
     fn rejected_preflight_is_a_specific_error_not_turn_recovery() {
-        let rejected = Error::Unavailable { code: "chat_turn_rejected", reason: "SERVER_REJECTED_TURN_BEFORE_ADMISSION" };
-        let submitted = Presentation { pending: Some(("chat".into(), "human".into(), false)), ..Default::default() };
+        let rejected = Error::Unavailable {
+            code: "chat_turn_rejected",
+            reason: "SERVER_REJECTED_TURN_BEFORE_ADMISSION",
+        };
+        let submitted = Presentation {
+            pending: Some(("chat".into(), "human".into(), false)),
+            ..Default::default()
+        };
         let error = submitted.failure(rejected);
         assert_eq!(error.code(), "chat_turn_rejected");
         assert_eq!(error.exit_code(), 1);
         assert!(error.to_string().contains("nothing was admitted"));
         // An acknowledged turn keeps the recovery guidance.
-        let admitted = Presentation { pending: Some(("chat".into(), "human".into(), true)), ..Default::default() };
+        let admitted = Presentation {
+            pending: Some(("chat".into(), "human".into(), true)),
+            ..Default::default()
+        };
         assert_eq!(admitted.failure(rejected).code(), "turn_recovery_required");
     }
     #[test]

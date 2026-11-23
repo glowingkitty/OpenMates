@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.daily-inspiration@2
+specification: feature.daily-inspiration@3
 source_transitions:
 - id: authenticated-cold-boot-seeds-fallback
   given:
@@ -60,8 +60,8 @@ guest_isolation:
 - id: guest-public-defaults-and-fallback
   given: Sam is signed out and opens a new chat.
   when: Public Daily Inspirations arrive, or the request fails.
-  then: Sam sees regular public-safe inspirations; failure shows ten static cards with three videos, three
-    wiki items and four features. No promotional intro or signup slide appears.
+  then: Sam sees regular public-safe inspirations as cards in the start row between the example chats;
+    failure uses six static records with three videos and three wiki items. No promotional intro, signup slide or feature tip appears.
 - id: guest-auth-transition
   given: Sam is viewing guest inspirations and signs in while a guest request is still pending.
   when: The late guest response arrives and Sam later signs out.
@@ -72,14 +72,13 @@ fallback_sets:
   given:
     source: authenticated-fallback
   expect:
-    count: 10
+    count: 6
     content_mix:
       video: 3
       wiki: 3
-      feature: 4
     excludes_ids:
     - openmates-signup-cta
-    feature_cards_have_settings_paths: true
+    feature_tips: none
 public_defaults:
 - id: public-defaults-contract
   given:
@@ -89,10 +88,10 @@ public_defaults:
     effective_lang: en
     rate_limit: 60/minute
     cache_ttl_seconds: 3600
-    max_count: 10
+    max_count: 6
     cleartext_public_content_only: true
     excludes_guest_onboarding_features: true
-    excludes_authenticated_only_features: true
+    excludes_feature_records: true
 - id: public-defaults-fallback-order
   given:
     today_defaults: absent
@@ -100,7 +99,6 @@ public_defaults:
   expect:
     fallback_sources:
     - static_wiki
-    - static_public_features
     deterministic_shuffle_seed: date_and_language
 encrypted_persistence:
 - id: indexeddb-encrypts-content
@@ -135,6 +133,26 @@ encrypted_persistence:
     get_limit: 10
     incomplete_legacy_set_returns_empty: true
 opened_state:
+- id: opened-inspiration-unsaved-until-follow-up
+  given:
+    source: personalized
+    action: open inspiration daily-1, then leave without sending
+  expect:
+    assistant_message_shown: true
+    chat_key_created: false
+    local_chat_record: false
+    server_sync_sent: false
+    opened_state_recorded: false
+    still_in_start_row: true
+- id: first-follow-up-saves-inspiration-chat
+  given:
+    source: personalized
+    action: open inspiration daily-1, then send a follow-up message
+  expect:
+    saved_encrypted_chat_in_chat_list: true
+    message_history: [inspiration assistant message, follow-up, answer]
+    opened_state_recorded_with_chat_id: true
+    still_in_start_row: false
 - id: opened-card-remains-visible
   given:
     source: personalized
@@ -164,3 +182,41 @@ apple_startup_offline:
   given: The user previously loaded personalized inspirations on this device yesterday, remains in the same account, server and team, and is now offline.
   when: The user restarts the Apple app and opens its welcome screen.
   then: The gradient appears immediately while the encrypted cache unlocks, then the retained inspirations appear without needing a network connection or changing banner space. They remain available until 72 hours after generation and disappear on expiry or a context change.
+
+start_row:
+- id: start-row-returning-user
+  assertion_ids: [daily-inspiration.start-row-rhythm, daily-inspiration.start-row-cards]
+  given: Alex is signed in, has twelve chats and today's set holds three unopened videos and three unopened articles.
+  when: Alex opens the Chats start screen on a laptop.
+  then: No banner appears. The row shows ten large cards in the order chat, chat, inspiration, chat, chat,
+    chat, inspiration, chat, chat, chat, then the "Show all chats" and "Search" actions as its last item;
+    each inspiration card shows its image and a small "Daily inspiration" label. "Show all" opens only
+    Alex's chats.
+- id: start-row-signed-out
+  assertion_ids: [daily-inspiration.start-row-rhythm, daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions]
+  given: Sam is signed out and opens openmates.org on a tablet.
+  when: The Chats start screen loads.
+  then: There is no banner. "Hey there" and one short call to action sit above a row of example chats with
+    inspirations interleaved, ending with "Select interests" and "Show all examples"; the next OpenMates
+    event sits as one compact entry below the row, and three suggested prompts sit directly above the
+    message input.
+- id: start-row-suggestion-fills-composer
+  assertion_ids: [daily-inspiration.start-row-suggestions]
+  given: Alex is signed in and has synced new-chat suggestions.
+  when: Alex taps the first suggestion above the message input.
+  then: The newest suggestion is placed in the composer, ready to send.
+- id: start-row-new-user
+  assertion_ids: [daily-inspiration.start-row-rhythm]
+  given: Robin signed up a minute ago and has no chats.
+  when: Robin opens the Chats start screen on a phone.
+  then: The row shows the unopened inspirations as large cards, one card wide with the next one peeking.
+- id: start-row-opens-inspiration
+  assertion_ids: [daily-inspiration.start-row-cards]
+  given: Alex sees the article card "The bridge that sings in the wind" in the row.
+  when: Alex taps it.
+  then: A new chat starts from that inspiration, the card counts as opened and no longer appears in the row.
+- id: workflows-row-without-recommendations
+  assertion_ids: [daily-inspiration.workflow-recommendation-hook]
+  given: Alex has four workflows and no recommended-workflow records exist.
+  when: Alex opens the Workflows start screen.
+  then: No banner and no generic workflow tip appear; the row shows Alex's four workflows as large cards.

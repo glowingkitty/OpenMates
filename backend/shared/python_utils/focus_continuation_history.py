@@ -200,6 +200,9 @@ async def publish_current_focus_continuation_failure(
 
 
 FOCUS_AUTHORITY_TTL = 600
+# Focus timers (auto-confirm, pause watchdog) run on the short stage-one lane: on
+# app_ai they waited behind full AI turns and fired after the activation expired.
+FOCUS_TIMER_QUEUE = "app_ai_routing"
 
 
 def focus_authority_root(request, execution_id: str) -> str:
@@ -278,7 +281,8 @@ async def retain_focus_authority(cache, request, task_id: str, skill_config: dic
     from backend.apps.ai.tasks.focus_mode_auto_confirm_task import expire_focus_authority
     expire_focus_authority.apply_async(kwargs={'request_envelope': envelope, 'root_id': root_id,
                                                'skill_config_dict': skill_config, 'pause_task_id': task_id}, countdown=35,
-                                      queue='app_ai', exchange='app_ai', routing_key='app_ai')
+                                      queue=FOCUS_TIMER_QUEUE, exchange=FOCUS_TIMER_QUEUE,
+                                      routing_key=FOCUS_TIMER_QUEUE)
 
 
 async def expire_pending_focus_authority(cache, request, root_id: str, skill_config: dict, pause_task_id: str | None = None) -> bool:
@@ -369,5 +373,18 @@ async def prepare_focus_continuation_authority(cache, pending_context: dict, req
                              ttl=FOCUS_AUTHORITY_TTL)
     if stored is False:
         raise RuntimeError("Focus continuation authority mapping could not be stored")
+    # The accepted continuation may wait in the AI queue; once dispatched, the
+    # pause watchdog must no longer treat it as never started.
+    client = await cache.client
+    marked = await client.eval(
+        "local phase = redis.call('GET',KEYS[1]); "
+        "if phase == 'expired' then return -1 end "
+        "if phase and string.sub(phase,1,8) == 'pending:' then "
+        "redis.call('SET',KEYS[1],ARGV[1],'EX',ARGV[2]); return 1 end return 0", 1,
+        focus_authority_phase_key(request.user_id, request.chat_id, root_id),
+        f"dispatched:{child_id}", FOCUS_AUTHORITY_TTL,
+    )
+    if marked == -1:
+        raise RuntimeError("Focus activation expired before its continuation was dispatched")
     return child_id
 

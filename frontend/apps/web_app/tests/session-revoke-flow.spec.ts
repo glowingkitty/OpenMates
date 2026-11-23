@@ -364,7 +364,8 @@ test('session revoke: revoking session B from session A does not log out session
 		// Session B's chatSyncService handler calls logout() and redirects
 		// to the login screen (Login / Sign up button appears).
 		const loginBtnB = pageB.getByTestId('header-login-signup-btn');
-		const guestBannerB = pageB.getByTestId('daily-inspiration-banner').first();
+		const guestBannerB = pageB.getByTestId('recent-chats-scroll-container');
+		const guestInspirationCardsB = guestBannerB.getByTestId('start-row-inspiration-card');
 		await proof.action('session-a-revoke-session-b', async () => {
 			await revokeBtn.click();
 			logA("Session A: clicked Remove on Session B's session card.");
@@ -377,11 +378,13 @@ test('session revoke: revoking session B from session A does not log out session
 		await expect.poll(() => forceLogoutEventsSiblingB.length, { timeout: 15000 }).toBeGreaterThan(0);
 		await proof.assert('daily-inspiration.guest-isolated-after-force-logout', async () => {
 			await expect(guestBannerB).toBeVisible({ timeout: 5000 });
-			await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
+			await expect(pageB.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+			await expect(guestInspirationCardsB.first()).toBeVisible({ timeout: 10000 });
 			await expect(pageB.getByTestId('landing-intro-expanded')).toHaveCount(0);
 			await expect(pageB.getByTestId('guest-slide-content')).toHaveCount(0);
-			const visibleIds = await guestBannerB.getAttribute('data-visible-inspiration-ids');
-			const ids = (visibleIds || '').split(',').filter(Boolean);
+			const ids: string[] = await guestInspirationCardsB.evaluateAll((nodes: Element[]) =>
+				nodes.map((node) => node.getAttribute('data-inspiration-id') || '').filter(Boolean)
+			);
 			expect(ids.length, 'guest welcome has public-safe inspirations').toBeGreaterThan(0);
 			expect(ids.length).toBeLessThanOrEqual(10);
 			expect(ids.every((id: string) => !RETIRED_GUEST_STORY_IDS.has(id))).toBe(true);

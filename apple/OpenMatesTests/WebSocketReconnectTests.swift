@@ -225,6 +225,67 @@ final class WebSocketReconnectTests: XCTestCase {
         manager.disconnect()
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testRetryRefusedForMissingAuthorityReportsDisconnectedAndReopensWhenAuthorityReturns() async {
+        // TASK-1410: the retry's recovery returned credentials, but the
+        // network authority was gone, so connect() refused. The state must
+        // not sit in reconnecting, and the next admission must reopen it.
+        let auth = AuthManager(profileCacheWriter: { _ in }, sessionScopeActivator: { _ in })
+        XCTAssertFalse(auth.hasNetworkAuthority)
+        let manager = WebSocketManager()
+        manager.debugReconnectDelay = 0
+        var attempts = 0
+        manager.debugConnectionAttempt = { attempts += 1 }
+        let recovered = expectation(description: "retry asks for fresh credentials")
+        manager.configureSessionRecovery {
+            recovered.fulfill()
+            return .authenticated(sessionID: "synthetic-session", token: "rotated-token")
+        }
+        manager.connect(sessionId: "synthetic-session", token: "initial-token")
+        XCTAssertEqual(attempts, 1)
+        // From here on only real network authority admits an attempt.
+        manager.debugConnectionAttempt = nil
+        manager.debugFailCurrentConnection()
+        XCTAssertEqual(manager.connectionState, .reconnecting(attempt: 1))
+        await fulfillment(of: [recovered], timeout: 1)
+        for _ in 0..<200 where manager.connectionState != .disconnected { await Task.yield() }
+        XCTAssertEqual(manager.connectionState, .disconnected, "A refused attempt must not sit in reconnecting")
+        XCTAssertEqual(attempts, 1)
+
+        // The returning authority reconnects with the same logical session.
+        manager.debugConnectionAttempt = { attempts += 1 }
+        manager.connect(sessionId: "synthetic-session", token: "rotated-token")
+        XCTAssertEqual(manager.connectionState, .connecting)
+        XCTAssertEqual(attempts, 2)
+        manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,sync.surface.semantic-parity
+    func testForegroundOrNewAdmissionRearmsAnExhaustedSession() async {
+        let manager = WebSocketManager()
+        manager.debugReconnectDelay = 0
+        var attempts = 0
+        var nextAttempt: XCTestExpectation?
+        manager.debugConnectionAttempt = { attempts += 1; nextAttempt?.fulfill() }
+        manager.connect(sessionId: "synthetic-session", token: "initial-token")
+        for attempt in 1...10 {
+            nextAttempt = expectation(description: "bounded retry \(attempt)")
+            manager.debugFailCurrentConnection()
+            await fulfillment(of: [nextAttempt!], timeout: 1)
+        }
+        nextAttempt = nil
+        manager.debugFailCurrentConnection()
+        XCTAssertEqual(manager.connectionState, .disconnected)
+        manager.connect(sessionId: "synthetic-session", token: "initial-token")
+        XCTAssertEqual(manager.connectionState, .disconnected, "Callbacks alone never re-arm")
+        XCTAssertEqual(attempts, 11)
+        manager.admitFreshRetryBudget()
+        manager.connect(sessionId: "synthetic-session", token: "initial-token")
+        XCTAssertEqual(manager.connectionState, .connecting)
+        XCTAssertEqual(attempts, 12)
+        manager.disconnect()
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testExplicitDisconnectCancelsDelayedRetry() async {
         let manager = WebSocketManager()

@@ -32,6 +32,8 @@ class CreateSkill(BaseSkill):
         self,
         name: str,
         description: str | None = None,
+        icon: str | None = None,
+        category: str | None = None,
         user_id: str | None = None,
         team_id: str | None = None,
         chat_id: str | None = None,
@@ -60,11 +62,13 @@ class CreateSkill(BaseSkill):
             from backend.core.api.app.services.project_create_request_service import (
                 build_project_create_action, new_project_create_request_id,
             )
+            from backend.core.api.app.services.project_presentation_rules import normalize_description
             return CreateProjectResponse(
                 success=True,
                 pending_client_action=build_project_create_action(
                     request_id=new_project_create_request_id(), name=project_name,
-                    description=str(description or ""), chat_id=chat_id, message_id=message_id,
+                    description=normalize_description(description), icon=str(icon or ""),
+                    category=str(category or ""), chat_id=chat_id, message_id=message_id,
                     team_id=team_id, origin="skill",
                 ),
             )

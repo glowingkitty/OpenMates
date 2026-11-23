@@ -620,17 +620,16 @@ async def test_stop_application_preview_sandbox_charges_usage_once(monkeypatch) 
 
     charged = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
     assert charges[0]["session_id"] == "session-1"
-    assert charges[0]["credits"] == 6
+    assert charges[0]["credits"] == 4
     assert charges[0]["usage_details"] == {
         "billing_phase": "stopped",
         "duration_seconds": 61.0,
-        "charged_minutes": 2,
-        "total_charged_minutes": 2,
+        "charged_seconds": 61.0,
     }
     assert charges[0]["session"]["viewer_user_id"] == "alice-user"
     assert charges[0]["session"]["usage_context"] == {"chat_id": "chat-1", "application_embed_id": "app-embed-1"}
-    assert charged["billing_state"]["charged_credits"] == 6
-    assert charged["billing_state"]["charged_minutes"] == 2
+    assert charged["billing_state"]["charged_credits"] == 4
+    assert charged["billing_state"]["charged_seconds"] == 61.0
 
     await worker.stop_application_preview_sandbox(
         cache_service=cache,
@@ -678,7 +677,7 @@ async def test_charge_preview_credits_posts_internal_billing_payload(monkeypatch
         },
         session_id="session-1",
         credits=10,
-        usage_details={"billing_phase": "stopped", "duration_seconds": 61.0, "charged_minutes": 2},
+        usage_details={"billing_phase": "stopped", "duration_seconds": 61.0, "charged_seconds": 61.0},
     )
 
     assert requests[0]["headers"]["Content-Type"] == "application/json"
@@ -700,10 +699,10 @@ async def test_charge_preview_credits_posts_internal_billing_payload(monkeypatch
                     "preview_session_id": "session-1",
                     "application_embed_id": "app-embed-1",
                     "chat_id": "chat-1",
-                    "credits_per_minute": 3,
+                    "credits_per_second": "0.05",
                     "billing_phase": "stopped",
                     "duration_seconds": 61.0,
-                    "charged_minutes": 2,
+                    "charged_seconds": 61.0,
                 },
                 "api_key_hash": None,
                 "device_hash": None,

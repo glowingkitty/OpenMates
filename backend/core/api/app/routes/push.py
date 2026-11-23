@@ -14,6 +14,7 @@ The `push_notification_enabled` flag is set to True/False accordingly.
 See docs/architecture/notifications.md for the full notification flow.
 """
 
+import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, StrictBool
@@ -59,6 +60,12 @@ class PushVapidKeyResponse(BaseModel):
 class PushSubscribeResponse(BaseModel):
     success: bool
     message: str
+
+
+class PushPreferencesRequest(BaseModel):
+    """Per-channel push content switches; send one or both. Nothing else is writable."""
+    includeChatTitle: Optional[StrictBool] = None
+    includePreview: Optional[StrictBool] = None
 
 
 class NativeDeviceRegisterResponse(PushSubscribeResponse):
@@ -226,6 +233,39 @@ async def unregister_native_device(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch("/preferences", response_model=PushSubscribeResponse, dependencies=[Depends(verify_auth_client)])
+async def update_push_preferences(
+    body: PushPreferencesRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Save the push content switches: `includeChatTitle` (summary title and chat title,
+    default on) and `includePreview` (first lines of the answer, default off).
+
+    API surface: first-party client only (session auth); carries booleans and no
+    chat content. Titles and summaries never reach this route or storage.
+    """
+    changes = {key: value for key, value in body.model_dump().items() if value is not None}
+    if not changes:
+        raise HTTPException(status_code=422, detail="No push preference supplied")
+    user_id = str(current_user.id)
+    row = await directus_service.get_user_fields_direct(user_id, ["push_notification_preferences"], no_cache=True)
+    current = row.get("push_notification_preferences") if isinstance(row, dict) else None
+    if isinstance(current, str):
+        try:
+            current = json.loads(current)
+        except ValueError:
+            current = None
+    preferences = {**(current if isinstance(current, dict) else {}), **changes}
+    if not await directus_service.update_user(user_id, {"push_notification_preferences": preferences}):
+        raise HTTPException(status_code=500, detail="Failed to save push preferences")
+    # Notification updates must not invalidate authenticated sessions or chat caches.
+    await cache_service.update_user(user_id, {"push_notification_preferences": preferences})
+    return PushSubscribeResponse(success=True, message="Preferences saved")
 
 
 @router.delete("/subscribe", response_model=PushSubscribeResponse)

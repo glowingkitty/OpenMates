@@ -41,7 +41,7 @@ def test_manifest_marks_costly_real_inference_specs_manual_expensive():
     manifest = policy.load_manifest()
 
     assert manifest["specs"]["deep-research-real-inference.spec.ts"]["classification"] == policy.MANUAL_EXPENSIVE
-    assert manifest["specs"]["sub-chats-real-inference.spec.ts"]["classification"] == policy.MANUAL_EXPENSIVE
+    assert manifest["specs"]["real-inference-sub-chats.spec.ts"]["classification"] == policy.MANUAL_EXPENSIVE
     assert manifest["specs"]["application-preview-share.spec.ts"]["classification"] == policy.BACKFILL_PENDING
     assert manifest["daily_canaries"]["fixed"] == ["daily-ai-fixed-canary.spec.ts"]
     assert manifest["daily_canaries"]["rotating"] == ["daily-ai-rotating-canary.spec.ts"]

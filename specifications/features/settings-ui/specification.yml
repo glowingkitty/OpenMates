@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.settings-ui
 version: 1
-status: draft
+status: approved
 title: Settings UI
 summary: >
   First-party web and Apple settings provide a localized, accessible, role-aware
@@ -130,6 +130,10 @@ assertions:
     type: behavior
     must: Cloud settings expose Imprint, Privacy, and Terms; normal app use opens their first-party legal chats, login or signup opens their external legal pages safely, and self-hosted settings omit the Legal group.
     depends_on: [models.SettingsFooter, examples.footer]
+  - id: settings-ui.overlay.eased-motion
+    type: behavior
+    must: On small screens where the settings menu is an overlay it slides in from the inline-end edge and out again with the same ease-in-out curve and duration as the chat sidebar, over a dim backdrop that fades with it and closes the menu when tapped; the close button sits exactly where the button that opened the menu was, and reduced-motion preferences remove the animation.
+    depends_on: [models.SettingsShell, examples.overlay_motion]
   - id: settings-ui.parity.web-apple-shell
     type: parity
     must: Apple exposes reachable native equivalents for the web base settings route inventory and preserves equivalent shell navigation and canonical OpenMates presentation without stock Form/List chrome or browser fallback for native settings operations.
@@ -165,4 +169,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [shell_navigation, visibility, composition, localization, footer, apple_parity]
+  required_groups: [shell_navigation, visibility, composition, localization, footer, overlay_motion, apple_parity]

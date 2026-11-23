@@ -231,6 +231,8 @@ class WebSocketService extends EventTarget {
   private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
   private readonly ownedEmbedProtocolRequests = new Map<string, MessageHandler>();
+  /** Turn ids whose caller reports the outcome itself (see ownTurnErrors). */
+  private readonly ownedTurnErrors = new Map<string, number>();
   private earlyMessagesByType: Map<string, unknown[]> = new Map();
   private phasedSyncHandlerQueue: Promise<void> = Promise.resolve();
   private connectionPromise: Promise<void> | null = null;
@@ -478,11 +480,40 @@ class WebSocketService extends EventTarget {
     };
   }
 
+  /**
+   * A caller that reports a turn's outcome itself (a voice call retries a
+   * rejected spoken turn and ends the call only when every attempt failed)
+   * owns that turn's error frames, so they are not also shown as a
+   * "Server error" notification. Returns the release function.
+   */
+  public ownTurnErrors(turnId: string): () => void {
+    this.ownedTurnErrors.set(turnId, (this.ownedTurnErrors.get(turnId) ?? 0) + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const owners = (this.ownedTurnErrors.get(turnId) ?? 1) - 1;
+      if (owners > 0) this.ownedTurnErrors.set(turnId, owners);
+      else this.ownedTurnErrors.delete(turnId);
+    };
+  }
+
   private registerDefaultErrorHandlers(): void {
     this.on("error", (payload: unknown) => {
+      if (isRecord(payload) && typeof payload.turn_id === "string" && this.ownedTurnErrors.has(payload.turn_id)) {
+        console.debug("[WebSocketService] Turn error handled by its owner:", payload.code);
+        return;
+      }
       if (isRecord(payload) && typeof payload.request_id === "string"
         && typeof payload.code === "string" && payload.code.startsWith("embed_")
         && this.messageHandlers.get("error")?.includes(this.ownedEmbedProtocolRequests.get(payload.request_id)!)) return;
+      // A refused or missing embed read (background preview hydration, recovery)
+      // is a missing embed, not a server failure: the embed shows its own state
+      // instead of a "Server error: Embed not found" notice (issue JP9NV).
+      if (isRecord(payload) && payload.code === "embed_not_found") {
+        console.warn("[WebSocketService] Embed read refused as not found:", payload.embed_id);
+        return;
+      }
       if (isRetryableRecoveryProtocolError(payload)) {
         console.debug(
           "[WebSocketService] Received retryable recovery protocol error:",

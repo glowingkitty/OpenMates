@@ -12,6 +12,7 @@ import { getApiEndpoint } from '../config/api';
 import { getActiveTeamContextSnapshot } from '../stores/teamStore';
 import { chatMetadataCache } from './chatMetadataCache';
 import { broadcastProjectFilesChanged } from './projectBrowserEvents';
+import { loadFirstMessageDisplayTitle } from './chatFirstMessageTitle';
 import { WorkspaceQueryCache, getWorkspaceCacheIdentity, WorkspaceCacheDiscardedError } from './workspaceQueryCache';
 import { listProjects, getProject, getProjectContents, addExistingTargetToProject, moveProjectItemToFolder, removeChatFromProject,
   createProject, createFolder, type ProjectViewModel } from './projectService';
@@ -44,7 +45,7 @@ export function invalidateChatProjectIndex(): void { indexCache.invalidate(); }
 
 async function chatName(chat: Chat): Promise<string> {
   const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
-  return metadata?.title || chat.title || 'Untitled chat';
+  return metadata?.title || chat.title || await loadFirstMessageDisplayTitle(chat.chat_id) || 'New chat';
 }
 
 /** Explicit user action submits only bounded titles, never transcripts or keys. */

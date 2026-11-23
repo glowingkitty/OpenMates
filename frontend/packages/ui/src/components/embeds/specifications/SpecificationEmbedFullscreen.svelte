@@ -12,6 +12,9 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '../../../i18n/translations';
   import SpecificationRevisionPanel from './SpecificationRevisionPanel.svelte';
+  import OpenChatButton from './OpenChatButton.svelte';
+  import LinkedTaskRows from './LinkedTaskRows.svelte';
+  import { findPlanAssumption, type SpecPlanLinks } from './specPlanLinks';
   import type { SpecificationDocument, SpecFlow, SpecCheckPreview } from './SpecificationDocument';
   import type { SpecificationApproval, SpecificationRevisionSummary } from './SpecificationRevision';
   interface Props {
@@ -34,8 +37,11 @@
     saveDisabled?: boolean;
     openProjectLabel?: string;
     onOpenProject?: () => void;
+    /** Plan created from this Specification: assumption checking state and Task chats. */
+    plan?: SpecPlanLinks;
+    onOpenChat?: (chatId: string) => void;
   }
-  let { draftNotice = '', saveLabel = '', onSaveToProject, saveStatus = null, saveDisabled = false, openProjectLabel = '', onOpenProject, document, revisions = [], currentRevisionId = '', viewedRevisionId, approval = { state: 'draft', approved_revision_id: null, approved_at: null }, onApprove, onSelectRevision, onClose }: Props = $props();
+  let { draftNotice = '', saveLabel = '', onSaveToProject, saveStatus = null, saveDisabled = false, openProjectLabel = '', onOpenProject, plan, onOpenChat = () => {}, document, revisions = [], currentRevisionId = '', viewedRevisionId, approval = { state: 'draft', approved_revision_id: null, approved_at: null }, onApprove, onSelectRevision, onClose }: Props = $props();
   let selectedFlow = $state<SpecFlow | null>(null);
   let selectedCheck = $state<SpecCheckPreview | null>(null);
   const requirements = $derived(new Map(document.requirements.map(item => [item.id, item])));
@@ -180,7 +186,20 @@
           <section aria-labelledby="spec-assumptions" class="major-section" data-testid="spec-assumptions">
             <h2 id="spec-assumptions">{@render icon('warning')}{$text('specifications.fullscreen.assumptions')}</h2>
             <p class="chapter-introduction">{$text('specifications.fullscreen.assumptions_hint')}</p>
-            <ul class="plain-list">{#each document.assumptions as item}<li data-testid="spec-assumption">{item}</li>{/each}</ul>
+            <ul class="plain-list">{#each document.assumptions as item}
+              {@const linked = findPlanAssumption(plan, item)}
+              <li data-testid="spec-assumption">{item}{#if linked}
+                <span class="assumption-state" data-testid="specification-assumption-status" data-status={linked.status}>{$text(`plan_embeds.status.assumption.${linked.status}`)}</span>
+                {#if linked.linkedSubChatId}{@const chatId = linked.linkedSubChatId}<OpenChatButton testId="specification-assumption-open-chat" label={$text('specifications.fullscreen.checking_chat')} onclick={() => onOpenChat(chatId)} />{/if}
+              {/if}</li>
+            {/each}</ul>
+          </section>
+        {/if}
+
+        {#if plan?.tasks.length}
+          <section aria-labelledby="spec-plan-tasks" class="major-section" data-testid="spec-plan-tasks">
+            <h2 id="spec-plan-tasks">{@render icon('files')}{$text('specifications.fullscreen.plan_tasks')}</h2>
+            <LinkedTaskRows tasks={plan.tasks} rowTestId="specification-task-row" buttonTestId="specification-task-open-chat" {onOpenChat} />
           </section>
         {/if}
 
@@ -352,4 +371,5 @@
     .applicability { gap: 7px 12px; font-size: var(--font-size-tiny); }
     .statement, .outcome { font-size: var(--font-size-p); }
   }
+  .assumption-state { margin-left: 8px; font-size: var(--font-size-xs); color: var(--color-font-secondary); font-weight: 650; }
 </style>

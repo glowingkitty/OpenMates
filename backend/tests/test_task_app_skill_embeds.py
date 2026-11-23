@@ -32,8 +32,10 @@ class FakeTaskStageService:
         status: str,
         position: int | None = None,
         link_to_chat: bool = True,
+        plan_id: str | None = None,
     ) -> dict[str, Any]:
         call = {
+            **({"plan_id": plan_id} if plan_id is not None else {}),
             "user_id": user_id,
             "chat_id": chat_id,
             "message_id": message_id,
@@ -158,3 +160,16 @@ async def test_native_creation_defaults_to_current_chat_and_accepts_explicit_unl
     assert response.success
     assert [call["link_to_chat"] for call in stage.calls] == [True, False]
     assert all(call["chat_id"] == "chat-1" for call in stage.calls), "Encryption delivery stays routed to the current chat"
+
+
+# contract-test: supporting surface=rest_api assertions=plans.assumptions.investigated-before-work
+@pytest.mark.anyio
+async def test_tasks_create_passes_plan_id_to_staging_and_result() -> None:
+    stage = FakeTaskStageService()
+    result = await _skill().execute(
+        tasks=[{"title": "Investigate pickup"}, {"title": "Other", "plan_id": "plan-b"}],
+        plan_id="plan-a", user_id="u1", chat_id="c1", message_id="m1", task_stage_service=stage,
+    )
+    assert result.success
+    assert [call["plan_id"] for call in stage.calls] == ["plan-a", "plan-b"]
+    assert [item["plan_id"] for item in result.results] == ["plan-a", "plan-b"]

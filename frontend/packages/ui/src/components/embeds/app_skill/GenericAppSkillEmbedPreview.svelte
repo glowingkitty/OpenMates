@@ -14,6 +14,7 @@
   import { EMBED_PREVIEW_PRESENTATION_CONTEXT } from '../../../types/embedPreviewPresentation';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { appSkillsStore } from '../../../stores/appSkillsStore';
   setContext(EMBED_PREVIEW_PRESENTATION_CONTEXT, 'execution');
 
   interface Props {
@@ -69,6 +70,13 @@
       : fallbackSkillName,
   );
   let displaySkillId = $derived(humanizeSkillId(skillId) || skillId);
+  // The skill's own icon from its app.yml metadata; the AI sparkle only when the
+  // skill has none, so a cloud command or file skill never looks like an AI step.
+  let skillIconName = $derived.by(() => {
+    const skill = appSkillsStore.getApp(appId)?.skills?.find((entry) => entry.id === normalizedSkillId || entry.id === skillId);
+    const icon = skill?.icon_image?.replace(/\.svg$/, '').trim();
+    return icon || 'ai';
+  });
 
   let statusText = $derived.by(() => {
     const parts: string[] = [];
@@ -84,7 +92,7 @@
   {id}
   {appId}
   {skillId}
-  skillIconName="ai"
+  {skillIconName}
   {status}
   {skillName}
   {taskId}

@@ -78,7 +78,9 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   if (surface === 'editor') {
     await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
   } else {
-    await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
+    // Workflows, Projects (start screens) and Tasks (issue ZSN8N) show no Daily Inspiration banner.
+    if (['workflows', 'projects', 'tasks'].includes(surface)) await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toHaveCount(0);
+    else await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
     if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeVisible();
   }
   await expect(cancel).toBeVisible();
@@ -102,7 +104,9 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   if (surface === 'editor') {
     await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
   } else {
-    await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
+    // Workflows, Projects (start screens) and Tasks (issue ZSN8N) show no Daily Inspiration banner.
+    if (['workflows', 'projects', 'tasks'].includes(surface)) await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toHaveCount(0);
+    else await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
     if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeVisible();
   }
   await expect(input).toHaveValue(draft);
@@ -125,14 +129,20 @@ test.describe('Actual workspace composer layout', () => {
       await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
       const field = page.getByTestId('message-field');
       const editor = page.getByTestId('message-editor').locator('.ProseMirror');
-      const welcome = page.getByTestId('daily-inspiration-area');
+      const welcome = page.getByTestId('welcome-content');
+      const startRow = page.getByTestId('recent-chats-scroll-container');
       const chat = page.getByTestId('active-chat-container');
       const suggestions = page.getByTestId('chat-welcome-suggestions');
       const firstSuggestion = page.getByTestId('new-chat-suggestion-card').first();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(welcome).toBeVisible({ timeout: 30000 });
+      await expect(startRow).toBeVisible();
+      await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(field).toHaveCSS('background-color', color);
-      const welcomeHeight = await welcome.evaluate((element) => element.getBoundingClientRect().height);
+      // The welcome area stretches to the space above the composer (no banner since TASK-1321);
+      // the start row inside it keeps its measured size while hidden, so nothing re-lays out
+      // when the welcome returns.
+      const startRowHeight = await startRow.evaluate((element) => element.getBoundingClientRect().height);
       await field.click();
       await expect(field).toHaveAttribute('data-focused', 'true');
       await expect(field).toHaveCSS('background-color', color);
@@ -144,7 +154,7 @@ test.describe('Actual workspace composer layout', () => {
       await expect(suggestions.getByTestId('suggestions-wrapper')).toHaveCSS('opacity', '1');
       await expect(firstSuggestion).toBeVisible();
       await expect(firstSuggestion).toBeEnabled();
-      await expect.poll(() => welcome.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
+      await expect.poll(() => startRow.evaluate((element) => element.getBoundingClientRect().height)).toBe(startRowHeight);
       await expect(field).toBeInViewport({ ratio: 1 });
       const cancel = page.getByTestId('input-dismiss-button');
       await expect(cancel).toBeInViewport({ ratio: 1 });
@@ -219,7 +229,7 @@ test.describe('Actual workspace composer layout', () => {
       await expect(background).toHaveAttribute('inert', '');
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
-      await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
+      await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(page.getByTestId('welcome-content')).toBeHidden();
       await expect(field).toHaveCSS('background-color', 'rgb(45, 47, 53)');
       await expect(page.getByTestId('chat-welcome-suggestions')).toBeVisible();
@@ -232,7 +242,8 @@ test.describe('Actual workspace composer layout', () => {
       await page.getByTestId('chat-side').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
       await expect(field).toHaveAttribute('data-focused', 'false');
       await expect(background).not.toHaveAttribute('inert', '');
-      await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+      await expect(page.getByTestId('welcome-content')).toBeVisible();
+      await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
       await expectBalancedPanelGutters(page, 'chat');

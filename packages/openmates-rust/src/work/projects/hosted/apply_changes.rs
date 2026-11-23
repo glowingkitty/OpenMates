@@ -219,3 +219,56 @@ fn applied_noop(path: &str, kind: &str, head: &HostedHead) -> Value {
     json!({"path": path, "kind": kind, "status": "applied",
         "revision": head.revision, "idempotent": true})
 }
+
+/// The applied entries of a completed `apply_changes` result as display
+/// mutations for the shell's local diff cards, each with whether it created the
+/// file. A create carries the new text, an update the applied diff and a delete
+/// only its path. Refused and idempotent entries (nothing written) are skipped.
+/// The cards stay on the device; nothing here is sent to the server.
+pub(crate) fn applied_change_mutations(
+    job: &HostedFileJob,
+    result: &Value,
+) -> Vec<(HostedFileMutation, bool)> {
+    let (Some(changes), Some(rows)) = (
+        job.arguments["changes"].as_array(),
+        result["results"].as_array(),
+    ) else {
+        return Vec::new();
+    };
+    // `execute` answers one row per change, in job order.
+    changes
+        .iter()
+        .zip(rows)
+        .enumerate()
+        .filter(|(_, (_, row))| row["status"] == "applied" && row["idempotent"] != true)
+        .filter_map(|(index, (change, row))| {
+            let (operation, content, patch) = match row["kind"].as_str()? {
+                "create" => (
+                    HostedFileOperation::CreateFile,
+                    change["content"].as_str().map(str::to_owned),
+                    None,
+                ),
+                "update" => (
+                    HostedFileOperation::UpdateFile,
+                    None,
+                    row["applied_diff"].as_str().map(str::to_owned),
+                ),
+                "delete" => (HostedFileOperation::DeleteFile, None, None),
+                _ => return None,
+            };
+            let mutation = HostedFileMutation {
+                operation,
+                operation_id: entry_operation_id(&job.operation_id, index),
+                path: row["path"].as_str()?.to_owned(),
+                expected_base: change["expected_base"].as_str().map(str::to_owned),
+                content,
+                patch,
+                new_path: None,
+            };
+            Some((
+                mutation,
+                row["created"] == true || operation == HostedFileOperation::CreateFile,
+            ))
+        })
+        .collect()
+}

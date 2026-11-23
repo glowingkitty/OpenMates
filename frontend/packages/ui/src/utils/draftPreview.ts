@@ -1,4 +1,4 @@
-import { convertMentionSyntaxToDisplayName } from "./mentionDisplay";
+import { convertMentionSyntaxToDisplayName, type ProjectNameLookup } from "./mentionDisplay";
 
 /** Turn serialized embed references in saved draft previews into readable labels. */
 const EMBED_LABELS: Record<string, string> = {
@@ -40,7 +40,12 @@ function labelForReference(content: string): string {
   return draftEmbedLabel(type);
 }
 
-export function formatDraftPreview(value: string | null | undefined): string {
+/**
+ * One readable preview line for a draft or message: embeds become labels and
+ * mentions become display names; no mention syntax or identifier is left.
+ * `projectName` overrides the registered Project-name lookup (mainly for tests).
+ */
+export function formatDraftPreview(value: string | null | undefined, projectName?: ProjectNameLookup): string {
   if (!value) return "";
 
   const withoutMarkers = value.replace(/<<<TEST_LIVE_MOCK:[^>]+>>>/g, " ");
@@ -54,5 +59,5 @@ export function formatDraftPreview(value: string | null | undefined): string {
     return labelForReference(trimmed);
   }
 
-  return convertMentionSyntaxToDisplayName(withLabels.replace(/\s+/g, " ").trim());
+  return convertMentionSyntaxToDisplayName(withLabels.replace(/\s+/g, " ").trim(), projectName).trim();
 }

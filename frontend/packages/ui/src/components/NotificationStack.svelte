@@ -16,6 +16,8 @@
         notificationStore,
         type NotificationType,
     } from '../stores/notificationStore';
+    import { activeChatStore } from '../stores/activeChatStore';
+    import { chatNotificationIdsForVisibleChat, getVisibleHashChatId } from '../services/chatNotificationVisibility';
 
     const MAX_VISIBLE_NOTIFICATIONS = 3;
     const STACK_OFFSET_PX = 10;
@@ -44,6 +46,36 @@
     let visibleNotifications = $derived(
         $notificationStore.notifications.slice(-MAX_VISIBLE_NOTIFICATIONS).reverse(),
     );
+
+    // The chat the user is looking at (URL hash, the visibility source of truth).
+    let visibleChatId = $state<string | null>(null);
+
+    onMount(() => {
+        const refreshVisibleChat = (): void => {
+            visibleChatId = getVisibleHashChatId();
+        };
+        refreshVisibleChat();
+        // Chat switches update the hash with replaceState (no hashchange event) and
+        // the active chat store together, so the store change re-reads the hash.
+        const unsubscribe = activeChatStore.subscribe(() => queueMicrotask(refreshVisibleChat));
+        window.addEventListener('hashchange', refreshVisibleChat);
+        window.addEventListener('popstate', refreshVisibleChat);
+        return () => {
+            unsubscribe();
+            window.removeEventListener('hashchange', refreshVisibleChat);
+            window.removeEventListener('popstate', refreshVisibleChat);
+        };
+    });
+
+    // A new-message card for the chat on screen is never shown over it.
+    $effect(() => {
+        // Read the hash now: the cached `visibleChatId` keeps the chat the user just left
+        // (New Chat clears the hash without an event), which dismissed that chat's fresh card at once.
+        void visibleChatId; // re-run when the visible chat may have changed
+        for (const id of chatNotificationIdsForVisibleChat($notificationStore.notifications, getVisibleHashChatId())) {
+            notificationStore.removeNotification(id);
+        }
+    });
 
     function e2eNotificationInjectionAllowed(): boolean {
         try {

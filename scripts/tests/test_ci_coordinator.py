@@ -291,6 +291,53 @@ def test_failed_wait_exposes_recording_retrieval_without_changing_verdict(tmp_pa
     assert "result_command:" not in capsys.readouterr().out
 
 
+def test_set_wait_returns_once_when_all_final_or_at_first_failure():
+    from scripts.ci_coordinator import wait_for_jobs
+
+    class FakeQueue:
+        def __init__(self, timeline):
+            self.timeline, self.tick = timeline, 0
+
+        def status(self, key):
+            return [{"id": key, "state": self.timeline[key][min(self.tick, len(self.timeline[key]) - 1)]}]
+
+    timeline = {"a": ["running", "failure"], "b": ["running", "running", "success"]}
+    queue = FakeQueue(timeline)
+
+    def advance(_seconds):
+        queue.tick += 1
+
+    rows = wait_for_jobs(queue, ["a", "b"], sleep=advance, clock=lambda: 0)
+    assert [row["state"] for row in rows] == ["failure", "success"]
+    assert queue.tick == 2
+
+    queue = FakeQueue(timeline)
+    rows = wait_for_jobs(queue, ["a", "b"], first_failure=True, sleep=advance, clock=lambda: 0)
+    assert [row["state"] for row in rows] == ["failure", "running"]
+
+
+def test_set_wait_prints_one_summary_with_failures_command(tmp_path, monkeypatch, capsys):
+    import sys
+    from scripts import ci_coordinator as coordinator
+
+    queue = Queue(tmp_path / "queue.db")
+    first = queue.enqueue("owner", "a" * 40, ["chat.spec.ts"])
+    second = queue.enqueue("owner", "a" * 40, ["login.spec.ts"])
+    monkeypatch.setattr(coordinator, "canonical_root", lambda path: tmp_path)
+    monkeypatch.setattr(coordinator, "Queue", lambda path: queue)
+    monkeypatch.setattr(coordinator, "GitHub", lambda root: (_ for _ in ()).throw(AssertionError("unexpected network access")))
+    monkeypatch.setattr(
+        coordinator, "wait_for_jobs",
+        lambda *a, **kw: [{**first, "state": "failure", "run_id": 9}, {**second, "state": "cancelled", "run_id": None}],
+    )
+    monkeypatch.setattr(sys, "argv", ["ci_coordinator.py", "wait", first["id"], second["id"]])
+    assert coordinator.main() == 1
+    output = capsys.readouterr().out
+    assert output.count("CI set:") == 1
+    assert "1 cancelled, 1 failure" in output
+    assert f"ci_coordinator.py failures {first['id']} {second['id']}" in output
+
+
 def test_json_receipts_redact_presigned_candidate_url(capsys):
     from scripts.ci_coordinator import print_receipt
 
@@ -1288,3 +1335,98 @@ def test_failed_e2b_dispatch_deletes_runner_registration(tmp_path, monkeypatch):
 def test_e2b_runner_outlives_the_workflow_timeout():
     assert e2b_timeout_minutes({"web_rust_core": 1}) == 90
     assert e2b_timeout_minutes({"web_rust_core": 0}) == 60
+
+
+def _prepared_rust_core_submission(tmp_path, monkeypatch, owner_switch, **kwargs):
+    import json as _json
+
+    switch = tmp_path / "speedups.json"
+    switch.write_text(_json.dumps({"owners": owner_switch}))
+    monkeypatch.setenv("OPENMATES_CI_SPEEDUPS_FILE", str(switch))
+    monkeypatch.setattr(
+        "scripts.ci_coordinator.subprocess.check_output",
+        lambda *args, **kw: '{"groups":{"uploads":{"specs":[]}}}',
+    )
+    monkeypatch.setattr("scripts.ci_coordinator.harness_commit", lambda _: "a" * 40)
+    queue = Queue(tmp_path / "queue.db")
+    jobs = enqueue_submission(
+        queue, "owner", "c" * 40, ["first.spec.ts"], "e2e",
+        source_root=tmp_path, prepared_builds=True, **kwargs,
+    )
+    return queue, jobs, queue.status(jobs[0]["preparation_id"])[0]
+
+
+def test_prepared_rust_core_owner_gets_key_bit_and_rust_core_producer(tmp_path, monkeypatch):
+    from scripts.ci_coordinator import _speedups_input
+
+    queue, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {"owner": ["prepared-rust-core"]}, web_rust_core=True
+    )
+    assert producer["web_rust_core"] == 1
+    assert jobs[0]["web_rust_core"] == 1
+    assert jobs[0]["preparation_key"] == producer["preparation_key"]
+    assert _speedups_input(producer) == {"ci_speedups": "prepared-rust-core"}
+    assert _speedups_input(jobs[0]) == {"ci_speedups": "prepared-rust-core"}
+
+
+def test_prepared_rust_core_off_owner_is_unchanged(tmp_path, monkeypatch):
+    from scripts.ci_artifacts import preparation_key
+    from scripts.ci_coordinator import _speedups_input
+
+    _, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {}, web_rust_core=True
+    )
+    assert producer["web_rust_core"] == 0
+    assert producer["preparation_key"] == preparation_key(
+        "c" * 40, include_cli=True, include_upload=False
+    )
+    assert _speedups_input(producer) == {} and _speedups_input(jobs[0]) == {}
+
+
+def test_prepared_rust_core_switch_change_after_submit_cannot_mismatch(tmp_path, monkeypatch):
+    import json as _json
+    from scripts.ci_coordinator import _speedups_input
+
+    _, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {}, web_rust_core=True
+    )
+    (tmp_path / "speedups.json").write_text(
+        _json.dumps({"owners": {"owner": ["prepared-rust-core", "wasm-cache"]}})
+    )
+    # Key has no bit, so the speedup is withheld even though the owner now has it.
+    assert _speedups_input(producer) == {"ci_speedups": "wasm-cache"}
+    assert _speedups_input(jobs[0]) == {"ci_speedups": "wasm-cache"}
+
+
+def test_prepared_rust_core_key_bit_wins_when_dispatch_sees_switch_off(tmp_path, monkeypatch):
+    """Canary 22 Nov: submit read a worktree switch file, the daemon read none."""
+    from scripts.ci_coordinator import _speedups_input
+
+    _, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {"owner": ["prepared-rust-core"]}, web_rust_core=True
+    )
+    (tmp_path / "speedups.json").write_text("{}")
+    assert _speedups_input(producer) == {"ci_speedups": "prepared-rust-core"}
+    assert _speedups_input(jobs[0]) == {"ci_speedups": "prepared-rust-core"}
+
+
+def test_speedup_switch_lives_in_the_main_checkout(monkeypatch):
+    from scripts import ci_speedups
+
+    monkeypatch.delenv("OPENMATES_CI_SPEEDUPS_FILE", raising=False)
+    assert ".openmates-agent-worktrees" not in str(ci_speedups.switch_path())
+
+
+def test_prepared_rust_core_never_shares_preparation_with_off_key(tmp_path, monkeypatch):
+    import json as _json
+
+    queue, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {"owner": ["prepared-rust-core"]}, web_rust_core=True
+    )
+    (tmp_path / "speedups.json").write_text(_json.dumps({}))
+    again = enqueue_submission(
+        queue, "owner", "c" * 40, ["second.spec.ts"], "e2e",
+        source_root=tmp_path, prepared_builds=True, web_rust_core=True,
+    )
+    assert again[0]["preparation_id"] != producer["id"]
+    assert again[0]["preparation_key"] != producer["preparation_key"]

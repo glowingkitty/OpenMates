@@ -5,12 +5,13 @@
 <script lang="ts">
   import { text } from '@repo/ui';
   import PlanStatusChip from './PlanStatusChip.svelte';
-  import { taskStatusTone, type PlanLinkedTask } from './planEmbedModel';
+  import { openChatById, taskStatusTone, type PlanLinkedTask } from './planEmbedModel';
   import './PlanSectionStyles.css';
 
-  let { tasks, onOpenTask }: {
+  let { tasks, onOpenTask, onOpenChat = openChatById }: {
     tasks: PlanLinkedTask[];
     onOpenTask?: (taskId: string) => void;
+    onOpenChat?: (chatId: string) => void;
   } = $props();
 </script>
 
@@ -24,6 +25,10 @@
         <li class="plan-row" data-testid="plan-task-row" data-status={task.status}>
           <div class="plan-row-main">
             <button type="button" class="plan-link" data-testid="plan-task-open" aria-label={$text('plan_embeds.task.open')} onclick={() => onOpenTask?.(task.taskId)}>{task.title}</button>
+            {#if task.linkedSubChatId}
+              {@const chatId = task.linkedSubChatId}
+              <button type="button" class="plan-link" data-testid="plan-task-open-chat" onclick={() => onOpenChat(chatId)}>{$text('plan_embeds.task.open_chat')}</button>
+            {/if}
           </div>
           <PlanStatusChip label={$text(`plan_embeds.status.task.${task.status}`)} tone={taskStatusTone(task.status)} testId="plan-task-status" status={task.status} />
         </li>

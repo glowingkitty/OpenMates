@@ -13,8 +13,8 @@
 //!   case-insensitive (npm `ignore()` default); gitignores are case-sensitive.
 
 use super::fs_safe::{lexical_join, relative_posix};
-use super::ignore_rules::{Matcher, candidate};
 use super::{HostError, HostResult, sha256_hex};
+use crate::path_rules::ignore_rules::{Matcher, candidate};
 use std::path::{Path, PathBuf};
 
 const MAX_IGNORE_FILES: usize = 128;
@@ -23,61 +23,7 @@ const MAX_POLICY_ENTRIES: usize = 50_000;
 const POLICY_STATE_DIRECTORY: &str = "project-path-policies";
 const MAX_STICKY_BYTES: u64 = 256 * 1024;
 
-/// npm `PROJECT_CREDENTIAL_GLOBS` (`projectSearchProtocol.ts`).
-pub(crate) const PROJECT_CREDENTIAL_GLOBS: &[&str] = &[
-    ".env",
-    ".env.*",
-    "**/.env",
-    "**/.env.*",
-    ".ssh/**",
-    "**/.ssh/**",
-    ".aws/**",
-    "**/.aws/**",
-    ".gnupg/**",
-    "**/.gnupg/**",
-    ".config/gcloud/**",
-    "**/.config/gcloud/**",
-    ".npmrc",
-    "**/.npmrc",
-    ".pypirc",
-    "**/.pypirc",
-    ".netrc",
-    "**/.netrc",
-    ".pgpass",
-    "**/.pgpass",
-    ".my.cnf",
-    "**/.my.cnf",
-    ".git-credentials",
-    "**/.git-credentials",
-    "credentials",
-    "**/credentials",
-    "credentials.json",
-    "**/credentials.json",
-    "application_default_credentials.json",
-    "**/application_default_credentials.json",
-    "id_rsa",
-    "**/id_rsa",
-    "id_ed25519",
-    "**/id_ed25519",
-    "id_dsa",
-    "**/id_dsa",
-    "id_ecdsa",
-    "**/id_ecdsa",
-    "*.pem",
-    "**/*.pem",
-    "*.key",
-    "**/*.key",
-    "*.p12",
-    "**/*.p12",
-    "*.pfx",
-    "**/*.pfx",
-    "*.keystore",
-    "**/*.keystore",
-    "*.kdbx",
-    "**/*.kdbx",
-    "*.credentials",
-    "**/*.credentials",
-];
+use crate::path_rules::PROJECT_CREDENTIAL_GLOBS;
 
 /// Inputs for one policy load.
 pub(crate) struct PolicyOptions<'a> {
@@ -150,7 +96,11 @@ impl PathPolicy {
             additions.extend(configured(source)?);
         }
         additions.extend(options.trusted_private.iter().cloned());
-        let sticky = update_sticky(options.policy_source.unwrap_or(root), &additions, options.state_dir)?;
+        let sticky = update_sticky(
+            options.policy_source.unwrap_or(root),
+            &additions,
+            options.state_dir,
+        )?;
         let mut patterns: Vec<String> = Vec::new();
         for raw in PROJECT_CREDENTIAL_GLOBS
             .iter()
@@ -233,7 +183,9 @@ impl PathPolicy {
     /// ignored paths without an approval.
     pub(crate) fn assert_readable(&self, path: &str, ignored_approved: bool) -> HostResult<()> {
         if self.is_private(path, false)? {
-            return Err(HostError::protected("Project path is protected and private"));
+            return Err(HostError::protected(
+                "Project path is protected and private",
+            ));
         }
         if self.is_ignored(path, false)? && !ignored_approved {
             return Err(HostError::new(
@@ -289,7 +241,9 @@ impl PathPolicy {
             };
             let absolute = lexical_join(root, Path::new(normalized));
             if !absolute.starts_with(root) {
-                return Err(policy_error("Project policy target escapes its source root"));
+                return Err(policy_error(
+                    "Project policy target escapes its source root",
+                ));
             }
             let is_dir = std::fs::symlink_metadata(&absolute).is_ok_and(|m| m.is_dir());
             let mut directory = if is_dir {
@@ -347,9 +301,9 @@ impl PathPolicy {
                 if self
                     .private
                     .ignores(&candidate(&source_relative_path, true))
-                    || self
-                        .private
-                        .ignores(&format!("{source_relative_path}/.openmates-private-path-probe"))
+                    || self.private.ignores(&format!(
+                        "{source_relative_path}/.openmates-private-path-probe"
+                    ))
                     || evaluate(&self.scopes, &policy_relative, true, None)
                 {
                     continue;
@@ -376,7 +330,8 @@ struct Loader<'a> {
 
 impl Loader<'_> {
     fn add_once(&mut self, path: &Path) -> HostResult<()> {
-        let relative = relative_posix(self.policy_root, path).map_err(|e| policy_error(e.message))?;
+        let relative =
+            relative_posix(self.policy_root, path).map_err(|e| policy_error(e.message))?;
         if self.files.iter().any(|(p, _)| *p == relative) {
             return Ok(());
         }
@@ -403,7 +358,8 @@ impl Loader<'_> {
         }
         let content = read_bounded(path, MAX_IGNORE_BYTES - self.bytes)?;
         self.bytes += content.len() as u64;
-        let relative = relative_posix(self.policy_root, path).map_err(|e| policy_error(e.message))?;
+        let relative =
+            relative_posix(self.policy_root, path).map_err(|e| policy_error(e.message))?;
         self.files.push((relative, content));
         Ok(())
     }

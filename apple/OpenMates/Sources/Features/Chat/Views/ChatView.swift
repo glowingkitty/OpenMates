@@ -2637,6 +2637,9 @@ struct ChatView: View {
                     .alignmentGuide(.chatMoreLeading) { dimensions in dimensions[.leading] }
                     .zIndex(chatHeaderMoreOpen ? 2 : 0)
 
+                Spacer(minLength: .spacing6)
+
+                // Web parity (ActiveChat.svelte top-buttons): the call button sits top right, beside close.
                 if let voiceCallRuntime, !isDemoOrLegalChat, !isExampleChat,
                    voiceCallRuntime.supports(chat: viewModel.chat), let chat = viewModel.chat,
                    let coordinator = voiceCallRuntime.coordinator {
@@ -2651,7 +2654,6 @@ struct ChatView: View {
                         }
                     }
                 }
-                Spacer(minLength: .spacing6)
 
                 if showEmbedFullscreen && chatWorkspaceWidth >= 1024 {
                     splitChatHideAction
@@ -3414,7 +3416,7 @@ struct ChatView: View {
             viewportCap: max(0, chatViewportHeight - MessageComposerMetric.expandedTopReservedHeight))
         let recordingOverlayActive = composerOverlay == .recording || isUITestRecordingOverlayForced
         let overlayHeight = recordingOverlayActive
-            ? ComposerRecordingOverlay.recordingPanelHeight
+            ? ComposerRecordingOverlay.compactPanelHeight
             : min(400, maximumViewportFieldHeight)
         return VStack(spacing: .spacing2) {
             #if DEBUG
@@ -3516,8 +3518,7 @@ struct ChatView: View {
                 if let mentionQuery {
                     MentionDropdownView(
                         query: mentionQuery,
-                        onSelect: insertMention,
-                        onDismiss: { self.mentionQuery = nil }
+                        onSelect: insertMention
                     )
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, .spacing5)
@@ -3646,6 +3647,7 @@ struct ChatView: View {
                 startedFromKeyboard: recordStartedFromKeyboard,
                 liveTranscript: recordingLiveTranscript,
                 isRealtimeConnecting: recordingRealtimeConnecting,
+                compact: true,
                 onStop: { url in
                     let duration = composerRecorder.duration
                     let uploadContext = finishRealtimeRecording(duration: duration)

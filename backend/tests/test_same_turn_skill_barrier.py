@@ -293,6 +293,22 @@ def test_private_checkpoint_round_trips_one_bounded_json_copy():
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
+def test_oversized_checkpoint_logs_sizes_and_labels_only(caplog):
+    rng = random.Random(7)
+    secret = "".join(rng.choice("0123456789abcdef") for _ in range(400_000))  # ~200 KB compressed
+    checkpoint = {"current_message_history": [
+        {"role": "user", "content": "short private question"},
+        {"role": "tool", "name": "project-read-text", "content": secret},
+    ], "native_main_snapshot": []}
+    with caplog.at_level("WARNING"), pytest.raises(RuntimeError, match="cannot fit in transient handoff"):
+        barrier.pack_private_checkpoint({"message_history": []}, checkpoint)
+    logged = caplog.text
+    assert "checkpoint.current_message_history" in logged
+    assert "tool:project-read-text" in logged
+    assert secret[:64] not in logged and "short private question" not in logged
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
 def test_deadline_uses_longest_job_envelope_in_mixed_batch():
     assert barrier.deadline_seconds_for_jobs([
         {"app_id": "web", "skill_id": "search"},
@@ -550,3 +566,50 @@ def test_resume_rejects_changed_model_or_mate_instead_of_rerouting():
         barrier.selected_resume_route(
             checkpoint, ["provider/exact", "provider/fallback"], "mate-new",
         )
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+def test_uploaded_image_view_then_generate_turn_fits_the_pause_checkpoint():
+    """TASK-2115: a new chat that views an uploaded photo can still pause for generate.
+
+    images.view returns the photo as an inline data URL inside the tool result;
+    the same bytes are in the native snapshot and the native provider transcript.
+    A phone photo is far larger than the sealed handoff, so before the fix the
+    pause failed with "too large to suspend" and the turn ended in an AI error.
+    """
+    photo = "data:image/jpeg;base64," + base64.b64encode(random.Random(21).randbytes(900_000)).decode("ascii")
+    view_result = [
+        {"type": "text", "text": "file_path: image.jpg\nembed_id: upload-embed"},
+        {"type": "image_url", "image_url": {"url": photo}},
+    ]
+    calls = [{"id": "call-view", "type": "function", "function": {"name": "images-view", "arguments": "{}"}}]
+    generate_calls = [{"id": "call-gen", "type": "function", "function": {"name": "images-generate", "arguments": "{}"}}]
+    history = [
+        {"role": "user", "content": "Make an SVG file based on this image."},
+        {"role": "assistant", "tool_calls": calls},
+        {"role": "tool", "tool_call_id": "call-view", "name": "images-view", "content": view_result},
+        {"role": "assistant", "tool_calls": generate_calls},
+        {"role": "tool", "tool_call_id": "call-gen", "name": "images-generate", "content": "processing"},
+    ]
+    snapshot = json.loads(json.dumps(history[:3]))
+    native_state = {"messages": [{"role": "system", "content": "stable"}, *json.loads(json.dumps(history[:3]))]}
+    request = {"message_history": [{"role": "user", "content": "Make an SVG file based on this image."}]}
+
+    barrier.preflight_private_checkpoint_capacity(request, history, native_state, 3, snapshot)
+    packed = barrier.pack_private_checkpoint(request, {
+        "current_message_history": history, "native_state": native_state,
+        "native_main_cursor": 3, "native_main_snapshot": snapshot,
+    })
+    _, restored = barrier.unpack_private_checkpoint(packed)
+
+    restored_history = restored["current_message_history"]
+    assert "base64," not in json.dumps(restored)
+    assert restored_history[2]["content"] == [
+        view_result[0], {"type": "text", "text": barrier.INLINE_IMAGE_OMITTED_TEXT},
+    ]
+    # The resume divergence check compares the transcript prefix with the snapshot.
+    assert restored_history[:3] == restored["native_main_snapshot"]
+    assert restored["native_state"]["messages"][1:] == restored["native_main_snapshot"]
+    # Remote image URLs are references, not bytes, and stay untouched.
+    remote = {"type": "image_url", "image_url": {"url": "https://example.org/a.png"}}
+    assert barrier.compact_inline_images([remote]) == [remote]

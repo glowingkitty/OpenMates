@@ -89,9 +89,11 @@ border:
       sewn size.
     when: The assistant calls design.embroidery with width_mm 120 and border_mm 3.
     then: >
-      A black band exactly 3 mm wide runs around the whole flame and is sewn first; the flame overlaps it slightly.
-      The openings narrower than 6 mm are filled black, the wider ones stay open. The result is 126 mm wide, lists
-      black as the first thread and its notes say "Border of 3 mm added for sewing on". The transparent stitch
+      A black band exactly 3 mm wide runs around the whole flame. Its outer edge and the edge of every opening that
+      stays open are one dense satin column each, with every stitch square to the edge, also in the tight curl; the
+      openings narrower than 6 mm are filled black, the wider ones stay open. The border is sewn after the flame and
+      slightly covers its edge. The result is 126 mm wide, lists black as the last thread and its notes say
+      "Border of 3 mm added for sewing on". The transparent stitch
       preview shows the flame with its border and nothing around it.
   - id: no-border-by-default
     given: The same flame ornament.

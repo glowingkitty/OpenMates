@@ -153,6 +153,26 @@ impl Backend<'_> {
             }
         }
     }
+    /// Wraps a fresh object key under the master key (server wrapper format).
+    /// The cookie client goes through its master binding, so the web Worker's
+    /// non-extractable master works; API-key clients use their own master.
+    async fn wrap_with_master(&mut self, plaintext: &[u8]) -> Result<String> {
+        match self {
+            Self::Cookie(client) => client.work_wrap_with_master(plaintext).await,
+            Self::ApiKey(client) => {
+                let master = client.master_key().await?;
+                crypto::server_fields::encrypt_bytes(plaintext, &master, &[])
+            }
+        }
+    }
+    /// Master key bytes for the slug lookup index; `None` for the web Worker,
+    /// whose master cannot be exported.
+    async fn slug_lookup_master(&mut self) -> Result<Option<Key>> {
+        match self {
+            Self::Cookie(client) => client.work_slug_lookup_master(),
+            Self::ApiKey(client) => client.master_key().await.map(Some),
+        }
+    }
     async fn wrapping(&mut self, team: Option<&str>) -> Result<Key> {
         let Some(team) = team else {
             return self.master().await;

@@ -49,7 +49,7 @@ overall:
   inputs:
     web_app: 47.6
     shared_client: 28.6
-    cli: 63.3
+    cli: 63.2
     sdk: 11.3
 areas:
 - id: web_app
@@ -63,13 +63,13 @@ areas:
   missing: 4
   percent: 47.6
   done_definition: capability whose web cell is rust-only (old web code deleted, suite green) or stays-shell (capabilities.yml)
-  blockers: ['planned units without installer: embedWrite, embedWriteGuest, embedEdit, projectTimeline, presentRemote,
-      voiceTurn', 'perf gate not cleared: chatRendered is inconclusive (2026-11-08-chatRendered-01)', 'perf gate
-      not cleared: embedReady is inconclusive (2026-11-08-embedReady-01)', 'perf gate not cleared: rss is inconclusive
-      (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms is rust_worse (2026-11-08-send-02)']
+  blockers: ['planned units without installer: embedWrite, embedWriteGuest, embedEdit, projectTimeline, projectFileJobs,
+      presentRemote, voiceTurn, e2bConsent', 'perf gate not cleared: chatRendered is inconclusive (2026-11-08-chatRendered-01)',
+    'perf gate not cleared: embedReady is inconclusive (2026-11-08-embedReady-01)', 'perf gate not cleared: rss
+      is inconclusive (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms is rust_worse (2026-11-08-send-02)']
   worker_namespaces_installed_not_progress:
     installed: 17
-    total: 23
+    total: 25
 - id: shared_client
   title: Shared client-side code (Rust, non-operation SDK capabilities)
   priority_rank: 1
@@ -87,13 +87,13 @@ areas:
   priority_rank: 2
   file: cli.yml
   unit: CLI commands
-  total: 769
+  total: 770
   done: 487
-  partial: 277
+  partial: 278
   missing: 5
-  percent: 63.3
+  percent: 63.2
   done_definition: command is differential-verified against the npm CLI
-  blockers: [5 unsupported commands without native handler, 760 commands not verified on Linux]
+  blockers: [5 unsupported commands without native handler, 761 commands not verified on Linux]
 - id: sdk_rust
   title: Rust SDK (operation capabilities)
   priority_rank: 3

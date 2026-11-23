@@ -14,7 +14,7 @@
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -72,38 +72,38 @@ class DeleteItemRequest(BaseModel):
 
 
 async def _require_writable_project(
-    directus_service: DirectusService, project_id: str, user: User, team_id: str | None,
+    directus_service: DirectusService, project_id: str, user_id: str, team_id: str | None,
 ) -> dict[str, Any] | None:
     """Return the Team membership (None for Personal) after the Project write check."""
     membership = None
     if team_id:
         try:
-            membership = await directus_service.team.require_team_role(team_id, user.id, TEAM_MUTATE_ROLES)
+            membership = await directus_service.team.require_team_role(team_id, user_id, TEAM_MUTATE_ROLES)
         except TeamPermissionError as exc:
             raise HTTPException(status_code=403, detail="forbidden") from exc
-    if not await directus_service.project.get_project(project_id, user.id, team_id=team_id):
+    if not await directus_service.project.get_project(project_id, user_id, team_id=team_id):
         raise HTTPException(status_code=404, detail="project_not_found")
     return membership
 
 
 async def _require_own_item_for_member(
-    directus_service: DirectusService, project_id: str, project_item_id: str, user: User,
+    directus_service: DirectusService, project_id: str, project_item_id: str, user_id: str,
     team_id: str | None, membership: dict[str, Any] | None,
 ) -> None:
     """Team members manage only the items they attached; admins and owners manage any."""
     if not membership or membership.get("role") != "member":
         return
-    item = await directus_service.project.get_item(project_id, project_item_id, user.id, team_id=team_id)
+    item = await directus_service.project.get_item(project_id, project_item_id, user_id, team_id=team_id)
     if not item:
         raise HTTPException(status_code=404, detail="project_item_not_found")
-    if item.get("attached_by_user_hash") != hash_id(user.id):
+    if item.get("attached_by_user_hash") != hash_id(user_id):
         raise HTTPException(status_code=403, detail="forbidden")
 
 
-async def _run(directus_service: DirectusService, action: str, data: Dict[str, Any], user: User) -> Dict[str, Any]:
+async def _run(directus_service: DirectusService, action: str, data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     try:
         return await EmbedVersionTransactionService(directus_service).project_item_operation(
-            action, data, user_id=user.id,
+            action, data, user_id=user_id,
         )
     except EmbedVersionTransactionError as exc:
         if exc.code in STABLE_ERROR_CODES and 400 <= exc.status_code < 500:
@@ -121,9 +121,9 @@ async def adopt_project_embed(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     """Link an existing chat embed into the Project; the chat keeps reading it."""
-    await _require_writable_project(directus_service, project_id, current_user, body.team_id)
+    await _require_writable_project(directus_service, project_id, current_user.id, body.team_id)
     data = {**body.model_dump(exclude_none=True), "project_id": project_id}
-    return {"result": await _run(directus_service, "adopt", data, current_user)}
+    return {"result": await _run(directus_service, "adopt", data, current_user.id)}
 
 
 @router.post("/{project_id}/items/{project_item_id}/rename")
@@ -138,13 +138,13 @@ async def rename_project_item(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     """Change a file link's path; the embed id and its revision history are kept."""
-    membership = await _require_writable_project(directus_service, project_id, current_user, team_id)
-    await _require_own_item_for_member(directus_service, project_id, project_item_id, current_user, team_id, membership)
+    membership = await _require_writable_project(directus_service, project_id, current_user.id, team_id)
+    await _require_own_item_for_member(directus_service, project_id, project_item_id, current_user.id, team_id, membership)
     data = {
         **body.model_dump(), "project_id": project_id, "project_item_id": project_item_id,
         **({"team_id": team_id} if team_id else {}),
     }
-    return {"result": await _run(directus_service, "rename", data, current_user)}
+    return {"result": await _run(directus_service, "rename", data, current_user.id)}
 
 
 @router.delete("/{project_id}/items/{project_item_id}")
@@ -159,10 +159,32 @@ async def delete_project_item_link(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     """Remove the link from the folder; the embed and its revisions stay for restore."""
-    membership = await _require_writable_project(directus_service, project_id, current_user, team_id)
-    await _require_own_item_for_member(directus_service, project_id, project_item_id, current_user, team_id, membership)
+    membership = await _require_writable_project(directus_service, project_id, current_user.id, team_id)
+    await _require_own_item_for_member(directus_service, project_id, project_item_id, current_user.id, team_id, membership)
     data = {
         **body.model_dump(), "project_id": project_id, "project_item_id": project_item_id,
         **({"team_id": team_id} if team_id else {}),
     }
-    return {"result": await _run(directus_service, "delete", data, current_user)}
+    return {"result": await _run(directus_service, "delete", data, current_user.id)}
+
+
+async def apply_item_link_operation(
+    directus_service: DirectusService, action: Literal["rename", "delete"], *, project_id: str,
+    project_item_id: str, body: Dict[str, Any], user_id: str, team_id: str | None = None,
+) -> Dict[str, Any]:
+    """Run the rename or delete route logic without HTTP: same role, ownership and body validation.
+
+    Raises ``HTTPException`` exactly like the routes (403 ``forbidden``, 404, 4xx stable codes).
+    """
+    model = RenameItemRequest if action == "rename" else DeleteItemRequest
+    try:
+        validated = model.model_validate(body)
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail="invalid_request") from exc
+    membership = await _require_writable_project(directus_service, project_id, user_id, team_id)
+    await _require_own_item_for_member(directus_service, project_id, project_item_id, user_id, team_id, membership)
+    data = {
+        **validated.model_dump(), "project_id": project_id, "project_item_id": project_item_id,
+        **({"team_id": team_id} if team_id else {}),
+    }
+    return await _run(directus_service, action, data, user_id)

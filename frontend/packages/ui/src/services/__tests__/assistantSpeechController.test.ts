@@ -301,3 +301,21 @@ it('exposes the measured voice clause boundary without replacing its canonical r
   await controller.stop();
   expect(controller.playbackBoundary).toBeNull();
 });
+
+// contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption
+it("reports a playing clip's own message and asset, not the previous answer as silent", async () => {
+  // EYHC5: "Starting your chat…" came back through the microphone and became a
+  // user message because the call reported nothing to compare it against.
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  await controller.request("chat", "previous", "An earlier answer.");
+  mocks.handlers.get("assistant_speech_acknowledgement")?.({
+    chat_id: "chat", message_id: "next", clip_id: "system-en-US-chat_start-1",
+    audio_url: "/audio/assistant-acknowledgements/system/en-US/chat_start-1.mp3",
+  });
+  await vi.waitFor(() => expect(get(controller.activity)).toMatchObject({
+    messageId: "next", text: "", speaking: true,
+    clipAudioUrl: "/audio/assistant-acknowledgements/system/en-US/chat_start-1.mp3",
+  }));
+  await controller.stop();
+  expect(get(controller.activity).clipAudioUrl).toBeNull();
+});

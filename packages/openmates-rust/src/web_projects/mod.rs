@@ -18,6 +18,7 @@ mod hosted_files;
 #[cfg(test)]
 mod hosted_files_tests;
 mod js;
+mod presentation;
 mod readme;
 mod readme_images;
 mod records;
@@ -77,6 +78,9 @@ pub(crate) const OPS: &[&str] = &[
     "projectHostedSearchPlan",
     // Rust-only decision (no TS rule): Undo of an assistant-created Project.
     "projectUndoCreatedGuard",
+    // Rust-only decisions (no TS rule): Project presentation write plan and backfill pick.
+    "projectPresentationPlan",
+    "projectBackfillPick",
 ];
 
 /// Why a rule did not produce its normal document.
@@ -155,6 +159,8 @@ fn dispatch(op: &str, input: &Value) -> Outcome {
         "projectUploadEmbedType" => records::upload_embed_type(input),
         "projectFileHead" => records::file_head(input),
         "projectUndoCreatedGuard" => created_undo::guard(input),
+        "projectPresentationPlan" => presentation::plan(input),
+        "projectBackfillPick" => presentation::backfill_pick(input),
         "projectFocusIntent" => focus::intent(input),
         "projectDefaultFocusRead" => focus::default_focus_read(input),
         "projectReadmeFind" => readme::find(input),

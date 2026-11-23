@@ -6,16 +6,20 @@ use super::*;
 
 impl Client {
     /// The raw key of one owned chat, resolved from its server metadata row
-    /// with the current Personal/Team wrapping key.
+    /// with the current Personal/Team wrapping capability. It works for both
+    /// credential kinds: a native session holds the raw master, the web Worker
+    /// only a non-extractable WebCrypto master, so the unwrap goes through
+    /// [`Client::wrapping_capability`] and never asks for raw master bytes.
     ///
     /// The returned key is zeroized on drop and never leaves the core.
     ///
     /// # Errors
     /// `Invalid` for a non-UUID id, `Forbidden` when the chat is not visible in
-    /// the active context, and the key-unwrap errors of [`Client::chat_key`].
+    /// the active context, and the key-unwrap errors of
+    /// [`Client::chat_key_with_capability`].
     pub(crate) async fn hosted_file_chat_key(&mut self, chat_id: &str) -> Result<Key> {
         crate::work::uuid(chat_id)?;
-        self.require_session()?;
+        self.require_credentials()?;
         let path = self.scoped("/v1/chats/metadata/batch")?;
         let data = self
             .request(Method::POST, &path, Some(json!({"chat_ids": [chat_id]})))
@@ -27,9 +31,9 @@ impl Client {
             .find(|row| text(row, "id") == chat_id)
             .ok_or(Error::Forbidden)?
             .clone();
-        let wrapping = self.wrapping_key().await?;
+        let wrapping = self.wrapping_capability().await?;
         self.verify_private_operation()?;
-        self.chat_key(&row, &wrapping)
+        self.chat_key_with_capability(&row, &wrapping).await
     }
 
     /// The key, decrypted type and decoded content of one existing embed of

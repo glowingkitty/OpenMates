@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.continue-carousel
-version: 1
+version: 2
 status: draft
 title: Continue Carousel
 summary: >
@@ -11,8 +11,9 @@ scope:
   includes:
     - Time-based eligibility and labels for saved-item and chat cards in the authenticated Continue carousel.
     - Interaction between a saved item's start time and reminders linked to that item.
+    - Where an eligible saved item appears: the compact upcoming entry below the start row.
   excludes:
-    - Reminder delivery, notification timing, reminder configuration, and carousel visual styling.
+    - Reminder delivery, notification timing, reminder configuration, and card visual styling.
     - Normal recent-chat and pinned-chat ordering outside the Continue carousel priority layer.
 
 models:
@@ -37,6 +38,10 @@ assertions:
     type: behavior
     must: A saved item with a recorded start date or time becomes eligible for priority placement only when that item start is within 24 hours; a linked reminder that triggers earlier must not make the item appear before this window, and the priority label describes the saved item's timing rather than the reminder offset.
     depends_on: [models.TimelyContinueCandidate, examples.saved_item_window]
+  - id: continue-carousel.upcoming-entry
+    type: behavior
+    must: An eligible saved item (event or appointment) is not a card in the start row, which holds only chats. The soonest one appears as a single compact entry below the row, between the row and the "Show all"/"Search" links, with a coloured circle and the item's icon, its title and its timing label; activating it opens the saved item. Without an eligible saved item no entry is shown.
+    depends_on: [models.TimelyContinueCandidate, examples.upcoming_entry]
   - id: continue-carousel.chat.reminder-gated
     type: behavior
     must: A reminder linked directly to a chat may promote that chat when the reminder trigger is within 24 hours because the chat has no separate saved-item start time.
@@ -62,7 +67,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [saved_item_window, chat_reminder_window]
+  required_groups: [saved_item_window, chat_reminder_window, upcoming_entry]
 
 approval_source:
   instruction: Direct user authorization in the current TASK-8137 Codex thread on 2026-10-06 to implement native upcoming saved embed promotion after Mac95 installation.

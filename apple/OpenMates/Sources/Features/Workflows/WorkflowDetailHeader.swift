@@ -86,6 +86,10 @@ enum WorkflowDetailTab: String, CaseIterable {
 }
 
 struct WorkflowDetailHeader: View {
+    @State private var descriptionExpanded = false
+    @State private var descriptionOverflows = false
+    @State private var descriptionFullHeight: CGFloat = 0
+    @State private var descriptionClampedHeight: CGFloat = 0
     let title: String
     let description: String?
     let category: String
@@ -116,6 +120,26 @@ struct WorkflowDetailHeader: View {
         }
         guard let createdAt, createdAt > 0 else { return "" }
         return "\(tr(.created)) \(Date(timeIntervalSince1970: TimeInterval(createdAt)).formatted(.relative(presentation: .named)))"
+    }
+
+    /// Hidden unclamped copy of the description; overflow is true when it needs
+    /// more height than the 3-line clamp (web `descriptionOverflows`).
+    private var descriptionMeasure: some View {
+        let text = description?.isEmpty == false ? description! : ""
+        return ZStack {
+            // fixedSize: a background is offered the clamped text's height; the full
+            // copy must report its own ideal height for the same width.
+            Text(text).font(.omP).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).hidden()
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { descriptionFullHeight = $0; updateOverflow() }
+            Text(text).font(.omP).multilineTextAlignment(.center).lineLimit(3).fixedSize(horizontal: false, vertical: true).hidden()
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { descriptionClampedHeight = $0; updateOverflow() }
+        }
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+
+    private func updateOverflow() {
+        descriptionOverflows = descriptionFullHeight > descriptionClampedHeight + 1
     }
 
     var body: some View {
@@ -192,11 +216,29 @@ struct WorkflowDetailHeader: View {
                             Text(description?.isEmpty == false ? description! : tr(.add_description))
                                 .font(.omP)
                                 .multilineTextAlignment(.center)
+                                .lineLimit(descriptionExpanded ? nil : 3)
                                 .foregroundStyle(Color.fontButton.opacity(0.95))
+                                .background(alignment: .top) { descriptionMeasure }
                         }
                         .buttonStyle(.plain)
                         .frame(maxWidth: 416, minHeight: 41)
                         .accessibilityIdentifier("workspace-detail-description")
+                        // Web WorkflowDetailPage .description-toggle: a triangle below the
+                        // 3-line clamp that expands to the full description.
+                        if descriptionOverflows || descriptionExpanded {
+                            Button { descriptionExpanded.toggle() } label: {
+                                LucideNativeIcon("chevron-down", size: 14)
+                                    .rotationEffect(.degrees(descriptionExpanded ? 180 : 0))
+                                    .foregroundStyle(Color.fontButton)
+                                    .frame(width: 32, height: 24)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(descriptionExpanded
+                                ? AppStrings.workflowDescriptionCollapse : AppStrings.workflowDescriptionExpand)
+                            .accessibilityValue(descriptionExpanded ? "expanded" : "collapsed")
+                            .accessibilityIdentifier("workflow-description-toggle")
+                        }
                     }
                 }
                 .padding(.horizontal, .spacing10)

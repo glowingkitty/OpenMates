@@ -75,6 +75,30 @@ export const aiTypingStore = {
     });
   },
   /**
+   * Clear typing when a terminal final ends the turn that is typing.
+   * Typing is keyed to the running task id, while a resumed turn's final
+   * carries the shared assistant message id; so a final ends typing when either
+   * id matches or when it belongs to the same user message.
+   */
+  clearTypingForTurn: (
+    chatId: string,
+    ids: Array<string | null | undefined>,
+    userMessageId?: string | null,
+  ) => {
+    const ends = (status: AITypingStatus | undefined) =>
+      !!status && status.chatId === chatId && (
+        ids.some((id) => !!id && id === status.aiMessageId)
+        || (!!userMessageId && status.userMessageId === userMessageId)
+      );
+    aiTypingByChatStore.update(chats => {
+      if (!ends(chats[chatId])) return chats;
+      const next = { ...chats };
+      delete next[chatId];
+      return next;
+    });
+    store.update((current) => (ends(current) ? { ...initialTypingStatus } : current));
+  },
+  /**
    * Clear typing for a specific chat ID regardless of aiMessageId.
    * Used when cancelling tasks where we only have task_id, not message_id.
    * @param chatId - The chat ID to clear typing for

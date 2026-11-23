@@ -535,7 +535,7 @@ impl Client {
         Ok(next)
     }
     #[allow(clippy::too_many_arguments)]
-    async fn persist_consent_system(
+    pub(super) async fn persist_consent_system(
         &mut self,
         ws: &mut Socket,
         scope: &AsyncCryptoScope,

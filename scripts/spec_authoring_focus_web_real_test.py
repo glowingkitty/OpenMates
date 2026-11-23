@@ -2,7 +2,7 @@
 # contract-test-file: infrastructure
 """Opt-in dev-only real-inference browser proof of the Code app's Write specification focus.
 
-Runs frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts without mocks against
+Runs frontend/apps/web_app/tests/real-inference-spec-authoring-focus.spec.ts without mocks against
 https://app.dev.openmates.org: a bakery owner's idea goes through scope, requirements and
 design with confirmations, the Specification and Checks appear as embeds, the user approves,
 and only then the Plan and its Tasks are created. Screenshots, the Playwright video, the run
@@ -22,7 +22,7 @@ import os
 
 from design_embroidery_web_real_test import main
 
-SPEC = "tests/spec-authoring-focus-web-real.spec.ts"
+SPEC = "tests/real-inference-spec-authoring-focus.spec.ts"
 
 if __name__ == "__main__":
     # Passed into the E2B sandbox (OPENMATES_PROOF_* prefix); there CI=1 is set for tooling, so the

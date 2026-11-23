@@ -97,6 +97,10 @@
           onPrompt?.(content.prompt.trim());
         }
         let url = publicUrl(content);
+        // An SVG code embed (an input graphic of design.embroidery) is drawn as an <img>, which never runs scripts.
+        if (!url && typeof content.code === 'string' && /<svg[\s>]/i.test(content.code)) {
+          url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(content.code)}`;
+        }
         const files = content.files as Record<string, { s3_key: string; aes_nonce?: string; encryption?: string; mime_type?: string }> | undefined;
         // A video lists its still image as `thumbnail`; its `original` is the MP4, never an image.
         const original = files?.original?.mime_type?.startsWith('video/') ? undefined : files?.original;

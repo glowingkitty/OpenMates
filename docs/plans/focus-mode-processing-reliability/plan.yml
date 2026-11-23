@@ -52,7 +52,7 @@ context_discovery:
     - backend/tests/test_main_processor_invalid_tool_calls.py
     - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
     - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
-    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    - frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
   findings:
     - Preprocessing selected `web-research` as relevant while the request had no active focus mode.
     - Main processing initially exposed `activate_focus_mode`, then the Deep research gate assigned `active_focus_id` directly and replaced all tools with `start_sub_chats`.
@@ -713,8 +713,8 @@ tests:
         deployment_reference: dpl_FmZDY1mKz9PAVSuHevGKLanj5nSF
   - id: T-E2E-VIDEO
     type: playwright
-    file: frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
-    command: python3 scripts/tests.py run --spec focus-mode-video-real-request.spec.ts
+    file: frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
+    command: python3 scripts/tests.py run --spec real-inference-focus-mode-video.spec.ts
     target: app.dev.openmates.org
     covers: [AC-4, AC-7]
     assertions:
@@ -725,7 +725,7 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
-        command: python3 scripts/tests.py run --spec focus-mode-video-real-request.spec.ts
+        command: python3 scripts/tests.py run --spec real-inference-focus-mode-video.spec.ts
         run_id: "2026-08-06T09:40:03Z"
         subject_commit: 41464e83a
         timestamp: "2026-08-06T09:40:03Z"
@@ -734,7 +734,7 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec focus-mode-video-real-request.spec.ts --gate-deploy --expected-commit 6dbb70b
+        command: python3 scripts/tests.py run --spec real-inference-focus-mode-video.spec.ts --gate-deploy --expected-commit 6dbb70b
         run_id: "31133313880"
         subject_commit: 6dbb70b
         timestamp: "2026-08-07T00:07:14Z"
@@ -769,8 +769,8 @@ tests:
         timestamp: "2026-08-07T10:31:00Z"
   - id: T-E2E-NESTED-SUB-CHATS
     type: playwright
-    file: frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
-    command: python3 scripts/tests.py run --spec sub-chats-real-inference.spec.ts --gate-deploy --expected-commit f4d07b3
+    file: frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
+    command: python3 scripts/tests.py run --spec real-inference-sub-chats.spec.ts --gate-deploy --expected-commit f4d07b3
     target: app.dev.openmates.org
     covers: [AC-5, AC-7, AC-8]
     assertions:
@@ -785,7 +785,7 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec sub-chats-real-inference.spec.ts --gate-deploy --expected-commit f4d07b3
+        command: python3 scripts/tests.py run --spec real-inference-sub-chats.spec.ts --gate-deploy --expected-commit f4d07b3
         run_id: "31171165666"
         subject_commit: f4d07b3
         timestamp: "2026-08-07T10:47:48Z"
@@ -946,7 +946,7 @@ implementation_notes:
       reason: Change only if investigation confirms a test defect rather than product defect.
     - path: frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
       reason: Change only if investigation confirms a test defect rather than product defect.
-    - path: frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    - path: frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
       reason: Change only if investigation confirms a test defect rather than product defect.
     - path: frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
       reason: Render truthful title, category, translated affordance, summary transition, and navigation states.
@@ -1037,7 +1037,7 @@ tasks:
     expected_files:
       - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
       - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
-      - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+      - frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
     verification: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO, T-PYTEST-DEEP-RESEARCH-BUDGET, T-E2E-DEEP-RESEARCH]
     verification_ids: [T-E2E-REJECTION, T-E2E-ACTIVATION, T-E2E-VIDEO, T-PYTEST-DEEP-RESEARCH-BUDGET, T-E2E-DEEP-RESEARCH]
@@ -1046,7 +1046,7 @@ tasks:
       files:
         - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
         - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
-        - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+        - frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
       shared_files: []
     blockers: []
     follow_up_tasks: []

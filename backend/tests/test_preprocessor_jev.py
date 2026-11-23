@@ -36,6 +36,27 @@ def test_routing_catalogue_keeps_providers_from_every_skill_before_hint_truncati
     assert "internal" not in catalogue[0]
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_long_provider_list_and_authoring_note_never_hide_the_skill_relevance_hint():
+    # An operator can install many providers for one skill; their names and the
+    # authoring note must not push the "prefer over web search" hint past the cut.
+    skill = SimpleNamespace(
+        id="search",
+        preprocessor_hint="Find events and conferences and when and where they happen, anywhere; prefer this over web search. More.",
+        providers=[SimpleNamespace(name=f"provider_{index}", display_name=f"Example Provider Number {index}")
+                   for index in range(20)],
+    )
+    focus = "events-plan_conference_talk: Select when the user wants to give a talk at a conference. " + "x" * 300
+    catalogue = jev_preprocessing._app_catalogue(
+        ["events"], [preprocessor._skill_routing_candidate("events", skill)], [focus],
+        {"events.event": {"app_id": "events", "display_name": "Conference or event"}},
+        request_text="What is the largest open source software conference in Europe?",
+    )
+    assert len(catalogue[0]) <= jev_preprocessing.APP_SKETCH_CHARS
+    assert "prefer this over web search" in catalogue[0]
+    assert catalogue[0].startswith("events: capabilities search; plan conference talk focus")
+
+
 # contract-test: supporting surface=rest_api assertions=focus-modes.natural-request
 def test_stage_one_shows_every_focus_hint_and_leads_with_the_request_match():
     import yaml
@@ -1151,3 +1172,46 @@ def test_ask_first_memory_is_offered_at_a_lower_relevance_than_auto_include():
     assert near_miss >= jev_preprocessing.rule_selection_threshold(ask_first)
     assert near_miss < jev_preprocessing.rule_selection_threshold(auto_include)
     assert jev_preprocessing.rule_selection_threshold({"id": "app-guide", "source": "app"}) == 0.75
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("authorized_project_id, expected", [("p1", ["code-write_specification"]), (None, [])])
+async def test_project_chat_keeps_write_specification_layer_in_scope(monkeypatch, authorized_project_id, expected):
+    """A new-feature request in a Project chat can auto-layer Write specification (focus-modes v3).
+
+    The app shortlist picks the request's subject (reminders for a garden feature),
+    not the code app; outside a Project the shortlist still scopes the focus mode.
+    """
+    offered = []
+
+    async def evaluate(**kwargs):
+        answers = {}
+        for question_id, question in kwargs["questions"].items():
+            if question["type"] == "noul":
+                instructions = question.get("instructions")
+                candidate = instructions.get("candidate_id") if isinstance(instructions, dict) else None
+                if question_id.startswith("focus_"):
+                    offered.append(candidate)
+                answers[question_id] = {"type": "noul", "noul": .95 if candidate == "code-write_specification" else .05}
+            else:
+                choices = list(question["criteria"])
+                answers[question_id] = {"type": "choice", "choice": choices[0],
+                    "probabilities": {value: 1.0 if value == choices[0] else 0.0 for value in choices},
+                    "confidence": .99}
+        return DecisionResponse.model_validate({"model": "jev", "answers": answers, "usage": {}})
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="jev", secrets_manager=None,
+        message_history=[{"role": "user", "sender_name": "user",
+                          "content": "I want a new feature for my garden planner that reminds me when to water each bed."}],
+        topic_areas=["general_misc: General"], available_apps=["reminder", "code"],
+        selected_app_ids=["reminder"], available_skills=["reminder-set-reminder: Set a reminder"],
+        available_focus_modes=["code-write_specification: Select when the user asks for a new feature.",
+                               "code-debug: Select for a bug."],
+        available_settings_and_memories={}, recent_skill_activity=[],
+        conversation_summary=None, previous_category=None, is_first_message=False,
+        authorized_project_id=authorized_project_id,
+    )
+    assert "code-debug" not in offered
+    assert result["relevant_focus_modes"] == expected

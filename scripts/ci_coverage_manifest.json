@@ -227,7 +227,6 @@
         "cli-file-upload.spec.ts",
         "cli-images.spec.ts",
         "cli-skills-pdf.spec.ts",
-        "cli-workflows-ai-chat-real.spec.ts",
         "cli-workflows-step-test-real.spec.ts",
         "code-repo-embed.spec.ts",
         "cross-client-draft-sync.spec.ts",
@@ -239,9 +238,7 @@
         "example-chat-clone.spec.ts",
         "file-attachment-code-flow.spec.ts",
         "file-attachment-flow.spec.ts",
-        "focus-mode-video-real-request.spec.ts",
         "image-enhance.spec.ts",
-        "image-model-inference-real.spec.ts",
         "message-highlights.spec.ts",
         "message-sync.spec.ts",
         "mindmap-embed.spec.ts",
@@ -255,7 +252,6 @@
         "skill-audio-generate-speak.spec.ts",
         "skill-images-generate-safety-upload.spec.ts",
         "skill-images-generate-safety.spec.ts",
-        "sub-chats-real-inference.spec.ts",
         "usage-token-breakdown.spec.ts",
         "webhook-incoming-chat.spec.ts",
         "wikipedia-mentions.spec.ts",
@@ -305,8 +301,12 @@
         "components/video-call-panel.spec.ts",
         "components/video-call-panel-responsive.spec.ts",
         "components/voice-call-bar.spec.ts",
+        "components/voice-call-waiting.spec.ts",
+        "components/speech-toggle-tooltip.spec.ts",
+        "components/included-memory-pills.spec.ts",
         "components/voice-call-chat-header.spec.ts",
         "components/voice-call-media.spec.ts",
+        "components/voice-call-screen-share.spec.ts",
         "components/voice-call-apple-parity.spec.ts",
         "components/voice-call-artifact-progress.spec.ts",
         "components/skill-input-thumbnails.spec.ts",
@@ -351,6 +351,8 @@
         "components/docs-public-model.spec.ts",
         "components/docs-pdf-download.spec.ts",
         "components/project-file-approval.spec.ts",
+        "components/project-read-reference-card.spec.ts",
+        "components/code-run-embed-preview.spec.ts",
         "components/project-readme-figma.spec.ts",
         "components/projects-file-actions.spec.ts",
         "components/remote-command-review.spec.ts",
@@ -371,6 +373,8 @@
         "components/specification-fullscreen.spec.ts",
         "components/specification-embed.spec.ts",
         "components/plan-embed.spec.ts",
+        "components/spec-sub-chat-links.spec.ts",
+        "components/sub-chat-work-link.spec.ts",
         "components/check-embed.spec.ts",
         "components/chat-active-plan.spec.ts",
         "components/plan-skill-embeds.spec.ts",
@@ -404,6 +408,7 @@
         "components/workflow-graph-reorder-inputs.spec.ts",
         "components/workflow-value-view.spec.ts",
         "components/memory-consent.spec.ts",
+        "components/memory-request-call-countdown.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/diagram-html-embed.spec.ts",
         "components/password-and-tfa-otp.spec.ts",
@@ -419,9 +424,12 @@
         "marketing-landing-route.spec.ts",
         "landing-guest-workflows.spec.ts",
         "settings-chat-viewport.spec.ts",
+        "chat-sidebar-overlay.spec.ts",
+        "settings-overlay-motion.spec.ts",
         "composer-mobile-keyboard.spec.ts",
         "components/report-issue-confirmation.spec.ts",
         "components/report-issue-composer.spec.ts",
+        "components/report-issue-screenshots.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
         "components/embed-version-timeline.spec.ts",
@@ -461,6 +469,7 @@
         "components/focus-mode-activation.spec.ts",
         "components/focus-activation-project-created.spec.ts",
         "components/project-focus-policy.spec.ts",
+        "components/projects-presentation-tiles.spec.ts",
         "components/focus-phases.spec.ts",
         "focus-mode-example-chats.spec.ts",
         "guest-interest-smart-selection.spec.ts",
@@ -510,6 +519,7 @@
         "components/project-chat-previews.spec.ts",
         "components/project-file-references.spec.ts",
         "components/settings-storage-overview.spec.ts",
+        "components/settings-chat-notifications.spec.ts",
         "components/maps-discovery.spec.ts",
         "components/maps-place-label.spec.ts",
         "components/agent-context-message.spec.ts",
@@ -554,6 +564,7 @@
         "components/jobs-search-embeds.spec.ts",
         "jobs-search-example.spec.ts",
         "components/guest-welcome-preview.spec.ts",
+        "components/start-screen-row.spec.ts",
         "components/workflow-guest-template-editor.spec.ts",
         "components/landing-native-touch-momentum.spec.ts",
         "components/landing-hero-motion.spec.ts",
@@ -603,7 +614,8 @@
         "components/assistant-speech-action.spec.ts",
         "task-detail-fullscreen.spec.ts",
         "components/chat-context-menu-preview.spec.ts",
-        "web-rust-core-apps.spec.ts"
+        "web-rust-core-apps.spec.ts",
+        "components/workflow-description-clamp.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -628,7 +640,10 @@
         "cli-tui-team-direct-chat.spec.ts",
         "newsletter-flow.spec.ts",
         "voice-call.spec.ts",
-        "authored-results-media.spec.ts"
+        "voice-call-ambient-sounds.spec.ts",
+        "voice-call-screen-share.spec.ts",
+        "authored-results-media.spec.ts",
+        "real-inference-image-model.spec.ts"
       ]
     },
     "credential_free_domains": {
@@ -683,6 +698,9 @@
         "chat-followup-recovery-disabled.spec.ts",
         "chat-saved-followup-admission.spec.ts",
         "chat-reload-followup-send.spec.ts",
+        "chat-paste-long-list-send.spec.ts",
+        "chat-finished-turn-resend.spec.ts",
+        "chat-first-send-title-and-composer.spec.ts",
         "daily-inspiration-chat-flow.spec.ts",
         "default-model-cli.spec.ts",
         "chat-settings-active-plan.spec.ts",
@@ -707,6 +725,7 @@
         "new-chat-pinned-sort.spec.ts",
         "personal-account-model-loading.spec.ts",
         "pii-detection-flow.spec.ts",
+        "pii-slow-detector-send.spec.ts",
         "pii-placeholder-rewrite.spec.ts",
         "share-chat-flow.spec.ts",
         "source-quote-verification.spec.ts",
@@ -730,7 +749,9 @@
         "authored-results-flow.spec.ts",
         "authored-results-media.spec.ts",
         "code-run-dependency-flow.spec.ts",
+        "e2b-upload-consent.spec.ts",
         "chat-menu-parity.spec.ts",
+        "apple-parity-reference-screens.spec.ts",
         "web-rust-core-chat.spec.ts",
         "web-rust-core-sync.spec.ts",
         "web-rust-core-persist.spec.ts",
@@ -803,7 +824,8 @@
       "specs": [
         "workflow-completion-notifications.spec.ts",
         "workflow-completion-notification-route.spec.ts",
-        "workflows-template-catalog.spec.ts"
+        "workflows-template-catalog.spec.ts",
+        "real-inference-cli-workflows-ai-chat.spec.ts"
       ]
     },
     "upload_audio_services": {
@@ -858,7 +880,8 @@
         "website-newsletter-delivery.spec.ts",
         "account-retirement-reads.spec.ts",
         "teams-direct-chat.spec.ts",
-        "cli-tui-team-direct-chat.spec.ts"
+        "cli-tui-team-direct-chat.spec.ts",
+        "voice-call.spec.ts"
       ]
     },
     "storage_accountability_integration": {
@@ -906,6 +929,7 @@
         "cli-native-chats.spec.ts",
         "cli-native-notifications.spec.ts",
         "cli-native-apps.spec.ts",
+        "cli-native-code-run.spec.ts",
         "cli-native-misc.spec.ts",
         "cli-native-server.spec.ts",
         "cli-native-settings-extra.spec.ts",
@@ -999,6 +1023,7 @@
         "persisted-draft-discovery.spec.ts",
         "draft-only-chat-delete.spec.ts",
         "plan-acceptance-checks-flow.spec.ts",
+        "project-result-notice.spec.ts",
         "chat-settings-active-plan.spec.ts",
         "plan-assumptions-flow.spec.ts",
         "plans-flow.spec.ts",
@@ -1008,6 +1033,7 @@
         "project-task-sync.spec.ts",
         "projects-flow.spec.ts",
         "projects-create-edit-files.spec.ts",
+        "projects-presentation-flow.spec.ts",
         "projects-remote-sources.spec.ts",
         "teams-settings-context.spec.ts",
         "workflow-files.spec.ts",
@@ -1079,7 +1105,8 @@
         "cli-memory-write.spec.ts",
         "cli-native-project-create-request.spec.ts",
         "cli-native-remote-access-host.spec.ts",
-        "cli-native-embed-user-edits.spec.ts"
+        "cli-native-embed-user-edits.spec.ts",
+        "start-screens-layout.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },
@@ -1087,13 +1114,14 @@
       "execution": null,
       "enabling_work": "Run only on the coordinated dev stack with isolated provisioned test accounts, bounded disposable Team credits and real inference; never dispatch to CI.",
       "specs": [
+        "chat-orchestration-main-chats.spec.ts",
+        "design-embroidery-chat.spec.ts",
+        "real-inference-events-question.spec.ts",
+        "real-inference-image-upload-svg.spec.ts",
+        "skill-search-live-progress-chat.spec.ts",
         "teams-chat-collaboration-real.spec.ts",
         "vector-graphic-chat.spec.ts",
-        "design-embroidery-chat.spec.ts",
-        "slides-focus-modes-real.spec.ts",
-        "skill-search-live-progress-chat.spec.ts",
-        "videos-generate-chat.spec.ts",
-        "chat-orchestration-main-chats.spec.ts"
+        "videos-generate-chat.spec.ts"
       ]
     },
     "real_stripe_sandbox_settlement": {
@@ -1161,6 +1189,8 @@
         "components/specialized-preview-tools.spec.ts",
         "components/result-preview-standard.spec.ts",
         "components/grouped-result-preview.spec.ts",
+        "components/generated-media-generate-card.spec.ts",
+        "components/design-embroidery-progress-card.spec.ts",
         "components/slides-deck-embed.spec.ts",
         "components/slides-presenter.spec.ts",
         "components/slides-present-remote.spec.ts",
@@ -1304,11 +1334,47 @@
         "components/code-run-dependencies.spec.ts"
       ]
     },
+    "e2b_upload_consent_request_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview of the in-chat E2B upload consent request (unanswered with three choices, answered allow, answered not now). Pure presentation fixtures; no backend, account, sandbox upload or AI inference.",
+      "specs": [
+        "components/e2b-upload-consent-request.spec.ts",
+        "components/e2b-consent-run-start.spec.ts"
+      ]
+    },
     "chat_orchestration_event_notice_component": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare preview of the chat orchestration system event (started, report, finished, waiting for you, you wrote) as one compact clickable line. Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
       "specs": [
         "components/chat-orchestration-event-notice.spec.ts"
+      ]
+    },
+    "real_inference": {
+      "execution": "e2e",
+      "enabling_work": "Real provider inference in the run's own isolated stack. Only the protected real-inference GitHub environment (dev branch) supplies the dev-only provider keys, which reach only that run's throwaway Vault; the stack's only egress is the gateway's HTTPS allowlist for those providers. Own batch; never mixed with replay fixtures.",
+      "specs": [
+        "real-inference-chat-notice-headline.spec.ts",
+        "real-inference-cli-workflows-ai-chat.spec.ts",
+        "real-inference-focus-mode-video.spec.ts",
+        "real-inference-gemini-chat.spec.ts",
+        "real-inference-image-model.spec.ts",
+        "real-inference-memory-suggestions.spec.ts",
+        "real-inference-life-compass-focus.spec.ts",
+        "real-inference-press-release-project-memory.spec.ts",
+        "real-inference-project-layered-focus.spec.ts",
+        "real-inference-safety-suspension.spec.ts",
+        "real-inference-slides-focus-modes.spec.ts",
+        "real-inference-spec-authoring-focus.spec.ts",
+        "real-inference-spec-sub-chats.spec.ts",
+        "real-inference-sub-chats.spec.ts",
+        "real-inference-wellbeing-helpline.spec.ts"
+      ]
+    },
+    "proof_audio_capture_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free routed test page that plays a Web Audio beep, an <audio> element, a muted <audio> element and the fake microphone test voice. Proves the proof-audio recorder (tests/helpers/proof-audio.ts) muxes the page's sound into the proof video at the right moments. No backend, account, provider or AI inference.",
+      "specs": [
+        "components/proof-audio-capture.spec.ts"
       ]
     }
   },
@@ -1479,12 +1545,6 @@
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
     },
-    "cli-workflows-ai-chat-real.spec.ts": {
-      "dependency": "workflow_worker_with_live_steps",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: runs AI mode, delivers chat through a client claim, waits, and resumes through CLI respond. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add Workflow scheduler/execution queues and client claim/respond fixtures; inspect app-skill side effects individually.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
     "cli-workflows-search-controls-real.spec.ts": {
       "dependency": "original_workflow_events_provider_credentials",
       "next_action": "Workflow queue and canonical trigger scanner are implemented. Original web/news steps already use explicit fixture queries, but the Events step is an unmarked auto-provider AI meetup search using live event sources. Enable only after dedicated provider credentials/request caps are authorized; preserve original search/control-step assertions and do not substitute a fixture for the live Events step.",
@@ -1616,12 +1676,6 @@
       "user_input_required": true,
       "source_environment_names": []
     },
-    "focus-mode-video-real-request.spec.ts": {
-      "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: real YouTube analysis request activates video focus mode and continues without preprocessing error. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
     "follow-up-suggestions-flow.spec.ts": {
       "dependency": "mixed_unmarked_ai_continuation",
       "next_action": "Preserve shows follow-up suggestion chips after AI response: an original follow-up/new-chat action sends an unmarked live AI request after a mocked seed. Enable a dedicated approved inference profile and explicit cap; do not silently add response mocks to these live actions.",
@@ -1643,15 +1697,6 @@
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
-      ]
-    },
-    "image-model-inference-real.spec.ts": {
-      "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: image-model-inference-real.spec.ts. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "IMAGE_MODEL_FULL_MATRIX",
-        "IMAGE_MODEL_LABELS"
       ]
     },
     "mention-dropdown-settings-memory.spec.ts": {
@@ -1994,12 +2039,6 @@
         "weather_forecast_web": 0
       }
     },
-    "sub-chats-real-inference.spec.ts": {
-      "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: real LLM sub-chat pipeline supports sending inside a synced sub-chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
     "usage-token-breakdown.spec.ts": {
       "dependency": "original_live_inference",
       "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: receipt-style breakdown: sub-items sum to total input. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
@@ -2072,6 +2111,16 @@
       "next_action": "Run only on the coordinated dev stack with isolated provisioned test accounts, bounded disposable Team credits and real inference; never dispatch to CI.",
       "user_input_required": true,
       "source_environment_names": []
+    },
+    "real-inference-events-question.spec.ts": {
+      "dependency": "A recorded or allowlisted public-page path for event search in the keyed CI stack",
+      "next_action": "Event search reads official event schedules and public web pages, which the keyed CI stack cannot reach (its egress allows only the four dev-only providers), and the skill ships default-off outside backend_config.yml. Run it against dev until the CI stack has a recorded public-page path.",
+      "user_input_required": false
+    },
+    "real-inference-image-upload-svg.spec.ts": {
+      "dependency": "A dev-only key for the image-safety reasoner in the keyed CI stack",
+      "next_action": "Image generation checks every request with the image-safety reasoner before drawing; without its key the check fails closed and refuses, so the SVG card never appears. Run this spec against dev until the real-inference environment holds a dev-only key for that reasoner, then move it back to the real_inference group.",
+      "user_input_required": true
     }
   },
   "selfhost_recipe_targets": {

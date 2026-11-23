@@ -134,7 +134,7 @@ async function getCarouselCards(page: any): Promise<Array<{ chatId: string | nul
 	const cards: Array<{ chatId: string | null; title: string; pinned: string | null }> = [];
 
 	// Resume card (no data-pinned attr — it's the last-opened, always first)
-	const resumeLargeTitle = container.locator('[data-testid="resume-chat-large-card"]:not([data-chat-id]) [data-testid="resume-large-title"], [data-testid="resume-chat-card"]:not([data-chat-id]) [data-testid="resume-chat-title"]').first();
+	const resumeLargeTitle = container.locator('[data-testid="resume-chat-large-card"]:not([data-chat-id]) [data-testid="resume-large-title"]').first();
 	if (await resumeLargeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
 		const title = (await resumeLargeTitle.textContent())?.trim() || '';
 		if (title) cards.push({ chatId: null, title, pinned: null });

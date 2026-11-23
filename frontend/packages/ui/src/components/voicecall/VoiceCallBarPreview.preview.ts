@@ -4,6 +4,7 @@ export const variants = {
   constrainedMedia:{withinHistory:true,historyHeight:400,realAudio:false,state:{
     mediaExpanded:true,displayedMedia:{embedId:'preview-generated-image',kind:'image',url:'/images/examples/group1.jpg'},
   }},
+  waiting:{ state:{waiting:true,billingActivity:{inputListening:true,processing:false}},realAudio:false },
   idle:{ state:{inputIdle:true,billingActivity:{inputListening:false,processing:false}},realAudio:false },
   muted:{ state:{muted:true,billingActivity:{inputListening:false,processing:false}},realAudio:false },
   mutedWorking:{ state:{muted:true,billingActivity:{inputListening:false,processing:true}},realAudio:false },

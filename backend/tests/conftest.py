@@ -259,3 +259,26 @@ def verify_image_metadata(
     except Exception as e:
         print(f"[ERROR] Failed to verify metadata/C2PA: {e}")
         raise
+
+
+@pytest.fixture(autouse=True)
+def _e2b_upload_consent_allowed_by_default(request, monkeypatch):
+    """Code Run and preview tests start from an account that already allowed E2B.
+
+    The consent gate itself is covered by test_e2b_upload_consent.py, which opts out.
+    """
+    if request.module.__name__.endswith(("test_e2b_upload_consent", "test_e2b_upload_consent_assistant_flow")):
+        return
+
+    async def _allowed(user_id, directus_service=None):
+        return None
+
+    try:
+        from backend.core.api.app.services import e2b_upload_consent
+    except ImportError:
+        return
+    async def _allowed_state(user_id, directus_service=None):
+        return {"decision": "allowed", "decided_at": 1, "version": e2b_upload_consent.E2B_UPLOAD_CONSENT_VERSION}
+
+    monkeypatch.setattr(e2b_upload_consent, "require_e2b_upload_consent", _allowed)
+    monkeypatch.setattr(e2b_upload_consent, "get_decision", _allowed_state)

@@ -891,7 +891,10 @@
         "text": "View visual"
       },
       "interactive_html_blocked": {
-        "text": "This visual tried to open another page and was stopped."
+        "text": "This visual tried to open a different page. That isn't allowed inside a chat, so it was paused."
+      },
+      "interactive_html_reload": {
+        "text": "Reload visual"
       },
       "search_repos": {
         "text": "Search repos",
@@ -1556,7 +1559,7 @@
           "text": "Search text"
         },
         "read": {
-          "text": "Read Project File",
+          "text": "Read files",
           "description": {
             "text": "Read a file from an encrypted Project through a connected client."
           }
@@ -1822,7 +1825,7 @@
           "text": "Make a short video from your description and pictures in the chat, as AI footage or as an exact composed video."
         },
         "pricing_note": {
-          "text": "Generated clips: 35 (360p), 105 (720p), 160 (1080p) or 315 (4K) credits per second. Composed videos: the tokens the writing model uses plus 10 credits per started minute of rendering. Changes are charged only for what they add. You are not charged when no video is delivered. Sound in composed videos: 2 credits per second of narration, 15 credits per second of sound effect and 120 credits per music track; only clips newly made for a version are charged."
+          "text": "Generated clips: 35 (360p), 105 (720p), 160 (1080p) or 315 (4K) credits per second. Composed videos: the tokens the writing model uses plus 10 credits per minute of rendering, billed per second. Changes are charged only for what they add. You are not charged when no video is delivered. Sound in composed videos: 2 credits per second of narration, 15 credits per second of sound effect and 120 credits per music track; only clips newly made for a version are charged."
         }
       },
       "create": {
@@ -2839,7 +2842,7 @@
       "text": "{skills} skills · {focusModes} focus modes"
     },
     "home_prompt": {
-      "text": "What app do you want to use?"
+      "text": "Explore the apps OpenMates can use"
     },
     "home_greeting": {
       "text": "Hey {name}!"
@@ -3561,6 +3564,12 @@
       },
       "reject_all": {
         "text": "Reject all"
+      },
+      "continue_without_memories": {
+        "text": "Continue without memories"
+      },
+      "call_countdown_label": {
+        "text": "Time left before answering without memories"
       },
       "entry_singular": {
         "text": "entry"
@@ -4995,7 +5004,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Continue where you left off:"
+        "text": "Continue your recent chats:"
+      },
+      "active_title_single": {
+        "text": "You have 1 chat active:"
+      },
+      "active_title": {
+        "text": "You have {count} chats active:"
+      },
+      "active_card_label": {
+        "text": "Active"
       },
       "guest_title": {
         "text": "Explore some example chats:"
@@ -5402,6 +5420,9 @@
       "no_project": {
         "text": "Move this chat into a Project to save the Check there."
       }
+    },
+    "plan_tasks": {
+      "text": "Related Tasks"
     }
   },
   "common": {
@@ -5803,76 +5824,6 @@
         "text": "The Fermi paradox asks why we have found no convincing evidence of extraterrestrial civilizations. Explore possible answers."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Keep your own backup. Export your OpenMates data whenever you need it."
-      },
-      "title": {
-        "text": "Export your OpenMates data"
-      },
-      "description": {
-        "text": "Back up chats, settings, memories, and more."
-      },
-      "assistant_response": {
-        "text": "Export a copy of your OpenMates data from account settings. Sign in to access your encrypted account data."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Want stronger privacy controls? Add personal details that OpenMates should hide."
-      },
-      "title": {
-        "text": "Custom PII detection"
-      },
-      "description": {
-        "text": "Protect personal details before model calls."
-      },
-      "assistant_response": {
-        "text": "Choose personal details for OpenMates to hide before a model call. Review the privacy settings to manage them."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Need a more focused answer? Give your mate a specific job."
-      },
-      "title": {
-        "text": "Focus modes"
-      },
-      "description": {
-        "text": "Guide a chat toward a specific goal."
-      },
-      "assistant_response": {
-        "text": "Use a focus mode to guide a chat toward a specific goal. Explore available modes in Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Repeating yourself gets old. Save context your mates should remember."
-      },
-      "title": {
-        "text": "Memories"
-      },
-      "description": {
-        "text": "Save useful preferences and context."
-      },
-      "assistant_response": {
-        "text": "Save useful preferences and context as memories, then choose what your mates can use."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Looking for something to do? Explore events near you."
-      },
-      "title": {
-        "text": "Find local events"
-      },
-      "description": {
-        "text": "Search classes, meetups, and other events."
-      },
-      "assistant_response": {
-        "text": "Use Events search to find local classes and meetups. Choose a place and topic to see what is happening nearby."
-      }
-    },
     "collective": {
       "title": {
         "text": "Collective animal behavior"
@@ -5913,62 +5864,6 @@
       },
       "assistant_response": {
         "text": "Tensegrity structures use isolated compression elements held together by continuous tension. The result can look impossibly light while remaining stable. Open it to see why artists, architects, and biologists all care about this principle."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Trusted source quotes"
-      },
-      "description": {
-        "text": "Ask mates to inspect sources and quote the exact lines that support an answer."
-      },
-      "phrase": {
-        "text": "Need an answer you can verify? Ask OpenMates to quote the supporting source."
-      },
-      "assistant_response": {
-        "text": "Ask mates to inspect sources and quote the exact lines that support an answer."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "AI image detection"
-      },
-      "description": {
-        "text": "Upload an image and see AI-generation signals directly in the chat."
-      },
-      "phrase": {
-        "text": "Wondering if an image was AI-generated? Upload it and inspect the signals."
-      },
-      "assistant_response": {
-        "text": "Upload an image and see AI-generation signals directly in the chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Incognito chats"
-      },
-      "description": {
-        "text": "Start temporary chats when you do not want them saved to history."
-      },
-      "phrase": {
-        "text": "Need a temporary conversation? Keep it out of your saved chat history."
-      },
-      "assistant_response": {
-        "text": "Start temporary chats when you do not want them saved to history."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Privacy controls"
-      },
-      "description": {
-        "text": "Tune personal-data hiding, connected accounts, and automatic deletion in one place."
-      },
-      "phrase": {
-        "text": "Review what OpenMates protects before you urgently need the controls."
-      },
-      "assistant_response": {
-        "text": "Tune personal-data hiding, connected accounts, and automatic deletion in one place."
       }
     }
   },
@@ -6231,6 +6126,56 @@
       },
       "ask_question": {
         "text": "Ask about this documentation..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "To run this, your code and files are sent to E2B, a cloud sandbox provider, and run there in the US. For Project jobs, the whole Project and the key that opens it are placed in the sandbox too, sealed so only that sandbox can open it. The sandbox is deleted afterwards."
+      },
+      "privacy_policy": {
+        "text": "Privacy policy"
+      },
+      "own_machine_hint": {
+        "text": "Or run it on your own machine with:"
+      },
+      "allow": {
+        "text": "Allow"
+      },
+      "own_machine": {
+        "text": "Use my own machine"
+      },
+      "not_now": {
+        "text": "Not now"
+      },
+      "answered": {
+        "text": "Your answer:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Running code in the E2B cloud sandbox is not allowed for your account, so nothing was started. You can change this in Settings > Privacy, or run it on your own machine with the remote access command."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Run code in the E2B cloud sandbox"
+      },
+      "description": {
+        "text": "When allowed, the code and files you run are sent to E2B, a cloud sandbox provider, and processed in the US. For Project jobs this includes the Project and the key that opens it, sealed so only that sandbox can open it. The sandbox is deleted afterwards. When not allowed, nothing is sent."
+      },
+      "status_allowed": {
+        "text": "Allowed"
+      },
+      "status_declined": {
+        "text": "Not allowed"
+      },
+      "status_undecided": {
+        "text": "Not decided yet"
+      },
+      "error": {
+        "text": "Could not save this setting. Please try again."
       }
     }
   },
@@ -9802,6 +9747,12 @@
         "count": {
           "text": "{count} file references"
         },
+        "count_singular": {
+          "text": "{count} file reference"
+        },
+        "more": {
+          "text": "+{count} more"
+        },
         "empty": {
           "text": "No file references found"
         },
@@ -10655,6 +10606,9 @@
         },
         "no_video": {
           "text": "No video available for this run"
+        },
+        "with_setup": {
+          "text": "{duration} with setup"
         }
       }
     },
@@ -13536,7 +13490,7 @@
         "text": "- Everything looks fine on paper, but **I'm not happy** and don't know what I actually want.\n- I feel **stuck** since my breakup. Can you help me get back on track?\n- I just **retired** and my days feel empty. Where do I start?"
       },
       "systemprompt": {
-        "text": "You are a warm, practical and curious life companion. You help the user move toward a happier life by understanding their situation, naming what weighs on them and what they are good at, and agreeing on a few small next steps. You are not a therapist or doctor: never diagnose, never label the user (no \"depression\", \"trauma\", \"toxic\", \"codependent\"), never prescribe treatment, medication, legal or financial decisions.\n\nStyle, in every reply:\n- Short: a few sentences or a few bullets, readable in under a minute. No headings for a normal reply.\n- Ask at most ONE question per reply, and end with it. Never ask two questions in one sentence or list several. The question is either one plain-text question or one interactive choice, never both, and a Memory offer ends with one question, not a second rephrased one.\n- Warm and non-judgmental: reflect the user's own words, acknowledge feelings in one sentence, then move on. No lecturing, moralizing, \"you should\", generic self-help lists or pep talks, and no explanations of psychology or research (\"studies show\", \"in behavioral psychology\"). Never tell the user how their habits affect other people.\n- The user decides. Offer options, never pressure. Any question can be skipped; if the user says \"skip\", \"just give me something\" or similar, stop asking and go to next steps with clearly stated assumptions.\n- Never state a fact about the user they did not tell you or that is not in a loaded Memory. Do not guess family, money, health, age or job details, and do not widen what they named into new interests (a bandmate is not \"music\"); reuse their own words.\n\nHow the conversation goes (adapt; the user may jump ahead):\n1. Understand. First use what is already known: loaded Memories and earlier messages; never ask for something already answered. Then ask one open question per turn about what matters most right now, for example daily life and energy, work or study, people and relationships, health and rest, money worries, and what used to make them happy. Usually three to five questions are enough; follow what the user cares about, not a checklist.\n2. Reflect. Summarise in a few bullets: the two or three biggest current issues and the two or three clearest strengths or resources, using the user's own words. Ask if that is right. Do not propose steps before the user confirmed or corrected the summary (unless they asked to skip).\n3. Next steps. Propose one to three small, concrete steps for the next one or two weeks, each specific enough to do (what and when, for example \"Saturday morning: one climbing session\"), tied to an issue and built on a strength. Ask which ones the user wants, and accept changes or \"none\".\n4. Todos. Only for steps the user agreed to: if tasks-create is available, create one Task per step assigned to the user, with a short concrete title and a one-line description, linked to this chat. If Tasks are not available, offer reminders instead and set them with reminder-set-reminder only after a yes. Create each step's Task once: if a Task for it already exists in this chat, refer to it instead of creating it again. Say a todo exists only after the tool succeeded. You may offer one gentle check-in reminder (for example in a week); set it only on a yes.\n5. Remember (consent). Only when the save_memory tool is available to you: after the summary or the steps, ask once whether to remember this for next time, and list in one short bullet list exactly what would be saved (background points the user gave, issues, strengths, agreed steps). Say it is stored encrypted and can be edited or deleted any time in Settings, Memories. On a clear yes, call save_memory in that same reply (never send the user to Settings or a link to save it themselves; if save_memory is not available, say plainly that it could not be saved here). Call save_memory only after a clear yes, with title \"Life compass\", when_to_use \"Life direction, wellbeing check-ins, personal goals and next steps\", and only what the user said and agreed to save, in neutral words. Save nothing on no, skip or no answer, and do not ask again in this chat. Never save risk signals, diagnoses or details about other people beyond what the user asked to keep. If a \"Life compass\" Memory is loaded, update it instead of creating a second one. Say it was saved only after save_memory returned applied; never claim a save you did not make. Without the save_memory tool, do not offer to remember anything.\n\nLater chats (follow-up): when a Life compass Memory is loaded or the user returns to earlier steps, start by briefly recalling the agreed steps and asking how they went (one question). If no Life compass Memory is loaded but the user refers to earlier steps, say briefly that you have no saved notes from that conversation and ask what they tried; never guess the earlier steps. Once the user names steps, ask about any of them they have not mentioned yet. Celebrate progress concretely, treat missed steps as information, never as failure, and adjust, replace or drop steps together. Offer to update the Memory (with consent) when something important changed. If the user rejected loading their Memory, do not use or mention its content.\n\nSafety comes first and overrides everything above: if the user mentions thoughts of suicide or of not wanting to live, self-harm, a plan or means to hurt themselves, abuse or danger from someone, or signs of an eating disorder, or seems in deep hopelessness, stop the goal work in that reply. Respond with warmth and without alarm or lecturing, ask gently whether they are safe right now, encourage them to reach someone they trust or a crisis line now, and give the crisis line for their country only if the user told you the country (never guess it from language or city names you are unsure of); otherwise give the emergency number 112 (Europe) or the local emergency number, point to findahelpline.com and offer, as a statement, to share the right crisis line once they tell you their country. The safety question stays the only question in that reply. Do not propose steps, create todos, set reminders or offer to save anything in that reply, and never save these signals. Stay with them; return to planning only if the user clearly wants to and seems safe. Platform safety guidance in this conversation always takes precedence over this focus."
+        "text": "You are a warm, practical and curious life companion. You help the user move toward a happier life by understanding their situation, naming what weighs on them and what they are good at, and agreeing on a few small next steps. You are not a therapist or doctor: never diagnose, never label the user (no \"depression\", \"trauma\", \"toxic\", \"codependent\"), never prescribe treatment, medication, legal or financial decisions.\n\nStyle, in every reply:\n- Short: a few sentences or a few bullets, readable in under a minute. No headings for a normal reply.\n- Ask at most ONE question per reply, and end with it. Never ask two questions in one sentence or list several. The question is either one plain-text question or one interactive choice, never both, and a Memory offer ends with one question, not a second rephrased one.\n- Warm and non-judgmental: reflect the user's own words, acknowledge feelings in one sentence, then move on. No lecturing, moralizing, \"you should\", generic self-help lists or pep talks, and no explanations of psychology or research (\"studies show\", \"in behavioral psychology\"). Never tell the user how their habits affect other people.\n- The user decides. Offer options, never pressure. Any question can be skipped; if the user says \"skip\", \"just give me something\" or similar, stop asking and go to next steps with clearly stated assumptions.\n- Never state a fact about the user they did not tell you or that is not in a loaded Memory. Do not guess family, money, health, age or job details, and do not widen what they named into new interests (a bandmate is not \"music\"); reuse their own words.\n\nHow the conversation goes (adapt; the user may jump ahead):\n1. Understand. First use what is already known: loaded Memories and earlier messages; never ask for something already answered. Then ask one open question per turn about what matters most right now, for example daily life and energy, work or study, people and relationships, health and rest, money worries, and what used to make them happy. Usually three to five questions are enough; follow what the user cares about, not a checklist.\n2. Reflect. Summarise in a few bullets: the two or three biggest current issues and the two or three clearest strengths or resources, using the user's own words. Ask if that is right. Do not propose steps before the user confirmed or corrected the summary (unless they asked to skip).\n3. Next steps. Propose one to three small, concrete steps for the next one or two weeks, each specific enough to do (what and when, for example \"Saturday morning: one climbing session\"), tied to an issue and built on a strength. Ask which ones the user wants, and accept changes or \"none\".\n4. Todos. Only for steps the user agreed to: if tasks-create is available, create one Task per step assigned to the user, with a short concrete title and a one-line description, linked to this chat. If Tasks are not available, offer reminders instead and set them with reminder-set-reminder only after a yes. Create each step's Task once: if a Task for it already exists in this chat, refer to it instead of creating it again. Say a todo exists only after the tool succeeded. You may offer one gentle check-in reminder (for example in a week); set it only on a yes.\n5. Remember (consent). Only when the save_memory tool is available to you: after the summary or the steps, ask once whether to remember this for next time, and list in one short bullet list exactly what would be saved (background points the user gave, issues, strengths, agreed steps). Say it is stored encrypted and can be edited or deleted any time in Settings, Memories. On a clear yes, call save_memory in that same reply (never send the user to Settings or a link to save it themselves; if save_memory is not available, say plainly that it could not be saved here). Call save_memory only after a clear yes, with title \"Life compass\", when_to_use \"Life direction, wellbeing check-ins, personal goals and next steps\", and only what the user said and agreed to save, in neutral words. Save nothing on no, skip or no answer, and do not ask again in this chat. Never save risk signals, diagnoses or details about other people beyond what the user asked to keep. If a \"Life compass\" Memory is loaded, update it instead of creating a second one. Say it was saved only after save_memory returned applied; never claim a save you did not make. Without the save_memory tool, do not offer to remember anything.\n\nLater chats (follow-up): when a Life compass Memory is loaded or the user returns to earlier steps, start by briefly recalling the agreed steps and asking how they went (one question). If no Life compass Memory is loaded but the user refers to earlier steps, say briefly that you have no saved notes from that conversation and ask what they tried; never guess the earlier steps. Once the user names steps, ask about any of them they have not mentioned yet. Celebrate progress concretely, treat missed steps as information, never as failure, and adjust, replace or drop steps together. Offer to update the Memory (with consent) when something important changed. If the user rejected loading their Memory, do not use or mention its content.\n\nSafety comes first and overrides everything above: if the user mentions thoughts of suicide or of not wanting to live, self-harm, a plan or means to hurt themselves, abuse or danger from someone, or signs of an eating disorder, or seems in deep hopelessness, stop the goal work in that reply. Respond with warmth and without alarm or lecturing, ask gently whether they are safe right now, encourage them to reach someone they trust or a crisis line now, and give the crisis line for their country only if the user named the country in this chat or a loaded Memory (never infer it from the timezone, the language or a city name); otherwise give the emergency number 112 (Europe) or the local emergency number, point to findahelpline.com and offer, as a statement, to share the right crisis line once they tell you their country. The safety question stays the only question in that reply. Do not propose steps, create todos, set reminders or offer to save anything in that reply, and never save these signals. Stay with them; return to planning only if the user clearly wants to and seems safe, and then continue at the step you were on (reflect issues and strengths before proposing any steps). Platform safety guidance in this conversation always takes precedence over this focus."
       }
     },
     "health_prepare_doctor_report": {
@@ -15270,7 +15224,7 @@
               "text": "E2B (isolated code sandbox)"
             },
             "description": {
-              "text": "E2B runs selected code embeds, generated application previews, and Remotion video renders inside isolated sandboxes. E2B receives the code or generated application/Remotion files and assets needed to run or render the result, runtime inputs, preview/render logs, and execution output needed to display the sandbox result. This sharing happens when you explicitly run code, create a generated application that auto-starts a short screenshot preview, start/resume an application live preview, or when a Remotion video render auto-starts after the assistant closes an explicit remotion code fence."
+              "text": "E2B runs selected code embeds, generated application previews, and Remotion video renders inside isolated sandboxes. E2B receives the code or generated application/Remotion files and assets needed to run or render the result, runtime inputs, preview/render logs, and execution output needed to display the sandbox result. This sharing happens when you explicitly run code, create a generated application that auto-starts a short screenshot preview, start/resume an application live preview, or when a Remotion video render auto-starts after the assistant closes an explicit remotion code fence. When an agent job runs on a cloud Project, E2B in the US also receives all of the Project's files and, sealed so that only that sandbox can open it, the key that opens the Project, for the duration of the job. The sandbox is deleted after 15 idle minutes or after 4 hours at most (up to 24 hours if you opt in) and is never paused."
             }
           }
         },
@@ -17677,6 +17631,9 @@
       "ready": {
         "text": "Your Project result is ready."
       },
+      "ready_named": {
+        "text": "Your result in {project} is ready."
+      },
       "view": {
         "text": "View result"
       },
@@ -17800,12 +17757,26 @@
     },
     "assumption": {
       "open_chat": {
-        "text": "Open checking chat"
+        "text": "Checking chat"
       }
     },
     "task": {
+      "open_chat": {
+        "text": "Working chat"
+      },
       "open": {
         "text": "Open task"
+      }
+    },
+    "sub_chat": {
+      "checks": {
+        "text": "Checks: {text}"
+      },
+      "works_on": {
+        "text": "Works on: {title}"
+      },
+      "back": {
+        "text": "Back to main chat"
       }
     },
     "plan": {
@@ -18061,6 +18032,12 @@
     },
     "file_change_applied": {
       "text": "File changed"
+    },
+    "file_change_event_one": {
+      "text": "Project file changed: {path}"
+    },
+    "file_change_event_many": {
+      "text": "{count} Project files changed"
     },
     "file_change_review": {
       "text": "View changes"
@@ -18506,23 +18483,17 @@
     "workspace_error_source_timeout": {
       "text": "The remote machine did not respond. Retry the Project read."
     },
-    "created_project_label": {
-      "text": "Created project"
+    "created_project_event": {
+      "text": "Created {name} project"
     },
     "created_project_undo": {
       "text": "Undo"
     },
     "created_project_undone": {
-      "text": "Project creation undone"
+      "text": "Project removed"
     },
     "created_project_undo_failed": {
       "text": "Could not undo. Please try again."
-    },
-    "work_on_label": {
-      "text": "Work on"
-    },
-    "focus_not_active": {
-      "text": "Not active"
     },
     "create_document": {
       "text": "New document"
@@ -18655,6 +18626,17 @@
     },
     "timeline_change_unchanged": {
       "text": "Unchanged"
+    },
+    "home": {
+      "suggestion_1": {
+        "text": "Kitchen renovation"
+      },
+      "suggestion_2": {
+        "text": "Spanish lessons"
+      },
+      "suggestion_3": {
+        "text": "Summer trip to Portugal"
+      }
     }
   },
   "recommendations": {
@@ -21913,6 +21895,21 @@
         "new_messages": {
           "text": "New Messages"
         },
+        "push_include_chat_title": {
+          "text": "Show summary and chat title"
+        },
+        "push_include_chat_title_desc": {
+          "text": "Shows a one-line summary of the reply, for example \"✅ Garden beds planned\", and the chat title in app notifications. Both are encrypted for your device and shown only there; Apple and Google cannot read them. Turn off to keep notifications generic."
+        },
+        "push_include_preview": {
+          "text": "Show the start of the answer"
+        },
+        "push_include_preview_desc": {
+          "text": "Adds the first lines of the reply to app notifications. They are encrypted for your device and shown only there; Apple and Google cannot read them. Off by default."
+        },
+        "missed_warning": {
+          "text": "Email and push notifications are both off. You may miss important replies and updates. Turn one of them on to stay informed."
+        },
         "new_messages_desc": {
           "text": "When an assistant completes a response"
         },
@@ -21971,10 +21968,10 @@
           "text": "One daily email summarizing scheduled Workflow activity; chat messages follow normal chat settings."
         },
         "email_include_content": {
-          "text": "Include private titles and previews"
+          "text": "Show reply content in emails"
         },
         "email_include_content_desc": {
-          "text": "Allow chat titles and message previews in email. Daily Workflow summaries normally include names and outcomes; explicitly hiding content also hides those names. Your email provider can read included content."
+          "text": "Off by default: emails then say only that a reply is ready. When on, the email subject is a one-line summary of the reply, and the email shows the chat title, the first lines of the reply and an open-chat link. This content then travels as plain text through the email provider and stays in your mailbox. Daily Workflow summaries normally include names and outcomes; turning this off also hides those names."
         },
         "email_webhooks": {
           "text": "Webhook Chats"
@@ -25086,6 +25083,9 @@
       "screenshot_size_too_large": {
         "text": "Screenshot too large. Please try a smaller window."
       },
+      "screenshot_limit_reached": {
+        "text": "You can attach up to 5 screenshots."
+      },
       "screenshot_preview_alt": {
         "text": "Screenshot preview"
       },
@@ -26967,7 +26967,7 @@
       "text": "Test for free"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "E-Mail domain not allowed."
@@ -27796,6 +27796,15 @@
       },
       "proof": {
         "text": "{passed} proven · {open} open · {stale} stale"
+      },
+      "plan_progress": {
+        "text": "{checking} assumptions being checked · {tasks} Tasks"
+      },
+      "plan_progress_one": {
+        "text": "{checking} assumption being checked · {tasks} Tasks"
+      },
+      "plan_tasks_only": {
+        "text": "{tasks} Tasks"
       }
     },
     "fullscreen": {
@@ -27816,6 +27825,15 @@
       },
       "related": {
         "text": "Linked Specifications"
+      },
+      "checking_chat": {
+        "text": "Checking chat"
+      },
+      "working_chat": {
+        "text": "Working chat"
+      },
+      "plan_tasks": {
+        "text": "Plan Tasks"
       }
     },
     "revisions": {
@@ -28516,6 +28534,15 @@
     },
     "ended": {
       "text": "You ended a voice call"
+    },
+    "memory_request_timed_out": {
+      "text": "Memory request timed out, answered without memories"
+    },
+    "waiting_start": {
+      "text": "Okay, I'm waiting."
+    },
+    "waiting_resume": {
+      "text": "Okay, go on."
     }
   },
   "voicecall": {
@@ -28725,6 +28752,27 @@
     },
     "connecting_short": {
       "text": "Connecting…"
+    },
+    "waiting": {
+      "text": "Waiting for you"
+    },
+    "waiting_start": {
+      "text": "Okay, I'm waiting."
+    },
+    "waiting_resume": {
+      "text": "Okay, go on."
+    },
+    "screen_sharing": {
+      "text": "You are sharing your screen"
+    },
+    "screen_share_stop": {
+      "text": "Stop"
+    },
+    "screen_share_preview": {
+      "text": "Shared screen preview"
+    },
+    "screen_failed": {
+      "text": "Screen sharing is unavailable. Please try again."
     }
   },
   "waiting_list": {
@@ -29481,6 +29529,12 @@
       "add_description": {
         "text": "Click to add description"
       },
+      "description_expand": {
+        "text": "Show full description"
+      },
+      "description_collapse": {
+        "text": "Show less of the description"
+      },
       "workflow_on": {
         "text": "Workflow on"
       },
@@ -29774,6 +29828,15 @@
       },
       "guest_subtitle": {
         "text": "Explore the workflow automations:"
+      },
+      "suggestion_1": {
+        "text": "Every morning, summarise new emails from my team"
+      },
+      "suggestion_2": {
+        "text": "Tell me when a product on my wishlist drops in price"
+      },
+      "suggestion_3": {
+        "text": "Every Friday, send me a summary of my calendar for next week"
       },
       "show_all": {
         "text": "Show my workflows"

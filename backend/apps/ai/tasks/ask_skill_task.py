@@ -855,6 +855,34 @@ async def _ack_running_recovery_queue_prefix(
     return True
 
 
+async def _ack_own_legacy_queue_prefix(
+    *, request_data: AskSkillRequest, task_id: str, queued_lease: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> bool:
+    """Close the queued batch this very task is already answering.
+
+    The sender may have dispatched this deterministic batch task before its own
+    durable start receipt and prefix ACK finished (for example while the
+    message row was still being persisted). The still-unacked prefix is then
+    this task's own input, not a follower: release it instead of storing a
+    second hand-off for the same batch.
+    """
+    if (request_data.is_incognito or request_data.is_external or request_data.is_anonymous
+            or any(m.get("user_id") != request_data.user_id for m in queued_lease["messages"])):
+        return False
+    ids, _ = _validated_queued_messages(request_data, queued_lease)
+    proof = _legacy_queued_batch_proof(request_data, queued_lease, ids)
+    if proof["celery_task_id"] != task_id:
+        return False
+    await _mark_queued_prefix_started(
+        cache_service, directus_service, queued_lease, request_data.user_id,
+        request_data.team_id_hash, task_id,
+    )
+    if not await cache_service.acknowledge_queued_message_prefix(request_data.chat_id, queued_lease):
+        raise RequiredRecoveryOutputError("Running queued batch prefix ACK failed")
+    return True
+
+
 async def resume_legacy_queued_handoff(
     *, cache_service: CacheService, directus_service: DirectusService,
     chat_id: str, actor_user_id: str, hashed_team_id: Optional[str],
@@ -1068,13 +1096,30 @@ def _recovery_unclaimed_result(claim: dict[str, Any]) -> dict[str, Any]:
 # globally for every Celery task, not just this one.
 
 
+async def _resolve_cleanup_vault_key_id(
+    user_id: str, cache_service: CacheService, directus_service: DirectusService,
+) -> Optional[str]:
+    """Return the user's real Vault transit key id (cache first, then Directus).
+
+    Failure cleanup runs outside the task body that loaded the key, so it must
+    look the key up instead of guessing a name; a wrong name makes Vault refuse
+    the encryption and leaves the skill card spinning on "processing".
+    """
+    vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+    if vault_key_id:
+        return vault_key_id
+    user_record = await directus_service.get_user_fields_direct(user_id, fields=["vault_key_id"])
+    vault_key_id = (user_record or {}).get("vault_key_id")
+    return str(vault_key_id) if vault_key_id else None
+
+
 async def _cleanup_processing_embeds_on_task_failure(
     task_id: str,
     chat_id: str,
     message_id: str,
     user_id: str,
     user_id_hash: str,
-    user_vault_key_id: str,
+    user_vault_key_id: Optional[str],
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
@@ -1122,6 +1167,12 @@ async def _cleanup_processing_embeds_on_task_failure(
         if not encryption_service:
             encryption_service = EncryptionService()
         
+        if not user_vault_key_id:
+            user_vault_key_id = await _resolve_cleanup_vault_key_id(user_id, cache_service, directus_service)
+        if not user_vault_key_id:
+            logger.error(f"{log_prefix} No vault key for user; processing embeds cannot be sealed as failed")
+            return 0
+
         # Create embed service for cleanup operations
         embed_service = EmbedService(cache_service, directus_service, encryption_service)
         
@@ -1185,7 +1236,7 @@ async def _cleanup_processing_embeds_on_task_failure(
                     # Update embed to error or cancelled status
                     try:
                         if use_cancelled_status:
-                            await embed_service.update_embed_status_to_cancelled(
+                            update_result = await embed_service.update_embed_status_to_cancelled(
                                 embed_id=embed_id,
                                 app_id=app_id,
                                 skill_id=skill_id,
@@ -1198,7 +1249,7 @@ async def _cleanup_processing_embeds_on_task_failure(
                                 log_prefix=log_prefix
                             )
                         else:
-                            await embed_service.update_embed_status_to_error(
+                            update_result = await embed_service.update_embed_status_to_error(
                                 embed_id=embed_id,
                                 app_id=app_id,
                                 skill_id=skill_id,
@@ -1211,6 +1262,9 @@ async def _cleanup_processing_embeds_on_task_failure(
                                 task_id=task_id,
                                 log_prefix=log_prefix
                             )
+                        if update_result is None:
+                            logger.error(f"{log_prefix} Embed {embed_id} could not be marked as {target_status}")
+                            continue
                         cleaned_count += 1
                         logger.info(f"{log_prefix} Successfully marked embed {embed_id} as {target_status}")
                     except Exception as update_error:
@@ -1463,7 +1517,7 @@ async def _cleanup_on_task_failure(
     message_id: str,
     user_id: str,
     user_id_hash: str,
-    user_vault_key_id: str,
+    user_vault_key_id: Optional[str],
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
@@ -4629,6 +4683,20 @@ async def _async_process_ai_skill_ask_task(
                     directus_service=directus_service_instance,
                 )
             queued_messages = []
+        elif queued_messages and await _ack_own_legacy_queue_prefix(
+            request_data=request_data, task_id=authority_task_id,
+            queued_lease=queued_lease, cache_service=cache_service_instance,
+            directus_service=directus_service_instance,
+        ):
+            # Our own batch: the next lease (if any) holds only real followers.
+            queued_lease = await cache_service_instance.lease_queued_message_prefix(
+                request_data.chat_id, limit=20,
+            )
+            queued_messages = queued_lease["messages"] if queued_lease else []
+            if not queued_messages:
+                await _complete_active_ai_turn_if_queue_empty(
+                    cache_service_instance, request_data, task_id, main_processor_debug_metadata,
+                )
         
         if queued_messages and len(queued_messages) > 0:
             logger.info(f"[Task ID: {task_id}] Found {len(queued_messages)} queued message(s) for chat {request_data.chat_id}. Processing combined message (post-processing will continue in parallel).")
@@ -5224,6 +5292,10 @@ async def _async_process_ai_skill_ask_task(
                 "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
                 "source_title_v": source_title_v,
                 "source_metadata_v": source_metadata_v,
+                # Transient pub/sub only: the API listener seals these for the push/email
+                # path. They are not part of the client payload or the recovery job.
+                "notification_type": postprocessing_result.notification_type,
+                "notification_summary": postprocessing_result.notification_summary,
             }
 
             # Older clients receive their first title at completion. The early
@@ -5843,7 +5915,7 @@ def process_ai_skill_ask_task(
                 message_id=request_data.message_id,
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
-                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                user_vault_key_id=None,  # resolved from the user record by the cleanup
                 error_message="Task exceeded soft time limit",
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,
@@ -5904,7 +5976,7 @@ def process_ai_skill_ask_task(
                 message_id=request_data.message_id,
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
-                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                user_vault_key_id=None,  # resolved from the user record by the cleanup
                 error_message=str(e),
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,
@@ -5980,7 +6052,7 @@ def process_ai_skill_ask_task(
                 message_id=request_data.message_id,
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
-                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                user_vault_key_id=None,  # resolved from the user record by the cleanup
                 error_message=str(e),
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,

@@ -1,12 +1,13 @@
 <script lang="ts">
     import { vibrateDevice } from '../services/eventSounds';
   import type { SvelteComponent } from 'svelte';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import MessageBookmarkButton from './MessageBookmarkButton.svelte';
   import { tooltip } from '../actions/tooltip';
   import { loadExpandedMessageMarkdown } from '../utils/chatMessageExpansion';
+  import { appsResultContextDisplayText } from '../utils/appsResultContextDisplay';
   import DemoMessageContent from './DemoMessageContent.svelte';
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
@@ -46,6 +47,7 @@
   import { localChatTitle, openLinkedChat } from '../services/chatOrchestrationNavigation';
   import type { OrchestrationEvent } from '../services/rustCore/crypto/orchestrationOps';
   import { parseVoiceCallHistoryEvent } from '../services/voiceCallLifecycleEvent';
+  import { parseMemoryRequestTimedOutEvent } from '../services/memoryRequestTimedOutEvent';
   import SystemMessageNotice from './SystemMessageNotice.svelte';
   import { parseFocusPhaseEvent } from '../types/focusPhases';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
@@ -64,7 +66,10 @@
   import { chatSyncService } from '../services/chatSyncService';
   import { clearSubChatsForParentCache, loadSubChatPreviews } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
-  import { MEMORY_RESPONSE_APP_ID } from '../services/memoryDocumentRequest';
+  import { MEMORY_RESPONSE_APP_ID, loadLocalMemoryDocuments } from '../services/memoryDocumentRequest';
+  import IncludedMemoryPills from './IncludedMemoryPills.svelte';
+  import { resolveIncludedMemories, type IncludedMemoryBadge } from '../utils/includedMemoryBadges';
+  import { appSkillsStore } from '../stores/appSkillsStore';
       import { savedEmbedIds, toggleEmbedSaved, loadEmbedSaved } from '../services/savedEmbedService';
   import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   import { copyImageEmbed, downloadImageEmbed } from './embeds/images/imageEmbedActions';
@@ -971,9 +976,40 @@
    * Get display name for an app settings/memories category.
    * Returns a readable name formatted from the category's itemType (typed app memories no longer exist).
    */
+  // Included personal memories are synced by id only; their title and app come from the
+  // memory documents on this device (as in the permission dialog).
+  const includedMemoryIds = $derived(role === 'user' && appSettingsMemoriesResponse?.action === 'included'
+    ? (appSettingsMemoriesResponse.categories ?? []).filter((cat) => cat.appId === MEMORY_RESPONSE_APP_ID).map((cat) => cat.itemType)
+    : []);
+  // A string, so a re-parsed response with the same ids (every streamed update of a spoken
+  // reply) neither reruns the effect nor drops titles already shown.
+  const includedMemoryKey = $derived(includedMemoryIds.join('\n'));
+  let includedMemories = $state<IncludedMemoryBadge[]>([]);
+  $effect(() => {
+    const ids = includedMemoryKey ? includedMemoryKey.split('\n') : [];
+    const chatId = currentChatId;
+    if (ids.length === 0) { includedMemories = []; return; }
+    const isKnownApp = (appId: string) => !!appSkillsStore.getState().apps[appId];
+    // Shown once the local documents are read, so a pill never flashes the generic label before
+    // its title; ids already shown keep their pill meanwhile. Unreadable documents: untitled pills.
+    const known = new Map(untrack(() => includedMemories).map((memory) => [memory.id, memory]));
+    includedMemories = ids.flatMap((id) => known.get(id) ?? []);
+    let cancelled = false;
+    loadLocalMemoryDocuments(chatId || undefined)
+      .then((documents) => { if (!cancelled) includedMemories = resolveIncludedMemories(ids, documents, isKnownApp); })
+      .catch((error: unknown) => {
+        console.warn('[ChatMessage] Included memory titles unavailable', error);
+        if (!cancelled) includedMemories = resolveIncludedMemories(ids, [], isKnownApp);
+      });
+    return () => { cancelled = true; };
+  });
+
+  function openIncludedMemory(memory: IncludedMemoryBadge): void {
+    settingsDeepLink.set(`settings_memories/${encodeURIComponent(memory.id)}`);
+    panelState.openSettings();
+  }
+
   function getCategoryDisplayName(cat: AppSettingsMemoriesResponseCategory): string {
-    // A personal Memory is stored by id only (no title in the synced message).
-    if (cat.appId === MEMORY_RESPONSE_APP_ID) return $text('settings.settings_memories');
     // Fallback: format itemType as readable string (e.g., "preferred_technologies" -> "Preferred Technologies")
     return cat.itemType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
@@ -1254,6 +1290,7 @@
 
   let phaseEvent = $derived(parseFocusPhaseEvent(systemRawContent()));
   let voiceCallEvent = $derived(parseVoiceCallHistoryEvent(systemRawContent()));
+  let memoryRequestTimedOut = $derived(role === 'system' && !!parseMemoryRequestTimedOutEvent(systemRawContent()));
   // Chat orchestration events are parsed by the Rust core (async); the notice renders once parsed.
   let orchestrationEvent = $state<OrchestrationEvent | null>(null);
   let orchestrationTitle = $state<string | null>(null);
@@ -3232,7 +3269,7 @@
       if (markdown === null) return;
       const { parse_message } = await import('../message_parsing/parse_message');
       const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
-      const tiptapJson = parse_message(markdown, 'read', { unifiedParsingEnabled: true, role });
+      const tiptapJson = parse_message(appsResultContextDisplayText(markdown, role), 'read', { unifiedParsingEnabled: true, role });
       // Status publications may replace the row object; a different message or
       // edited document must not receive an older asynchronous expansion.
       if (original_message?.message_id !== source.message_id || original_message?.chat_id !== source.chat_id
@@ -3359,6 +3396,7 @@
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
         {#if voiceCallEvent}<VoiceCallEventNotice event={voiceCallEvent} />
+        {:else if memoryRequestTimedOut}<span class="system-message-text" data-testid="memory-request-timed-out">{$text('voice_call_events.memory_request_timed_out')}</span>
         {:else if orchestrationEvent}<ChatOrchestrationEventNotice event={orchestrationEvent} title={orchestrationTitle} onOpen={(id) => void openLinkedChat(id)} />
         {:else if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
         {:else if anonymousFeatureNotice}
@@ -3990,27 +4028,27 @@
         {#if appSettingsMemoriesResponse.action === 'included' && appSettingsMemoriesResponse.categories}
           <span class="summary-label">{$text('chat.permissions.included_summary')}:</span>
           <div class="summary-categories">
-            {#each appSettingsMemoriesResponse.categories as cat}
+            {#if includedMemories.length > 0}
+              <IncludedMemoryPills memories={includedMemories} onOpen={openIncludedMemory} />
+            {/if}
+            {#each appSettingsMemoriesResponse.categories.filter((cat) => cat.appId !== MEMORY_RESPONSE_APP_ID) as cat}
               <button 
                 type="button"
                 class="category-badge"
                 data-testid="app-settings-memory-category-badge"
                 onclick={() => {
-                  // Personal memories open the Memories hub; other categories open their app.
-                  const path = cat.appId === 'openmates' || cat.appId === MEMORY_RESPONSE_APP_ID
-                    ? 'settings_memories' : `apps/${cat.appId}`;
+                  // Account memories open the Memories hub; other categories open their app.
+                  const path = cat.appId === 'openmates' ? 'settings_memories' : `apps/${cat.appId}`;
                   settingsDeepLink.set(path);
                   panelState.openSettings();
                 }}
               >
-                {#if cat.appId !== MEMORY_RESPONSE_APP_ID}
                 <Icon 
                   name={cat.appId} 
                   type="app" 
                   size="18px"
                   noAnimation={true}
                 />
-                {/if}
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
               </button>
             {/each}

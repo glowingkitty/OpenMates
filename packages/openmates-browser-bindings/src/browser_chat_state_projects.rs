@@ -10,3 +10,9 @@ use wasm_bindgen::prelude::*;
 pub fn chat_state_project_decide(op: &str, input_json: &str) -> Result<String, JsValue> {
     openmates_sdk::web_projects::run_json(op, input_json).map_err(|e| JsValue::from_str(&e))
 }
+
+/// Runs one sub-chat decision (`subchatShell`, `subchatLinkRequest`, `subchatLinkRetry`) on a JSON document.
+#[wasm_bindgen]
+pub fn chat_state_subchat_decide(op: &str, input_json: &str) -> Result<String, JsValue> {
+    openmates_sdk::web_subchat::run_json(op, input_json).map_err(|e| JsValue::from_str(&e))
+}

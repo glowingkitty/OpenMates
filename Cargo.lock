@@ -2596,6 +2596,7 @@ dependencies = [
  "gloo-timers",
  "hkdf",
  "hmac",
+ "httparse",
  "icu_collator",
  "icu_locale_core",
  "js-sys",

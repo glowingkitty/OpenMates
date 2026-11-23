@@ -773,6 +773,35 @@ project_assistant_creation:
   given: Alice is in a new chat with no Project.
   when: She asks "write me a Python script that renames my photos by date".
   then: The assistant answers with one code embed in the chat. No Project is created and no Project focus starts.
+project_presentation:
+- id: assistant-created-project-tile
+  assertion_ids:
+  - projects.presentation.tile
+  - projects.presentation.creation-same-call
+  - projects.presentation.encrypted
+  - projects.presentation.normalised
+  given: Alice asks the assistant "build me a simple recipe web app" in a new chat.
+  when: The assistant creates the Project Recipe Keeper and she opens the Projects workspace.
+  then: The Recipe Keeper tile reads "Save and plan your family recipes.", shows a chef hat icon and the cooking colours
+    that cooking chats use. The server stored only ciphertext for all three.
+- id: specification-approval-refreshes-once
+  assertion_ids:
+  - projects.presentation.specification-refresh
+  - projects.presentation.manual-lock
+  given: Alice changed the Recipe Keeper icon to a book by hand.
+  when: She approves its first Specification, "Recipe sharing for families", and later approves a second one.
+  then: After the first approval the description and category follow the Specification and the icon stays the book.
+    The second approval changes nothing.
+- id: mixed-project-backfill
+  assertion_ids:
+  - projects.presentation.backfill
+  - projects.presentation.dominant-category
+  - projects.presentation.suggest-route
+  given: Ben's older Project "Kitchen renovation" has no description, the folder icon and five chats, three about building
+    work and two about cooking.
+  when: Ben opens the Projects workspace.
+  then: The tile is filled once with a short description and a fitting icon and takes the maker colours of the three
+    building chats. Opening the workspace again changes nothing.
 project_application_files:
 - id: member-edits-file-directly
   assertion_ids:

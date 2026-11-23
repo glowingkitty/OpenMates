@@ -5,6 +5,7 @@ loaded or decrypted by this service; selected identities remain revision-bound.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 from uuid import UUID
 
@@ -13,6 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.core.api.app.services.project_recommendation_service import project_item_revision, require_authoring_budget
 from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationError, ProjectWriteAuthorizationService
 from backend.shared.providers.typesafe.models import NoulAnswer
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectContextCandidate(BaseModel):
@@ -68,6 +71,7 @@ class ProjectContextSelectionService:
         initial = await self._binding(user_id, body.chat_id, project_id, team_id)
         eligible = await self._eligible(user_id, project_id, team_id, body.candidates)
         if not eligible:
+            logger.info("Project context selection candidates=%d eligible=0 selected=0", len(body.candidates))
             return []
         await require_authoring_budget(self.cache, user_id, "foreground-context", 10)
         questions = {f"candidate_{index}": {"type": "noul", "instructions":
@@ -78,7 +82,10 @@ class ProjectContextSelectionService:
         try:
             decision = await self.jev.evaluate(state={"request": body.text,
                 "candidates": [candidate.model_dump(mode="json") for candidate in eligible]}, questions=questions)
-        except Exception:
+        except Exception as exc:
+            # Selection is optional context; the turn continues with the Project base only.
+            logger.warning("Project context selection unavailable (%s); candidates=%d eligible=%d",
+                           type(exc).__name__, len(body.candidates), len(eligible))
             return []
         current = await self._binding(user_id, body.chat_id, project_id, team_id)
         if current.get("activation_id") != initial.get("activation_id"):
@@ -90,5 +97,8 @@ class ProjectContextSelectionService:
             if str(candidate.id) in refreshed and isinstance(answer, NoulAnswer) and answer.noul >= 0.8:
                 selected.append((answer.noul, candidate))
         selected.sort(key=lambda value: value[0], reverse=True)
+        logger.info("Project context selection candidates=%d eligible=%d selected=%d kinds=%s",
+                    len(body.candidates), len(eligible), min(len(selected), 4),
+                    ",".join(sorted({candidate.kind for _, candidate in selected[:4]})) or "none")
         return [{"id": str(candidate.id), "kind": candidate.kind, "revision": candidate.revision}
                 for _, candidate in selected[:4]]

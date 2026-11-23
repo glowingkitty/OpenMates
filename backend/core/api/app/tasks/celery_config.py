@@ -224,6 +224,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_rollout_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.project_sandbox_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
@@ -1270,7 +1271,8 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.skill_ask": "app_ai",
     "apps.ai.tasks.stage_one": "app_ai_routing",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
-    "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
+    "apps.ai.tasks.focus_mode_auto_confirm": "app_ai_routing",
+    "apps.ai.tasks.expire_focus_authority": "app_ai_routing",
     "apps.ai.tasks.chat_orchestration_interpretation": "app_ai",
     "runtime_health.worker_probe": "app_ai",
     "runtime_health.chat_plumbing_probe": "app_ai",
@@ -1790,6 +1792,13 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=8, minute=30, day_of_week='1-5'),  # Weekdays 08:30 UTC
         'options': {'queue': 'email'},
     },
+    # Dev only (the task exits on other editions): one summary of the last 24 hours of
+    # chat failures. Fires at 06:00 and 07:00 UTC; the task sends only at 08:00 Berlin.
+    'dev-chat-failure-daily-summary': {
+        'task': 'app.tasks.email_tasks.chat_failure_summary_task.send_dev_chat_failure_summary',
+        'schedule': crontab(hour='6,7', minute=0),
+        'options': {'queue': 'email'},
+    },
     # Daily Inspiration generation - generates personalized inspirations for active users.
     # Runs at 06:00 UTC (morning delivery before users start their day in most timezones).
     # Only generates for users who made a paid request in the last 24 hours and viewed
@@ -1888,6 +1897,12 @@ if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
         'schedule': timedelta(minutes=30),
         'options': {'queue': 'persistence', 'expires': 1500},
     }
+# Hosted Project sandboxes: kill those past their hard maximum or without a cache record.
+app.conf.beat_schedule['reap-project-sandboxes'] = {
+    'task': 'project_sandbox.reap',
+    'schedule': timedelta(minutes=5),
+    'options': {'queue': 'persistence', 'expires': 240},
+}
 app.conf.timezone = 'UTC'
 
 # Pool children must finish worker_process_init before Celery's start-up

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.message-input
 version: 13
-status: draft
+status: approved
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
   recording controls, contextual suggestions, and send/start-new-chat handoff while preserving privacy, accessibility,
@@ -302,7 +302,9 @@ assertions:
     every inactive draft, with or without embeds, collapses into a single-line preview that shortens overflow with an
     ellipsis without discarding the full draft; embeds appear in that line in document order as the same type tokens
     the chat list uses (such as [Image] or [Sheet]); focusing the composer restores the rendered embeds and their
-    controls; and empty composer content does not create a sendable draft.
+    controls; and empty composer content does not create a sendable draft. Mentions in that line, in start-screen
+    draft cards, chat-list previews, message notifications and the chips of a restored draft show their display names (the Project name, the Focus
+    or skill title), never an identifier or raw mention syntax.
   depends_on:
   - models.DraftState
   - models.ComposerState.has_content
@@ -350,6 +352,14 @@ assertions:
   depends_on:
   - models.ComposerState
   - models.DraftState.persistence_target
+- id: message-input.send.collapse-at-send
+  type: behavior
+  must: An accepted-for-send web Send collapses the composer, leaves fullscreen and removes text focus at once, on
+    every device (on iPhone Safari the keyboard closes), before asynchronous preparation, persistence or server
+    acceptance, and without saving the outgoing text as a draft. A send that is rejected gives the draft back in the
+    expanded and focused state it was sent from.
+  depends_on:
+  - models.ComposerState
 - id: message-input.privacy-context
   type: privacy
   must: >

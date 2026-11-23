@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-17'
-generated_at: '2026-11-18T00:20:46+00:00'
+generated_at: '2026-11-23T00:46:24+00:00'
 range:
   since: '2026-11-17T00:00:00+00:00'
   until: '2026-11-18T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 0
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 20
   user_facing_items: 24
-  dev_only_items: 45
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,6 +60,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
+  - id: embed:slides:template
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
   - id: focus:code:write_specification
     kind: platform
     default_enabled: true
@@ -67,6 +74,20 @@ feature_availability:
     override: disabled
     parent_id: null
     source: admin_config
+  - id: focus:slides:design_template
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:slides:plan_presentation
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -116,20 +137,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: platform
-  - id: platform:workflows
-    kind: platform
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: null
-    source: platform
-  - id: skill:events:search
+  - id: skill:design:get_design
     kind: skill
-    default_enabled: false
+    default_enabled: true
     effective_enabled: false
-    override: null
-    parent_id: app:events
-    source: backend/apps/events/app.yml
+    override: disabled
+    parent_id: app:design
+    source: backend/apps/design/app.yml
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
@@ -142,6 +156,41 @@ feature_availability:
     default_enabled: false
     effective_enabled: false
     override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:list-spawned-chats
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:read-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:report-to-creator
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:send-to-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:start-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   - id: skill:travel:get_flight
@@ -164,7 +213,7 @@ sections:
     - docs/contributing/guides/daily-meeting.md
     - scripts/daily_meeting_briefing.py
     - scripts/tests/test_decision_log.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -172,7 +221,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
       suspension/appeal screens'
     section: features
@@ -325,8 +374,8 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -363,7 +412,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, platform:ios, platform:macos, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'feat(meeting): daily limits (3 chats, 3 reminders), LATER archive with resume, DROP decision log with re-check'
     section: features
     commits:
@@ -378,7 +428,7 @@ sections:
     - scripts/daily_meeting_triage.py
     - scripts/decision_log.py
     - scripts/tests/test_decision_log.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -386,7 +436,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(meeting): Marketing and business development block (win counter, 3 proposals, daily ideas, style feedback
       loop), idea inbox, feature priority rule'
     section: features
@@ -404,7 +454,7 @@ sections:
     - scripts/tests/test_daily_meeting_goals.py
     - scripts/tests/test_daily_meeting_growth.py
     - scripts/tests/test_daily_meeting_marketing.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -412,7 +462,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(meeting): NOW/LATER/DROP triage of every briefing item, Side notes at the end, priorities read from FOCUS.md'
     section: features
     commits:
@@ -427,7 +477,7 @@ sections:
     - scripts/daily_meeting_triage.py
     - scripts/daily_meeting_waiting.py
     - scripts/tests/test_daily_meeting_waiting.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -435,7 +485,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(meeting): briefing lists every waiting chat, a Paused chats section, one outcome per chat and a 7-day no-decision
       check'
     section: features
@@ -450,7 +500,7 @@ sections:
     - scripts/daily_meeting_paused.py
     - scripts/daily_meeting_waiting.py
     - scripts/tests/test_daily_meeting_waiting.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -458,7 +508,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
       benchmark'
     section: features
@@ -493,9 +543,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -517,7 +567,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(host): hourly per-category disk budgets enforced oldest first, from 75% at 80% of each cap (TASK-7646 steps
       4-5)'
     section: features
@@ -537,7 +587,7 @@ sections:
     - scripts/tests/test_host_disk_budgets.py
     - scripts/tests/test_host_disk_root.py
     - scripts/tests/test_host_disk_usage.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -545,7 +595,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(host): hourly disk size log per category and disk alerts at 75% and 85% naming the largest growers (TASK-7646
       step 2)'
     section: features
@@ -560,7 +610,7 @@ sections:
     - scripts/host_resources.py
     - scripts/tests/test_host_disk_usage.py
     - scripts/tests/test_host_resources.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -568,7 +618,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(host): weekly root cleanup removes orphaned Docker layers, oversized container logs and old journal (TASK-7646
       step 1)'
     section: features
@@ -580,7 +630,7 @@ sections:
     - scripts/host-disk-root-setup.sh
     - scripts/host_disk_root.py
     - scripts/tests/test_host_disk_root.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -588,7 +638,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
     section: features
     commits:
@@ -637,16 +687,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
       v3 draft)'
     section: features
@@ -680,8 +730,8 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -711,7 +761,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:code, platform:projects'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
   - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
       diffs'
     section: features
@@ -753,9 +804,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -791,7 +842,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:code, embed:code:run, skill:code:run'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
     section: bug_fixes
@@ -872,9 +923,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:images
@@ -889,7 +940,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:images'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
       answers after its sub-chats (TASK-2749)'
     section: bug_fixes
@@ -904,9 +955,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -921,7 +972,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops reporting
       it'
     section: bug_fixes
@@ -933,9 +984,9 @@ sections:
     - backend/apps/ai/utils/llm_utils.py
     - backend/tests/test_stream_consumer_recovery.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -950,7 +1001,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
     section: bug_fixes
     commits:
@@ -962,8 +1013,8 @@ sections:
     - frontend/packages/ui/src/i18n/sources/focus_modes/life_coaching_life_compass.yml
     - scripts/life_compass_persona_real_test.py
     - scripts/life_compass_personas.py
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -979,7 +1030,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:life_coaching'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   - title: 'fix(host): one 10 GiB disk floor without percent ceiling, and reservations sized from measured use (TASK-7646
       step 3)'
     section: bug_fixes
@@ -993,7 +1045,7 @@ sections:
     - scripts/resource_budget.py
     - scripts/sessions.py
     - scripts/tests/test_disk_admission_policy.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1001,7 +1053,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
     section: bug_fixes
     commits:
@@ -1013,16 +1065,16 @@ sections:
     - packages/openmates-rust/src/client/rate_limited_read_tests.rs
     - packages/openmates-rust/src/client/transport.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
     section: bug_fixes
     commits:
@@ -1033,16 +1085,16 @@ sections:
     - backend/tests/test_code_test_run.py
     - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): a wallet below the session cap holds what it can instead of refusing Browse'
     section: bug_fixes
     commits:
@@ -1054,7 +1106,7 @@ sections:
     - specifications/features/app-skills/web-browse/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1062,7 +1114,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
     section: bug_fixes
     commits:
@@ -1075,16 +1127,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
     section: bug_fixes
     commits:
@@ -1098,16 +1150,16 @@ sections:
     - specifications/features/app-skills/web-browse/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(client-core): a rate-limited read waits and is sent again instead of failing the turn offline'
     section: bug_fixes
     commits:
@@ -1118,7 +1170,7 @@ sections:
     - packages/openmates-rust/src/client/rate_limited_read.rs
     - packages/openmates-rust/src/client/rate_limited_read_tests.rs
     - packages/openmates-rust/src/client/transport.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1126,7 +1178,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and fields
       left empty'
     section: bug_fixes
@@ -1140,9 +1192,9 @@ sections:
     - specifications/features/app-skills/web-browse/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1157,7 +1209,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(recovery): an acknowledged app card advances to its sealed fuller manifest, so a CLI turn no longer fails
       replaying it'
     section: bug_fixes
@@ -1168,7 +1220,7 @@ sections:
     - backend/core/directus/extensions/embed-version-transaction/src/operations.js
     - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1176,7 +1228,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): form turns continue the session without naming a cap'
     section: bug_fixes
     commits:
@@ -1188,9 +1240,9 @@ sections:
     - specifications/features/app-skills/web-browse/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:web
@@ -1205,7 +1257,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
     section: bug_fixes
     commits:
@@ -1220,9 +1272,9 @@ sections:
     - specifications/features/app-skills/code-run/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:code
@@ -1251,7 +1303,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:code, embed:code:run, skill:code:run'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
     section: bug_fixes
     commits:
@@ -1262,9 +1314,9 @@ sections:
     - backend/core/api/app/services/web_browse_service.py
     - backend/tests/test_web_browse_service.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:web
@@ -1293,7 +1345,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:web, embed:web:browse, skill:web:browse'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
     section: bug_fixes
     commits:
@@ -1306,9 +1358,9 @@ sections:
     - specifications/features/app-skills/web-browse/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:web
@@ -1323,7 +1375,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
       terminal cards by embed'
     section: bug_fixes
@@ -1337,9 +1389,9 @@ sections:
     - backend/tests/test_cloud_project_commands.py
     - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1354,7 +1406,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs on
       the host'
     section: bug_fixes
@@ -1368,9 +1420,9 @@ sections:
     - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
     - scripts/agentic_app_real_test.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:code
@@ -1385,7 +1437,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:code'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): slow page responses survive the browser tunnel; pending requests finish before the pause'
     section: bug_fixes
     commits:
@@ -1400,7 +1452,7 @@ sections:
     - specifications/features/app-skills/web-browse/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1408,7 +1460,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): form ticks are field preparation; Let AI continue re-observes the page first'
     section: bug_fixes
     commits:
@@ -1442,7 +1494,7 @@ sections:
     - specifications/features/app-skills/web-browse/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1450,7 +1502,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(scripts): Discord pushes keep NAME=... placeholders, SSH public keys and sha- image tags'
     section: bug_fixes
     commits:
@@ -1459,7 +1511,7 @@ sections:
     changed_paths:
     - scripts/agent_question.py
     - scripts/tests/test_agent_question.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1467,7 +1519,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
     section: bug_fixes
     commits:
@@ -1480,9 +1532,9 @@ sections:
     - backend/tests/test_tool_protocol_guard.py
     - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1497,7 +1549,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(shopping): a slow provider no longer cancels the whole price comparison'
     section: bug_fixes
     commits:
@@ -1515,7 +1567,7 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1523,7 +1575,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
     section: bug_fixes
     commits:
@@ -1545,8 +1597,8 @@ sections:
     - apple/OpenMatesUITests/WorkspaceContinuationLayoutUITests.swift
     - apple/project.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1569,7 +1621,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix(web-browse): one unparsable extraction reply gets a single metered repair'
     section: bug_fixes
     commits:
@@ -1579,7 +1632,7 @@ sections:
     - backend/shared/providers/browser_models.py
     - backend/tests/test_web_browse_models.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1587,7 +1640,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(shopping): no nearby offer still lists the closest offers with prices'
     section: bug_fixes
     commits:
@@ -1596,9 +1649,9 @@ sections:
     changed_paths:
     - backend/apps/shopping/app.yml
     - frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:shopping
@@ -1613,7 +1666,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:shopping'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): a resumed browser''s first start waits out a brief ingress 502'
     section: bug_fixes
     commits:
@@ -1623,7 +1676,7 @@ sections:
     - backend/core/api/app/services/web_browse_run.py
     - backend/tests/test_web_browse_service.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1631,7 +1684,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
     section: bug_fixes
     commits:
@@ -1641,9 +1694,9 @@ sections:
     - backend/apps/ai/processing/jev_preprocessing.py
     - backend/tests/test_preprocessor_jev.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1658,7 +1711,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements: []
   docs:
   - title: 'docs(dev-host): busy-chat send_message escalation (queue, interrupt, risky-step wait)'
@@ -1668,7 +1721,7 @@ sections:
     authored_at: '2026-11-17T13:04:54+00:00'
     changed_paths:
     - docs/architecture/infrastructure/dev-host-resources.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1676,7 +1729,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'chore(testing): real-inference runs top up a low personal dev test account before they start'
     section: tests
@@ -1688,7 +1741,7 @@ sections:
     - docs/contributing/guides/testing.md
     - scripts/dev_test_account.py
     - scripts/tests/test_dev_test_account.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1696,7 +1749,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(apple): Info.plist parity test expects the merged camera usage string'
     section: tests
     commits:
@@ -1704,7 +1757,7 @@ sections:
     authored_at: '2026-11-17T05:42:42+00:00'
     changed_paths:
     - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1727,588 +1780,12 @@ sections:
     rationale:
     - classified as tests from commit subject/path rules
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure: []
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'feat(meeting): marketing-time build gate rule for assistants, meta-work limit and timer note'
-    commits:
-    - a7f8dc1ef4
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
-      suspension/appeal screens'
-    commits:
-    - c2236dc810
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'feat(meeting): daily limits (3 chats, 3 reminders), LATER archive with resume, DROP decision log with re-check'
-    commits:
-    - d802990d24
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(meeting): Marketing and business development block (win counter, 3 proposals, daily ideas, style feedback
-      loop), idea inbox, feature priority rule'
-    commits:
-    - 0114108512
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(meeting): NOW/LATER/DROP triage of every briefing item, Side notes at the end, priorities read from FOCUS.md'
-    commits:
-    - f55a6f83b0
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
-    commits:
-    - 355ed3882e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-  - title: 'feat(meeting): briefing lists every waiting chat, a Paused chats section, one outcome per chat and a 7-day no-decision
-      check'
-    commits:
-    - 17c7cb9035
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(dev-host): busy-chat send_message escalation (queue, interrupt, risky-step wait)'
-    commits:
-    - 26b2fb51ee
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
-      answers after its sub-chats (TASK-2749)'
-    commits:
-    - 575cce0203
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
-      benchmark'
-    commits:
-    - cc436131d6
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops reporting
-      it'
-    commits:
-    - c2d0aabe51
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
-    commits:
-    - 3e034fc62c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-  - title: 'feat(host): hourly per-category disk budgets enforced oldest first, from 75% at 80% of each cap (TASK-7646 steps
-      4-5)'
-    commits:
-    - d58b444d32
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(host): one 10 GiB disk floor without percent ceiling, and reservations sized from measured use (TASK-7646
-      step 3)'
-    commits:
-    - ccdd3204a8
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(host): hourly disk size log per category and disk alerts at 75% and 85% naming the largest growers (TASK-7646
-      step 2)'
-    commits:
-    - 44b839e34c
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(host): weekly root cleanup removes orphaned Docker layers, oversized container logs and old journal (TASK-7646
-      step 1)'
-    commits:
-    - 04a18dac67
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore(testing): real-inference runs top up a low personal dev test account before they start'
-    commits:
-    - c7117a6054
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
-    commits:
-    - a5cd4aff31
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
-    commits:
-    - 39d34a4b69
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(web-browse): a wallet below the session cap holds what it can instead of refusing Browse'
-    commits:
-    - 9df937401a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
-    commits:
-    - 5bd4fd0e1c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
-    commits:
-    - c4f7cdfe1a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(client-core): a rate-limited read waits and is sent again instead of failing the turn offline'
-    commits:
-    - f8cc6e2bbf
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and fields
-      left empty'
-    commits:
-    - e3e85a6b24
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(recovery): an acknowledged app card advances to its sealed fuller manifest, so a CLI turn no longer fails
-      replaying it'
-    commits:
-    - d9350393db
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(web-browse): form turns continue the session without naming a cap'
-    commits:
-    - 2ae081c7bf
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
-    commits:
-    - 8d1cbfa8b4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: embed:code:run
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-    - id: skill:code:run
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-  - title: 'test(apple): Info.plist parity test expects the merged camera usage string'
-    commits:
-    - 7879c465c1
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
-    commits:
-    - 13fa08ce8b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-    - id: embed:web:browse
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:web
-      source: backend/apps/web/app.yml
-    - id: skill:web:browse
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:web
-      source: backend/apps/web/app.yml
-  - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
-    commits:
-    - c001e8492b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
-      terminal cards by embed'
-    commits:
-    - e3861fc795
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs on
-      the host'
-    commits:
-    - 04d19f9fc7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-  - title: 'fix(web-browse): slow page responses survive the browser tunnel; pending requests finish before the pause'
-    commits:
-    - 953076aa61
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
-    commits:
-    - 01ac4eee8e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
-      v3 draft)'
-    commits:
-    - 53e9829d12
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix(web-browse): form ticks are field preparation; Let AI continue re-observes the page first'
-    commits:
-    - abeb752111
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
-      diffs'
-    commits:
-    - 3b2bfc8aa5
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: embed:code:run
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-    - id: skill:code:run
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-  - title: 'fix(scripts): Discord pushes keep NAME=... placeholders, SSH public keys and sha- image tags'
-    commits:
-    - 463f5e40c7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
-    commits:
-    - 41c77b0b62
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(shopping): a slow provider no longer cancels the whole price comparison'
-    commits:
-    - 715d8cbee9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
-    commits:
-    - bbf1482f15
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(web-browse): one unparsable extraction reply gets a single metered repair'
-    commits:
-    - 2f9285d318
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(shopping): no nearby offer still lists the closest offers with prices'
-    commits:
-    - 7d56c30e76
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:shopping
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/shopping/app.yml
-  - title: 'fix(web-browse): a resumed browser''s first start waits out a brief ingress 502'
-    commits:
-    - a0eb75da3f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
-    commits:
-    - c2daf0db15
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
@@ -2316,8 +1793,8 @@ unreleased_progress:
     commits:
     - c2236dc810
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2352,8 +1829,8 @@ unreleased_progress:
     commits:
     - cc436131d6
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2373,8 +1850,8 @@ unreleased_progress:
     commits:
     - 2ae081c7bf
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -2387,8 +1864,8 @@ unreleased_progress:
     commits:
     - c001e8492b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -2401,16 +1878,16 @@ unreleased_progress:
     commits:
     - 01ac4eee8e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
       diffs'
     commits:
     - 3b2bfc8aa5
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2444,8 +1921,8 @@ unreleased_progress:
     commits:
     - 7d56c30e76
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -2455,15 +1932,323 @@ unreleased_progress:
       parent_id: null
       source: backend/apps/shopping/app.yml
 marketing_candidates:
-  newsletter: []
+  newsletter:
+  - title: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
+    commits:
+    - 355ed3882e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+  - title: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
+      answers after its sub-chats (TASK-2749)'
+    commits:
+    - 575cce0203
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
+      benchmark'
+    commits:
+    - cc436131d6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops reporting
+      it'
+    commits:
+    - c2d0aabe51
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
+    commits:
+    - a5cd4aff31
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
+    commits:
+    - 39d34a4b69
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
+    commits:
+    - 5bd4fd0e1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
+    commits:
+    - c4f7cdfe1a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and fields
+      left empty'
+    commits:
+    - e3e85a6b24
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(web-browse): form turns continue the session without naming a cap'
+    commits:
+    - 2ae081c7bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
+    commits:
+    - 8d1cbfa8b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
+    commits:
+    - 13fa08ce8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
+    commits:
+    - c001e8492b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
+      terminal cards by embed'
+    commits:
+    - e3861fc795
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs on
+      the host'
+    commits:
+    - 04d19f9fc7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
+    commits:
+    - 01ac4eee8e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
+      diffs'
+    commits:
+    - 3b2bfc8aa5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
+    commits:
+    - 41c77b0b62
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(shopping): no nearby offer still lists the closest offers with prices'
+    commits:
+    - 7d56c30e76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+  - title: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
+    commits:
+    - c2daf0db15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
   social_or_video:
   - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
       suspension/appeal screens'
     commits:
     - c2236dc810
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2498,8 +2283,8 @@ marketing_candidates:
     commits:
     - 355ed3882e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:images
       kind: app
@@ -2508,14 +2293,14 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/images/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
       answers after its sub-chats (TASK-2749)'
     commits:
     - 575cce0203
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2524,14 +2309,14 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
       benchmark'
     commits:
     - cc436131d6
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2547,14 +2332,14 @@ marketing_candidates:
       override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops reporting
       it'
     commits:
     - c2d0aabe51
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2563,13 +2348,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
     commits:
     - 3e034fc62c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:life_coaching
       kind: app
@@ -2583,41 +2368,41 @@ marketing_candidates:
     commits:
     - a5cd4aff31
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
     commits:
     - 39d34a4b69
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
     commits:
     - 5bd4fd0e1c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
     commits:
     - c4f7cdfe1a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and fields
       left empty'
     commits:
     - e3e85a6b24
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2626,13 +2411,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(web-browse): form turns continue the session without naming a cap'
     commits:
     - 2ae081c7bf
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -2641,13 +2426,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
     commits:
     - 8d1cbfa8b4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:code
       kind: app
@@ -2670,13 +2455,13 @@ marketing_candidates:
       override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
     commits:
     - 13fa08ce8b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -2699,13 +2484,13 @@ marketing_candidates:
       override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
     commits:
     - c001e8492b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -2714,14 +2499,14 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
       terminal cards by embed'
     commits:
     - e3861fc795
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2730,14 +2515,14 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs on
       the host'
     commits:
     - 04d19f9fc7
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:code
       kind: app
@@ -2746,22 +2531,22 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/code/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
     commits:
     - 01ac4eee8e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
       v3 draft)'
     commits:
     - 53e9829d12
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2790,8 +2575,8 @@ marketing_candidates:
     commits:
     - 3b2bfc8aa5
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2821,13 +2606,13 @@ marketing_candidates:
       override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
     commits:
     - 41c77b0b62
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2836,13 +2621,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
     commits:
     - bbf1482f15
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2863,8 +2648,8 @@ marketing_candidates:
     commits:
     - 7d56c30e76
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -2873,13 +2658,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/shopping/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
     commits:
     - c2daf0db15
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2888,7 +2673,7 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -2900,7 +2685,7 @@ sources:
     short_sha: a7f8dc1ef4
     authored_at: '2026-11-17T15:18:12+00:00'
     subject: 'feat(meeting): marketing-time build gate rule for assistants, meta-work limit and timer note'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/contributing/guides/daily-meeting.md
@@ -2912,7 +2697,7 @@ sources:
     authored_at: '2026-11-17T15:10:42+00:00'
     subject: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
       suspension/appeal screens'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates.xcodeproj/project.pbxproj
@@ -3069,7 +2854,7 @@ sources:
     short_sha: d802990d24
     authored_at: '2026-11-17T14:59:39+00:00'
     subject: 'feat(meeting): daily limits (3 chats, 3 reminders), LATER archive with resume, DROP decision log with re-check'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3086,7 +2871,7 @@ sources:
     authored_at: '2026-11-17T14:51:32+00:00'
     subject: 'feat(meeting): Marketing and business development block (win counter, 3 proposals, daily ideas, style feedback
       loop), idea inbox, feature priority rule'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3104,7 +2889,7 @@ sources:
     short_sha: f55a6f83b0
     authored_at: '2026-11-17T14:37:40+00:00'
     subject: 'feat(meeting): NOW/LATER/DROP triage of every briefing item, Side notes at the end, priorities read from FOCUS.md'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3120,7 +2905,7 @@ sources:
     short_sha: 355ed3882e
     authored_at: '2026-11-17T13:58:05+00:00'
     subject: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/images/tasks/generate_task.py
@@ -3203,7 +2988,7 @@ sources:
     authored_at: '2026-11-17T13:34:46+00:00'
     subject: 'feat(meeting): briefing lists every waiting chat, a Paused chats section, one outcome per chat and a 7-day no-decision
       check'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -3218,7 +3003,7 @@ sources:
     short_sha: 26b2fb51ee
     authored_at: '2026-11-17T13:04:54+00:00'
     subject: 'docs(dev-host): busy-chat send_message escalation (queue, interrupt, risky-step wait)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/infrastructure/dev-host-resources.md
@@ -3228,7 +3013,7 @@ sources:
     authored_at: '2026-11-17T12:34:22+00:00'
     subject: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
       answers after its sub-chats (TASK-2749)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/async_skill_continuation.py
@@ -3245,7 +3030,7 @@ sources:
     authored_at: '2026-11-17T12:28:41+00:00'
     subject: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a
       per-task benchmark'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/app.yml
@@ -3283,7 +3068,7 @@ sources:
     authored_at: '2026-11-17T11:30:05+00:00'
     subject: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops
       reporting it'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/stream_consumer.py
@@ -3296,7 +3081,7 @@ sources:
     short_sha: 3e034fc62c
     authored_at: '2026-11-17T11:24:22+00:00'
     subject: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/life_coaching/focus_modes/life-compass/SKILL.md
@@ -3311,7 +3096,7 @@ sources:
     authored_at: '2026-11-17T11:17:26+00:00'
     subject: 'feat(host): hourly per-category disk budgets enforced oldest first, from 75% at 80% of each cap (TASK-7646 steps
       4-5)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/infrastructure/dev-host-resources.md
@@ -3332,7 +3117,7 @@ sources:
     authored_at: '2026-11-17T11:03:38+00:00'
     subject: 'fix(host): one 10 GiB disk floor without percent ceiling, and reservations sized from measured use (TASK-7646
       step 3)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_results.py
@@ -3347,7 +3132,7 @@ sources:
     authored_at: '2026-11-17T10:59:08+00:00'
     subject: 'feat(host): hourly disk size log per category and disk alerts at 75% and 85% naming the largest growers (TASK-7646
       step 2)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/infrastructure/dev-host-resources.md
@@ -3363,7 +3148,7 @@ sources:
     authored_at: '2026-11-17T10:49:51+00:00'
     subject: 'feat(host): weekly root cleanup removes orphaned Docker layers, oversized container logs and old journal (TASK-7646
       step 1)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/infrastructure/dev-host-resources.md
@@ -3375,7 +3160,7 @@ sources:
     short_sha: c7117a6054
     authored_at: '2026-11-17T10:26:50+00:00'
     subject: 'chore(testing): real-inference runs top up a low personal dev test account before they start'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/testing.md
@@ -3387,7 +3172,7 @@ sources:
     short_sha: a5cd4aff31
     authored_at: '2026-11-17T10:18:37+00:00'
     subject: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
@@ -3400,7 +3185,7 @@ sources:
     short_sha: 39d34a4b69
     authored_at: '2026-11-17T09:15:44+00:00'
     subject: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/providers/e2b_test_runner.py
@@ -3412,7 +3197,7 @@ sources:
     short_sha: 9df937401a
     authored_at: '2026-11-17T08:41:27+00:00'
     subject: 'fix(web-browse): a wallet below the session cap holds what it can instead of refusing Browse'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/web_browse_service.py
@@ -3425,7 +3210,7 @@ sources:
     short_sha: 5bd4fd0e1c
     authored_at: '2026-11-17T08:22:51+00:00'
     subject: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
@@ -3439,7 +3224,7 @@ sources:
     short_sha: c4f7cdfe1a
     authored_at: '2026-11-17T07:59:49+00:00'
     subject: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/web_browse_service.py
@@ -3454,7 +3239,7 @@ sources:
     short_sha: f8cc6e2bbf
     authored_at: '2026-11-17T07:20:23+00:00'
     subject: 'fix(client-core): a rate-limited read waits and is sent again instead of failing the turn offline'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/client.rs
@@ -3467,7 +3252,7 @@ sources:
     authored_at: '2026-11-17T07:05:38+00:00'
     subject: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and
       fields left empty'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/browse_routing.py
@@ -3483,7 +3268,7 @@ sources:
     authored_at: '2026-11-17T06:29:00+00:00'
     subject: 'fix(recovery): an acknowledged app card advances to its sealed fuller manifest, so a CLI turn no longer fails
       replaying it'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/directus/extensions/embed-version-transaction/src/operations.js
@@ -3494,7 +3279,7 @@ sources:
     short_sha: 2ae081c7bf
     authored_at: '2026-11-17T06:24:23+00:00'
     subject: 'fix(web-browse): form turns continue the session without naming a cap'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/web/app.yml
@@ -3508,7 +3293,7 @@ sources:
     short_sha: 8d1cbfa8b4
     authored_at: '2026-11-17T05:53:29+00:00'
     subject: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/code/cloud_command_repeat.py
@@ -3527,7 +3312,7 @@ sources:
     short_sha: 7879c465c1
     authored_at: '2026-11-17T05:42:42+00:00'
     subject: 'test(apple): Info.plist parity test expects the merged camera usage string'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
@@ -3538,7 +3323,7 @@ sources:
     short_sha: 13fa08ce8b
     authored_at: '2026-11-17T05:41:00+00:00'
     subject: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/web/skills/browse_skill.py
@@ -3553,7 +3338,7 @@ sources:
     short_sha: c001e8492b
     authored_at: '2026-11-17T05:11:30+00:00'
     subject: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/web/app.yml
@@ -3569,7 +3354,7 @@ sources:
     authored_at: '2026-11-17T05:08:32+00:00'
     subject: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
       terminal cards by embed'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -3585,7 +3370,7 @@ sources:
     authored_at: '2026-11-17T03:49:39+00:00'
     subject: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs
       on the host'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/code/tasks/cloud_command_execution.py
@@ -3600,7 +3385,7 @@ sources:
     short_sha: 953076aa61
     authored_at: '2026-11-17T03:46:53+00:00'
     subject: 'fix(web-browse): slow page responses survive the browser tunnel; pending requests finish before the pause'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/web_browse_service.py
@@ -3616,7 +3401,7 @@ sources:
     short_sha: 01ac4eee8e
     authored_at: '2026-11-17T03:37:59+00:00'
     subject: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/call_message_completed_handler.py
@@ -3667,7 +3452,7 @@ sources:
     authored_at: '2026-11-17T03:08:13+00:00'
     subject: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
       v3 draft)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_layering.py
@@ -3704,7 +3489,7 @@ sources:
     short_sha: abeb752111
     authored_at: '2026-11-17T03:01:45+00:00'
     subject: 'fix(web-browse): form ticks are field preparation; Let AI continue re-observes the page first'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/providers/browser_planner.py
@@ -3740,7 +3525,7 @@ sources:
     authored_at: '2026-11-17T02:47:14+00:00'
     subject: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
       diffs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -3786,7 +3571,7 @@ sources:
     short_sha: 463f5e40c7
     authored_at: '2026-11-17T02:33:06+00:00'
     subject: 'fix(scripts): Discord pushes keep NAME=... placeholders, SSH public keys and sha- image tags'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/agent_question.py
@@ -3796,7 +3581,7 @@ sources:
     short_sha: 41c77b0b62
     authored_at: '2026-11-17T02:21:05+00:00'
     subject: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -3811,7 +3596,7 @@ sources:
     short_sha: 715d8cbee9
     authored_at: '2026-11-17T01:58:59+00:00'
     subject: 'fix(shopping): a slow provider no longer cancels the whole price comparison'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/app_packages/delegate_skill.py
@@ -3830,7 +3615,7 @@ sources:
     short_sha: bbf1482f15
     authored_at: '2026-11-17T01:53:53+00:00'
     subject: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates.xcodeproj/project.pbxproj
@@ -3855,7 +3640,7 @@ sources:
     short_sha: 2f9285d318
     authored_at: '2026-11-17T01:20:29+00:00'
     subject: 'fix(web-browse): one unparsable extraction reply gets a single metered repair'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/providers/browser_models.py
@@ -3866,7 +3651,7 @@ sources:
     short_sha: 7d56c30e76
     authored_at: '2026-11-17T01:17:53+00:00'
     subject: 'fix(shopping): no nearby offer still lists the closest offers with prices'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/shopping/app.yml
@@ -3877,7 +3662,7 @@ sources:
     short_sha: a0eb75da3f
     authored_at: '2026-11-17T00:51:09+00:00'
     subject: 'fix(web-browse): a resumed browser''s first start waits out a brief ingress 502'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/web_browse_run.py
@@ -3888,7 +3673,7 @@ sources:
     short_sha: c2daf0db15
     authored_at: '2026-11-17T00:49:07+00:00'
     subject: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/jev_preprocessing.py
@@ -3897,68 +3682,106 @@ sources:
     related_feature_ids:
     - app:ai
 llm_summary:
-  overview: OpenMates focused on significant safety infrastructure, AI routing optimizations, and expanding cloud-based project
-    execution capabilities. Work continued on migrating voice and project logic to the Rust core, alongside new automated
-    wellbeing support systems and refined host resource management.
-  released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: OpenMates is developing a wellbeing support system featuring helpline cards, harmful-purpose strikes, and a formal
-      account suspension/appeal interface.
-    evidence:
-      commits:
-      - c2236dc810
-      - 355ed3882e
-    release_status: dev_only
-  - text: AI routing was optimized to use Gemini Decision 1 for relevance judging with Jev as a fallback, while sub-chat logic
-      was refined to ensure parent turns answer after their sub-chats.
+  overview: OpenMates focused on AI routing architecture, migrating voice processing to the Rust core, and refining safety
+    infrastructure. Significant work was also completed on cloud project execution and host resource management.
+  released_changes:
+  - text: OpenMates integrated Gemini Decision 1 as the primary relevance judge for AI tasks, utilizing Jev as an automatic
+      fallback based on per-task benchmarks.
     evidence:
       commits:
       - cc436131d6
-      - 575cce0203
-      - c2daf0db15
-      - 41c77b0b62
-    release_status: dev_only
-  - text: Cloud Project commands now run in dedicated E2B workspaces with automated file diff syncing, supported by new layered
-      focus modes for project-specific tasks.
-    evidence:
-      commits:
-      - 3b2bfc8aa5
-      - 8d1cbfa8b4
-      - e3861fc795
-      - 04d19f9fc7
-      - 53e9829d12
-    release_status: dev_only
-  - text: The web browsing skill received multiple reliability updates, including better session cap management for forms
-      and improved handling of slow page responses.
-    evidence:
-      commits:
-      - 9df937401a
-      - c4f7cdfe1a
-      - e3e85a6b24
-      - 2ae081c7bf
-      - 13fa08ce8b
-      - c001e8492b
-      - 953076aa61
-    release_status: dev_only
-  - text: Voice turn construction is being moved into the Rust core to align reply versions and timing with the server, alongside
-      UI refinements for the Apple platform composers.
+    release_status: released_main
+  - text: Voice turn construction has been migrated to the Rust core, ensuring reply versions and timestamps align with server-side
+      data.
     evidence:
       commits:
       - 01ac4eee8e
+    release_status: released_main
+  - text: Cloud Project commands now execute within per-project E2B workspaces, with modified files automatically synced back
+      to the project as diffs.
+    evidence:
+      commits:
+      - 3b2bfc8aa5
+    release_status: released_main
+  bug_fixes:
+  - text: The safety strike system now suspends accounts instead of deleting them, and image uploads have been updated to
+      follow established safety guidelines.
+    evidence:
+      commits:
+      - 355ed3882e
+    release_status: released_main
+  - text: AI sub-chats and async-skill continuations now maintain parent turn admission, ensuring parent responses follow
+      sub-chat completion.
+    evidence:
+      commits:
+      - 575cce0203
+    release_status: released_main
+  - text: OpenMates added a retry mechanism for imitated app results when a skill is offered, improving reliability for tool-based
+      interactions.
+    evidence:
+      commits:
+      - 41c77b0b62
+    release_status: released_main
+  - text: Web browsing reliability was improved with better form session continuity, clearer reporting of reached caps, and
+      fixes for follow-up calls without explicit addresses.
+    evidence:
+      commits:
+      - 2ae081c7bf
+      - c001e8492b
+      - 13fa08ce8b
+      - c4f7cdfe1a
+      - e3e85a6b24
+    release_status: released_main
+  - text: Code execution updates ensure failed test reasons remain visible after long install logs and prevent identical cloud
+      commands from running multiple times in a single turn.
+    evidence:
+      commits:
+      - 39d34a4b69
+      - 8d1cbfa8b4
+      - e3861fc795
+      - 04d19f9fc7
+    release_status: released_main
+  - text: The web interface and client core now handle brief 503 errors and in-flight render plans more gracefully, preventing
+      empty replies or failed turns during chat resets.
+    evidence:
+      commits:
+      - a5cd4aff31
+      - 5bd4fd0e1c
+    release_status: released_main
+  - text: Shopping search now correctly lists the closest offers with prices even when no offers are found in the immediate
+      vicinity.
+    evidence:
+      commits:
+      - 7d56c30e76
+    release_status: released_main
+  unreleased_progress:
+  - text: Wellbeing support infrastructure, including helpline cards and safety appeal forms, was added but remains unreleased
+      pending platform availability.
+    evidence:
+      commits:
+      - c2236dc810
+    release_status: released_main
+  - text: Layered focus modes for Projects are in development, allowing for collision detection and precedence rules between
+      different focus states.
+    evidence:
+      commits:
+      - 53e9829d12
+    release_status: released_main
+  - text: Apple-specific updates for the Projects composer and voice call receipts were implemented for the unreleased iOS
+      and macOS platforms.
+    evidence:
+      commits:
       - bbf1482f15
-    release_status: dev_only
-  - text: Updates to shopping and life coaching include more resilient price comparison providers and refined interest tracking
-      in the Life Compass.
+    release_status: released_main
+  - text: The Life Compass feature was updated to better reuse user-provided interests, though the Life Coaching app remains
+      disabled.
     evidence:
       commits:
       - 3e034fc62c
-      - 715d8cbee9
-      - 7d56c30e76
-    release_status: dev_only
+    release_status: released_main
   internal_progress:
-  - text: The daily meeting automation now includes triage for every briefing item (NOW/LATER/DROP), a marketing and business
-      development block with idea tracking, and enforced daily limits on chats and reminders.
+  - text: The daily meeting automation was expanded with marketing-time build gates, triage for every briefing item, and a
+      new marketing/business development block.
     evidence:
       commits:
       - a7f8dc1ef4
@@ -3966,55 +3789,77 @@ llm_summary:
       - 0114108512
       - f55a6f83b0
       - 17c7cb9035
-    release_status: dev_only
-  - text: Host infrastructure added hourly disk budgets per category, automated cleanup of orphaned Docker layers, and disk
-      usage alerts at 75% and 85% thresholds.
+    release_status: released_main
+  - text: Host infrastructure now enforces hourly per-category disk budgets and performs weekly root cleanups of orphaned
+      Docker layers and oversized logs.
     evidence:
       commits:
       - d58b444d32
-      - ccdd3204a8
       - 44b839e34c
       - 04a18dac67
-    release_status: dev_only
-  - text: Development scripts were updated to top up test accounts before inference runs and preserve specific placeholders
-      during Discord pushes.
+      - ccdd3204a8
+    release_status: released_main
+  - text: Testing scripts now automatically top up low-balance dev accounts before starting real-inference test runs.
     evidence:
       commits:
       - c7117a6054
-      - 463f5e40c7
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: New wellbeing support and account suspension systems.
+    include:
+    - text: Gemini Decision 1 integration for relevance judging and model routing.
       evidence:
         commits:
-        - c2236dc810
-        - 355ed3882e
-      reason: Major safety and wellbeing features are currently in development and not yet released to the main branch.
-    - text: Cloud Project workspaces and layered focus modes.
-      evidence:
-        commits:
-        - 3b2bfc8aa5
-        - 53e9829d12
-      reason: Project-related features are currently disabled in the platform configuration.
-    - text: Native Apple platform updates and Rust-core voice turns.
+        - cc436131d6
+      reason: Significant architectural update to AI model routing and relevance judging.
+    - text: Voice turn processing migrated to the Rust core for improved performance and server parity.
       evidence:
         commits:
         - 01ac4eee8e
-        - bbf1482f15
-      reason: iOS and macOS platforms are currently disabled in the platform configuration.
-    rationale: All changes from this period are currently in the development branch (dev_only) and have not been merged to
-      main. Additionally, several major features involve platforms or apps that are explicitly disabled in the current configuration.
+      reason: Major core migration for voice functionality.
+    - text: Cloud Project commands now run in dedicated E2B workspaces with automatic file diff syncing.
+      evidence:
+        commits:
+        - 3b2bfc8aa5
+      reason: New capability for cloud-based project development.
+    - text: Updated safety strike policy transitioning from account deletion to suspension.
+      evidence:
+        commits:
+        - 355ed3882e
+      reason: Important update to account safety and moderation policies.
+    exclude:
+    - text: Wellbeing support and helpline cards.
+      evidence:
+        commits:
+        - c2236dc810
+      reason: Wellbeing support features are tied to unreleased iOS and macOS platforms.
+    - text: Layered focus modes.
+      evidence:
+        commits:
+        - 53e9829d12
+      reason: Layered focus modes are tied to the disabled Projects platform.
+    - text: Life compass word reuse fixes.
+      evidence:
+        commits:
+        - 3e034fc62c
+      reason: Life coaching is a disabled feature.
+    rationale: The update highlights a major shift in AI routing to Gemini for internal decisions and a significant architectural
+      migration for voice processing into the Rust core. It also introduces more robust cloud development environments for
+      projects.
   social_video_recommendations:
-  - idea: Demonstrate the new wellbeing support flow, showing how the assistant provides helpline cards and how the account
-      appeal process looks.
+  - idea: A technical deep-dive into migrating voice turn logic to Rust for better cross-platform parity.
     priority: medium
-    reason: This provides a concrete visual story about user safety and platform responsibility.
+    reason: Concrete architectural improvement that affects core performance.
     evidence:
       commits:
-      - c2236dc810
+      - 01ac4eee8e
+  - idea: Demonstrating how OpenMates routes different tasks between Gemini and Jev for optimal accuracy.
+    priority: low
+    reason: Shows the intelligence behind the model selection process.
+    evidence:
+      commits:
+      - cc436131d6
   quality_notes:
-  - Extensive real-world integration testing was added for safety suspensions, wellbeing helplines, and cloud project commands.
-  - Reliability improvements were implemented for web browsing to handle transient 502/503 errors and rate limits.
+  - Improved resilience against transient network errors (503s) and rate limits in the client core.
+  - Enhanced disk safety on dev hosts through automated budget enforcement and cleanup.
+  - Refined AI logging to better track request shapes and routing decisions.
   validation_warnings: []

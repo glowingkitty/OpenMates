@@ -94,8 +94,14 @@ test.describe('assistant memory reuse', () => {
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
     await expect(page.getByTestId('mate-message-content').last()).toContainText('Example Retail GmbH', { timeout: 180000 });
     await expect(page.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 60000 });
-    // The user message names what was shared in readable words, never a raw id.
-    await expect(page.getByTestId('app-settings-memory-category-badge')).toHaveText('Memories (1)', { timeout: 20000 });
+    // The user message names each included Memory by its title, with its icon in a
+    // round circle, never a raw id or a bare count.
+    const includedPill = page.getByTestId('included-memory-pill');
+    await expect(includedPill).toHaveCount(1, { timeout: 20000 });
+    await expect(includedPill.getByTestId('included-memory-title')).toHaveText(TITLE);
+    await expect(includedPill).not.toContainText('(1)');
+    await expect(includedPill.getByTestId('included-memory-icon')).toHaveCSS('border-radius', '50%');
+    await testInfo.attach('included-memory-pill-desktop', { body: await page.getByTestId('app-settings-memories-summary').screenshot(), contentType: 'image/png' });
     await testInfo.attach('answer-uses-career-profile', {
       body: await page.screenshot(), contentType: 'image/png'
     });

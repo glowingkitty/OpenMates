@@ -43,7 +43,7 @@
   const displayedMedia = $derived(showCamera ? null : results[multiple ? index : initialKind === 'video' ? 1 : 0]);
 </script>
 
-<VoiceCallMedia {cameraStream} {cameraEnabled} {cameraFacing} {expanded} {displayedMedia}
+<VoiceCallMedia {cameraStream} {cameraEnabled} {cameraFacing} screenSharing={false} {expanded} {displayedMedia}
   mediaCount={multiple ? results.length : 1} mediaIndex={index}
   onExpandedChange={value => { expanded = value; }}
   onShowCamera={() => { showCamera = true; }}

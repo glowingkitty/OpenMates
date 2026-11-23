@@ -93,6 +93,19 @@ function focusItem(item: ProjectItemViewModel): boolean {
     && /^\.openmates\/focuses\/[a-zA-Z0-9_-]+\/SKILL\.md$/.test(item.metadata.display_path);
 }
 
+/** Counts only (no names, paths or text): which Focus condition a stored item fails. */
+function logFocusCatalogShape(items: ProjectItemViewModel[]): void {
+  const atPath = items.filter((item) => typeof item.metadata.display_path === 'string'
+    && /^\.openmates\/focuses\//.test(item.metadata.display_path)
+    || typeof item.metadata.path === 'string' && /^\.openmates\/focuses\//.test(item.metadata.path));
+  const types = [...new Set(atPath.map((item) => item.item_type))].join(',') || 'none';
+  console.info(`[ProjectFocusContext] items=${items.length} focus_path=${atPath.length} types=${types}`
+    + ` target=${atPath.filter((item) => !!item.target_id).length}`
+    + ` meta=${atPath.filter((item) => typeof item.metadata.focus_title === 'string').length}`
+    + ` display_path=${atPath.filter((item) => typeof item.metadata.display_path === 'string').length}`
+    + ` focus_items=${items.filter(focusItem).length}`);
+}
+
 function specialistItemId(projectId: string, focusId?: string | null): string | undefined {
   const prefix = `project-focus:${projectId}:`;
   return focusId?.startsWith(prefix) ? focusId.slice(prefix.length) : focusId ?? undefined;
@@ -146,7 +159,11 @@ export async function collectSelectedProjectFocusRoutingCatalog(
 
 export async function collectProjectFocusCatalog(input: { chatId: string; projectId?: string | null; initialFocus?: InitialFocusRead }): Promise<ProjectFocusCatalogEntry[]> {
   const workspace = await activeWorkspace(input.chatId, input.projectId, input.initialFocus);
-  if (!workspace) return [];
+  if (!workspace) {
+    console.info('[ProjectFocusContext] workspace=none');
+    return [];
+  }
+  logFocusCatalogShape(workspace.contents.items);
   const specialistId = specialistItemId(workspace.focus.project_id, workspace.focus.specialist_focus_id);
   const ordered = workspace.contents.items.filter(focusItem).sort((a, b) =>
     Number(b.project_item_id === specialistId) - Number(a.project_item_id === specialistId));
@@ -217,9 +234,15 @@ export async function collectPrivateFocusForRequest(input: {
   chatId: string; projectId?: string | null; text: string; initialFocus?: InitialFocusRead;
 }): Promise<Array<{ item_id: string; revision: string; document: string }>> {
   const catalog = await collectProjectFocusCatalog(input);
-  if (!catalog.length) return [];
+  if (!catalog.length) {
+    console.info('[ProjectFocusContext] catalog=0');
+    return [];
+  }
   const focus = await getActiveProjectFocus(input.chatId);
-  if (!focus || input.projectId && focus.project_id !== input.projectId) return [];
+  if (!focus || input.projectId && focus.project_id !== input.projectId) {
+    console.info(`[ProjectFocusContext] catalog=${catalog.length} active_project=none`);
+    return [];
+  }
   const response = await fetch(getApiEndpoint(`/v1/projects/${encodeURIComponent(focus.project_id)}/context/select${focus.team_id ? `?team_id=${encodeURIComponent(focus.team_id)}` : ''}`), {
     method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: input.chatId, text: input.text.slice(0, 8_000), candidates: catalog.slice(0, 24).map((item) => ({
@@ -238,8 +261,11 @@ export async function collectPrivateFocusForRequest(input: {
     selected.push({ kind: 'focus', id: activeSpecialist.id, revision: activeSpecialist.revision });
   }
   const documents = await loadSelectedProjectFocusDocuments(input.chatId, focus.project_id, selected.map((item) => String(item.id)));
-  return documents.filter((item) => selected.some((candidate) => candidate.id === item.id && candidate.revision === item.revision))
+  const bodies = documents.filter((item) => selected.some((candidate) => candidate.id === item.id && candidate.revision === item.revision))
     .map((item) => ({ item_id: item.id, revision: item.revision, document: item.markdown }));
+  // Counts and status only: shows where a stored Focus drops out before the turn is sent.
+  console.info(`[ProjectFocusContext] catalog=${catalog.length} select_status=${response.status} selected=${selected.length} bodies=${bodies.length}`);
+  return bodies;
 }
 
 export interface ProjectReferenceDocument {

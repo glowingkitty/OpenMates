@@ -888,7 +888,10 @@
         "text": "Xem hình ảnh trực quan"
       },
       "interactive_html_blocked": {
-        "text": "Hình ảnh trực quan này đã cố mở trang khác và đã bị dừng."
+        "text": "Hình ảnh trực quan này đã cố mở một trang khác. Điều đó không được phép trong cuộc trò chuyện nên nó đã bị tạm dừng."
+      },
+      "interactive_html_reload": {
+        "text": "Tải lại hình ảnh trực quan"
       },
       "search_repos": {
         "text": "Tìm repo",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Từ chối tất cả"
       },
+      "continue_without_memories": {
+        "text": "Tiếp tục không dùng ký ức"
+      },
+      "call_countdown_label": {
+        "text": "Thời gian còn lại trước khi trả lời không dùng ký ức"
+      },
       "entry_singular": {
         "text": "mục"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Tiếp tục cuộc trò chuyện:"
+        "text": "Tiếp tục các cuộc trò chuyện gần đây:"
+      },
+      "active_title_single": {
+        "text": "Bạn có 1 cuộc trò chuyện đang hoạt động:"
+      },
+      "active_title": {
+        "text": "Bạn có {count} cuộc trò chuyện đang hoạt động:"
+      },
+      "active_card_label": {
+        "text": "Đang hoạt động"
       },
       "guest_title": {
         "text": "Khám phá một số cuộc trò chuyện mẫu:"
@@ -4311,76 +4329,6 @@
         "text": "Nghịch lý Fermi đặt câu hỏi tại sao chúng ta chưa tìm thấy bằng chứng thuyết phục nào về các nền văn minh ngoài hành tinh. Hãy khám phá các câu trả lời khả thi."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Hãy giữ bản sao lưu của riêng bạn. Xuất dữ liệu OpenMates bất cứ khi nào bạn cần."
-      },
-      "title": {
-        "text": "Xuất dữ liệu OpenMates của bạn"
-      },
-      "description": {
-        "text": "Sao lưu các cuộc trò chuyện, cài đặt, ký ức và nhiều nội dung khác."
-      },
-      "assistant_response": {
-        "text": "Xuất một bản sao dữ liệu OpenMates từ phần cài đặt tài khoản. Đăng nhập để truy cập dữ liệu tài khoản đã được mã hóa của bạn."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Bạn muốn kiểm soát quyền riêng tư chặt chẽ hơn? Hãy thêm các chi tiết cá nhân mà OpenMates nên ẩn đi."
-      },
-      "title": {
-        "text": "Phát hiện PII tùy chỉnh"
-      },
-      "description": {
-        "text": "Bảo vệ các chi tiết cá nhân trước khi thực hiện lệnh gọi mô hình."
-      },
-      "assistant_response": {
-        "text": "Chọn các chi tiết cá nhân để OpenMates ẩn đi trước khi thực hiện lệnh gọi mô hình. Hãy xem lại cài đặt quyền riêng tư để quản lý chúng."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Cần một câu trả lời tập trung hơn? Hãy giao cho người bạn của bạn một nhiệm vụ cụ thể."
-      },
-      "title": {
-        "text": "Chế độ tập trung"
-      },
-      "description": {
-        "text": "Hướng dẫn cuộc trò chuyện đi tới một mục tiêu cụ thể."
-      },
-      "assistant_response": {
-        "text": "Sử dụng chế độ tập trung để hướng dẫn cuộc trò chuyện đi tới một mục tiêu cụ thể. Khám phá các chế độ hiện có trong phần Ứng dụng."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Việc phải lặp lại chính mình thật nhàm chán. Hãy lưu lại ngữ cảnh mà các người bạn của bạn nên ghi nhớ."
-      },
-      "title": {
-        "text": "Ký ức"
-      },
-      "description": {
-        "text": "Lưu các tùy chọn và ngữ cảnh hữu ích."
-      },
-      "assistant_response": {
-        "text": "Lưu các tùy chọn và ngữ cảnh hữu ích dưới dạng ký ức, sau đó chọn những gì các người bạn của bạn có thể sử dụng."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Bạn đang tìm việc gì đó để làm? Khám phá các sự kiện gần bạn."
-      },
-      "title": {
-        "text": "Tìm sự kiện địa phương"
-      },
-      "description": {
-        "text": "Tìm lớp học, buổi gặp gỡ và các sự kiện khác."
-      },
-      "assistant_response": {
-        "text": "Dùng tìm kiếm Sự kiện để tìm lớp học và buổi gặp gỡ gần bạn. Chọn địa điểm và chủ đề để xem những gì đang diễn ra xung quanh."
-      }
-    },
     "collective": {
       "title": {
         "text": "Hành vi tập thể ở động vật"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "Các kết cấu ổn định nhờ cân bằng lực kéo và lực nén."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Trích dẫn nguồn đáng tin cậy"
-      },
-      "description": {
-        "text": "Nhờ các mate kiểm tra nguồn và trích nguyên văn những dòng hỗ trợ câu trả lời."
-      },
-      "phrase": {
-        "text": "Muốn kiểm chứng câu trả lời? Hãy nhờ OpenMates trích dẫn nguồn hỗ trợ."
-      },
-      "assistant_response": {
-        "text": "Nhờ các mate kiểm tra nguồn và trích nguyên văn những dòng hỗ trợ câu trả lời."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Phát hiện ảnh AI"
-      },
-      "description": {
-        "text": "Tải ảnh lên và xem dấu hiệu được tạo bằng AI ngay trong cuộc trò chuyện."
-      },
-      "phrase": {
-        "text": "Bạn thắc mắc ảnh có được tạo bằng AI không? Hãy tải lên và kiểm tra các dấu hiệu."
-      },
-      "assistant_response": {
-        "text": "Tải ảnh lên và xem dấu hiệu được tạo bằng AI ngay trong cuộc trò chuyện."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Trò chuyện ẩn danh"
-      },
-      "description": {
-        "text": "Bắt đầu cuộc trò chuyện tạm thời khi bạn không muốn lưu vào lịch sử."
-      },
-      "phrase": {
-        "text": "Cần một cuộc trò chuyện tạm thời? Đừng lưu vào lịch sử trò chuyện."
-      },
-      "assistant_response": {
-        "text": "Bắt đầu cuộc trò chuyện tạm thời khi bạn không muốn lưu vào lịch sử."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Kiểm soát quyền riêng tư"
-      },
-      "description": {
-        "text": "Điều chỉnh việc ẩn dữ liệu cá nhân, tài khoản kết nối và tự động xóa tại một nơi."
-      },
-      "phrase": {
-        "text": "Tìm hiểu cách OpenMates bảo vệ dữ liệu trước khi bạn cần gấp các tùy chọn này."
-      },
-      "assistant_response": {
-        "text": "Điều chỉnh việc ẩn dữ liệu cá nhân, tài khoản kết nối và tự động xóa tại một nơi."
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "Hỏi về tài liệu này..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Để chạy nội dung này, mã và tệp của bạn sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây, và chạy ở đó, tại Hoa Kỳ. Với các tác vụ Dự án, toàn bộ Dự án và khóa mở nó cũng được đặt vào sandbox, được niêm phong để chỉ sandbox đó mới mở được. Sandbox sẽ bị xóa sau đó."
+      },
+      "privacy_policy": {
+        "text": "Chính sách quyền riêng tư"
+      },
+      "own_machine_hint": {
+        "text": "Hoặc chạy trên máy của bạn bằng:"
+      },
+      "allow": {
+        "text": "Cho phép"
+      },
+      "own_machine": {
+        "text": "Dùng máy của tôi"
+      },
+      "not_now": {
+        "text": "Để sau"
+      },
+      "answered": {
+        "text": "Câu trả lời của bạn:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Tài khoản của bạn không cho phép chạy mã trong sandbox đám mây E2B nên chưa có gì được khởi chạy. Bạn có thể thay đổi trong Cài đặt > Quyền riêng tư, hoặc chạy trên máy của bạn bằng lệnh truy cập từ xa."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Chạy mã trong sandbox đám mây E2B"
+      },
+      "description": {
+        "text": "Khi được cho phép, mã và tệp bạn chạy sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây, và được xử lý tại Hoa Kỳ. Với các tác vụ Dự án, điều này gồm cả Dự án và khóa mở nó, được niêm phong để chỉ sandbox đó mới mở được. Sandbox sẽ bị xóa sau đó. Khi không được phép, không có gì được gửi đi."
+      },
+      "status_allowed": {
+        "text": "Đã cho phép"
+      },
+      "status_declined": {
+        "text": "Không được phép"
+      },
+      "status_undecided": {
+        "text": "Chưa quyết định"
+      },
+      "error": {
+        "text": "Không thể lưu cài đặt này. Vui lòng thử lại."
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "Không có video cho lần chạy này"
+        },
+        "with_setup": {
+          "text": "{duration} kể cả chuẩn bị"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B (môi trường sandbox mã nguồn biệt lập)"
             },
             "description": {
-              "text": "E2B chạy các mã nguồn nhúng được chọn và bản xem trước ứng dụng được tạo bên trong các sandbox biệt lập. E2B nhận mã nguồn hoặc các tệp và tài sản ứng dụng được tạo mà bạn chọn chạy, đầu vào thời gian chạy, nhật ký xem trước và đầu ra thực thi cần thiết để chạy và hiển thị kết quả sandbox. Việc chia sẻ này chỉ xảy ra khi bạn chạy mã một cách rõ ràng, tạo một ứng dụng được tạo tự động bắt đầu xem trước ảnh chụp màn hình ngắn, hoặc bắt đầu/tiếp tục xem trước trực tiếp ứng dụng."
+              "text": "E2B chạy các mã nguồn nhúng được chọn và bản xem trước ứng dụng được tạo bên trong các sandbox biệt lập. E2B nhận mã nguồn hoặc các tệp và tài sản ứng dụng được tạo mà bạn chọn chạy, đầu vào thời gian chạy, nhật ký xem trước và đầu ra thực thi cần thiết để chạy và hiển thị kết quả sandbox. Việc chia sẻ này chỉ xảy ra khi bạn chạy mã một cách rõ ràng, tạo một ứng dụng được tạo tự động bắt đầu xem trước ảnh chụp màn hình ngắn, hoặc bắt đầu/tiếp tục xem trước trực tiếp ứng dụng. Khi một tác vụ của tác tử chạy trên dự án đám mây, E2B tại Hoa Kỳ còn nhận toàn bộ tệp của dự án và khóa mở dự án, được niêm phong để chỉ sandbox đó mới mở được, trong suốt thời gian tác vụ. Sandbox bị xóa sau 15 phút không hoạt động hoặc chậm nhất sau 4 giờ (tối đa 24 giờ nếu bạn chọn bật) và không bao giờ bị tạm dừng."
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "Ảnh chụp màn hình quá lớn. Vui lòng thử cửa sổ nhỏ hơn."
       },
+      "screenshot_limit_reached": {
+        "text": "Bạn có thể đính kèm tối đa 5 ảnh chụp màn hình."
+      },
       "screenshot_preview_alt": {
         "text": "Xem trước ảnh chụp màn hình"
       },
@@ -21150,7 +21098,7 @@
       "text": "Dùng thử miễn phí"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "Tên miền e-mail không được phép."
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Yêu cầu ký ức đã hết hạn, đã trả lời không dùng ký ức"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Cuộc gọi dùng phiên âm Mistral, giọng ElevenLabs v4 Turbo, định tuyến AI thông thường của OpenMates và tính phí theo mức sử dụng."

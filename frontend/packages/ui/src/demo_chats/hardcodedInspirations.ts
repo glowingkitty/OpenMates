@@ -558,54 +558,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
       generated_at: now,
     },
   ];
-  const features: DailyInspiration[] = [
-    {
-      inspiration_id: "authenticated-fallback-export",
-      phrase: copy.export.phrase,
-      title: copy.export.title,
-      category: "openmates_official",
-      content_type: "feature",
-      video: null,
-      feature: { feature_id: "export-data", icon: "download", title: copy.export.title, description: copy.export.description, settings_path: "account/export", requires_authentication: true },
-      assistant_response: copy.export.assistant_response,
-      generated_at: now,
-    },
-    {
-      inspiration_id: "authenticated-fallback-pii",
-      phrase: copy.pii.phrase,
-      title: copy.pii.title,
-      category: "openmates_official",
-      content_type: "feature",
-      video: null,
-      feature: { feature_id: "custom-pii-detection", icon: "shield-check", title: copy.pii.title, description: copy.pii.description, settings_path: "privacy/hide-personal-data", requires_authentication: false },
-      assistant_response: copy.pii.assistant_response,
-      generated_at: now,
-    },
-    {
-      inspiration_id: "authenticated-fallback-focus",
-      phrase: copy.focus.phrase,
-      title: copy.focus.title,
-      category: "openmates_official",
-      content_type: "feature",
-      video: null,
-      feature: { feature_id: "focus-modes", icon: "target", title: copy.focus.title, description: copy.focus.description, settings_path: "apps/all/focus_modes", requires_authentication: false },
-      assistant_response: copy.focus.assistant_response,
-      generated_at: now,
-    },
-    {
-      inspiration_id: "authenticated-fallback-memories",
-      phrase: copy.memories.phrase,
-      title: copy.memories.title,
-      category: "openmates_official",
-      content_type: "feature",
-      video: null,
-      feature: { feature_id: "memories", icon: "heart", title: copy.memories.title, description: copy.memories.description, settings_path: "settings_memories", requires_authentication: false },
-      assistant_response: copy.memories.assistant_response,
-      generated_at: now,
-    },
-  ];
-
-  return [...videos, ...wiki, ...features].map((inspiration) => ({ ...inspiration, language: lang }));
+  return [...videos, ...wiki].map((inspiration) => ({ ...inspiration, language: lang }));
 }
 
 

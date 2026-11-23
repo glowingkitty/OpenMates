@@ -888,7 +888,10 @@
         "text": "Visual bekijken"
       },
       "interactive_html_blocked": {
-        "text": "Deze visual probeerde een andere pagina te openen en is gestopt."
+        "text": "Deze visual probeerde een andere pagina te openen. Dat mag niet binnen een chat, dus hij is gepauzeerd."
+      },
+      "interactive_html_reload": {
+        "text": "Visual opnieuw laden"
       },
       "search_repos": {
         "text": "Repo's zoeken",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Alles weigeren"
       },
+      "continue_without_memories": {
+        "text": "Doorgaan zonder herinneringen"
+      },
+      "call_countdown_label": {
+        "text": "Resterende tijd tot antwoord zonder herinneringen"
+      },
       "entry_singular": {
         "text": "item"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Ga verder waar je gebleven was:"
+        "text": "Ga verder met je recente chats:"
+      },
+      "active_title_single": {
+        "text": "Je hebt 1 actieve chat:"
+      },
+      "active_title": {
+        "text": "Je hebt {count} actieve chats:"
+      },
+      "active_card_label": {
+        "text": "Actief"
       },
       "guest_title": {
         "text": "Ontdek enkele voorbeeldchats:"
@@ -4311,76 +4329,6 @@
         "text": "De Fermi-paradox stelt de vraag waarom we geen overtuigend bewijs hebben gevonden van buitenaardse beschavingen. Ontdek mogelijke antwoorden."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Houd je eigen back-up bij. Exporteer je OpenMates-gegevens wanneer je maar wilt."
-      },
-      "title": {
-        "text": "Exporteer je OpenMates-gegevens"
-      },
-      "description": {
-        "text": "Maak een back-up van chats, instellingen, herinneringen en meer."
-      },
-      "assistant_response": {
-        "text": "Exporteer een kopie van je OpenMates-gegevens via de accountinstellingen. Log in om toegang te krijgen tot je versleutelde accountgegevens."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Wil je meer controle over je privacy? Voeg persoonlijke gegevens toe die OpenMates moet verbergen."
-      },
-      "title": {
-        "text": "Aangepaste PII-detectie"
-      },
-      "description": {
-        "text": "Bescherm persoonlijke gegevens vóór modelaanroepen."
-      },
-      "assistant_response": {
-        "text": "Kies welke persoonlijke gegevens OpenMates moet verbergen vóór een modelaanroep. Bekijk de privacyinstellingen om ze te beheren."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Heb je een gerichter antwoord nodig? Geef je mate een specifieke taak."
-      },
-      "title": {
-        "text": "Focusmodi"
-      },
-      "description": {
-        "text": "Stuur een chat in de richting van een specifiek doel."
-      },
-      "assistant_response": {
-        "text": "Gebruik een focusmodus om een chat naar een specifiek doel te leiden. Ontdek de beschikbare modi in Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Jezelf herhalen wordt vermoeiend. Sla context op die je mates moeten onthouden."
-      },
-      "title": {
-        "text": "Herinneringen"
-      },
-      "description": {
-        "text": "Sla nuttige voorkeuren en context op."
-      },
-      "assistant_response": {
-        "text": "Sla nuttige voorkeuren en context op als herinneringen en kies vervolgens wat je mates kunnen gebruiken."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Zoek je iets om te doen? Ontdek evenementen bij jou in de buurt."
-      },
-      "title": {
-        "text": "Vind lokale evenementen"
-      },
-      "description": {
-        "text": "Zoek lessen, bijeenkomsten en andere evenementen."
-      },
-      "assistant_response": {
-        "text": "Gebruik de zoekfunctie voor evenementen om lessen en bijeenkomsten in de buurt te vinden. Kies een plaats en onderwerp om te zien wat er te doen is."
-      }
-    },
     "collective": {
       "title": {
         "text": "Collectief diergedrag"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "Constructies die stabiel blijven door een evenwicht van trek en druk."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citaten uit betrouwbare bronnen"
-      },
-      "description": {
-        "text": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen."
-      },
-      "phrase": {
-        "text": "Wil je een antwoord controleren? Vraag OpenMates de bron te citeren."
-      },
-      "assistant_response": {
-        "text": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "AI-beelddetectie"
-      },
-      "description": {
-        "text": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat."
-      },
-      "phrase": {
-        "text": "Is een afbeelding met AI gemaakt? Upload hem en bekijk de aanwijzingen."
-      },
-      "assistant_response": {
-        "text": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Incognitochats"
-      },
-      "description": {
-        "text": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren."
-      },
-      "phrase": {
-        "text": "Een tijdelijk gesprek nodig? Houd het buiten je opgeslagen chatgeschiedenis."
-      },
-      "assistant_response": {
-        "text": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Privacyinstellingen"
-      },
-      "description": {
-        "text": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek."
-      },
-      "phrase": {
-        "text": "Bekijk hoe OpenMates je gegevens beschermt voordat je de instellingen dringend nodig hebt."
-      },
-      "assistant_response": {
-        "text": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek."
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "Vraag over deze documentatie..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Om dit uit te voeren, worden je code en bestanden naar E2B gestuurd, een aanbieder van cloudsandboxen, en daar uitgevoerd, in de VS. Bij Project-taken worden ook het hele Project en de sleutel die het opent in de sandbox geplaatst, verzegeld zodat alleen die sandbox hem kan openen. De sandbox wordt daarna verwijderd."
+      },
+      "privacy_policy": {
+        "text": "Privacybeleid"
+      },
+      "own_machine_hint": {
+        "text": "Of voer het uit op je eigen computer met:"
+      },
+      "allow": {
+        "text": "Toestaan"
+      },
+      "own_machine": {
+        "text": "Mijn eigen computer gebruiken"
+      },
+      "not_now": {
+        "text": "Niet nu"
+      },
+      "answered": {
+        "text": "Je antwoord:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Code uitvoeren in de E2B-cloudsandbox is niet toegestaan voor je account, dus er is niets gestart. Je kunt dit wijzigen in Instellingen > Privacy, of het op je eigen machine uitvoeren met de opdracht voor toegang op afstand."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Code uitvoeren in de E2B-cloudsandbox"
+      },
+      "description": {
+        "text": "Als dit is toegestaan, worden de code en bestanden die je uitvoert naar E2B gestuurd, een aanbieder van cloudsandboxen, en in de VS verwerkt. Bij Project-taken omvat dit het Project en de sleutel die het opent, verzegeld zodat alleen die sandbox hem kan openen. De sandbox wordt daarna verwijderd. Als het niet is toegestaan, wordt er niets verzonden."
+      },
+      "status_allowed": {
+        "text": "Toegestaan"
+      },
+      "status_declined": {
+        "text": "Niet toegestaan"
+      },
+      "status_undecided": {
+        "text": "Nog niet beslist"
+      },
+      "error": {
+        "text": "Deze instelling kon niet worden opgeslagen. Probeer het opnieuw."
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "Geen video beschikbaar voor deze run"
+        },
+        "with_setup": {
+          "text": "{duration} met voorbereiding"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B (geïsoleerde code-sandbox)"
             },
             "description": {
-              "text": "E2B voert geselecteerde code-insluitingen en gegenereerde applicatievoorbeelden uit in geïsoleerde sandboxes. E2B ontvangt de code of gegenereerde applicatiebestanden en assets die je kiest om uit te voeren, runtime-inputs, voorbeeldlogs en de uitvoer die nodig is om het sandbox-resultaat uit te voeren en weer te geven. Dit delen gebeurt alleen wanneer je expliciet code uitvoert, een gegenereerde applicatie maakt die automatisch een kort screenshot-voorbeeld start, of een live-voorbeeld van een applicatie start of hervat."
+              "text": "E2B voert geselecteerde code-insluitingen en gegenereerde applicatievoorbeelden uit in geïsoleerde sandboxes. E2B ontvangt de code of gegenereerde applicatiebestanden en assets die je kiest om uit te voeren, runtime-inputs, voorbeeldlogs en de uitvoer die nodig is om het sandbox-resultaat uit te voeren en weer te geven. Dit delen gebeurt alleen wanneer je expliciet code uitvoert, een gegenereerde applicatie maakt die automatisch een kort screenshot-voorbeeld start, of een live-voorbeeld van een applicatie start of hervat. Wanneer een agenttaak op een cloudproject draait, ontvangt E2B in de VS bovendien alle bestanden van het project en, verzegeld zodat alleen die sandbox hem kan openen, de sleutel die het project opent, zolang de taak duurt. De sandbox wordt verwijderd na 15 minuten inactiviteit of uiterlijk na 4 uur (tot 24 uur als je dat inschakelt) en wordt nooit gepauzeerd."
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "Schermafbeelding te groot. Probeer een kleiner venster."
       },
+      "screenshot_limit_reached": {
+        "text": "Je kunt maximaal 5 schermafbeeldingen bijvoegen."
+      },
       "screenshot_preview_alt": {
         "text": "Voorbeeld schermafbeelding"
       },
@@ -21150,7 +21098,7 @@
       "text": "Gratis testen"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Herinneringsverzoek verlopen, beantwoord zonder herinneringen"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Gesprekken gebruiken Mistral-transcriptie, ElevenLabs v4 Turbo-spraak, normale OpenMates AI-routering en facturering op basis van gebruik."

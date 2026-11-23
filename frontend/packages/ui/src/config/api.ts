@@ -57,6 +57,24 @@ export function setRemoteCommandJobsCapabilityEnabled(enabled: boolean): void {
   remoteCommandJobsCapabilityEnabled = enabled;
 }
 
+// Assistant Project creation: enabled only while the Rust-core creation relay
+// is installed (projectCreateRelay.ts); the server sends creation requests only
+// to a socket that advertises it together with `project_file_jobs`.
+let projectCreateRequestsCapabilityEnabled = false;
+
+export function setProjectCreateRequestsCapabilityEnabled(enabled: boolean): void {
+  projectCreateRequestsCapabilityEnabled = enabled;
+}
+
+// Assistant Plan creation: enabled only while the plan creation relay is installed
+// (planCreateRelay.ts); the server sends `plan_create_requested` only to sockets
+// advertising it.
+let planCreateRequestsCapabilityEnabled = false;
+
+export function setPlanCreateRequestsCapabilityEnabled(enabled: boolean): void {
+  planCreateRequestsCapabilityEnabled = enabled;
+}
+
 // Assistant Memory writes (save_memory): enabled only while the Rust core job
 // runner is installed (assistantMemoryWrites.ts, flag-on builds).
 let memoryWriteJobsCapabilityEnabled = false;
@@ -151,6 +169,8 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     ...(chatMetadataRecoveryCapabilityEnabled ? ["chat_metadata_recovery"] : []),
     ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
+    ...(projectCreateRequestsCapabilityEnabled ? ["project_create_requests"] : []),
+    ...(planCreateRequestsCapabilityEnabled ? ["plan_create_requests"] : []),
     ...(memoryWriteJobsCapabilityEnabled ? ["memory_write_jobs"] : []),
     ...(chatOrchestrationJobsCapabilityEnabled ? ["chat_orchestration_jobs"] : []),
     "agentic-storage-v2",
@@ -380,6 +400,7 @@ export const apiEndpoints = {
     vapidPublicKey: "/v1/push/vapid-public-key", // GET: fetch VAPID public key for Web Push subscription
     subscribe: "/v1/push/subscribe", // POST: register a browser PushSubscription
     unsubscribe: "/v1/push/subscribe", // DELETE: remove a browser PushSubscription
+    preferences: "/v1/push/preferences", // PATCH: save the chat-title switch (first-party only)
   },
 } as const;
 

@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 
-import { createProjectFileJobExecutor, type ProjectFileJob } from "../../ui/src/services/projectFileJobExecutor.ts";
+import { createProjectFileJobExecutor, type ProjectFileJob } from "../src/projectFileJobExecutor.ts";
 import { verifyProjectIgnoredReadGrant } from "../../ui/src/utils/projectIgnoredReadGrant.ts";
 import { decryptWithAesGcmCombined } from "../src/crypto.ts";
 import { requestProjectRemoteOperation } from "../src/projectRequester.ts";

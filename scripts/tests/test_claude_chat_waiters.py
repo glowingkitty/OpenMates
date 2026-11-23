@@ -66,7 +66,7 @@ def sources(tmp_path: Path, rows=(), sessions=None) -> cw.Sources:
 def test_the_d2a774d9_case_a_parked_disk_wait_keeps_the_idle_chat_running(tmp_path):
     found = cw.collect(sources(tmp_path, [disk_wait()]), NOW)
     target = chat(waiters=found[CHAT])
-    assert lc.decide(chat(), NOW, CONFIG, "other").action == "stop"  # what happened on 2026-11-15
+    assert lc.decide(chat(), NOW, CONFIG, "other").action == "continue"  # stopped on 2026-11-15; woken since TASK-7707
     decision = lc.decide(target, NOW, CONFIG, "other")
     assert decision.action == "keep" and decision.hard
     assert "waits on disk: disk space for ci-source:fe65" in decision.reason
@@ -329,3 +329,101 @@ def test_a_parked_wait_older_than_a_day_is_cancelled_as_stalled(parked):
     c.tick(recovery_margin=0)
     after = c.get(row["id"])
     assert after["state"] == "cancelled" and after["reason"].startswith("Stalled")
+
+
+# ---------------------------------------------------------------------------
+# Timer waiters (TASK-9844): wake a chat at a time, e.g. after the weekly usage reset.
+# ---------------------------------------------------------------------------
+
+
+def test_a_timer_lets_the_chat_stop_then_reopens_it_once_when_due(tmp_path):
+    src = sources(tmp_path)
+    key = cw.add(src.state, CHAT, "timer", "Usage has reset. Continue the job search.", now=NOW, at=NOW + 3 * HOUR)
+    found = cw.collect(src, NOW + 60)
+    assert not found[CHAT][0].blocks_stop(NOW + 60) and not found[CHAT][0].stalled(NOW + 60)
+    assert not found[CHAT][0].ready
+    found = cw.collect(src, NOW + 3 * HOUR + 1)
+    rec = Recorder()
+    delivered, _ = rec.run(found, {}, {CHAT: {"state": "stopped"}}, src.state, now=NOW + 3 * HOUR + 1)
+    assert "Continue the job search" in rec.resumed[0][1] and delivered == {f"reg:{key}"}
+    assert cw.collect(src, NOW + 4 * HOUR) == {}  # fired once, then removed
+
+
+def test_a_usage_checked_timer_sleeps_an_hour_while_usage_is_used_up(tmp_path):
+    from datetime import datetime, timezone
+
+    reset = datetime.fromtimestamp(NOW + 7 * 24 * HOUR, timezone.utc)
+    src = sources(tmp_path)
+    src.usage = lambda: (99.0, reset)
+    cw.add(src.state, CHAT, "timer", "Usage has reset.", now=NOW, at=NOW + HOUR, usage_check=True)
+    found = cw.collect(src, NOW + HOUR + 1)
+    assert not found[CHAT][0].ready and found[CHAT][0].timeout_at == NOW + 2 * HOUR + 1
+    calls = []
+    src.usage = lambda: calls.append(1) or (3.0, reset)
+    cw.add(src.state, OTHER, "timer", "Usage has reset too.", now=NOW, at=NOW + HOUR, usage_check=True)
+    found = cw.collect(src, NOW + 2 * HOUR + 2)
+    assert found[CHAT][0].ready and "weekly usage is 3%" in found[CHAT][0].ready_text
+    assert found[OTHER][0].ready and len(calls) == 1  # one usage read for all due timers
+
+
+def test_a_timer_needs_a_time_with_zone(tmp_path):
+    with pytest.raises(ValueError):
+        cw.add(tmp_path, CHAT, "timer", "x")
+    with pytest.raises(ValueError):
+        cw.parse_at("2026-11-20T10:05:00", False)
+    assert cw.parse_at("2026-11-20T10:05:00+00:00", False) == (1795169100.0, False)
+
+
+def test_the_reset_wake_reopens_a_few_chats_by_task_priority_and_results_before_timers(tmp_path):
+    """Owner, 2026-11-20: the usage-reset wake filled all 20 slots with chats that did one step."""
+    ids = [f"{n:08d}-0000-4000-8000-000000000000" for n in range(6)]
+    found = {cid: [cw.Waiter(cid, "timer", f"reg:{n}", "resume", NOW - 9 * HOUR + n, NOW - HOUR, ready=True,
+                             ready_text="your timer is due", ready_at=NOW - HOUR)] for n, cid in enumerate(ids)}
+    found[ids[5]] = [cw.Waiter(ids[5], "ci", "ci:job", "CI e2e job", NOW - 2 * HOUR, NOW + HOUR, ready=True,
+                               ready_text="CI finished", ready_at=NOW - 60)]
+    registry = {cid: {"state": "stopped", "title": cid[:8]} for cid in ids}
+    rec = Recorder()
+    cw.deliver(found, {}, registry, tmp_path, NOW, type_into=rec.type_into, resume=rec.resume, room=3,
+               log=rec.events.append, priority={ids[3]: 0, ids[1]: 2})
+    assert [chat_id for chat_id, _ in rec.resumed] == [ids[5], ids[3], ids[1]]  # CI result, urgent, medium
+    cw.deliver(found, {}, registry, tmp_path, NOW, type_into=rec.type_into, resume=rec.resume, room=0,
+               log=rec.events.append)
+    assert len(rec.resumed) == 3  # no room left: the rest waits for a later cycle
+
+
+def test_a_timed_out_handoff_shows_as_timed_out_not_stalled_and_is_dropped_a_day_later(tmp_path):
+    state_dir = tmp_path / "state"
+    key = cw.add(state_dir, CHAT, "handoff", "owner answer on the disk proposal", timeout_minutes=60, now=NOW - 2 * HOUR)
+    found = cw.collect(sources(tmp_path), NOW)
+    (waiter,) = found[CHAT]
+    assert "timed out" in waiter.label(NOW) and "STALLED" not in waiter.label(NOW) and not waiter.late(NOW)
+    (entry,) = cw.status_entries(found, {}, {}, NOW)
+    assert entry["timed_out"] and not entry["stalled"]
+    assert cw.stalled_entries(found, {}, {}, NOW) == []
+    events: list = []
+    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS - 2) * 3600, events.append) == []  # not a full day past yet
+    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS + 1) * 3600, events.append) == [key]
+    assert events[0]["event"] == "waiter_expired" and CHAT not in cw.collect(sources(tmp_path), NOW + 26 * HOUR)
+
+
+def test_a_chat_without_a_transcript_here_is_reported_once_and_its_waiters_dropped(tmp_path):
+    """TASK-9435: 5 chats were retried 11,354 times with 'no transcript on this host'."""
+    found = {CHAT: [cw.Waiter(CHAT, "ci", "ci:job", "CI e2e job", NOW - HOUR, NOW + HOUR, ready=True,
+                              ready_text="CI finished", ready_at=NOW - 60)]}
+    registry = {CHAT: {"state": "stopped", "title": "Remote chat"}}
+    rec = Recorder(resume_outcome="no transcript on this host")
+    delivered, failures = rec.run(found, {}, registry, tmp_path)
+    assert delivered == {"ci:job"}
+    assert len(failures) == 1 and "waiting stopped" in failures[0]["reason"]
+    assert [e["event"] for e in rec.events] == ["waiter_wake_failed", "waiter_dropped"]
+    delivered, failures = rec.run(found, {}, registry, tmp_path)
+    assert len(rec.resumed) == 1 and failures == []  # never retried
+
+
+def test_a_transient_wake_failure_is_retried(tmp_path):
+    found = {CHAT: [cw.Waiter(CHAT, "ci", "ci:job", "CI e2e job", NOW - HOUR, NOW + HOUR, ready=True,
+                              ready_text="CI finished", ready_at=NOW - 60)]}
+    rec = Recorder(resume_outcome="no free chat slot (cap)")
+    rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
+    rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
+    assert len(rec.resumed) == 2

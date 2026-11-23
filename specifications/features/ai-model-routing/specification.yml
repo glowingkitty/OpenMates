@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 13
-status: draft
+version: 14
+status: approved
 title: AI Model Settings And Chat Routing
 summary: >
   Authenticated users configure one automatic or explicit model for each request
@@ -257,7 +257,7 @@ assertions:
     depends_on: [examples.contextual_compact_assembly]
   - id: ai-model-routing.preprocessing.conditional-context
     type: behavior
-    must: Compact stage one selects Mate, complexity, apps and Projects from bounded conversation and discovery metadata. Model resolution and selected-Mate feedback precede detailed selection and private-body loading. Only complete public decisions with freshly verified empty active context can skip stage two; selected capabilities, active context or uncertainty retain detailed selection. Stage two selects relevant skills, Focus, Memory, Workflows and related work once, and main processing revalidates selected sources without repeating that selection inference.
+    must: Compact stage one selects Mate, complexity, apps and Projects from bounded conversation and discovery metadata. A specialised app skill that fits the request is always preferred over general web search, which is only the fallback when no app skill fits; each app's bounded stage-one summary keeps its skills' relevance hints ahead of authoring notes and operator-installed provider lists, so a long provider list never hides that preference, and when general web search is offered next to a specialised skill that stage two selected, the answer model is told for that request to call the specialised skill first and to use web search only for uncovered parts or when it returns nothing useful; when that specialised skill finds nothing, its tool result tells the model to call web search and the next model call is limited to web search, so the answer never comes from memory alone. Model resolution and selected-Mate feedback precede detailed selection and private-body loading. Only complete public decisions with freshly verified empty active context can skip stage two; selected capabilities, active context or uncertainty retain detailed selection. Stage two selects relevant skills, Focus, Memory, Workflows and related work once, and main processing revalidates selected sources without repeating that selection inference.
     depends_on: [examples.conditional_context]
   - id: ai-model-routing.preprocessing.warm-catalogues
     type: privacy
@@ -302,7 +302,7 @@ assertions:
   - id: ai-model-routing.decisions.per-purpose-model-with-jev-fallback
     type: behavior
     surfaces: [rest_api]
-    must: Typed internal decisions (noul, choice and score questions, with or without images) are answered by the model the decision routing config names first for the decision's purpose; Jev answers every purpose that is not listed. A purpose routed to Gemini Decision 1 falls back to Jev automatically, within the same call, when Gemini errors, times out after at most 2.5 seconds, is rate limited, refuses the input, returns no valid answer for every question, or the request exceeds a documented Gemini limit; such a fallback is logged with its reason and never fails the decision by itself. Every route ends with Jev. Gemini is never asked when the user's AI settings turn off Gemini Decision 1 or its server, or when the caller pins a Jev provider, endpoint or version. Each decision logs the purpose and the model and provider that decided. At present only the search, shopping-photo and result-photo relevance judges are routed to Gemini; safety, prompt-injection, preprocessing, postprocessing, voice-turn and browse decisions stay on Jev.
+    must: Typed internal decisions (noul, choice and score questions, with or without images) are answered by the model the decision routing config names first for the decision's purpose; Jev answers every purpose that is not listed. A purpose routed to Gemini Decision 1 falls back to Jev automatically, within the same call, when Gemini errors, times out after at most 2.5 seconds, is rate limited, refuses the input, returns no valid answer for every question, or the request exceeds a documented Gemini limit; such a fallback is logged with its reason and never fails the decision by itself. Every route ends with Jev. Gemini is never asked when the user's AI settings turn off Gemini Decision 1 or its server, or when the caller pins a Jev provider, endpoint or version. Each decision logs the purpose and the model and provider that decided. At present no purpose is routed to Gemini, so every decision, including the search, shopping-photo and result-photo relevance judges, is answered by Jev, because the 2026-11-20 benchmark found Gemini slower and less reliable.
     depends_on: [examples.decision_routing]
   - id: ai-model-routing.reasoning.preprocessor-recommendation
     type: behavior
@@ -370,3 +370,9 @@ applies_to:
 examples:
   file: examples.yml
   required_groups: [skill_internal_models, decision_routing, use_case_routing, required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]
+
+approval_source:
+  instruction: >-
+    Marco (owner) approved this draft (specialised apps first, web search only after an empty result) on 2026-11-21 through the authenticated dev
+    connector (receipt 9912bf0f9b412848), after the TASK-2134 changes were deployed and proven on dev.
+  date: '2026-11-21'

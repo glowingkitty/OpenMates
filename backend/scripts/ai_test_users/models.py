@@ -14,6 +14,7 @@ import base64
 import io
 import json
 import time
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -58,6 +59,21 @@ Rules:
   message, always wait for the reply and read it before moving on. Use {"kind":"finish"} only when all goals are
   done, when you are truly stuck after trying alternatives, or in the last two steps of the budget."""
 
+# Intended app behavior that first runs reported as defects (20 Nov 2026). The judge and Jev get it as context.
+EXPECTED_BEHAVIOR = (
+    "Without 'Stay logged in' a page reload signs the user out and clears the local chat store (privacy by design). "
+    "The 'Log in to keep chatting' prompt and login modal that follow such a reload are expected. "
+    "After a gift card signup the app opens Settings > Gift Cards by itself (known, tracked separately). "
+    "Dates and years are judged against the run date given as `today`, not against your training data. "
+    "/settings is not a page; settings open as a drawer. "
+    # Owner, 20 Nov 2026: TASK-3023 (question partly under the chat header) was a false positive.
+    "Content partly covered by the chat header, the call bar or another bar is not a defect when the user can "
+    "scroll it into view; report overlap only when content can never be read or a control can never be reached. "
+    "Short notices, toasts and notification banners (for example 'Sounds are on', which closes itself after 12 s "
+    "and has a close button) are not defects because they cover part of the page for a few seconds; report one "
+    "only when it blocks a needed action and cannot be closed, never closes, or its text itself is wrong."
+)
+
 JUDGE_INSTRUCTIONS = """You are a strict QA judge reviewing one simulated user's session in the OpenMates web app.
 You get the persona and its goals, a step transcript (actions, page text excerpts, timings, the persona's own notes,
 browser console errors, failed HTTP calls, blocked external links) and screenshots labelled with their step number.
@@ -72,16 +88,23 @@ Only report what the evidence shows. A finding must cite the step number and quo
 content. Do not report the masked (blacked-out) login screens, the test account's synthetic data, or harness
 limits (blocked external links are expected; judge only WHERE they pointed). Never report the session ending,
 goals left unfinished, or the simulated user's own choices (not waiting, clicking Send after pressing Enter) as app
-defects; judge only what the app showed or did. Return ONLY JSON:
+defects; judge only what the app showed or did. Do not report the expected behavior listed under `expected_behavior`
+in the payload. Return ONLY JSON:
 {"findings": [{"title": "<short, specific, product wording>", "category": "<one of the 8 above>",
   "severity": "high|medium|low", "step": <int>, "evidence": "<quote/description>", "expected": "<what should happen>",
   "surface": "<area of the app, e.g. chat answer, travel embed, settings>"}],
  "goal_outcomes": [{"goal": "<text>", "achieved": true|false, "why": "<short>"}],
- "summary": "<two sentences>"}"""
+ "answer_quality": [{"step": <int of the step where the answer was read>, "question": "<the user's question, short>",
+   "score": <1-5, 5 = helpful, correct, complete, natural>, "why": "<short>"}],
+ "demo_candidate": {"is_candidate": true|false, "why": "<short>", "steps": [<step numbers of the chat>]},
+ "summary": "<two sentences>"}
+
+answer_quality has one row for every assistant answer the simulated user read. demo_candidate.is_candidate is true
+only when one chat is helpful, correct, natural and visually good enough to show on the landing page; otherwise false."""
 
 JEV_FINDING_QUESTION = (
     "Is the reported problem clearly visible in the screenshot or directly supported by the quoted step "
-    "evidence, and is it a real defect of the web app rather than expected behavior, test-harness masking, "
+    "evidence, and is it a real defect of the web app rather than expected behavior (see expected_behavior and today), test-harness masking, "
     "or the judge misreading the screen? Answer no when the evidence is missing or ambiguous."
 )
 
@@ -97,6 +120,30 @@ def fit_for_jev(image: str) -> str:
     buffer = io.BytesIO()
     picture.save(buffer, format="JPEG", quality=70)
     return base64.b64encode(buffer.getvalue()).decode()
+
+
+def normalize_judge_extras(verdict: dict[str, Any]) -> dict[str, Any]:
+    """Validate the judge's `answer_quality` rows and `demo_candidate` verdict (absent = empty / not a candidate)."""
+    rows = []
+    for row in verdict.get("answer_quality") or []:
+        score = row.get("score") if isinstance(row, dict) else None
+        if isinstance(score, (int, float)) and not isinstance(score, bool) and 1 <= score <= 5:
+            step = row.get("step")
+            rows.append({
+                "step": step if isinstance(step, int) else None,
+                "question": str(row.get("question", ""))[:200],
+                "score": int(round(score)),
+                "why": str(row.get("why", ""))[:400],
+            })
+    demo = verdict.get("demo_candidate")
+    demo = demo if isinstance(demo, dict) else {}
+    verdict["answer_quality"] = rows
+    verdict["demo_candidate"] = {
+        "is_candidate": demo.get("is_candidate") is True,
+        "why": str(demo.get("why", ""))[:400],
+        "steps": [s for s in demo.get("steps") or [] if isinstance(s, int)][:40],
+    }
+    return verdict
 
 
 class BudgetExceeded(RuntimeError):
@@ -200,11 +247,13 @@ class TesterModels(BrowserModels):
         )
         if not isinstance(result, dict) or not isinstance(result.get("findings"), list):
             raise BrowserModelError("The browser text helper returned invalid JSON.")
-        return result
+        return normalize_judge_extras(result)
 
     async def jev_supports(self, finding: dict[str, Any], step: dict[str, Any] | None, screenshot: str | None) -> float:
         """Jev's probability that the finding is real, given its step and screenshot."""
         state = {
+            "today": date.today().isoformat(),
+            "expected_behavior": EXPECTED_BEHAVIOR,
             "finding": {k: finding.get(k) for k in ("title", "category", "evidence", "expected", "surface")},
             "step": {k: (step or {}).get(k) for k in ("url", "title", "page_text", "actions", "events", "reply_timing")},
         }

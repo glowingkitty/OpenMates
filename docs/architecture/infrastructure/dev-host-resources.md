@@ -38,13 +38,18 @@ What an overload does:
 | New session (SessionStart) | Instruction to wait (`host_load_guard.py wait`). |
 | `heavy_slot.py run` | Waits for a slot; local runs also need their class cap plus a 3 GiB floor free. |
 
-## 2. Chat lifecycle (`scripts/claude_idle_chats.py`, timer every 5 min)
+## 2. Chat lifecycle (`scripts/claude_idle_chats.py`, timer every minute)
 
 | State | When | What happens |
 | --- | --- | --- |
-| Working | busy, waiting for a permission/answer, background command, or active within `idle_stop_minutes` | runs |
-| Idle-stopped | idle ≥ `idle_stop_minutes` (60) and nothing open | SIGTERM (graceful); transcript kept; connector `send_message` resumes it with `claude --resume` |
+| Working | busy, waiting for a permission, background command or waiter, or its turn ended less than `idle_stop_minutes` (3) ago | runs, holds a slot |
+| Idle-stopped | turn ended ≥ `idle_stop_minutes` ago and nothing runs or waits in the background, also when it waits on the owner's answer or parked itself | SIGTERM (graceful); transcript and open question kept; connector `send_message` or its waiter resumes it with `claude --resume` |
+| Archived | reported done with a ✅ push (no `--paused-until`), no ❓ after it, its reply does not end with a question, no waiter (the push decides: wording such as "waiting on your answer" inside a report does not keep it open) | pane chat: `/exit` (archives its Claude app session) and its pane closed; otherwise stopped as done with `reported_done` and archived by the connector without approval |
 | Done | idle ≥ `done_hours` (24), finished | listed in `status.json` for the connector to archive in the Claude app |
+
+Owner rule (2026-11-20): only working chats and chats waiting on a background job
+hold one of the `max_running` slots. After the weekly usage reset 13 of 20 slots
+were held by idle chats for about an hour, and new chats could not start.
 
 Activity is the session record's state time plus the newest record timestamp in
 the transcript and sub-agent transcripts. File mtime is not used, because Claude
@@ -52,13 +57,28 @@ Code rewrites idle transcripts in place on bridge reconnects.
 
 Never stopped: chats started by hand in a terminal (only Remote Control workers
 and chats in a zellij pane of `zellij_sessions` are managed), the running chat, a
-chat that is not idle, one with a background command, and one whose last turn is
-a message without a reply (including a refused prompt). Idle stop and done also
-keep a chat whose last reply asks something.
+chat that is not idle, one with a background command or an open waiter, and one
+whose last turn is a message without a reply (including a refused prompt). A chat
+that waits on the owner is stopped but stays listed as waiting with its question
+(stopped.json `open_question`, the briefing's waiting chats).
+
+Each cycle also declines Claude Code's auto-mode setup offer ("Teach auto mode
+about your environment?", Esc) in pane chats, which otherwise sat behind it for
+days as `waiting`, and tidies the managed zellij sessions: panes whose process
+ended (seen dead in two cycles 2 minutes apart; with their tab when it was the
+only pane), empty tabs, and the `zellij:link` background plugin. On 2026-11-20 the
+`claude` session held 58 dead panes and 57 empty tabs of 72, and the link plugin's
+thread had used 43 CPU hours; closing them took the server from about 110% CPU
+and 900 MB to 29% and 180 MB with every chat still running.
+
+Waking after a wait reopens at most `wake_batch` (3) closed chats per cycle, a
+finished job's result before a timer, then by the chat's Task priority (hourly
+Tasks copy), and leaves `free_slots` (4) slots for new chats. A handoff waiter
+past its timeout shows as "timed out" (not STALLED) and is dropped 24 hours later;
+only timed-out disk, CI and background waiters count as stalled.
 
 Cap: at most `max_running` (20) chat processes. Beyond that the longest-idle
-chats are suspended, those without an open question first; a chat with an open
-question only after `cap_question_idle_hours` (4) without an answer.
+chats are suspended, those without an open question first.
 `claude_dispatch.launch_claude_chat` (also used by the connector's `start_chat`)
 asks `claude_idle_chats.py admit` first. When there is no room, the chat waits in
 `logs/claude-dispatch/pending/` and the caller gets `ChatQueued`. The per-minute
@@ -70,6 +90,19 @@ with their resume command), `events.jsonl`. The connector reports archiving with
 `claude_idle_chats.py mark --session <id> --state archived`. The counts appear in
 the daily meeting briefing ("Chats waiting on you") and the connector's
 chat_changes.
+
+### Only done, asking or waiting chats are closed (TASK-7707)
+
+Owner rule 2026-11-21: the lifecycle closes a chat only when it reported done (✅ push), asked
+the owner (❓ push or a closing question) or registered a waiter. A turn that ends any other way
+gets a continue prompt typed into its pane (`scripts/claude_chat_continue.py`: once per turn
+end, retried after 10 minutes, at most 3 in a row without tool work); a chat that cannot be
+woken or does not act keeps running and is listed as stalled. Running background sub-agents
+keep their chat open. The cap never suspends such a chat; memory pressure may, and then a
+timer waiter reopens it after 30 minutes. The zellij tidy leaves a session alone when its pane
+listing is incomplete (no terminal pane, panes without tab, or a live pane missing) and closes
+an empty tab only after seeing it empty twice: on 2026-11-20 it closed every tab of the
+`claude` session twice, with working chats in them.
 
 ### Waiting on background work
 
@@ -134,16 +167,73 @@ on 2026-11-15 were such leftovers of CI result downloads).
   that failed, and stopped or done chats whose transcript holds undelivered
   results (listed with the resume command, never woken).
 
-Pushes that reach the user through `scripts/agent_question.py` (and
-`scripts/e2b_credits.py`, which calls its `record_push`) are appended to
-`logs/agent-questions/pushes.jsonl` (time, chat id and title, text, what it asks),
-so the connector can match a push to its chat. Push text is scrubbed before
+Every chat tells the user on Discord exactly once when it is done or blocked,
+with `scripts/agent_question.py`: `done` sends "✅ <short title>: <result>" (also
+for a parked or paused chat, with `--paused-until`), `ask` sends "❓ <short
+title>: <decision>. Recommendation: …". The chat writes the short text itself because
+the push is read on a phone lock screen (`scripts/discord_summary.py`): done at most 110
+characters, ask (question plus recommendation) at most 120, title at most 30 characters
+(Task id removed); a link counts as one character. Markdown, Task/chat ids, commit hashes,
+list markers and icons the chat wrote are stripped, so exactly one icon goes out. Text over
+the limit is rejected (exit 1, "rewrite it in under N characters, one sentence"); the rejection
+count is kept per chat and kind in `logs/agent-questions/rejections/<chat-id>.json` (dry runs
+do not count, a delivered push resets it). After two rejections one headless `claude -p --model
+haiku` call shortens the scrubbed text (platform login, no tools, no project instructions; a
+tiny comparison is below), and if that fails or is still too long the text is cut
+at a word boundary with "…". The production monitors (`prod_email_health.py`,
+`prod_tls_health.py`) build their 🚨/✅ lines with `discord_summary.alert` (one line, 140
+characters). No progress pushes, never both for one event, one of each kind per chat per 20
+minutes. These pushes (and `scripts/e2b_credits.py`'s, which calls its
+`record_push`) are appended to `logs/agent-questions/pushes.jsonl` (time, kind
+`done`/`ask`/empty for other alerts, chat id and title, text, what it asks), so
+the connector can match a push to its chat and label it ✅ done or ❓ needs input.
+Fallback model comparison (2026-11-20, four long summaries to 110 characters): Haiku kept
+4/4 within the limit (about 5-45 s per call depending on host load), Sonnet 1/4 (about 4 s);
+Haiku is the cheaper model and the one that obeyed the limit. A Gemini key is not
+available on the dev host (vault only), so it was not compared. Each call is capped at
+$0.25 and 120 s.
+Chats the host starts by itself (issue and production-failure chats,
+`claude_dispatch.launch_claude_chat`) get the same rule appended to their prompt
+and their title in `CLAUDE_CHAT_TITLE`. A ❓ push stays an open question until
+the user's next prompt: the chat lifecycle never idle-stops such a chat, and the
+briefing's waiting chats show the pushed question, also for a closed chat.
+
+Queued chat starts: when the weekly Claude usage has 10% or less left, the dev
+connector's start_chat (and a send_message that would reopen a closed chat with
+new work) is not run but stored as a timer waiter (`claude_chat_waiters.add_start`,
+usage-checked, at the reset + 5 minutes, moved to 17:00 when that falls in
+marketing time and the build gate would hold it). Its Task is created at once.
+The connector starts it when the timer fires without any Discord push (a start is
+not a ✅ event; ✅ is only for a finished or parked chat); after three failed
+attempts it sends one ❓. `run="now"`, `run_at` and the connector tools
+`list_scheduled_chats`, `cancel_scheduled_chat` and `run_queued_chat` control it;
+the briefing lists the queue under "Scheduled chats". Push text is scrubbed before
 sending (`agent_question.scrub`): webhook URLs, emails, private keys, JWTs,
 bearer and prefixed API tokens, `NAME=value` values and other long random tokens
 become `[removed]`. Task and chat UUIDs, 40/64-char hex hashes, ENV/snake/kebab
 names and presigned links to our own `openmates-*` buckets on the object storage
 stay intact. Pushes longer than one Discord message go out as up to four parts,
 split between words so links are never cut.
+
+Proof on pushes (`scripts/push_proof.py`, owner decision 21 Nov 2026): `--attach FILE`
+(repeatable) sends screenshots and videos as real files in the same Discord message
+(webhook multipart, at most 10 files and about 9.5 MiB per message). A screenshot over
+4 MiB or over the remaining budget is re-encoded as JPEG and scaled down; a video that
+does not fit is re-encoded once with ffmpeg (H.264, at most 1280 px wide), and if it
+still does not fit it goes to the private 7-day bucket of the AI test users videos
+(`agent-pushes/<chat-id>/…`, signed link valid 7 days) and the push carries the link.
+`--link URL` adds an existing signed link to our own private buckets; other links are
+refused. Attachments and links come on top of the short-text limit. Proof can show
+user-like data, so it goes only to the push webhook and the private bucket, never into
+the repository; `.auth`, `ci-private` and `.env*` paths are refused. The push log
+records attached file names and links under `proof`.
+Proof is required only when the chat has something visual to show: a session of the
+chat changed UI files (`.svelte`, `.css`, `.scss`, `.mjml`, Swift views, Apple asset
+catalogs, email templates; test files excluded), or ran a finished `e2e`, `component`,
+`visual-smoke` or `apple-ui` CI job. Such a push without `--attach`/`--link` is refused
+(exit 1, also in dry runs) unless `--no-proof "<why>"`, which sends a loud "No
+screenshot or video" line. Research, backend, security, docs and tooling pushes are
+never asked for proof; the wording of the push plays no part.
 
 ## 3. Host-resources tick (`scripts/host_resources.py`, every minute)
 
@@ -319,6 +409,39 @@ The setup script also runs the cleanup once and sets Docker's default log
 rotation in `/etc/docker/daemon.json` (validated with `dockerd --validate`;
 active after the next Docker restart, which the script does not do). The ext4 root reserve is lowered
 once by hand to 3 GiB (`sudo tune2fs -r 786432 <root device>`).
+
+## 6. Real-inference tests run in isolated CI, not on dev (TASK-5616)
+
+The dev test lock (TASK-8552) is gone: deploys and dev restarts never wait for a test. Tests that
+need real AI inference are `real-inference-*.spec.ts` specs in the `real_inference` group of
+`scripts/ci_coverage_manifest.json`, submitted like any e2e spec
+(`ci_coordinator.py submit --mode e2e --spec real-inference-<name>.spec.ts`), one per job.
+Each run gets its own throwaway stack:
+
+- The job uses the protected `real-inference` GitHub environment (dispatch from `dev` only). Its
+  dev-only provider keys reach only the step that starts the stack, never dependency installs,
+  the diagnostics step or the Playwright process, and pass by name into the run's own Vault
+  (`REAL_INFERENCE_PROVIDERS` in `scripts/ci_environment.py`). Only providers whose dev key
+  differs from production's are listed; models without a key there fall through to the next
+  model of their bounded chain, and Jev (routing and the fail-closed answer-safety check) is
+  required.
+- The stack's network stays internal; HTTPS leaves only through the runner gateway's allowlist
+  of exactly those providers' hosts (`REAL_INFERENCE_HOSTS` in `scripts/ci_tcp_gateway.py`).
+- Uploaded stack logs drop outgoing request lines and redact key-shaped values.
+
+- The job sets `OPENMATES_CI_REAL_INFERENCE=1` and clears `E2E_USE_MOCKS`/`E2E_USE_LIVE_MOCKS`.
+  Specs call `requireRealInference(label, BASE_URL)` from
+  `frontend/apps/web_app/tests/helpers/real-inference-guard.ts`, which allows exactly that job
+  (on its own localhost stack) or a manual run against a `.dev.` host, and refuses every other
+  CI job and any fixture replay.
+- Python installs in this workflow are hash-locked and resolved from releases older than 7 days
+  (`.github/requirements/`, guarded by `scripts/tests/test_ci_pip_installs_locked.py`).
+
+Every real-inference E2E spec that can work with those providers is in the group. A spec stays
+out only while it needs a provider key that is not in the list, an E2B sandbox, an
+operator-installed provider package, outside websites or a fixture that exists only on dev; it
+joins the group once that is solved. The dev-host `*_real_test.py` runners still work against
+dev for manual checks, without any lock; a deploy or restart may interrupt them.
 
 ## Setup
 

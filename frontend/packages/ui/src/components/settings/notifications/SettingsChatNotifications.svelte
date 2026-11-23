@@ -10,6 +10,7 @@ Native Swift counterparts:
 <script lang="ts">
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
     import { SettingsSectionHeading } from '../../settings/elements';
     import {
         pushNotificationStore,
@@ -20,6 +21,7 @@ Native Swift counterparts:
     import { authStore } from '../../../stores/authStore';
     import { webSocketService } from '../../../services/websocketService';
     import { notificationStore } from '../../../stores/notificationStore';
+    import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     
     // Local state for push notifications
     let isRequestingPermission = $state(false);
@@ -77,6 +79,11 @@ Native Swift counterparts:
     let isEnabled = $derived($pushNotificationStore.enabled);
     let preferences = $derived($pushNotificationStore.preferences);
     
+    // Both channels off: the user could silently miss replies. Push counts as set up
+    // when this browser or any other device (e.g. the iOS app) registered for it.
+    let pushSetUp = $derived(isEnabled || ($userProfile.push_notification_enabled ?? false));
+    let showMissedWarning = $derived(!emailNotificationsEnabled && !pushSetUp);
+
     // iOS devices in Safari (non-PWA) report push as unsupported, but it works after
     // installing the app to the home screen. Show install instructions instead of "not supported".
     let needsPWAInstall = $derived($requiresPWAInstall);
@@ -139,6 +146,38 @@ Native Swift counterparts:
         syncSettingsToServer();
     }
     
+    /**
+     * Save one of the two profile-level push content switches. Only the boolean
+     * goes to the server (PATCH merges it); the content itself is sealed to the
+     * device later. Native apps read the same profile preference.
+     */
+    async function savePushContentPreference(key: 'includeChatTitle' | 'includePreview'): Promise<void> {
+        const previous = preferences[key];
+        pushNotificationStore.togglePreference(key);
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.push.preferences), {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [key]: !previous })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (error) {
+            console.error(`[SettingsChatNotifications] Failed to save ${key} preference:`, error);
+            pushNotificationStore.setPreferences({ [key]: previous });
+        }
+    }
+
+    /** Summary + chat title in the notification (default on). */
+    function handleToggleChatTitle(): Promise<void> {
+        return savePushContentPreference('includeChatTitle');
+    }
+
+    /** First lines of the answer in the notification (default off). */
+    function handleTogglePreview(): Promise<void> {
+        return savePushContentPreference('includePreview');
+    }
+
     /**
      * Close iOS instructions modal
      */
@@ -434,6 +473,37 @@ Native Swift counterparts:
             </div>
         {/if}
     {/if}
+
+    <!-- Profile-level preference: also governs native app notifications, so it is
+         reachable even where browser push is unavailable. -->
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon chat"
+        title={$text('settings.chat.notifications.push_include_chat_title')}
+        data-testid="push-notifications-include-chat-title"
+        subtitleTop={$text('settings.chat.notifications.push_include_chat_title_desc')}
+        hasToggle={true}
+        checked={preferences.includeChatTitle}
+        onClick={handleToggleChatTitle}
+    />
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon chat"
+        title={$text('settings.chat.notifications.push_include_preview')}
+        data-testid="push-notifications-include-preview"
+        subtitleTop={$text('settings.chat.notifications.push_include_preview_desc')}
+        hasToggle={true}
+        checked={preferences.includePreview}
+        onClick={handleTogglePreview}
+    />
+
+    {#if showMissedWarning}
+        <div class="missed-warning">
+            <SettingsInfoBox type="warning" data-testid="notifications-missed-warning">
+                {$text('settings.chat.notifications.missed_warning')}
+            </SettingsInfoBox>
+        </div>
+    {/if}
     
     <!-- ================================================== -->
     <!-- EMAIL NOTIFICATIONS SECTION -->
@@ -708,5 +778,9 @@ Native Swift counterparts:
         color: var(--color-grey-50);
         margin-top: var(--spacing-6);
         padding: var(--spacing-4);
+    }
+
+    .missed-warning {
+        margin: var(--spacing-8) 0;
     }
 </style>

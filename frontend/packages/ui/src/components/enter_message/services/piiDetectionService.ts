@@ -744,6 +744,14 @@ export interface PIIDetectionOptions {
  *   or a PIIDetectionOptions object with full control over detection behavior.
  * @returns Array of PII matches found in the text
  */
+/** True when position `start` of `text` lies in one component of a dotted version ("1.0.30001690"): its digit run follows a "." after a digit. */
+function inVersionComponent(text: string, start: number): boolean {
+  const isDigit = (c: string | undefined) => c !== undefined && c >= "0" && c <= "9";
+  let index = start - 1;
+  while (isDigit(text[index])) index -= 1;
+  return text[index] === "." && isDigit(text[index - 1]);
+}
+
 export function detectPII(
   text: string,
   excludedIdsOrOptions: Set<string> | PIIDetectionOptions = new Set(),
@@ -820,6 +828,10 @@ export function detectPII(
         const endIndex = startIndex + matchText.length;
 
         if (pattern.type === "PHONE" && identifierRanges.some((range) => startIndex < range.end && endIndex > range.start)) continue;
+        // A phone match inside one component of a dotted version (a lockfile's
+        // "1.0.30001690") is part of that version. Long digit runs such as IBANs
+        // are still redacted. Same rule as the Rust core (privacy/detect.rs).
+        if (pattern.type === "PHONE" && inVersionComponent(text, startIndex)) continue;
 
         if (overlapsAnyRange(startIndex, endIndex, embedZones)) continue;
 

@@ -5,7 +5,8 @@
 // Mirrors the web log collector/action tracker shape with native-only signals.
 
 // Specification: specifications/features/issue-reporting/specification.yml
-// Assertions: issue-reporting.logs.authenticated-capture
+// Assertions: issue-reporting.logs.authenticated-capture, issue-reporting.logs.role-aware-forwarding,
+//             issue-reporting.logs.native-performance-metadata
 
 import Foundation
 import OSLog
@@ -234,7 +235,7 @@ final class NativeSyncDiagnosticsStore: @unchecked Sendable {
 
 final class NativeClientLogCollector: @unchecked Sendable {
     static let shared = NativeClientLogCollector()
-    private static let maxEntries = 200
+    private static let maxEntries = 500
     private static let maxImportantCarryover = 40
     private static let maxStringLength = 320
 
@@ -512,20 +513,58 @@ final class NativePerformanceMonitor: @unchecked Sendable {
     private let lock = NSLock()
     private var frameDurationsMS: [Int] = []
     private var totalSampleCount = 0
+    private var windowStartUptime: TimeInterval?
+    private var windowFrames = 0
+    private var windowHitchFrames = 0
+    private var windowWorstFrameMS = 0
+    /// One `perf_window` info entry per minute of foreground frames.
+    static let windowSeconds: TimeInterval = 60
     #if os(iOS)
     @MainActor private var displayLinkProbe: NativeDisplayLinkProbe?
     #endif
 
     private init() {}
 
-    func recordFrame(durationMS: Int) {
+    func recordFrame(durationMS: Int, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        let duration = max(0, durationMS)
         lock.lock()
         totalSampleCount += 1
-        frameDurationsMS.append(max(0, durationMS))
+        frameDurationsMS.append(duration)
         if frameDurationsMS.count > Self.maxSamples {
             frameDurationsMS.removeFirst(frameDurationsMS.count - Self.maxSamples)
         }
+        let window = advanceWindowLocked(durationMS: duration, uptime: uptime)
         lock.unlock()
+        NativePerformanceSignals.recordFrameGap(durationMS: duration)
+        if let window {
+            let counts = NativePerformanceSignals.windowCounts(
+                frames: window.frames, hitchFrames: window.hitches, worstFrameMS: window.worst,
+                memoryMB: NativePerformanceSignals.memoryFootprintMB())
+            NativeDiagnostics.event("perf_window", category: "performance", counts: counts)
+        }
+    }
+
+    /// Adds a frame to the current window; returns the finished window once it
+    /// spans `windowSeconds`. Suspension gaps are not counted as frames.
+    private func advanceWindowLocked(durationMS: Int, uptime: TimeInterval)
+        -> (frames: Int, hitches: Int, worst: Int)? {
+        guard durationMS < NativePerformanceSignals.suspensionThresholdMS else { return nil }
+        let start = windowStartUptime ?? uptime
+        windowStartUptime = start
+        windowFrames += 1
+        if durationMS >= Self.jankThresholdMS { windowHitchFrames += 1 }
+        windowWorstFrameMS = max(windowWorstFrameMS, durationMS)
+        guard uptime - start >= Self.windowSeconds else { return nil }
+        let finished = (frames: windowFrames, hitches: windowHitchFrames, worst: windowWorstFrameMS)
+        resetWindowLocked()
+        return finished
+    }
+
+    private func resetWindowLocked() {
+        windowStartUptime = nil
+        windowFrames = 0
+        windowHitchFrames = 0
+        windowWorstFrameMS = 0
     }
 
     func summary() -> [String: Any] {
@@ -556,6 +595,7 @@ final class NativePerformanceMonitor: @unchecked Sendable {
     func resetForTests() {
         lock.lock()
         frameDurationsMS.removeAll()
+        resetWindowLocked()
         lock.unlock()
     }
 
@@ -571,12 +611,17 @@ final class NativePerformanceMonitor: @unchecked Sendable {
         #endif
     }
 
+    /// Stops the frame clock (app in background) so the resume gap is never
+    /// reported as a stall; the partial window is dropped.
     @MainActor
     func stopSampling() {
         #if os(iOS)
         displayLinkProbe?.stop()
         displayLinkProbe = nil
         #endif
+        lock.lock()
+        resetWindowLocked()
+        lock.unlock()
     }
 
     @MainActor
@@ -714,22 +759,23 @@ final class NativeMetricKitReporter: NSObject, @unchecked Sendable {
 extension NativeMetricKitReporter: MXMetricManagerSubscriber {
     func didReceive(_ payloads: [MXMetricPayload]) {
         for payload in payloads {
-            recordMetricKitPayload(type: "metric", payload: payload.dictionaryRepresentation())
+            recordMetricKitCounts(type: "metric", counts: NativePerformanceSignals.record(payload))
         }
     }
 
     func didReceive(_ payloads: [MXDiagnosticPayload]) {
         for payload in payloads {
-            recordMetricKitPayload(type: "diagnostic", payload: payload.dictionaryRepresentation())
+            recordMetricKitCounts(type: "diagnostic", counts: NativePerformanceSignals.record(payload))
         }
     }
 
-    private func recordMetricKitPayload(type: String, payload: [AnyHashable: Any]) {
-        recordSummary([
+    private func recordMetricKitCounts(type: String, counts: [String: Int]) {
+        var summary: [String: Any] = [
             "report_type": type,
             "received_at": NativeDiagnosticsDateFormatter.string(from: Date()),
-            "payload_keys": payload.keys.map { String(describing: $0) }.sorted(),
-        ])
+        ]
+        summary.merge(counts) { _, new in new }
+        recordSummary(summary)
     }
 }
 #endif
@@ -737,6 +783,9 @@ extension NativeMetricKitReporter: MXMetricManagerSubscriber {
 final class NativeLogForwarder: @unchecked Sendable {
     static let shared = NativeLogForwarder()
     private static let defaultFlushIntervalNanoseconds: UInt64 = 30_000_000_000
+    private static let adminFlushIntervalNanoseconds: UInt64 = 15_000_000_000
+    /// Batches per admin flush; a backlog after an offline spell drains over a few flushes.
+    static let maxAdminBatchesPerFlush = 5
 
     private let lock = NSLock()
     private var defaultTelemetryTask: Task<Void, Never>?
@@ -750,6 +799,11 @@ final class NativeLogForwarder: @unchecked Sendable {
     private var lastDebugFlushAt: Date?
     private var lastDebugFlushStatus = "never"
     private var lastDebugFlushCount = 0
+    private var adminForwardingTask: Task<Void, Never>?
+    private var lastAdminSequence = 0
+    private var lastAdminFlushAt: Date?
+    private var lastAdminFlushStatus = "never"
+    private var lastAdminFlushCount = 0
     private let sessionPseudonym = UUID().uuidString.lowercased()
 
     private init() {}
@@ -814,6 +868,81 @@ final class NativeLogForwarder: @unchecked Sendable {
         defaultTelemetryTask?.cancel()
         defaultTelemetryTask = nil
         lock.unlock()
+    }
+
+    /// Administrator payload for `POST /v1/admin/client-logs` (all levels,
+    /// web `clientLogForwarder` admin mode); nil for an empty batch.
+    static func adminPayload(entries: [NativeClientLogEntry]) -> [String: Any]? {
+        guard !entries.isEmpty else { return nil }
+        return [
+            "logs": entries.map { $0.forwardingPayload() },
+            "metadata": defaultMetadata(pageURL: "apple://native"),
+        ]
+    }
+
+    /// Starts all-level forwarding for a signed-in administrator. The server
+    /// re-checks the admin role on every batch, so a stale start is refused there.
+    func startAdminForwarding(intervalNanoseconds: UInt64 = adminFlushIntervalNanoseconds) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard adminForwardingTask == nil else { return }
+        adminForwardingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.flushAdminLogs()
+                try? await Task.sleep(nanoseconds: intervalNanoseconds)
+            }
+        }
+    }
+
+    func stopAdminForwarding() {
+        lock.lock()
+        adminForwardingTask?.cancel()
+        adminForwardingTask = nil
+        lock.unlock()
+    }
+
+    func flushAdminLogs() async {
+        var sentCount = 0
+        var status = "empty"
+        for _ in 0..<Self.maxAdminBatchesPerFlush {
+            let lastSequence = readLastAdminSequence()
+            let entries = NativeClientLogCollector.shared.entriesAfter(sequence: lastSequence, limit: 50)
+            guard let payload = Self.adminPayload(entries: entries) else { break }
+            guard await post(path: "/v1/admin/client-logs", payload: payload) else {
+                status = "failed"
+                break
+            }
+            updateLastAdminSequence(entries.last?.sequence ?? lastSequence)
+            sentCount += entries.count
+            status = "sent"
+        }
+        updateAdminFlush(status: status, count: sentCount)
+    }
+
+    private func readLastAdminSequence() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastAdminSequence
+    }
+
+    private func updateLastAdminSequence(_ sequence: Int) {
+        lock.lock()
+        lastAdminSequence = max(lastAdminSequence, sequence)
+        lock.unlock()
+    }
+
+    private func updateAdminFlush(status: String, count: Int) {
+        lock.lock()
+        lastAdminFlushAt = Date()
+        lastAdminFlushStatus = status
+        lastAdminFlushCount = count
+        lock.unlock()
+    }
+
+    func isAdminForwardingRunning() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return adminForwardingTask != nil
     }
 
     func startDebugSession(debuggingID: String, intervalNanoseconds: UInt64 = defaultFlushIntervalNanoseconds) {
@@ -893,6 +1022,9 @@ final class NativeLogForwarder: @unchecked Sendable {
 
     func flushForIssueReport() async {
         await flushDefaultTelemetry()
+        if isAdminForwardingRunning() {
+            await flushAdminLogs()
+        }
         if let debuggingID = currentDebuggingID() {
             await flushDebugSession(debuggingID: debuggingID)
         }
@@ -911,6 +1043,10 @@ final class NativeLogForwarder: @unchecked Sendable {
             "last_debug_flush_at": lastDebugFlushAt.map(NativeDiagnosticsDateFormatter.string(from:)) ?? "never",
             "last_debug_flush_status": lastDebugFlushStatus,
             "last_debug_flush_count": lastDebugFlushCount,
+            "admin_forwarding_running": adminForwardingTask != nil,
+            "last_admin_flush_at": lastAdminFlushAt.map(NativeDiagnosticsDateFormatter.string(from:)) ?? "never",
+            "last_admin_flush_status": lastAdminFlushStatus,
+            "last_admin_flush_count": lastAdminFlushCount,
         ]
         lock.unlock()
         return snapshot
@@ -920,8 +1056,14 @@ final class NativeLogForwarder: @unchecked Sendable {
         lock.lock()
         defaultTelemetryTask?.cancel()
         debugSessionTask?.cancel()
+        adminForwardingTask?.cancel()
         defaultTelemetryTask = nil
         debugSessionTask = nil
+        adminForwardingTask = nil
+        lastAdminSequence = 0
+        lastAdminFlushAt = nil
+        lastAdminFlushStatus = "never"
+        lastAdminFlushCount = 0
         activeDebuggingID = nil
         lastDefaultTelemetrySequence = 0
         lastDebugSessionSequence = 0

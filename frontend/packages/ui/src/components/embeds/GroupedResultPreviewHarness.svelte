@@ -7,13 +7,19 @@
   import { embedStore } from '../../services/embedStore';
   import EmbedPreviewLarge from './EmbedPreviewLarge.svelte';
   import EmbedReferencePreview from './EmbedReferencePreview.svelte';
+  import { createEmbedCarouselScope } from './embedCarouselScope';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
-  let { app = 'home', skillCalls = false, skillStatus = 'processing' }: {
+  let { app = 'home', skillCalls = false, skillStatus = 'processing', narrowCopy = false, mixedSkills = false }: {
     app?: 'home' | 'events' | 'code';
     skillCalls?: boolean;
     skillStatus?: 'processing' | 'finished';
+    /** Also render the same run in a second, narrow message view (issue X83Z4). */
+    narrowCopy?: boolean;
+    mixedSkills?: boolean;
   } = $props();
+  const largeScope = createEmbedCarouselScope();
+  const narrowScope = createEmbedCarouselScope();
   let compact: HTMLDivElement;
   let ready = $state(false);
   const ids = [1, 2, 3].map(index => `e4336790-2200-4000-8000-00000000000${index}`);
@@ -42,10 +48,14 @@
   onMount(() => {
     let disposed = false;
     const renderer = new GroupRenderer();
-    const type = skillCalls ? 'app-skill-use' : app === 'code' ? 'code-code' : app === 'home' ? 'home-listing' : 'events-event';
-    const status = skillCalls ? skillStatus : 'finished';
+    const type = skillCalls || mixedSkills ? 'app-skill-use' : app === 'code' ? 'code-code' : app === 'home' ? 'home-listing' : 'events-event';
+    const status = skillCalls || mixedSkills ? skillStatus : 'finished';
     const queries = ['artificial intelligence latest developments', 'Anthropic news Claude', 'OpenAI latest news'];
-    const records = skillCalls ? ids.map((embed_id, index) => ({
+    const mixedRecords = [
+      { embed_id: ids[0], app_id: 'images', skill_id: 'view', status: 'finished', embed_ids: [], result_count: 0 },
+      { embed_id: ids[1], app_id: 'images', skill_id: 'generate', prompt: 'Vector drawing of a sunset', status: 'processing', embed_ids: [], result_count: 0 },
+    ];
+    const records = mixedSkills ? mixedRecords : skillCalls ? ids.map((embed_id, index) => ({
       embed_id, app_id: 'news', skill_id: 'search', query: queries[index],
       provider: 'Brave Search', status, embed_ids: [], result_count: 0,
     })) : app === 'code' ? ids.map((embed_id, index) => ({ embed_id,
@@ -54,12 +64,12 @@
     })) : rows;
     for (const row of records) {
       embedStore.setInMemoryOnly(`embed:${row.embed_id}`, {
-        embed_id: row.embed_id, type, app_id: skillCalls ? 'news' : app,
-        skill_id: skillCalls ? 'search' : app === 'code' ? 'code' : app === 'home' ? 'listing' : 'event',
-        status, content: encode(row),
+        embed_id: row.embed_id, type, app_id: mixedSkills ? row.app_id : skillCalls ? 'news' : app,
+        skill_id: mixedSkills ? row.skill_id : skillCalls ? 'search' : app === 'code' ? 'code' : app === 'home' ? 'listing' : 'event',
+        status: mixedSkills ? row.status : status, content: encode(row),
       });
     }
-    const groupedItems = [...records].reverse().map(row => ({
+    const groupedItems = (mixedSkills ? [...records] : [...records].reverse()).map(row => ({
       id: row.embed_id, type, status,
       contentRef: `embed:${row.embed_id}`, ...row,
     } as EmbedNodeAttributes));
@@ -77,10 +87,15 @@
 
 <div class="fixture read-only-message ProseMirror" data-testid="grouped-result-fixture" data-ready={ready} data-context="chat">
   <section data-testid="compact-group"><div bind:this={compact} class="embed-group-container"></div></section>
-  {#if ready && !skillCalls}
+  {#if ready && !skillCalls && !mixedSkills}
     <section data-testid="large-group">
-      {#each ids as id, index}<EmbedPreviewLarge embedRef={id} embedId={id} carouselIndex={index} carouselTotal={ids.length} runRef="grouped-result-fixture" />{/each}
+      {#each ids as id, index}<EmbedPreviewLarge embedRef={id} embedId={id} carouselIndex={index} carouselTotal={ids.length} runRef="grouped-result-fixture" carouselScope={largeScope} />{/each}
     </section>
+    {#if narrowCopy}
+      <section data-testid="narrow-large-group" class="narrow-copy">
+        {#each ids as id, index}<EmbedPreviewLarge embedRef={id} embedId={id} carouselIndex={index} carouselTotal={ids.length} runRef="grouped-result-fixture" carouselScope={narrowScope} />{/each}
+      </section>
+    {/if}
     <section data-testid="ungrouped-result"><EmbedReferencePreview embedRef={ids[0]} embedId={ids[0]} variant="small" /></section>
   {/if}
 </div>
@@ -89,4 +104,5 @@
   @import '../enter_message/EmbeddPreview.styles.css';
   .fixture { width:100%; max-width:900px; min-width:0; box-sizing:border-box; padding:12px; display:grid; gap:40px; }
   section { min-width:0; }
+  .narrow-copy { width:360px; max-width:100%; }
 </style>

@@ -52,9 +52,11 @@ from . import bank_transfer_duplicate_reference_email_task
 # the @app.task decorators to run and register the tasks with Celery.
 
 from . import chat_failure_email_task  # Managed-server terminal chat failure alerts
+from . import chat_failure_summary_task  # Dev daily chat failure summary
 
 __all__ = [
     "chat_failure_email_task",
+    "chat_failure_summary_task",
     'verification_email_task',
     'existing_account_email_task',
     'new_device_email_task',

@@ -243,6 +243,24 @@ describe("atomic voice call chat bootstrap", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+  it("creates the chat key for an unsent draft whose shell row has none yet, as the first send does", async () => {
+    Object.assign(mocks.chat, { encrypted_chat_key: null, encrypted_draft_md: "cipher:structured-project-folder-mention", draft_v: 2 });
+    const createdAt = mocks.chat.created_at;
+    // The real persister stores the new wrapper on the draft's own chat row.
+    vi.mocked(chatKeyManager.createAndPersistKeyLocked).mockImplementationOnce(async () => {
+      mocks.chat.encrypted_chat_key = "wrapped-key";
+      return { chatKey: new Uint8Array(32), encryptedChatKey: "wrapped-key" };
+    });
+    await prepareVoiceCallChat(mocks.chat.chat_id, true);
+    expect(chatKeyManager.createAndPersistKeyLocked).toHaveBeenCalledOnce();
+    expect(chatKeyManager.createAndPersistKeyLocked).toHaveBeenCalledWith(mocks.chat.chat_id);
+    expect(mocks.db.addChat).not.toHaveBeenCalled();
+    expect(mocks.sent[0]).toEqual({ type: "voice_call_chat_prepare", payload: {
+      chat_id: mocks.chat.chat_id, encrypted_chat_key: "wrapped-key", created_at: createdAt, voice_call_bootstrap: true,
+    } });
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
   it("confirms a saved chat without transmitting or changing its title, draft, or versions", async () => {
     Object.assign(mocks.chat, { encrypted_title: "cipher:saved-title", messages_v: 72, title_v: 8, metadata_v: 13,
       encrypted_draft_md: "cipher:unsent", draft_v: 7 });

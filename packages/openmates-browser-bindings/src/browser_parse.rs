@@ -40,6 +40,12 @@ pub fn parse_reconcile_recommendations(input_json: &str) -> Result<String, JsVal
     openmates_sdk::client::recommendations::reconcile_recommendations_json(input_json).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+/// Start-screen workflow suggestions (`workflow_start_suggestions::workflow_start_suggestions_json`).
+#[wasm_bindgen]
+pub fn parse_workflow_start_suggestions(input_json: &str) -> Result<String, JsValue> {
+    openmates_sdk::client::workflow_start_suggestions::workflow_start_suggestions_json(input_json).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
 /// Validated `context_entry` system message content (`recommendations::build_context_entry_event_json`).
 #[wasm_bindgen]
 pub fn parse_build_context_entry_event(event_json: &str) -> Result<String, JsValue> {

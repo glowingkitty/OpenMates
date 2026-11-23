@@ -127,3 +127,16 @@ test.describe('Guest workspace navigation', () => {
     });
   }
 });
+
+test.describe('Guest Describe new workflow', () => {
+  // contract-test: direct surface=gui.web assertions=workflows-ui.guest.describe-signup-return
+  test('Describe new workflow opens the first signup step and remembers the return to the describe composer', async ({ page }: { page: any }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('workflows-start-screen')).toBeVisible({ timeout: 30000 });
+    await page.getByTestId('workflow-guest-signup').click();
+    await expect(page.getByTestId('signup-modal')).toBeVisible();
+    await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
+    expect(await page.evaluate(() => sessionStorage.getItem('openmates.workflows.describeAfterSignup'))).toBe('1');
+  });
+});

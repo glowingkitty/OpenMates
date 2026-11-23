@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-16'
-generated_at: '2026-11-17T00:20:45+00:00'
+generated_at: '2026-11-23T00:45:56+00:00'
 range:
   since: '2026-11-16T00:00:00+00:00'
   until: '2026-11-17T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 1
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 33
   user_facing_items: 43
-  dev_only_items: 62
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,6 +60,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
+  - id: embed:slides:template
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
   - id: focus:code:write_specification
     kind: platform
     default_enabled: true
@@ -67,6 +74,20 @@ feature_availability:
     override: disabled
     parent_id: null
     source: admin_config
+  - id: focus:slides:design_template
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:slides:plan_presentation
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -116,20 +137,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: platform
-  - id: platform:workflows
-    kind: platform
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: null
-    source: platform
-  - id: skill:events:search
+  - id: skill:design:get_design
     kind: skill
-    default_enabled: false
+    default_enabled: true
     effective_enabled: false
-    override: null
-    parent_id: app:events
-    source: backend/apps/events/app.yml
+    override: disabled
+    parent_id: app:design
+    source: backend/apps/design/app.yml
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
@@ -142,6 +156,41 @@ feature_availability:
     default_enabled: false
     effective_enabled: false
     override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:list-spawned-chats
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:read-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:report-to-creator
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:send-to-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:start-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   - id: skill:travel:get_flight
@@ -190,9 +239,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:travel
@@ -221,7 +270,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:travel, embed:travel:search_connections, skill:travel:search_connections'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(shopping): compare the exact product across installed providers by total price incl. shipping, new and used;
       reuse identical provider searches'
     section: features
@@ -251,9 +300,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:shopping
@@ -282,7 +331,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:shopping, embed:shopping:search_products, skill:shopping:search_products'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(life_coaching): Life compass focus mode on dev (draft spec, consent-gated memories, agreed steps as Tasks)'
     section: features
     commits:
@@ -330,8 +379,8 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -354,7 +403,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:life_coaching'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   - title: 'feat(web): core borrow applies queued socket frames on request; typed chat admission for the voice call'
     section: features
     commits:
@@ -367,16 +417,16 @@ sections:
     - frontend/packages/ui/src/services/rustCore/drafts/coreClientBorrow.ts
     - frontend/packages/ui/src/services/rustCore/socketFrameForwarder.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(daily-meeting): private events and jobs memory with daily new-only searches; one line per area in the meeting'
     section: features
     commits:
@@ -387,7 +437,7 @@ sections:
     - scripts/daily_meeting_briefing.py
     - scripts/daily_meeting_opportunities.py
     - scripts/tests/test_daily_meeting_opportunities.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -395,7 +445,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(web): socket chat frames reach the Rust Worker core in order; admit_chat op; offline drafts test types into
       the open chat'
     section: features
@@ -423,16 +473,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(web): Rust core takes socket chat frames and pages older chat history; drafts during an offline boot keep
       the local session'
     section: features
@@ -467,16 +517,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(web): draft saves run only in the Rust core, including offline boots'
     section: features
     commits:
@@ -510,16 +560,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(remote-access): Rust host runs approved remote commands in the OS sandbox tier'
     section: features
     commits:
@@ -557,7 +607,7 @@ sections:
     - packages/openmates-rust/src/source_host/mod.rs
     - packages/openmates-rust/src/source_host/runner.rs
     - packages/openmates-rust/src/work/projects/source_host_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -565,7 +615,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(web): sync decisions always run in the Rust unit in flag-on builds; reconnect-superseded sends log as warnings'
     section: features
     commits:
@@ -588,16 +638,16 @@ sections:
     - frontend/packages/ui/src/services/recoveryEmbedSource.ts
     - frontend/packages/ui/src/services/websocketService.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(web): Rust crypto always on in flag-on builds, TS share-link corpus, send-prep op proof'
     section: features
     commits:
@@ -625,16 +675,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(apple): generated call media on the call stage via the shared core; landscape welcome composer'
     section: features
     commits:
@@ -669,8 +719,8 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/test-results.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -693,7 +743,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'feat(slides): queued follow-ups during any running reply, presentation remote, animated SVG images'
     section: features
     commits:
@@ -806,8 +857,8 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -835,8 +886,8 @@ sections:
     - id: embed:slides:template
       kind: embed
       default_enabled: true
-      effective_enabled: true
-      override: null
+      effective_enabled: false
+      override: disabled
       parent_id: app:slides
       source: backend/apps/slides/app.yml
     - id: platform:ios
@@ -858,7 +909,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:images, embed:slides:deck, embed:slides:template, platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: embed:slides:template, platform:ios, platform:macos'
   bug_fixes:
   - title: 'fix(web-browse): form turns keep a small model view; hidden personal values are left to the user'
     section: bug_fixes
@@ -882,9 +934,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:web
@@ -899,7 +951,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web-browse): fill a web form together with the user across turns'
     section: bug_fixes
     commits:
@@ -931,9 +983,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -955,7 +1007,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(host): zellij chat sessions start without bar plugins; the guard closes bar plugins when zellij is over its
       CPU or memory limit'
     section: bug_fixes
@@ -970,7 +1022,7 @@ sections:
     - scripts/tests/test_host_resources.py
     - scripts/zellij/chat-session.kdl
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -978,7 +1030,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): photo turns use the lower app threshold whatever form the image upload takes'
     section: bug_fixes
     commits:
@@ -989,9 +1041,9 @@ sections:
     - backend/apps/ai/processing/preprocessor.py
     - backend/tests/test_preprocessor_jev.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1006,7 +1058,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): upload turns keep near-threshold apps the text-only router cannot confirm'
     section: bug_fixes
     commits:
@@ -1016,9 +1068,9 @@ sections:
     - backend/apps/ai/processing/jev_preprocessing.py
     - backend/tests/test_preprocessor_jev.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1033,7 +1085,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): routing decisions see an attachment marker instead of upload metadata'
     section: bug_fixes
     commits:
@@ -1045,9 +1097,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1062,7 +1114,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(life_coaching): Life compass follows up from its Memory only and keeps one question in the safety reply'
     section: bug_fixes
     commits:
@@ -1079,8 +1131,8 @@ sections:
     - specifications/features/focus-modes/life-compass/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1103,7 +1155,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:life_coaching'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   - title: 'fix(shopping): purchase routing hint fits the stage-one routing window'
     section: bug_fixes
     commits:
@@ -1111,7 +1164,7 @@ sections:
     authored_at: '2026-11-16T19:07:45+00:00'
     changed_paths:
     - backend/shared/app_packages/overlay.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1119,7 +1172,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(life_coaching): Life compass is selected together with its Memory on check-ins'
     section: bug_fixes
     commits:
@@ -1129,8 +1182,8 @@ sections:
     - backend/apps/life_coaching/app.yml
     - backend/apps/life_coaching/focus_modes/life-compass/SKILL.md
     - scripts/life_compass_persona_real_test.py
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1146,7 +1199,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:life_coaching'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   - title: 'fix(apple): every AppStrings key resolves; PNG icon export, health search summary and all-day calendar dates match
       web'
     section: bug_fixes
@@ -1169,8 +1223,8 @@ sections:
     - frontend/packages/ui/src/i18n/sources/apple.yml
     - scripts/tests/test_apple_appstrings_keys.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1193,7 +1247,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix(shopping): route photo and text purchase questions to product search; offers link through embed references'
     section: bug_fixes
     commits:
@@ -1202,9 +1257,9 @@ sections:
     changed_paths:
     - backend/apps/shopping/app.yml
     - backend/shared/app_packages/overlay.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:shopping
@@ -1219,7 +1274,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:shopping'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(travel): mixed-route hub searches fit the skill timeout and degrade to direct results'
     section: bug_fixes
     commits:
@@ -1233,9 +1288,9 @@ sections:
     - specifications/features/app-skills/travel-search/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1257,7 +1312,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:travel'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web,core): forward chain and voice admission are bounded; core applies call/system/queue messages_v receipts'
     section: bug_fixes
     commits:
@@ -1270,16 +1325,16 @@ sections:
     - packages/openmates-rust/src/client/frame_ingest.rs
     - packages/openmates-rust/src/client/frame_ingest_tests.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(life_coaching): Life compass asks one question per reply and names the user''s open steps at check-in'
     section: bug_fixes
     commits:
@@ -1290,8 +1345,8 @@ sections:
     - frontend/packages/ui/src/i18n/locales/en.json
     - frontend/packages/ui/src/i18n/sources/focus_modes/life_coaching_life_compass.yml
     - scripts/life_compass_persona_real_test.py
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1307,7 +1362,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:life_coaching'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   - title: 'fix(shopping): list cheapest offers with clickable links instead of a table; real-test reads the activity summary'
     section: bug_fixes
     commits:
@@ -1319,9 +1375,9 @@ sections:
     - specifications/features/app-skills/shopping-search/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:shopping
@@ -1336,7 +1392,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:shopping'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(life_coaching): Life compass saves Memory only via the tool, asks the country before naming crisis lines,
       follows up from Tasks'
     section: bug_fixes
@@ -1349,8 +1405,8 @@ sections:
     - frontend/packages/ui/src/i18n/locales/en.json
     - frontend/packages/ui/src/i18n/sources/focus_modes/life_coaching_life_compass.yml
     - scripts/life_compass_persona_real_test.py
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1366,7 +1422,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:life_coaching'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   - title: 'fix(upload): copy svg_sanitizer into the upload image'
     section: bug_fixes
     commits:
@@ -1374,7 +1431,7 @@ sections:
     authored_at: '2026-11-16T15:52:39+00:00'
     changed_paths:
     - backend/upload/Dockerfile
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1382,7 +1439,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(security): NPM Audit green again - SvelteKit 2.70.4, adapter-static 3.0.11, adapter-vercel 6.3.5, fast-uri
       3.1.9; documented glob/minimatch exceptions'
     section: bug_fixes
@@ -1397,16 +1454,16 @@ sections:
     - frontend/packages/ui/package.json
     - package.json
     - pnpm-lock.yaml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(apple): expanded chat composer keeps a 48 pt outside-tap strip; steadier composer UI tests'
     section: bug_fixes
     commits:
@@ -1422,8 +1479,8 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/test-results.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1446,7 +1503,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix(backend): core-worker starts again; bank transfer expiry task imports BaseServiceTask from base_task'
     section: bug_fixes
     commits:
@@ -1454,7 +1512,7 @@ sections:
     authored_at: '2026-11-16T12:10:01+00:00'
     changed_paths:
     - backend/core/api/app/tasks/bank_transfer_expiry_task.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1462,7 +1520,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(apps,results-view): approve authored result embeds spec; Calendar OAuth return keeps its settings view; no
       render diagnostic while streaming'
     section: bug_fixes
@@ -1488,16 +1546,16 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ops): stop prod degraded-report noise — unused Baseten route, cold-archive collation and requeue storm, cache
       TTL 0, health-history filter, user sweeps, bank-transfer expiry, webhook digest'
     section: bug_fixes
@@ -1532,9 +1590,9 @@ sections:
     - backend/tests/test_user_sweep_no_date_created.py
     - backend/tests/test_webhook_rl_digest_cache_init.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1549,7 +1607,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(code-run): the browser can read remote command output from the Rust machine host'
     section: bug_fixes
     commits:
@@ -1561,16 +1619,16 @@ sections:
     - packages/openmates-rust/src/source_host/job/events.rs
     - packages/openmates-rust/src/source_host/job/events_tests.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(code-run): web approvals of remote commands are no longer refused for their trace field'
     section: bug_fixes
     commits:
@@ -1580,7 +1638,7 @@ sections:
     - backend/core/api/app/schemas/remote_command_schemas.py
     - backend/tests/test_remote_command_service.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1588,7 +1646,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(code-run): remote command reviews carry the explanation shape every client can show'
     section: bug_fixes
     commits:
@@ -1602,16 +1660,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(apple): composer tap focuses even when the main thread is busy; Live Activity lifecycle tests'
     section: bug_fixes
     commits:
@@ -1631,8 +1689,8 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/test-results.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1655,7 +1713,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix(code-run): an explicit remote_source test run takes its Project and source from the chat''s Project focus'
     section: bug_fixes
     commits:
@@ -1667,9 +1726,9 @@ sections:
     - backend/tests/test_code_test_run.py
     - docs/plans/agentic-tests-and-git-sync/contracts/test-run.md
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:code
@@ -1684,7 +1743,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:code'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): sends superseded by a reconnect after login log warnings, not errors'
     section: bug_fixes
     commits:
@@ -1693,16 +1752,16 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
     - frontend/packages/ui/src/services/websocketService.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(chat): metadata prompts name the interface-language fallback once'
     section: bug_fixes
     commits:
@@ -1715,9 +1774,9 @@ sections:
     - backend/tests/test_metadata_language.py
     - backend/tests/test_postprocessor.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1732,7 +1791,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(projects): a test run in a Project on the user''s machine goes to that machine, not into a hosted snapshot
       loop'
     section: bug_fixes
@@ -1746,9 +1805,9 @@ sections:
     - backend/tests/test_focus_phases.py
     - backend/tests/test_project_test_snapshot.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1763,7 +1822,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(chat): chat titles, summaries and tags follow the language the user writes in'
     section: bug_fixes
     commits:
@@ -1786,9 +1845,9 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1803,7 +1862,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(focus): phase boundary decisions log choice and confidence, so a lagging phase shows which requirement held
       it'
     section: bug_fixes
@@ -1817,9 +1876,9 @@ sections:
     - frontend/apps/web_app/tests/helpers/assistant-activity.ts
     - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1834,7 +1893,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(chat): a failed decryption is cached per ciphertext and an empty reply is not a failure, so the next turn''s
       history carries the real reply'
     section: bug_fixes
@@ -1849,16 +1908,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(slides): the phone remote and the presentation views sit above the fullscreen top bar'
     section: bug_fixes
     commits:
@@ -1873,9 +1932,9 @@ sections:
     - frontend/packages/ui/src/components/embeds/slides/SlidesPresenterView.svelte
     - frontend/packages/ui/src/components/embeds/slides/slidesPresentation.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: embed:slides:deck
@@ -1890,7 +1949,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: embed:slides:deck'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(chat): a reply finished by async skill continuations replaces its stale local segment, so the next turn''s
       history carries it'
     section: bug_fixes
@@ -1899,16 +1958,16 @@ sections:
     authored_at: '2026-11-16T00:56:46+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/ActiveChat.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): a private Project file handoff waits for a busy API and is never lost silently'
     section: bug_fixes
     commits:
@@ -1919,16 +1978,16 @@ sections:
     - backend/tests/test_recent_work_summary_cache.py
     - frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(focus): Project work from a focus continuation pauses and resumes under the admitted root'
     section: bug_fixes
     commits:
@@ -1942,9 +2001,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1959,7 +2018,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements: []
   docs:
   - title: 'docs(rust-migration): web chat-window is rust-default; web-app doc names the core history path'
@@ -1972,7 +2031,7 @@ sections:
     - docs/migration/rust/capabilities.yml
     - docs/migration/rust/overview.yml
     - docs/migration/rust/web-app.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1980,7 +2039,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(travel): Trip planning focus mode plan and draft Specification'
     section: docs
     commits:
@@ -1996,7 +2055,7 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2004,7 +2063,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(travel): mixed-routes plan evidence; real-test wrapper reruns single trips'
     section: docs
     commits:
@@ -2013,7 +2072,7 @@ sections:
     changed_paths:
     - docs/plans/travel-mixed-routes/plan.yml
     - scripts/travel_mixed_routes_web_real_test.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2021,7 +2080,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(specs): approved dev-run-routing Specification (heavy runs E2B first, every host fallback logged)'
     section: docs
     commits:
@@ -2039,7 +2098,7 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2047,7 +2106,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(vscode-extension): review of the removed extension and a reuse-first revision of the draft Plan (TASK-3700)'
     section: docs
     commits:
@@ -2057,7 +2116,7 @@ sections:
     - docs/plans/vscode-extension/old-extension-review.md
     - docs/plans/vscode-extension/plan.yml
     - docs/plans/vscode-extension/research.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2065,7 +2124,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(design): Figma and Penpot API notes; design-figma spec draft v2 (outline-first reads, context budgets, Penpot,
       export_assets)'
     section: docs
@@ -2082,7 +2141,7 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2090,7 +2149,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(specs): approve language preferences v1 with the conversation-language metadata rule'
     section: docs
     commits:
@@ -2102,7 +2161,7 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2110,7 +2169,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(specs): approve Specifications v1'
     section: docs
     commits:
@@ -2122,7 +2181,7 @@ sections:
     - specifications/generated/features.md
     - specifications/generated/features.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2130,7 +2189,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test(life_coaching): persona cleanup undoes later chats first; Memory reuse E2E sends a follow-up after include'
     section: tests
@@ -2144,7 +2203,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/features.md
     - specifications/generated/features.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2152,7 +2211,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(life_coaching): Life compass proof includes the ask-first Memory and answers only the closing question'
     section: tests
     commits:
@@ -2162,7 +2221,7 @@ sections:
     - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
     - scripts/life_compass_persona_real_test.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2170,7 +2229,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(shopping): real price-comparison proof pins Gemini 3.8 Flash and checks clickable offer links'
     section: tests
     commits:
@@ -2179,7 +2238,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2187,7 +2246,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'chore(agents): remove Marketing Week / Build Week focus rules'
     section: infrastructure
@@ -2200,7 +2259,7 @@ sections:
     - docs/contributing/guides/daily-meeting.md
     - scripts/daily_meeting_briefing.py
     - scripts/tests/test_daily_meeting_briefing.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2208,782 +2267,19 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix(web-browse): form turns keep a small model view; hidden personal values are left to the user'
-    commits:
-    - 6e85f01a23
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'docs(rust-migration): web chat-window is rust-default; web-app doc names the core history path'
-    commits:
-    - d8035b6479
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(web-browse): fill a web form together with the user across turns'
-    commits:
-    - 3fbe3482d3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix(host): zellij chat sessions start without bar plugins; the guard closes bar plugins when zellij is over its
-      CPU or memory limit'
-    commits:
-    - 7de470f128
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test(life_coaching): persona cleanup undoes later chats first; Memory reuse E2E sends a follow-up after include'
-    commits:
-    - 1a0569dc3f
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ai): photo turns use the lower app threshold whatever form the image upload takes'
-    commits:
-    - 27975565f5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(ai): upload turns keep near-threshold apps the text-only router cannot confirm'
-    commits:
-    - b1ade219d5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'test(life_coaching): Life compass proof includes the ask-first Memory and answers only the closing question'
-    commits:
-    - cd20f6ec10
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ai): routing decisions see an attachment marker instead of upload metadata'
-    commits:
-    - 5556549b04
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(life_coaching): Life compass follows up from its Memory only and keeps one question in the safety reply'
-    commits:
-    - c3247d5da3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-  - title: 'docs(travel): Trip planning focus mode plan and draft Specification'
-    commits:
-    - 3e2ea2cd63
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(shopping): purchase routing hint fits the stage-one routing window'
-    commits:
-    - 564a277fae
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(travel): mixed-routes plan evidence; real-test wrapper reruns single trips'
-    commits:
-    - 37ca73d761
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(life_coaching): Life compass is selected together with its Memory on check-ins'
-    commits:
-    - e5d85a9213
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-  - title: 'fix(apple): every AppStrings key resolves; PNG icon export, health search summary and all-day calendar dates match
-      web'
-    commits:
-    - eb2e9f9669
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(shopping): route photo and text purchase questions to product search; offers link through embed references'
-    commits:
-    - '3345264306'
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:shopping
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/shopping/app.yml
-  - title: 'fix(travel): mixed-route hub searches fit the skill timeout and degrade to direct results'
-    commits:
-    - ae4f552e5c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:travel
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/travel/app.yml
-  - title: 'fix(web,core): forward chain and voice admission are bounded; core applies call/system/queue messages_v receipts'
-    commits:
-    - 21cab7f8f2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(life_coaching): Life compass asks one question per reply and names the user''s open steps at check-in'
-    commits:
-    - 661d5b9ef3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-  - title: 'test(shopping): real price-comparison proof pins Gemini 3.8 Flash and checks clickable offer links'
-    commits:
-    - 5cf0731be7
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(shopping): list cheapest offers with clickable links instead of a table; real-test reads the activity summary'
-    commits:
-    - 12e49db929
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:shopping
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/shopping/app.yml
-  - title: 'feat(travel): mixed routes with owned passes, ticket parts and savings'
-    commits:
-    - 5c86344ff5
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:travel
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/travel/app.yml
-    - id: embed:travel:search_connections
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:travel
-      source: backend/apps/travel/app.yml
-    - id: skill:travel:search_connections
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:travel
-      source: backend/apps/travel/app.yml
-  - title: 'fix(life_coaching): Life compass saves Memory only via the tool, asks the country before naming crisis lines,
-      follows up from Tasks'
-    commits:
-    - 59fa6fcb82
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-  - title: 'fix(upload): copy svg_sanitizer into the upload image'
-    commits:
-    - '5485541903'
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(security): NPM Audit green again - SvelteKit 2.70.4, adapter-static 3.0.11, adapter-vercel 6.3.5, fast-uri
-      3.1.9; documented glob/minimatch exceptions'
-    commits:
-    - a2328d4f69
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(shopping): compare the exact product across installed providers by total price incl. shipping, new and used;
-      reuse identical provider searches'
-    commits:
-    - e56212be24
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:shopping
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/shopping/app.yml
-    - id: embed:shopping:search_products
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:shopping
-      source: backend/apps/shopping/app.yml
-    - id: skill:shopping:search_products
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:shopping
-      source: backend/apps/shopping/app.yml
-  - title: 'feat(life_coaching): Life compass focus mode on dev (draft spec, consent-gated memories, agreed steps as Tasks)'
-    commits:
-    - b62ac2b49c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-  - title: 'feat(web): core borrow applies queued socket frames on request; typed chat admission for the voice call'
-    commits:
-    - 5312a88041
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(daily-meeting): private events and jobs memory with daily new-only searches; one line per area in the meeting'
-    commits:
-    - ff82a62708
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore(agents): remove Marketing Week / Build Week focus rules'
-    commits:
-    - 041c46aef0
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(web): socket chat frames reach the Rust Worker core in order; admit_chat op; offline drafts test types into
-      the open chat'
-    commits:
-    - fe7de71fda
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(apple): expanded chat composer keeps a 48 pt outside-tap strip; steadier composer UI tests'
-    commits:
-    - 06cdb059a2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(backend): core-worker starts again; bank transfer expiry task imports BaseServiceTask from base_task'
-    commits:
-    - c70522d79b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(apps,results-view): approve authored result embeds spec; Calendar OAuth return keeps its settings view; no
-      render diagnostic while streaming'
-    commits:
-    - bc4746a682
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(web): Rust core takes socket chat frames and pages older chat history; drafts during an offline boot keep
-      the local session'
-    commits:
-    - 48cc55dd80
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs(specs): approved dev-run-routing Specification (heavy runs E2B first, every host fallback logged)'
-    commits:
-    - 60dd3e4c24
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(vscode-extension): review of the removed extension and a reuse-first revision of the draft Plan (TASK-3700)'
-    commits:
-    - 4c5187c4b2
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(design): Figma and Penpot API notes; design-figma spec draft v2 (outline-first reads, context budgets, Penpot,
-      export_assets)'
-    commits:
-    - 6d358ab29f
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ops): stop prod degraded-report noise — unused Baseten route, cold-archive collation and requeue storm, cache
-      TTL 0, health-history filter, user sweeps, bank-transfer expiry, webhook digest'
-    commits:
-    - 1a05f2e05e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(code-run): the browser can read remote command output from the Rust machine host'
-    commits:
-    - 74049fba0b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(web): draft saves run only in the Rust core, including offline boots'
-    commits:
-    - b8805f01cc
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(code-run): web approvals of remote commands are no longer refused for their trace field'
-    commits:
-    - 99bbd36eb3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(code-run): remote command reviews carry the explanation shape every client can show'
-    commits:
-    - 3636a48936
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(apple): composer tap focuses even when the main thread is busy; Live Activity lifecycle tests'
-    commits:
-    - d09f008736
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(code-run): an explicit remote_source test run takes its Project and source from the chat''s Project focus'
-    commits:
-    - 57fea97093
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-  - title: 'fix(web): sends superseded by a reconnect after login log warnings, not errors'
-    commits:
-    - 20222b58a7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(remote-access): Rust host runs approved remote commands in the OS sandbox tier'
-    commits:
-    - 56813a6f93
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(web): sync decisions always run in the Rust unit in flag-on builds; reconnect-superseded sends log as warnings'
-    commits:
-    - 76fee1e26d
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs(specs): approve language preferences v1 with the conversation-language metadata rule'
-    commits:
-    - 7eeef1f9ad
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(chat): metadata prompts name the interface-language fallback once'
-    commits:
-    - dee9230e87
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(projects): a test run in a Project on the user''s machine goes to that machine, not into a hosted snapshot
-      loop'
-    commits:
-    - 9f44ca4d01
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(chat): chat titles, summaries and tags follow the language the user writes in'
-    commits:
-    - 142651ede6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'docs(specs): approve Specifications v1'
-    commits:
-    - cf69242a9e
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(web): Rust crypto always on in flag-on builds, TS share-link corpus, send-prep op proof'
-    commits:
-    - 6364b0358f
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(focus): phase boundary decisions log choice and confidence, so a lagging phase shows which requirement held
-      it'
-    commits:
-    - c6ac9ec26f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(chat): a failed decryption is cached per ciphertext and an empty reply is not a failure, so the next turn''s
-      history carries the real reply'
-    commits:
-    - 8de5315bf7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(slides): the phone remote and the presentation views sit above the fullscreen top bar'
-    commits:
-    - fd2b2b25aa
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:slides:deck
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:slides
-      source: backend/apps/slides/app.yml
-  - title: 'feat(apple): generated call media on the call stage via the shared core; landscape welcome composer'
-    commits:
-    - beb860d28e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(chat): a reply finished by async skill continuations replaces its stale local segment, so the next turn''s
-      history carries it'
-    commits:
-    - b92b090b24
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(ai): a private Project file handoff waits for a busy API and is never lost silently'
-    commits:
-    - 35b1b15288
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(slides): queued follow-ups during any running reply, presentation remote, animated SVG images'
-    commits:
-    - d3e6a2251f
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: embed:slides:deck
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:slides
-      source: backend/apps/slides/app.yml
-    - id: embed:slides:template
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:slides
-      source: backend/apps/slides/app.yml
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(focus): Project work from a focus continuation pauses and resumes under the admitted root'
-    commits:
-    - 35ff899138
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'fix(web-browse): form turns keep a small model view; hidden personal values are left to the user'
     commits:
     - 6e85f01a23
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -2996,15 +2292,15 @@ unreleased_progress:
     commits:
     - d8035b6479
     section: docs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'fix(web-browse): fill a web form together with the user across turns'
     commits:
     - 3fbe3482d3
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3024,8 +2320,8 @@ unreleased_progress:
     commits:
     - e5d85a9213
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:life_coaching
       kind: app
@@ -3038,8 +2334,8 @@ unreleased_progress:
     commits:
     - '3345264306'
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -3052,8 +2348,8 @@ unreleased_progress:
     commits:
     - 12e49db929
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -3066,8 +2362,8 @@ unreleased_progress:
     commits:
     - 5c86344ff5
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:travel
       kind: app
@@ -3095,8 +2391,8 @@ unreleased_progress:
     commits:
     - 59fa6fcb82
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:life_coaching
       kind: app
@@ -3110,8 +2406,8 @@ unreleased_progress:
     commits:
     - e56212be24
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -3138,8 +2434,8 @@ unreleased_progress:
     commits:
     - b62ac2b49c
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3159,15 +2455,15 @@ unreleased_progress:
     commits:
     - b8805f01cc
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix(chat): metadata prompts name the interface-language fallback once'
     commits:
     - dee9230e87
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3180,8 +2476,8 @@ unreleased_progress:
     commits:
     - 142651ede6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3194,15 +2490,15 @@ unreleased_progress:
     commits:
     - 6364b0358f
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'feat(slides): queued follow-ups during any running reply, presentation remote, animated SVG images'
     commits:
     - d3e6a2251f
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3228,8 +2524,8 @@ unreleased_progress:
     - id: embed:slides:template
       kind: embed
       default_enabled: true
-      effective_enabled: true
-      override: null
+      effective_enabled: false
+      override: disabled
       parent_id: app:slides
       source: backend/apps/slides/app.yml
     - id: platform:ios
@@ -3247,14 +2543,13 @@ unreleased_progress:
       parent_id: null
       source: platform
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix(web-browse): form turns keep a small model view; hidden personal values are left to the user'
     commits:
     - 6e85f01a23
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -3263,13 +2558,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
   - title: 'fix(web-browse): fill a web form together with the user across turns'
     commits:
     - 3fbe3482d3
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3285,13 +2579,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
   - title: 'fix(ai): photo turns use the lower app threshold whatever form the image upload takes'
     commits:
     - 27975565f5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3300,13 +2593,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix(ai): upload turns keep near-threshold apps the text-only router cannot confirm'
     commits:
     - b1ade219d5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3315,13 +2607,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix(ai): routing decisions see an attachment marker instead of upload metadata'
     commits:
     - 5556549b04
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3330,73 +2621,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix(life_coaching): Life compass follows up from its Memory only and keeps one question in the safety reply'
-    commits:
-    - c3247d5da3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-    newsletter_ready: false
-  - title: 'fix(life_coaching): Life compass is selected together with its Memory on check-ins'
-    commits:
-    - e5d85a9213
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-    newsletter_ready: false
-  - title: 'fix(apple): every AppStrings key resolves; PNG icon export, health search summary and all-day calendar dates match
-      web'
-    commits:
-    - eb2e9f9669
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(shopping): route photo and text purchase questions to product search; offers link through embed references'
     commits:
     - '3345264306'
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -3405,13 +2635,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/shopping/app.yml
-    newsletter_ready: false
   - title: 'fix(travel): mixed-route hub searches fit the skill timeout and degrade to direct results'
     commits:
     - ae4f552e5c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3427,36 +2656,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/travel/app.yml
-    newsletter_ready: false
   - title: 'fix(web,core): forward chain and voice admission are bounded; core applies call/system/queue messages_v receipts'
     commits:
     - 21cab7f8f2
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
-  - title: 'fix(life_coaching): Life compass asks one question per reply and names the user''s open steps at check-in'
-    commits:
-    - 661d5b9ef3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-    newsletter_ready: false
   - title: 'fix(shopping): list cheapest offers with clickable links instead of a table; real-test reads the activity summary'
     commits:
     - 12e49db929
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -3465,13 +2677,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/shopping/app.yml
-    newsletter_ready: false
   - title: 'feat(travel): mixed routes with owned passes, ticket parts and savings'
     commits:
     - 5c86344ff5
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:travel
       kind: app
@@ -3494,39 +2705,21 @@ marketing_candidates:
       override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
-    newsletter_ready: false
-  - title: 'fix(life_coaching): Life compass saves Memory only via the tool, asks the country before naming crisis lines,
-      follows up from Tasks'
-    commits:
-    - 59fa6fcb82
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-    newsletter_ready: false
   - title: 'fix(security): NPM Audit green again - SvelteKit 2.70.4, adapter-static 3.0.11, adapter-vercel 6.3.5, fast-uri
       3.1.9; documented glob/minimatch exceptions'
     commits:
     - a2328d4f69
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(shopping): compare the exact product across installed providers by total price incl. shipping, new and used;
       reuse identical provider searches'
     commits:
     - e56212be24
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:shopping
       kind: app
@@ -3549,13 +2742,525 @@ marketing_candidates:
       override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
+  - title: 'feat(web): core borrow applies queued socket frames on request; typed chat admission for the voice call'
+    commits:
+    - 5312a88041
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(web): socket chat frames reach the Rust Worker core in order; admit_chat op; offline drafts test types into
+      the open chat'
+    commits:
+    - fe7de71fda
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(apps,results-view): approve authored result embeds spec; Calendar OAuth return keeps its settings view; no
+      render diagnostic while streaming'
+    commits:
+    - bc4746a682
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(web): Rust core takes socket chat frames and pages older chat history; drafts during an offline boot keep
+      the local session'
+    commits:
+    - 48cc55dd80
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ops): stop prod degraded-report noise — unused Baseten route, cold-archive collation and requeue storm, cache
+      TTL 0, health-history filter, user sweeps, bank-transfer expiry, webhook digest'
+    commits:
+    - 1a05f2e05e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(code-run): the browser can read remote command output from the Rust machine host'
+    commits:
+    - 74049fba0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(web): draft saves run only in the Rust core, including offline boots'
+    commits:
+    - b8805f01cc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(code-run): remote command reviews carry the explanation shape every client can show'
+    commits:
+    - 3636a48936
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(code-run): an explicit remote_source test run takes its Project and source from the chat''s Project focus'
+    commits:
+    - 57fea97093
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'fix(web): sends superseded by a reconnect after login log warnings, not errors'
+    commits:
+    - 20222b58a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(web): sync decisions always run in the Rust unit in flag-on builds; reconnect-superseded sends log as warnings'
+    commits:
+    - 76fee1e26d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): metadata prompts name the interface-language fallback once'
+    commits:
+    - dee9230e87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(projects): a test run in a Project on the user''s machine goes to that machine, not into a hosted snapshot
+      loop'
+    commits:
+    - 9f44ca4d01
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(chat): chat titles, summaries and tags follow the language the user writes in'
+    commits:
+    - 142651ede6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(web): Rust crypto always on in flag-on builds, TS share-link corpus, send-prep op proof'
+    commits:
+    - 6364b0358f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(focus): phase boundary decisions log choice and confidence, so a lagging phase shows which requirement held
+      it'
+    commits:
+    - c6ac9ec26f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(chat): a failed decryption is cached per ciphertext and an empty reply is not a failure, so the next turn''s
+      history carries the real reply'
+    commits:
+    - 8de5315bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(slides): the phone remote and the presentation views sit above the fullscreen top bar'
+    commits:
+    - fd2b2b25aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:slides:deck
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:slides
+      source: backend/apps/slides/app.yml
+  - title: 'fix(chat): a reply finished by async skill continuations replaces its stale local segment, so the next turn''s
+      history carries it'
+    commits:
+    - b92b090b24
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ai): a private Project file handoff waits for a busy API and is never lost silently'
+    commits:
+    - 35b1b15288
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(focus): Project work from a focus continuation pauses and resumes under the admitted root'
+    commits:
+    - 35ff899138
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  social_or_video:
+  - title: 'fix(web-browse): form turns keep a small model view; hidden personal values are left to the user'
+    commits:
+    - 6e85f01a23
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: true
+  - title: 'fix(web-browse): fill a web form together with the user across turns'
+    commits:
+    - 3fbe3482d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: true
+  - title: 'fix(ai): photo turns use the lower app threshold whatever form the image upload takes'
+    commits:
+    - 27975565f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix(ai): upload turns keep near-threshold apps the text-only router cannot confirm'
+    commits:
+    - b1ade219d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix(ai): routing decisions see an attachment marker instead of upload metadata'
+    commits:
+    - 5556549b04
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix(life_coaching): Life compass follows up from its Memory only and keeps one question in the safety reply'
+    commits:
+    - c3247d5da3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
     newsletter_ready: false
+  - title: 'fix(life_coaching): Life compass is selected together with its Memory on check-ins'
+    commits:
+    - e5d85a9213
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    newsletter_ready: false
+  - title: 'fix(apple): every AppStrings key resolves; PNG icon export, health search summary and all-day calendar dates match
+      web'
+    commits:
+    - eb2e9f9669
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(shopping): route photo and text purchase questions to product search; offers link through embed references'
+    commits:
+    - '3345264306'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: true
+  - title: 'fix(travel): mixed-route hub searches fit the skill timeout and degrade to direct results'
+    commits:
+    - ae4f552e5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    newsletter_ready: true
+  - title: 'fix(web,core): forward chain and voice admission are bounded; core applies call/system/queue messages_v receipts'
+    commits:
+    - 21cab7f8f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(life_coaching): Life compass asks one question per reply and names the user''s open steps at check-in'
+    commits:
+    - 661d5b9ef3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    newsletter_ready: false
+  - title: 'fix(shopping): list cheapest offers with clickable links instead of a table; real-test reads the activity summary'
+    commits:
+    - 12e49db929
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: true
+  - title: 'feat(travel): mixed routes with owned passes, ticket parts and savings'
+    commits:
+    - 5c86344ff5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: true
+  - title: 'fix(life_coaching): Life compass saves Memory only via the tool, asks the country before naming crisis lines,
+      follows up from Tasks'
+    commits:
+    - 59fa6fcb82
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    newsletter_ready: false
+  - title: 'fix(security): NPM Audit green again - SvelteKit 2.70.4, adapter-static 3.0.11, adapter-vercel 6.3.5, fast-uri
+      3.1.9; documented glob/minimatch exceptions'
+    commits:
+    - a2328d4f69
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(shopping): compare the exact product across installed providers by total price incl. shipping, new and used;
+      reuse identical provider searches'
+    commits:
+    - e56212be24
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: true
   - title: 'feat(life_coaching): Life compass focus mode on dev (draft spec, consent-gated memories, agreed steps as Tasks)'
     commits:
     - b62ac2b49c
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3576,25 +3281,25 @@ marketing_candidates:
     commits:
     - 5312a88041
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(web): socket chat frames reach the Rust Worker core in order; admit_chat op; offline drafts test types into
       the open chat'
     commits:
     - fe7de71fda
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(apple): expanded chat composer keeps a 48 pt outside-tap strip; steadier composer UI tests'
     commits:
     - 06cdb059a2
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -3616,26 +3321,26 @@ marketing_candidates:
     commits:
     - bc4746a682
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(web): Rust core takes socket chat frames and pages older chat history; drafts during an offline boot keep
       the local session'
     commits:
     - 48cc55dd80
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(ops): stop prod degraded-report noise — unused Baseten route, cold-archive collation and requeue storm, cache
       TTL 0, health-history filter, user sweeps, bank-transfer expiry, webhook digest'
     commits:
     - 1a05f2e05e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3644,37 +3349,37 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(code-run): the browser can read remote command output from the Rust machine host'
     commits:
     - 74049fba0b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(web): draft saves run only in the Rust core, including offline boots'
     commits:
     - b8805f01cc
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(code-run): remote command reviews carry the explanation shape every client can show'
     commits:
     - 3636a48936
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(apple): composer tap focuses even when the main thread is busy; Live Activity lifecycle tests'
     commits:
     - d09f008736
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -3695,8 +3400,8 @@ marketing_candidates:
     commits:
     - 57fea97093
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:code
       kind: app
@@ -3705,29 +3410,29 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/code/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(web): sends superseded by a reconnect after login log warnings, not errors'
     commits:
     - 20222b58a7
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(web): sync decisions always run in the Rust unit in flag-on builds; reconnect-superseded sends log as warnings'
     commits:
     - 76fee1e26d
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(chat): metadata prompts name the interface-language fallback once'
     commits:
     - dee9230e87
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3736,14 +3441,14 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(projects): a test run in a Project on the user''s machine goes to that machine, not into a hosted snapshot
       loop'
     commits:
     - 9f44ca4d01
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3752,13 +3457,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(chat): chat titles, summaries and tags follow the language the user writes in'
     commits:
     - 142651ede6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3767,22 +3472,22 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(web): Rust crypto always on in flag-on builds, TS share-link corpus, send-prep op proof'
     commits:
     - 6364b0358f
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(focus): phase boundary decisions log choice and confidence, so a lagging phase shows which requirement held
       it'
     commits:
     - c6ac9ec26f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3791,22 +3496,22 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(chat): a failed decryption is cached per ciphertext and an empty reply is not a failure, so the next turn''s
       history carries the real reply'
     commits:
     - 8de5315bf7
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(slides): the phone remote and the presentation views sit above the fullscreen top bar'
     commits:
     - fd2b2b25aa
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: embed:slides:deck
       kind: embed
@@ -3815,13 +3520,13 @@ marketing_candidates:
       override: null
       parent_id: app:slides
       source: backend/apps/slides/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(apple): generated call media on the call stage via the shared core; landscape welcome composer'
     commits:
     - beb860d28e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -3843,24 +3548,24 @@ marketing_candidates:
     commits:
     - b92b090b24
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(ai): a private Project file handoff waits for a busy API and is never lost silently'
     commits:
     - 35b1b15288
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(slides): queued follow-ups during any running reply, presentation remote, animated SVG images'
     commits:
     - d3e6a2251f
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3886,8 +3591,8 @@ marketing_candidates:
     - id: embed:slides:template
       kind: embed
       default_enabled: true
-      effective_enabled: true
-      override: null
+      effective_enabled: false
+      override: disabled
       parent_id: app:slides
       source: backend/apps/slides/app.yml
     - id: platform:ios
@@ -3909,8 +3614,8 @@ marketing_candidates:
     commits:
     - 35ff899138
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3919,7 +3624,7 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -3931,7 +3636,7 @@ sources:
     short_sha: 6e85f01a23
     authored_at: '2026-11-16T23:36:17+00:00'
     subject: 'fix(web-browse): form turns keep a small model view; hidden personal values are left to the user'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/web/app.yml
@@ -3956,7 +3661,7 @@ sources:
     short_sha: d8035b6479
     authored_at: '2026-11-16T22:57:38+00:00'
     subject: 'docs(rust-migration): web chat-window is rust-default; web-app doc names the core history path'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/frontend/web-app.md
@@ -3968,7 +3673,7 @@ sources:
     short_sha: 3fbe3482d3
     authored_at: '2026-11-16T22:44:52+00:00'
     subject: 'fix(web-browse): fill a web form together with the user across turns'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/browse_routing.py
@@ -4004,7 +3709,7 @@ sources:
     authored_at: '2026-11-16T22:27:40+00:00'
     subject: 'fix(host): zellij chat sessions start without bar plugins; the guard closes bar plugins when zellij is over
       its CPU or memory limit'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/infrastructure/dev-host-resources.md
@@ -4019,7 +3724,7 @@ sources:
     short_sha: 1a0569dc3f
     authored_at: '2026-11-16T22:09:15+00:00'
     subject: 'test(life_coaching): persona cleanup undoes later chats first; Memory reuse E2E sends a follow-up after include'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/memory-reuse.spec.ts
@@ -4033,7 +3738,7 @@ sources:
     short_sha: 27975565f5
     authored_at: '2026-11-16T22:04:06+00:00'
     subject: 'fix(ai): photo turns use the lower app threshold whatever form the image upload takes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/jev_preprocessing.py
@@ -4046,7 +3751,7 @@ sources:
     short_sha: b1ade219d5
     authored_at: '2026-11-16T21:30:44+00:00'
     subject: 'fix(ai): upload turns keep near-threshold apps the text-only router cannot confirm'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/jev_preprocessing.py
@@ -4058,7 +3763,7 @@ sources:
     short_sha: cd20f6ec10
     authored_at: '2026-11-16T21:07:48+00:00'
     subject: 'test(life_coaching): Life compass proof includes the ask-first Memory and answers only the closing question'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
@@ -4069,7 +3774,7 @@ sources:
     short_sha: 5556549b04
     authored_at: '2026-11-16T20:28:09+00:00'
     subject: 'fix(ai): routing decisions see an attachment marker instead of upload metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/jev_preprocessing.py
@@ -4083,7 +3788,7 @@ sources:
     short_sha: c3247d5da3
     authored_at: '2026-11-16T20:04:37+00:00'
     subject: 'fix(life_coaching): Life compass follows up from its Memory only and keeps one question in the safety reply'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_mode_routing.py
@@ -4103,7 +3808,7 @@ sources:
     short_sha: 3e2ea2cd63
     authored_at: '2026-11-16T19:16:12+00:00'
     subject: 'docs(travel): Trip planning focus mode plan and draft Specification'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/trip-planning-focus/plan.yml
@@ -4120,7 +3825,7 @@ sources:
     short_sha: 564a277fae
     authored_at: '2026-11-16T19:07:45+00:00'
     subject: 'fix(shopping): purchase routing hint fits the stage-one routing window'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/app_packages/overlay.py
@@ -4129,7 +3834,7 @@ sources:
     short_sha: 37ca73d761
     authored_at: '2026-11-16T19:04:58+00:00'
     subject: 'docs(travel): mixed-routes plan evidence; real-test wrapper reruns single trips'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/travel-mixed-routes/plan.yml
@@ -4139,7 +3844,7 @@ sources:
     short_sha: e5d85a9213
     authored_at: '2026-11-16T18:42:26+00:00'
     subject: 'fix(life_coaching): Life compass is selected together with its Memory on check-ins'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/life_coaching/app.yml
@@ -4152,7 +3857,7 @@ sources:
     authored_at: '2026-11-16T18:34:26+00:00'
     subject: 'fix(apple): every AppStrings key resolves; PNG icon export, health search summary and all-day calendar dates
       match web'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
@@ -4177,7 +3882,7 @@ sources:
     short_sha: '3345264306'
     authored_at: '2026-11-16T18:25:31+00:00'
     subject: 'fix(shopping): route photo and text purchase questions to product search; offers link through embed references'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/shopping/app.yml
@@ -4188,7 +3893,7 @@ sources:
     short_sha: ae4f552e5c
     authored_at: '2026-11-16T18:17:42+00:00'
     subject: 'fix(travel): mixed-route hub searches fit the skill timeout and degrade to direct results'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/skill_executor.py
@@ -4205,7 +3910,7 @@ sources:
     short_sha: 21cab7f8f2
     authored_at: '2026-11-16T18:04:57+00:00'
     subject: 'fix(web,core): forward chain and voice admission are bounded; core applies call/system/queue messages_v receipts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/lib/rustCore/rustChatHistoryBootstrap.ts
@@ -4219,7 +3924,7 @@ sources:
     short_sha: 661d5b9ef3
     authored_at: '2026-11-16T17:42:36+00:00'
     subject: 'fix(life_coaching): Life compass asks one question per reply and names the user''s open steps at check-in'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/life_coaching/focus_modes/life-compass/SKILL.md
@@ -4232,7 +3937,7 @@ sources:
     short_sha: 5cf0731be7
     authored_at: '2026-11-16T16:49:29+00:00'
     subject: 'test(shopping): real price-comparison proof pins Gemini 3.8 Flash and checks clickable offer links'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
@@ -4242,7 +3947,7 @@ sources:
     short_sha: 12e49db929
     authored_at: '2026-11-16T16:40:45+00:00'
     subject: 'fix(shopping): list cheapest offers with clickable links instead of a table; real-test reads the activity summary'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/shopping/app.yml
@@ -4256,7 +3961,7 @@ sources:
     short_sha: 5c86344ff5
     authored_at: '2026-11-16T16:36:13+00:00'
     subject: 'feat(travel): mixed routes with owned passes, ticket parts and savings'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/travel/app.yml
@@ -4297,7 +4002,7 @@ sources:
     authored_at: '2026-11-16T16:03:06+00:00'
     subject: 'fix(life_coaching): Life compass saves Memory only via the tool, asks the country before naming crisis lines,
       follows up from Tasks'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/life_coaching/app.yml
@@ -4311,7 +4016,7 @@ sources:
     short_sha: '5485541903'
     authored_at: '2026-11-16T15:52:39+00:00'
     subject: 'fix(upload): copy svg_sanitizer into the upload image'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/upload/Dockerfile
@@ -4321,7 +4026,7 @@ sources:
     authored_at: '2026-11-16T15:32:08+00:00'
     subject: 'fix(security): NPM Audit green again - SvelteKit 2.70.4, adapter-static 3.0.11, adapter-vercel 6.3.5, fast-uri
       3.1.9; documented glob/minimatch exceptions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/npm-audit.yml
@@ -4337,7 +4042,7 @@ sources:
     authored_at: '2026-11-16T14:49:25+00:00'
     subject: 'feat(shopping): compare the exact product across installed providers by total price incl. shipping, new and
       used; reuse identical provider searches'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/shopping/app.yml
@@ -4370,7 +4075,7 @@ sources:
     short_sha: b62ac2b49c
     authored_at: '2026-11-16T14:28:13+00:00'
     subject: 'feat(life_coaching): Life compass focus mode on dev (draft spec, consent-gated memories, agreed steps as Tasks)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_mode_routing.py
@@ -4421,7 +4126,7 @@ sources:
     short_sha: 5312a88041
     authored_at: '2026-11-16T14:11:58+00:00'
     subject: 'feat(web): core borrow applies queued socket frames on request; typed chat admission for the voice call'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/lib/rustCore/rustChatHistoryBootstrap.ts
@@ -4435,7 +4140,7 @@ sources:
     short_sha: ff82a62708
     authored_at: '2026-11-16T14:07:32+00:00'
     subject: 'feat(daily-meeting): private events and jobs memory with daily new-only searches; one line per area in the meeting'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/contributing/guides/daily-meeting.md
@@ -4447,7 +4152,7 @@ sources:
     short_sha: 041c46aef0
     authored_at: '2026-11-16T14:03:30+00:00'
     subject: 'chore(agents): remove Marketing Week / Build Week focus rules'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -4461,7 +4166,7 @@ sources:
     authored_at: '2026-11-16T13:27:38+00:00'
     subject: 'feat(web): socket chat frames reach the Rust Worker core in order; admit_chat op; offline drafts test types
       into the open chat'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/capabilities.yml
@@ -4489,7 +4194,7 @@ sources:
     short_sha: 06cdb059a2
     authored_at: '2026-11-16T13:22:52+00:00'
     subject: 'fix(apple): expanded chat composer keeps a 48 pt outside-tap strip; steadier composer UI tests'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
@@ -4508,7 +4213,7 @@ sources:
     short_sha: c70522d79b
     authored_at: '2026-11-16T12:10:01+00:00'
     subject: 'fix(backend): core-worker starts again; bank transfer expiry task imports BaseServiceTask from base_task'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/tasks/bank_transfer_expiry_task.py
@@ -4518,7 +4223,7 @@ sources:
     authored_at: '2026-11-16T12:01:08+00:00'
     subject: 'fix(apps,results-view): approve authored result embeds spec; Calendar OAuth return keeps its settings view;
       no render diagnostic while streaming'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/releases/daily/2026-10-24.yml
@@ -4545,7 +4250,7 @@ sources:
     authored_at: '2026-11-16T11:44:29+00:00'
     subject: 'feat(web): Rust core takes socket chat frames and pages older chat history; drafts during an offline boot keep
       the local session'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -4580,7 +4285,7 @@ sources:
     short_sha: 60dd3e4c24
     authored_at: '2026-11-16T10:42:18+00:00'
     subject: 'docs(specs): approved dev-run-routing Specification (heavy runs E2B first, every host fallback logged)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/tests/test_heavy_remote_plan.py
@@ -4599,7 +4304,7 @@ sources:
     short_sha: 4c5187c4b2
     authored_at: '2026-11-16T10:38:36+00:00'
     subject: 'docs(vscode-extension): review of the removed extension and a reuse-first revision of the draft Plan (TASK-3700)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/vscode-extension/old-extension-review.md
@@ -4611,7 +4316,7 @@ sources:
     authored_at: '2026-11-16T10:24:11+00:00'
     subject: 'docs(design): Figma and Penpot API notes; design-figma spec draft v2 (outline-first reads, context budgets,
       Penpot, export_assets)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/apis/figma-penpot.md
@@ -4629,7 +4334,7 @@ sources:
     authored_at: '2026-11-16T10:21:17+00:00'
     subject: 'fix(ops): stop prod degraded-report noise — unused Baseten route, cold-archive collation and requeue storm,
       cache TTL 0, health-history filter, user sweeps, bank-transfer expiry, webhook digest'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/ask_skill_task.py
@@ -4665,7 +4370,7 @@ sources:
     short_sha: 74049fba0b
     authored_at: '2026-11-16T07:53:26+00:00'
     subject: 'fix(code-run): the browser can read remote command output from the Rust machine host'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
@@ -4678,7 +4383,7 @@ sources:
     short_sha: b8805f01cc
     authored_at: '2026-11-16T07:19:30+00:00'
     subject: 'feat(web): draft saves run only in the Rust core, including offline boots'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -4713,7 +4418,7 @@ sources:
     short_sha: 99bbd36eb3
     authored_at: '2026-11-16T07:11:43+00:00'
     subject: 'fix(code-run): web approvals of remote commands are no longer refused for their trace field'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/schemas/remote_command_schemas.py
@@ -4724,7 +4429,7 @@ sources:
     short_sha: 3636a48936
     authored_at: '2026-11-16T06:38:20+00:00'
     subject: 'fix(code-run): remote command reviews carry the explanation shape every client can show'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/remote_command_service.py
@@ -4739,7 +4444,7 @@ sources:
     short_sha: d09f008736
     authored_at: '2026-11-16T06:15:53+00:00'
     subject: 'fix(apple): composer tap focuses even when the main thread is busy; Live Activity lifecycle tests'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
@@ -4762,7 +4467,7 @@ sources:
     short_sha: 57fea97093
     authored_at: '2026-11-16T05:41:26+00:00'
     subject: 'fix(code-run): an explicit remote_source test run takes its Project and source from the chat''s Project focus'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/code/test_run_target.py
@@ -4776,7 +4481,7 @@ sources:
     short_sha: 20222b58a7
     authored_at: '2026-11-16T05:15:26+00:00'
     subject: 'fix(web): sends superseded by a reconnect after login log warnings, not errors'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
@@ -4786,7 +4491,7 @@ sources:
     short_sha: 56813a6f93
     authored_at: '2026-11-16T05:12:28+00:00'
     subject: 'feat(remote-access): Rust host runs approved remote commands in the OS sandbox tier'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -4825,7 +4530,7 @@ sources:
     short_sha: 76fee1e26d
     authored_at: '2026-11-16T04:16:03+00:00'
     subject: 'feat(web): sync decisions always run in the Rust unit in flag-on builds; reconnect-superseded sends log as warnings'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/capabilities.yml
@@ -4849,7 +4554,7 @@ sources:
     short_sha: 7eeef1f9ad
     authored_at: '2026-11-16T03:20:30+00:00'
     subject: 'docs(specs): approve language preferences v1 with the conversation-language metadata rule'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - specifications/features/language-preferences/specification.yml
@@ -4862,7 +4567,7 @@ sources:
     short_sha: dee9230e87
     authored_at: '2026-11-16T03:05:04+00:00'
     subject: 'fix(chat): metadata prompts name the interface-language fallback once'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/early_chat_metadata.py
@@ -4878,7 +4583,7 @@ sources:
     authored_at: '2026-11-16T02:45:04+00:00'
     subject: 'fix(projects): a test run in a Project on the user''s machine goes to that machine, not into a hosted snapshot
       loop'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_phases.py
@@ -4893,7 +4598,7 @@ sources:
     short_sha: 142651ede6
     authored_at: '2026-11-16T02:42:45+00:00'
     subject: 'fix(chat): chat titles, summaries and tags follow the language the user writes in'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/base_instructions.yml
@@ -4918,7 +4623,7 @@ sources:
     short_sha: cf69242a9e
     authored_at: '2026-11-16T02:38:51+00:00'
     subject: 'docs(specs): approve Specifications v1'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - specifications/features/specifications/specification.yml
@@ -4931,7 +4636,7 @@ sources:
     short_sha: 6364b0358f
     authored_at: '2026-11-16T02:35:18+00:00'
     subject: 'feat(web): Rust crypto always on in flag-on builds, TS share-link corpus, send-prep op proof'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/capabilities.yml
@@ -4961,7 +4666,7 @@ sources:
     authored_at: '2026-11-16T02:07:40+00:00'
     subject: 'fix(focus): phase boundary decisions log choice and confidence, so a lagging phase shows which requirement held
       it'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_phases.py
@@ -4977,7 +4682,7 @@ sources:
     authored_at: '2026-11-16T01:26:33+00:00'
     subject: 'fix(chat): a failed decryption is cached per ciphertext and an empty reply is not a failure, so the next turn''s
       history carries the real reply'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
@@ -4992,7 +4697,7 @@ sources:
     short_sha: fd2b2b25aa
     authored_at: '2026-11-16T01:18:24+00:00'
     subject: 'fix(slides): the phone remote and the presentation views sit above the fullscreen top bar'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts
@@ -5009,7 +4714,7 @@ sources:
     short_sha: beb860d28e
     authored_at: '2026-11-16T01:04:50+00:00'
     subject: 'feat(apple): generated call media on the call stage via the shared core; landscape welcome composer'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates.xcodeproj/project.pbxproj
@@ -5048,7 +4753,7 @@ sources:
     authored_at: '2026-11-16T00:56:46+00:00'
     subject: 'fix(chat): a reply finished by async skill continuations replaces its stale local segment, so the next turn''s
       history carries it'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/ActiveChat.svelte
@@ -5057,7 +4762,7 @@ sources:
     short_sha: 35b1b15288
     authored_at: '2026-11-16T00:27:52+00:00'
     subject: 'fix(ai): a private Project file handoff waits for a busy API and is never lost silently'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/python_utils/recent_work_summary_client.py
@@ -5069,7 +4774,7 @@ sources:
     short_sha: d3e6a2251f
     authored_at: '2026-11-16T00:21:08+00:00'
     subject: 'feat(slides): queued follow-ups during any running reply, presentation remote, animated SVG images'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates.xcodeproj/project.pbxproj
@@ -5189,7 +4894,7 @@ sources:
     short_sha: 35ff899138
     authored_at: '2026-11-16T00:11:22+00:00'
     subject: 'fix(focus): Project work from a focus continuation pauses and resumes under the admitted root'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/ask_skill_task.py
@@ -5202,122 +4907,189 @@ sources:
     related_feature_ids:
     - app:ai
 llm_summary:
-  overview: OpenMates advanced several core initiatives, including the migration of web platform features to a shared Rust
-    core and significant upgrades to travel and shopping capabilities. While these updates remain in development, they establish
-    the foundation for more complex routing, price comparison, and cross-platform consistency.
-  released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: OpenMates added support for mixed-route planning that accounts for owned passes and calculates potential savings
-      across different ticket segments.
+  overview: OpenMates introduced significant enhancements to Travel and Shopping capabilities while migrating core web application
+    logic—including draft management, history paging, and cryptography—to a Rust-based core. The update also refined AI routing
+    for attachments and improved the reliability of collaborative web form filling.
+  released_changes:
+  - text: OpenMates added support for mixed travel routes, allowing the system to compose trips using owned passes and ticket
+      segments to find better fares. Hub-based searches were also optimized to fit within skill timeouts.
     evidence:
       commits:
       - 5c86344ff5
       - ae4f552e5c
-    release_status: dev_only
-  - text: The project implemented exact product comparison across multiple providers, allowing users to see total prices including
-      shipping for both new and used items.
+    release_status: released_main
+  - text: The shopping experience now includes a price comparison engine that aggregates total costs (including shipping)
+      across providers. Results are now presented as clickable offer links rather than static tables.
     evidence:
       commits:
       - e56212be24
       - 12e49db929
-    release_status: dev_only
-  - text: Migration to the Rust core continued with the implementation of ordered socket frame processing, centralized draft
-      saving, and the activation of Rust-based cryptographic operations.
+      - '3345264306'
+    release_status: released_main
+  - text: The web application now utilizes a Rust-based worker core for managing socket chat frames, paging chat history,
+      and handling draft saves. This update also enables Rust-powered cryptography and synchronized decision-making for improved
+      performance and offline stability.
     evidence:
       commits:
-      - fe7de71fda
-      - 48cc55dd80
       - b8805f01cc
-      - 6364b0358f
+      - 48cc55dd80
       - 76fee1e26d
-    release_status: dev_only
-  - text: This update refined multi-turn web form filling and improved how chat metadata handles user language preferences.
+      - 6364b0358f
+      - fe7de71fda
+      - 5312a88041
+    release_status: released_main
+  - text: AI routing was refined to better handle image uploads and attachments, ensuring that near-threshold applications
+      are correctly identified even when metadata is limited.
+    evidence:
+      commits:
+      - 27975565f5
+      - b1ade219d5
+      - 5556549b04
+    release_status: released_main
+  - text: The slides interface was updated to ensure presentation views and the phone remote correctly overlay the fullscreen
+      top bar.
+    evidence:
+      commits:
+      - fd2b2b25aa
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates improved web browsing capabilities, allowing the assistant to fill out web forms collaboratively with
+      the user across multiple turns while maintaining a compact model view.
     evidence:
       commits:
       - 3fbe3482d3
-      - 142651ede6
       - 6e85f01a23
-    release_status: dev_only
-  internal_progress:
-  - text: Development began on the "Life Compass" focus mode, featuring consent-gated memories and integration with the tasks
-      system.
+    release_status: released_main
+  - text: Chat metadata, including titles, summaries, and tags, now consistently follows the language used by the user in
+      the conversation.
+    evidence:
+      commits:
+      - 142651ede6
+      - dee9230e87
+    release_status: released_main
+  - text: The chat interface now more reliably handles message history by caching decryption failures per ciphertext and ensuring
+      local segments are updated when replies are finished via asynchronous skill continuations.
+    evidence:
+      commits:
+      - 8de5315bf7
+      - b92b090b24
+    release_status: released_main
+  - text: Project and code execution fixes ensure that remote command reviews carry consistent explanation shapes and that
+      test runs correctly target the user's machine when a project focus is active.
+    evidence:
+      commits:
+      - 74049fba0b
+      - 3636a48936
+      - 57fea97093
+      - 9f44ca4d01
+    release_status: released_main
+  - text: Security updates resolved several NPM audit vulnerabilities by updating SvelteKit and related adapters.
+    evidence:
+      commits:
+      - a2328d4f69
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the Life Coaching application, including the draft specification for the Life Compass focus
+      mode, consent-gated memories, and task-based follow-ups.
     evidence:
       commits:
       - b62ac2b49c
       - c3247d5da3
-      - 59fa6fcb82
+      - e5d85a9213
       - 661d5b9ef3
-    release_status: dev_only
-  - text: OpenMates added a native media stage for voice calls and a remote control interface for slide presentations on iOS
-      and macOS.
+      - 59fa6fcb82
+    release_status: released_main
+  - text: Progress was made on native Apple platform support, including shared core media stages for voice calls, landscape
+      composer layouts, and Live Activity lifecycle management.
     evidence:
       commits:
       - beb860d28e
-      - d3e6a2251f
       - eb2e9f9669
       - 06cdb059a2
-    release_status: dev_only
-  - text: The project enabled sandboxed execution of approved remote commands on machine hosts, with improved output reading
-      in the browser.
+      - d09f008736
+    release_status: released_main
+  - text: New slide features in development include queued follow-up turns during active replies and support for animated
+      SVG images.
+    evidence:
+      commits:
+      - d3e6a2251f
+    release_status: released_main
+  internal_progress:
+  - text: Internal orchestration for daily meetings was updated to include private event memory and remove obsolete focus
+      rules.
+    evidence:
+      commits:
+      - ff82a62708
+      - 041c46aef0
+    release_status: released_main
+  - text: The Rust host now supports running approved remote commands within an OS sandbox tier.
     evidence:
       commits:
       - 56813a6f93
-      - 74049fba0b
-      - 3636a48936
-    release_status: dev_only
-  - text: Production reporting was streamlined by reducing noise from unused routes and background tasks.
-    evidence:
-      commits:
-      - 1a05f2e05e
-      - 7de470f128
-    release_status: dev_only
-  - text: Core frontend dependencies were updated to resolve security audit findings.
-    evidence:
-      commits:
-      - a2328d4f69
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Travel Mixed Routes
+    include:
+    - text: Travel now supports mixed routes that incorporate owned passes and ticket parts to identify potential savings.
       evidence:
         commits:
         - 5c86344ff5
-      reason: Feature is currently in development and not yet released to the main branch.
-    - text: Shopping Price Comparison
+      reason: Significant user-facing enhancement to travel planning.
+    - text: Shopping now compares exact products across multiple providers, calculating total prices including shipping for
+        both new and used items.
       evidence:
         commits:
         - e56212be24
-      reason: Feature is currently in development and not yet released to the main branch.
-    - text: Life Compass Focus Mode
+      reason: New product comparison capability for shopping.
+    - text: The web application has migrated core logic for draft saving, chat history paging, and cryptography to a high-performance
+        Rust core.
+      evidence:
+        commits:
+        - b8805f01cc
+        - 48cc55dd80
+        - 6364b0358f
+      reason: Core performance and reliability improvements for the web application.
+    exclude:
+    - text: Life Compass focus mode and memory-gated coaching features.
       evidence:
         commits:
         - b62ac2b49c
-      reason: Feature is disabled and in early development.
-    - text: Apple Platform Enhancements
+        - c3247d5da3
+        - e5d85a9213
+        - 661d5b9ef3
+        - 59fa6fcb82
+      reason: The Life Coaching application is currently disabled in production configuration.
+    - text: Native Apple platform features including call media stages and composer UI refinements.
       evidence:
         commits:
         - beb860d28e
-      reason: iOS and macOS platforms are currently disabled.
-    rationale: No items from this period are ready for public communication as all changes are currently restricted to development
-      branches or related to disabled features.
+        - eb2e9f9669
+        - 06cdb059a2
+        - d09f008736
+      reason: Apple platform support (iOS/macOS) is currently listed as a disabled platform.
+    - text: Queued follow-ups and animated SVG support for slides.
+      evidence:
+        commits:
+        - d3e6a2251f
+      reason: Contains changes for disabled slide templates and unreleased Apple platforms.
+    rationale: The update introduces major functional improvements to Travel and Shopping while completing a significant architectural
+      migration of web core services to Rust for better performance and offline reliability.
   social_video_recommendations:
-  - idea: 'Travel Smarter with Mixed Routes: Show OpenMates combining existing passes with new tickets to find the cheapest
-      route.'
-    priority: High
-    reason: Concrete user benefit (savings) and visual UI changes in the travel embed.
+  - idea: A walkthrough of planning a complex trip where OpenMates identifies savings by using an existing rail pass for part
+      of the journey.
+    priority: high
+    reason: Demonstrates a concrete, high-value use case for the new mixed-route travel logic.
     evidence:
       commits:
       - 5c86344ff5
-  - idea: 'Total Price Shopping: Demonstrate comparing products across stores with shipping and condition filters.'
-    priority: High
-    reason: Demonstrates the new shopping skill's ability to aggregate data including shipping.
+  - idea: Comparing a specific product across multiple stores to show the 'total price' calculation including shipping.
+    priority: medium
+    reason: Shows the utility of the new shopping comparison engine and the improved UI for offer links.
     evidence:
       commits:
       - e56212be24
+      - 12e49db929
   quality_notes:
-  - Extensive use of "real-world" integration tests for travel, shopping, and life coaching ensures reliability in complex
-    user scenarios.
-  - The migration to the Rust core on web is being validated with ordered socket frame tests and offline draft recovery proofs.
+  - The migration to Rust for web core logic (drafts, sync, crypto) is now active by default in flag-on builds.
+  - Travel routing now handles complex hub-based searches with improved timeout degradation.
+  - Shopping results have transitioned from tables to clickable offer links for better mobile and web usability.
   validation_warnings: []

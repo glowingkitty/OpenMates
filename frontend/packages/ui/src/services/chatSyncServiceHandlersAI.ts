@@ -23,6 +23,7 @@ import { chatListCache } from "./chatListCache"; // Import for cache invalidatio
 import { flushPendingMessagesForChat } from "./chatSyncServiceHandlersChatUpdates"; // Flush messages queued while chat key was unavailable
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings"; // Flush system messages queued while chat key was unavailable
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { announceChatMessageOnce, isFinalizedChatMessage, noteChatMessageCard } from "./chatMessageNotificationReceipt";
 import type { EmbedType } from "../message_parsing/types";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
@@ -796,7 +797,11 @@ export function handleAIMessageUpdateImpl(
     // which caused the typing indicator to persist forever if:
     // 1. ai_task_initiated event was missed (websocket hiccup)
     // 2. Task IDs didn't match for some reason
-    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    // A resumed turn's final carries the shared assistant message id, while
+    // typing is keyed to the running task id; match either, or the same turn.
+    aiTypingStore.clearTypingForTurn(
+      payload.chat_id, [payload.message_id, payload.task_id], payload.user_message_id,
+    );
     console.info(
       `[ChatSyncService:AI] Typing status cleared for chat ${payload.chat_id} (message_id: ${payload.message_id})`,
     );
@@ -1098,6 +1103,10 @@ export async function handleAIBackgroundResponseCompletedImpl(
       has_thinking: !!thinkingEntry?.content,
     };
 
+    // A reply this device already stored in full was shown here before (for
+    // example heard live in a call); a replayed completion is not announced.
+    const storedBefore = !isIncognitoChat && isFinalizedChatMessage(await chatDB.getMessage(payload.message_id));
+
     // Save message to IndexedDB or incognito service.
     // Use aiMessage.created_at as the sort timestamp so last_edited_overall_timestamp
     // is consistent with the message's own timestamp (both set at delivery time).
@@ -1166,7 +1175,9 @@ export async function handleAIBackgroundResponseCompletedImpl(
     // Clear typing status using message_id (which is what setTyping stores as aiMessageId)
     // Previously used task_id which caused mismatch - typing indicator wouldn't clear
     if (!interimContinuation && !staleTask) {
-      aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+      aiTypingStore.clearTypingForTurn(
+        payload.chat_id, [payload.message_id, payload.task_id], payload.user_message_id,
+      );
     }
 
     // Dispatch chatUpdated event to notify UI (e.g., update chat list)
@@ -1206,7 +1217,8 @@ export async function handleAIBackgroundResponseCompletedImpl(
     // The visible-chat check is a safety guard in case the user switched back
     // to this chat between the server sending the event and us processing it.
     const chatIsVisible = isChatVisiblyActive(payload.chat_id);
-    if (!chatIsVisible && !chat.is_sub_chat && !chat.parent_id) {
+    const announce = announceChatMessageOnce(payload.chat_id, payload.message_id, chatIsVisible || storedBefore);
+    if (announce && !chat.is_sub_chat && !chat.parent_id) {
       console.debug(
         `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id}`,
       );
@@ -1269,12 +1281,13 @@ export async function handleAIBackgroundResponseCompletedImpl(
       }
 
       // Show in-app notification with message preview and mate category for profile image
+      noteChatMessageCard("ai-completed", payload.chat_id);
       notificationStore.chatMessage(
         payload.chat_id,
         chatTitle,
         messagePreview,
         undefined, // avatarUrl - not used, we use category-based profile images
-        category || undefined, // Pass mate category for profile image rendering
+        category || chat.category || undefined, // Mate category for the profile image
       );
     }
 
@@ -1334,6 +1347,18 @@ export async function handleAITypingStartedImpl( // Changed to async
     payload.provider_name,
     payload.server_region,
   );
+
+  // Every device learns the running task here: a device other than the sender
+  // never gets ai_task_initiated, and a resumed turn (async skill or Project
+  // file job continuation) runs as a new task. Without this the turn shows no
+  // stop button and its final is ignored as stale, so typing never clears.
+  const runningTaskId = payload.task_id || payload.message_id;
+  if (runningTaskId) {
+    serviceInstance.activeAITasks.set(payload.chat_id, {
+      taskId: runningTaskId,
+      userMessageId: payload.user_message_id,
+    });
+  }
 
   // DUAL-PHASE ARCHITECTURE: Always send encrypted user message storage
   // For NEW chats (with icon_names): Also handle metadata encryption
@@ -2660,6 +2685,8 @@ export async function handlePostProcessingCompletedImpl(
       status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
       assignee_type?: "user" | "openmates";
     }>;
+    /** "✅ summary" line for the in-app chat notice (absent when the model gave none). */
+    notification_headline?: string;
     task_update_proposals?: Array<{
       task_id: string;
       title?: string | null;
@@ -2715,6 +2742,48 @@ export async function handlePostProcessingCompletedImpl(
         `[ChatSyncService:AI] Ignoring post-processing results for deleted/missing chat ${payload.chat_id}`,
       );
       return;
+    }
+    // The notice appeared at completion with a reply excerpt; now that the summary
+    // exists, show it instead. Display only: it never reaches storage or the server.
+    // A recovered or re-synced turn is not the "current" metadata turn, yet its notice still
+    // needs the headline: only the owner and the latest user message gate it.
+    if (
+      payload.notification_headline && ownerIsCurrent() && latestUserMatches &&
+      !isChatVisiblyActive(payload.chat_id) && !chat.is_sub_chat && !chat.parent_id
+    ) {
+      // The mate image needs the category; a first-turn notice may have been shown before it existed.
+      let noticeCategory: string | undefined = chat.category || undefined;
+      if (!noticeCategory && chat.encrypted_category) {
+        try {
+          await chatKeyManager.withKey(payload.chat_id, "decrypt-notice-category", async (noticeKey) => {
+            noticeCategory = (await decryptWithChatKey(chat.encrypted_category!, noticeKey)) || undefined;
+          });
+        } catch (categoryError) {
+          console.debug("[ChatSyncService:AI] Could not decrypt category for the chat notice:", categoryError);
+        }
+      }
+      let noticeTitle: string | undefined = chat.title || undefined;
+      if (!noticeTitle && chat.encrypted_title) {
+        try {
+          await chatKeyManager.withKey(payload.chat_id, "decrypt-notice-title", async (noticeKey) => {
+            noticeTitle = (await decryptWithChatKey(chat.encrypted_title!, noticeKey)) || undefined;
+          });
+        } catch (titleError) {
+          console.debug("[ChatSyncService:AI] Could not decrypt title for the chat notice:", titleError);
+        }
+      }
+      if (ownerIsCurrent() && !isChatVisiblyActive(payload.chat_id)) {
+        const shown = notificationStore.applyChatHeadline(payload.chat_id, payload.notification_headline, noticeCategory, noticeTitle);
+        console.info("[Notifications] Chat notice headline", { chatID: payload.chat_id, shown });
+      }
+    } else {
+      console.info("[Notifications] Chat notice headline skipped", {
+        chatID: payload.chat_id,
+        hasHeadline: Boolean(payload.notification_headline),
+        ownerIsCurrent: ownerIsCurrent(),
+        latestUserMatches,
+        visible: isChatVisiblyActive(payload.chat_id),
+      });
     }
     if (ownerIsCurrent() && turnIsCurrent()) {
       void persistPostProcessingComposerFallback(payload, serviceInstance, (suggestion) => {
@@ -5941,6 +6010,9 @@ export async function handleSpawnSubChatsImpl(
       category?: string;
       icon?: string;
       wait_for_completion?: boolean;
+      focus_id?: string | null;
+      project_base?: { project_id: string } | null;
+      link?: { kind: "assumption" | "task"; plan_id: string; id: string } | null;
     }>;
   },
 ): Promise<void> {
@@ -5983,9 +6055,6 @@ export async function handleSpawnSubChatsImpl(
       };
       const scId = subChatPayload.id || subChatPayload.chat_id;
       const prompt = subChatPayload.prompt || "";
-      const title = subChatPayload.title?.trim() || prompt.trim();
-      const category = subChatPayload.category?.trim() || null;
-      const icon = subChatPayload.icon?.trim() || null;
       const userMessageId = subChatPayload.user_message_id || subChatPayload.message_id;
       const waitsForCompletion = subChatPayload.wait_for_completion !== false;
 
@@ -6006,25 +6075,18 @@ export async function handleSpawnSubChatsImpl(
 
       // 2. Retrieve or create sub-chat record locally in IndexedDB
       let childChat = await chatDB.getChat(scId);
+      let childProjectId: string | null = null;
       if (!childChat) {
-        const createdChildChat: Chat = {
-          chat_id: scId,
-          parent_id: parentChatId,
-          is_sub_chat: true,
-          title,
-          encrypted_title: await encryptWithChatKey(title, parentKey),
-          category,
-          encrypted_category: category ? await encryptWithChatKey(category, parentKey) : null,
-          icon,
-          encrypted_icon: icon ? await encryptWithChatKey(icon, parentKey) : null,
-          messages_v: 1,
-          title_v: 0,
-          unread_count: 0,
-          created_at: Math.floor(Date.now() / 1000),
-          updated_at: Math.floor(Date.now() / 1000),
-          last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
-          user_id: currentUserId || undefined,
-        };
+        const { rustSubchatShell } = await import("./rustCore/chatState/rustSubchat");
+        const shell = await rustSubchatShell({
+          parentChatId,
+          parentKey,
+          userId: currentUserId || undefined,
+          now: Math.floor(Date.now() / 1000),
+          child: subChatPayload,
+        });
+        const createdChildChat: Chat = shell.chat as unknown as Chat;
+        childProjectId = shell.project_id;
 
         // Encrypt the chat key with the master key for device sync and storage
         const encryptedChatKey = await encryptChatKeyWithMasterKey(parentKey);
@@ -6037,7 +6099,18 @@ export async function handleSpawnSubChatsImpl(
         console.info(
           `[ChatSyncService:AI] Created child chat record locally for ${scId}`,
         );
+        if (childProjectId) {
+          try {
+            const { placeChatsInProject } = await import("./chatProjectService");
+            await placeChatsInProject([createdChildChat], { projectId: childProjectId, folderId: null }, "add");
+          } catch (error) {
+            console.warn(`[ChatSyncService:AI] Could not add sub-chat ${scId} to its Project`, error);
+          }
+        }
       }
+      void import("./rustCore/chatState/rustSubchat").then(({ linkSubChatAssumption }) =>
+        linkSubChatAssumption(scId, subChatPayload.link),
+      );
       await flushPendingTypingStartedForChat(serviceInstance, scId);
       serviceInstance.setSubChatProcessing?.(scId, waitsForCompletion);
 
@@ -6340,8 +6413,9 @@ export async function handleAwaitingUserInputImpl(
       }),
     );
 
-    if (!isChatVisiblyActive(payload.chat_id)) {
+    if (announceChatMessageOnce(payload.chat_id, questionMessage.message_id, isChatVisiblyActive(payload.chat_id))) {
       unreadMessagesStore.incrementUnread(payload.chat_id, questionMessage.message_id);
+      noteChatMessageCard("ai-question", payload.chat_id);
       notificationStore.chatMessage(
         payload.chat_id,
         chat.title || "Sub-chat needs input",

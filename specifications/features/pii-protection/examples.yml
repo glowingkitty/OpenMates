@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.pii-protection@4
+specification: feature.pii-protection@5
 
 web_enhanced_preference:
   - id: production-default-and-persistent-off
@@ -21,9 +21,19 @@ web_bounded_inference:
     then: Detected originals are replaced before chat-model transmission and restored exactly from the existing owner-only mappings; this does not change earlier audio transcription service calls.
   - id: large-or-stalled-input
     assertion_ids: [pii.web.local-bounded-inference]
-    given: A user pastes more than 2,048 UTF-16 code units, or several recording fields exhaust one send's 2,500 ms enhancement budget.
-    when: The text is checked before send.
-    then: All text retains basic patterns and configured-value protection, no further enhanced work is awaited after the budget, and the existing one-time notification explains the fallback without another status element.
+    given: A user pastes more than 2,048 UTF-16 code units while typing, and the model needs longer than 2,500 ms for a preview.
+    when: The composer preview checks the text.
+    then: The preview keeps basic patterns and configured-value protection without unloading the model; a later send of the same text is still checked by the local model in full.
+  - id: slow-detector-send-waits
+    assertion_ids: [pii.web.local-bounded-inference]
+    given: Enhanced protection is on and the local model takes several seconds per reply on a slow device; the message names a co-speaker with email, phone and street address.
+    when: The user presses send before the model has marked anything.
+    then: The message waits past the preview budget, leaves only after the model finished, and carries placeholders; no name, address, email or phone leaves the browser as written.
+  - id: failed-detector-send-blocked
+    assertion_ids: [pii.web.local-bounded-inference]
+    given: Enhanced protection is on and the local model fails for every scan.
+    when: The user presses send, then presses send again.
+    then: Nothing is sent, the draft stays in the composer and a short notice asks the user to try again; the second send retries one fresh detector and is blocked again.
 
 web_licensing_boundary:
   - id: ordinary-license-activation

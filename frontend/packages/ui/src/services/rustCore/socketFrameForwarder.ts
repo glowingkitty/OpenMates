@@ -40,7 +40,9 @@ const APPLIED_TYPES: ReadonlySet<string> = new Set([
 	'call_message_confirmed', 'call_message_changed', 'system_message_confirmed', 'message_deleted',
 	'message_queued', 'queued_message_status', 'queued_message_updated',
 	// an assistant reply this page persisted through browser recovery (version + its row)
-	'recovery_job_persisted'
+	'recovery_job_persisted',
+	// an assistant reply this page persisted directly (its stored messages_v)
+	'ai_response_storage_confirmed'
 ]);
 
 /** Longest one forward-chain link (an ingest batch or an admission) may hold the chain. */
@@ -205,6 +207,20 @@ async function admitDetailed(chatId: string, teamId: string | null, signal: Abor
 	let active: SocketFrameSink;
 	markAdmit('sink');
 	try { active = await waitForSink(signal); } catch (error) { return { ok: false, reason: failureCode(error) }; }
+	const first = await admitOnServerSession(active, chatId, teamId, signal);
+	// A workspace invalidation while the admission was queued (e.g. the first auth
+	// refresh after signup hydrating the account id) closes the server-checked
+	// session under it. That session re-admits lazily, so admit once more on it
+	// instead of refusing the call (TASK-950).
+	if ('reason' in first && first.reason === 'session_expired' && !signal?.aborted) {
+		markAdmit('readmit');
+		return admitOnServerSession(active, chatId, teamId, signal);
+	}
+	return first;
+}
+
+/** Ensures the server-checked session (bounded), then admits on the forward chain. */
+async function admitOnServerSession(active: SocketFrameSink, chatId: string, teamId: string | null, signal: AbortSignal | undefined): Promise<ChatAdmissionOutcome> {
 	if (!active.hasServerSession()) {
 		markAdmit('server_session');
 		try {
@@ -212,7 +228,7 @@ async function admitDetailed(chatId: string, teamId: string | null, signal: Abor
 		} catch (error) {
 			const code = failureCode(error);
 			if (code === 'cancelled' || code === 'server_session_timeout') return { ok: false, reason: code };
-			logOnce(code);
+			logAdmissionFailure(code);
 			return { ok: false, reason: active.hasLocalSession() ? 'local_only' : 'no_session' };
 		}
 		if (!active.hasServerSession()) return { ok: false, reason: active.hasLocalSession() ? 'local_only' : 'no_session' };
@@ -223,9 +239,15 @@ async function admitDetailed(chatId: string, teamId: string | null, signal: Abor
 		return { ok: true, admission: await bounded(admitOnChain(chatId, teamId), signal, ADMIT_CHAT_WAIT_MS, 'admit_timeout') };
 	} catch (error) {
 		const code = failureCode(error);
-		logOnce(code);
+		logAdmissionFailure(code);
 		return { ok: false, reason: code };
 	}
+}
+
+/** Admission failures are rare and user-visible, so each one is logged (frame
+ * forwarding dedupes its codes and would otherwise hide them). */
+function logAdmissionFailure(code: string): void {
+	console.warn('[RustCore] chat admission failed:', code);
 }
 
 /** Test hook: drains the forward chain. */

@@ -5,10 +5,10 @@ no agent writes or sends them. Every rendered string passes the content
 boundary (content.boundary): bounded length, no IP addresses or internal host
 names, no token-like secrets, and links only to allowlisted advisory origins.
 
-Routing:
-  urgent advisory, intrusion, health -> Discord + email immediately
-  affected_fix_soon                  -> Discord immediately + OpenMates Task (+ digest)
-  affected_low, not_affected         -> daily digest only
+Routing (owner decision 21 Nov: email only, no Discord security channel):
+  urgent advisory, intrusion, urgent health signals -> its own email immediately
+  affected_fix_soon                                -> OpenMates Task (+ daily email "New")
+  everything else                                  -> daily email only ("New", then "Still open")
 Each incident notifies once per channel (stable notification id per channel).
 """
 
@@ -28,7 +28,6 @@ _SCRIPTS = Path(__file__).resolve().parents[1]
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-import discord_webhook  # noqa: E402 - sibling script module, path set above
 from security_report_delivery import (  # noqa: E402 - sibling script module, path set above
     SendResult,
     container_email_sender,
@@ -38,11 +37,9 @@ from security_report_delivery import (  # noqa: E402 - sibling script module, pa
 
 from security_monitoring.state import Store  # noqa: E402 - package import after path setup
 
-DISCORD_WEBHOOK_ENV = "DISCORD_WEBHOOK_SECURITY"
 EMAIL_DESTINATION = "configured_destination"
 DONE_STATES = {"sent", "created"}
 TEXT_LIMIT = 300
-DISCORD_LIMIT = 1900
 
 ALLOWED_LINK_ORIGINS: tuple[str, ...] = (
     "https://osv.dev/",
@@ -139,18 +136,6 @@ class Rendered:
     checklist: tuple[str, ...]
     links: tuple[str, ...] = ()
 
-    def discord_payload(self) -> dict[str, Any]:
-        body = [f"**{_discord_escape(self.title)}**"]
-        body += [f"{label}: {_discord_escape(value)}" for label, value in self.lines]
-        if self.checklist:
-            body.append("Operator checklist:")
-            body += [f"- [ ] {_discord_escape(item)}" for item in self.checklist]
-        body += [f"<{link}>" for link in self.links]
-        content = "\n".join(body)
-        if len(content) > DISCORD_LIMIT:
-            content = content[: DISCORD_LIMIT - 1] + "…"
-        return {"content": content, "allowed_mentions": {"parse": []}}
-
     def email_payload(self) -> dict[str, str]:
         text_lines = [self.title, ""] + [f"{label}: {value}" for label, value in self.lines]
         if self.checklist:
@@ -168,10 +153,6 @@ class Rendered:
         )
         subject = self.title.replace("<", "").replace(">", "")[:200]
         return {"subject": subject, "text": "\n".join(text_lines), "html": html}
-
-
-def _discord_escape(value: str) -> str:
-    return re.sub(r"([*_~`|>\\])", r"\\\1", value)
 
 
 def _join(values: Any, limit: int = 12) -> str:
@@ -266,6 +247,12 @@ def _render_intrusion(incident: dict[str, Any], details: dict[str, Any]) -> Rend
         "If unexpected: isolate the server, rotate affected credentials, review auth logs",
         "If expected: update the expected key/config list and acknowledge the incident",
     )
+    if details.get("signal_kind") == "command_hook_added":
+        return Rendered("[Security] URGENT: command hook or settings change in the repository", tuple(lines), (
+            "Check the commit: is the hook, MCP server, permission, env or lifecycle script expected?",
+            "If not: revert it on dev, stop running chats, rotate credentials the dev host holds",
+            "If expected: acknowledge the incident with security_monitor.py acknowledge",
+        ))
     if details.get("signal_kind") == "baseline_seeded":
         return Rendered(f"[Security] SSH key baseline recorded for {bounded(details.get('role'), 40)}", tuple(lines),
                         ("Confirm the recorded keys are expected, then acknowledge the incident",))
@@ -286,24 +273,28 @@ def _render_health(incident: dict[str, Any], details: dict[str, Any]) -> Rendere
 
 
 # --- routing and delivery ---------------------------------------------------
+# Health signals that need the operator now; every other health signal waits for the daily email.
+IMMEDIATE_HEALTH_SIGNALS = frozenset({
+    "watcher_not_running", "fix_guard_violation", "fix_smoke_failed", "triage_limit_exhausted", "fix_limit_exhausted",
+})
+
+
 def channels_for(incident: dict[str, Any]) -> tuple[str, ...]:
     kind = incident["kind"]
-    if kind in {"intrusion", "health"}:
-        return ("discord", "email")
-    outcome = (incident.get("details") or {}).get("outcome")
+    details = incident.get("details") or {}
+    if kind == "intrusion":
+        return ("email",)
+    if kind == "health":
+        return ("email",) if details.get("signal") in IMMEDIATE_HEALTH_SIGNALS else ()
+    outcome = details.get("outcome")
     if outcome == "urgent":
-        return ("discord", "email")
+        return ("email",)
     if outcome == "affected_fix_soon":
-        return ("discord", "task")
+        return ("task",)
     return ()
 
 
-DiscordPost = Callable[[str, dict[str, Any]], "dict[str, str] | None"]
 TaskCreator = Callable[[str, str], "str | None"]
-
-
-def default_discord_post(url: str, payload: dict[str, Any]) -> dict[str, str] | None:
-    return discord_webhook.post_message(webhook_url=url, payload=payload)
 
 
 def default_task_creator(title: str, description: str) -> str | None:
@@ -327,9 +318,7 @@ def default_task_creator(title: str, description: str) -> str | None:
 class Notifier:
     store: Store
     ledger_path: Path
-    webhook_url: str
     dry_run: bool = False
-    discord_post: DiscordPost = default_discord_post
     email_sender: Callable[[dict[str, str]], SendResult] | None = None
     task_creator: TaskCreator = default_task_creator
     planned: list[dict[str, str]] = field(default_factory=list)
@@ -356,11 +345,6 @@ class Notifier:
         return outcomes
 
     def _deliver(self, channel: str, notification_id: str, rendered: Rendered, incident: dict[str, Any]) -> tuple[str, str | None]:
-        if channel == "discord":
-            if not self.webhook_url:
-                return "unavailable", f"{DISCORD_WEBHOOK_ENV} is not configured"
-            result = self.discord_post(self.webhook_url, rendered.discord_payload())
-            return ("sent", None) if result and result.get("message_id") else ("failed", "discord_not_confirmed")
         if channel == "email":
             outcome = deliver_notification(
                 ledger_path=self.ledger_path, notification_id=notification_id, payload=rendered.email_payload(),

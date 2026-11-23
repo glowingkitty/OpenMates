@@ -11,7 +11,7 @@
 <script lang="ts">
   import { APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, takeAppsWorkspaceWorkflowHandoff,
     isAppsWorkspaceHandoffCurrent, appsWorkflowInstruction, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
 	import { refreshWorkflowMemorySnapshots } from '@repo/ui/services/workflowMemorySnapshotService';
 	import { derived, get } from 'svelte/store';
@@ -28,6 +28,8 @@
 		authStore,
 		setAuthenticatedState,
 		isInSignupProcess,
+		currentSignupStep,
+		STEP_BASICS,
 		loginInterfaceOpen,
 		chatDB,
 		chatSyncService,
@@ -54,6 +56,8 @@
 	import WorkflowAuthoringStatus from '@repo/ui/components/workflows/WorkflowAuthoringStatus.svelte';
 	import WorkflowUnsavedGuard from '@repo/ui/components/workflows/WorkflowUnsavedGuard.svelte';
 	import { isWorkflowFileName, readWorkflowFile } from '@repo/ui/services/workflowFileService';
+	import { loadWorkflowStartSuggestions } from '@repo/ui/services/workflowStartSuggestions';
+	import type { WorkflowStartSuggestion } from '@repo/ui/types/recommendations';
 	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession } from '@repo/ui/services/workflowInputService';
 	import { runWorkflowAuthoring } from '@repo/ui/components/workflows/workflowAuthoringRun';
 	import WorkflowCompletionStatus from '@repo/ui/components/workflows/WorkflowCompletionStatus.svelte';
@@ -122,6 +126,25 @@
 	let workflowOpening = $state(false);
 
 	let workflowInputText = $state('');
+	// Suggestions above the input: the workflow recommendations of the user's own chats,
+	// newest first; general templates until there are any (Marco, 21 Nov).
+	let chatWorkflowSuggestions = $state<WorkflowStartSuggestion[]>([]);
+	let chatWorkflowSuggestionsLoaded = false;
+	const workflowStartSuggestions = $derived(chatWorkflowSuggestions.length > 0
+		? chatWorkflowSuggestions.map((suggestion) => suggestion.title)
+		: [1, 2, 3].map((index) => $text(`workflows.home.suggestion_${index}`)));
+	/** Text a tapped suggestion puts into the input: the recommendation's description when it has one. */
+	function workflowSuggestionInput(title: string): string {
+		const match = chatWorkflowSuggestions.find((suggestion) => suggestion.title === title);
+		return match?.summary.trim() ? match.summary.trim() : title;
+	}
+	$effect(() => {
+		if (!canRenderWorkflowData || chatWorkflowSuggestionsLoaded) return;
+		chatWorkflowSuggestionsLoaded = true;
+		loadWorkflowStartSuggestions()
+			.then((suggestions) => { chatWorkflowSuggestions = suggestions; })
+			.catch((error) => console.error('[Workflows] Could not load workflow suggestions from chats', error));
+	});
 	let editorInstruction = $state('');
 	let homeComposerFocused = $state(false);
 	let editorComposerFocused = $state(false);
@@ -209,6 +232,30 @@
 	let hasCompletionDestination = $derived.by(() =>
 		!!workflowHashState.workflowId && typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
 	);
+	const DESCRIBE_AFTER_SIGNUP_KEY = 'openmates.workflows.describeAfterSignup';
+	/** Guest "Describe new workflow": open the sign-up flow at its first step and remember to reopen the describe composer afterwards. */
+	function startGuestDescribeSignup(): void {
+		sessionStorage.setItem(DESCRIBE_AFTER_SIGNUP_KEY, '1');
+		currentSignupStep.set(STEP_BASICS);
+		isInSignupProcess.set(true);
+		loginInterfaceOpen.set(true);
+	}
+	// Abandoned sign-up: forget the pending return so a later ordinary login stays where it is.
+	$effect(() => {
+		if ($authStore.isAuthenticated || $loginInterfaceOpen || $isInSignupProcess) return;
+		sessionStorage.removeItem(DESCRIBE_AFTER_SIGNUP_KEY);
+	});
+	$effect(() => {
+		if (!canRenderWorkflowData || typeof sessionStorage === 'undefined') return;
+		if (sessionStorage.getItem(DESCRIBE_AFTER_SIGNUP_KEY) !== '1') return;
+		sessionStorage.removeItem(DESCRIBE_AFTER_SIGNUP_KEY);
+		void tick().then(() => {
+			const input = document.querySelector<HTMLTextAreaElement>('[data-testid="workflow-input-textarea"]');
+			input?.scrollIntoView({ block: 'center' });
+			input?.focus();
+			homeComposerFocused = true;
+		});
+	});
 	function handleWorkflowLoginSuccess(event: CustomEvent<WorkflowLoginSuccess>): void {
 		completeWorkflowLogin(event.detail, {
 			publishOwner: (userId) => userProfile.update((profile) => ({ ...profile, user_id: userId })),
@@ -231,8 +278,10 @@
 	let displayedGuestTemplate = $derived(guestTemplate ?? (!showManageView ? outgoingGuestTemplate : null));
 	let displayedProvisionalWorkflow = $derived(provisionalFullscreen ?? (!showManageView ? outgoingProvisionalWorkflow : null));
 	let displayedRunsView = $derived(showManageView ? isRunsView : outgoingRunsView);
+	// The greeting names the signed-in user as on every other workspace, without waiting
+	// for feature availability (which only gates the workflow data below).
 	let visibleWorkflowGreetingName = $derived(
-		canRenderWorkflowData ? workflowGreetingName : 'there'
+		$authStore.isAuthenticated && !$isInSignupProcess ? workflowGreetingName : 'there'
 	);
 	let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
 	let visibleBrowseItems = $derived(canRenderWorkflowData ? browseItems : workflowTemplateItems);
@@ -1406,6 +1455,7 @@
 						onContinueItem={canRenderWorkflowData ? continueWorkflowFromCard : createWorkflowFromTemplate}
 						onActionItem={startWorkflowFromCard}
 						onAllItem={!canRenderWorkflowData || browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
+						startSuggestions={{ items: workflowStartSuggestions, onClick: (suggestion) => { workflowInputText = workflowSuggestionInput(suggestion); homeComposerFocused = true; } }}
 					>
 						<svelte:fragment slot="top-right">
 							{#if browseMode === 'workflows'}
@@ -1447,7 +1497,7 @@
 							/>
 							</div>
 							{#if !canRenderWorkflowData}
-								<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={() => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); }}></button>
+								<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={startGuestDescribeSignup}></button>
 							{/if}
 							</div>
 							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}

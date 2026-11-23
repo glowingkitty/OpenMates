@@ -1,8 +1,9 @@
 """Metered billing of author-model plus sandbox work (images.modify, videos.generate composed).
 
 A delivered result costs the reported tokens of every author (and review) call
-at that model's price plus 5 credits per started minute of each sandbox run
-(the Code Run price, backend/apps/code/app.yml ``code.run`` pricing.per_minute).
+at that model's price plus the sandbox price of each run, billed per second
+(``code_execution_credits``; the Code Run rate is 3 credits per minute = 0.05 per
+second, backend/apps/code/app.yml ``code.run`` pricing.per_second).
 Fractional token credits are summed and floored once, so several small calls
 are not each rounded up; the platform minimum applies. A call without usage or
 without a price is an error, never free.
@@ -17,6 +18,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+from fractions import Fraction
 from typing import Any, Awaitable, Callable, Optional, Sequence
 
 import httpx
@@ -39,16 +41,29 @@ def internal_headers() -> dict[str, str]:
     return headers
 
 
-def sandbox_run_credits(seconds: float, *, credits_per_started_minute: int) -> int:
-    """Credits for one sandbox run: every started minute is charged, a run that never started is free.
+def code_execution_credits(seconds: float, credits_per_second: float | str | Fraction) -> int:
+    """Credits for one code execution or sandbox lifetime, billed per second.
 
-    The minute rate is the calling skill's catalog ``per_minute`` price, because
-    skills run differently sized sandboxes.
+    Rule (owner decision 22 Nov, E2B bills us per second): total credits =
+    ceil(seconds * credits_per_second), computed exactly (no float drift, so
+    3600 s at 0.05 is 180, not 181), with a minimum of 1 credit for a run that
+    started (seconds > 0, sub-second precision, so 0.3 s costs 1) and 0 for a
+    run that never started (seconds <= 0). Rounding happens once per run, never
+    per second or per minute.
     """
     if seconds <= 0:
         return 0
-    return math.ceil(seconds / 60) * credits_per_started_minute
+    exact = Fraction(str(seconds)) * Fraction(str(credits_per_second))
+    return max(1, math.ceil(exact))
 
+def sandbox_run_credits(seconds: float, *, credits_per_started_minute: int) -> int:
+    """Credits for one sandbox run billed per second at a skill's catalog per-minute rate.
+
+    Skills run differently sized sandboxes, so the rate is the calling skill's
+    catalog ``per_minute`` price divided by 60 (the parameter name is kept for
+    its callers); the rounding rule is ``code_execution_credits``.
+    """
+    return code_execution_credits(seconds, Fraction(str(credits_per_started_minute)) / 60)
 
 async def fetch_model_pricing(model_ref: str) -> Optional[dict[str, Any]]:
     """Read one provider model's pricing from the internal config endpoint."""

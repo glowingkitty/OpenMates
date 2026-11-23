@@ -408,3 +408,38 @@ connecting_short:
   en: Connecting…
   de: Verbindung wird hergestellt…
   verified_by_human: []
+waiting:
+  context: Call status while the assistant waits for the caller to continue
+  en: Waiting for you
+  de: Wartet auf dich
+  verified_by_human: []
+waiting_start:
+  context: Ready-made spoken and written assistant line when the call enters the waiting state
+  en: Okay, I'm waiting.
+  de: Okay, ich warte.
+  verified_by_human: []
+waiting_resume:
+  context: Ready-made spoken and written assistant line when the caller is back and the call leaves the waiting state
+  en: Okay, go on.
+  de: Okay, sprich weiter.
+  verified_by_human: []
+screen_sharing:
+  context: Indicator shown while the user's screen is being shared in a call
+  en: You are sharing your screen
+  de: Du teilst deinen Bildschirm
+  verified_by_human: []
+screen_share_stop:
+  context: Button in the screen sharing indicator that stops sharing
+  en: Stop
+  de: Beenden
+  verified_by_human: []
+screen_share_preview:
+  context: Accessible name of the shared screen preview
+  en: Shared screen preview
+  de: Vorschau des geteilten Bildschirms
+  verified_by_human: []
+screen_failed:
+  context: The screen could not be captured or stopped unexpectedly
+  en: Screen sharing is unavailable. Please try again.
+  de: Die Bildschirmfreigabe ist nicht verfügbar. Bitte versuche es erneut.
+  verified_by_human: []

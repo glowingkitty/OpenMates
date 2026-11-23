@@ -116,13 +116,17 @@ test('guest offline inspiration fallback does not promote paused Events', async 
   await expect(newChat).toBeVisible({ timeout: 15000 });
   await newChat.click();
   await expect(page.getByTestId('message-editor')).toBeVisible();
-  const banner = page.getByTestId('daily-inspiration-banner').first();
+  const banner = page.getByTestId('recent-chats-scroll-container');
   await expect(banner).toBeVisible();
+  await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
   await expect.poll(() => fallbackRequests).toBeGreaterThan(0);
-  await expect(banner).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
-  const ids = (await banner.getAttribute('data-visible-inspiration-ids') ?? '').split(',');
-  expect(ids).toContain('authenticated-fallback-dreams');
-  expect(ids).toContain('authenticated-fallback-antikythera');
+  const cards = banner.getByTestId('start-row-inspiration-card');
+  await expect(cards.first()).toBeVisible();
+  const ids: string[] = await cards.evaluateAll((nodes: Element[]) => nodes.map((node) => node.getAttribute('data-inspiration-id') || ''));
+  // The row holds at most 10 cards shared with example chats, so only a subset of the fallback set shows,
+  // but every inspiration card must come from the static fallback while the endpoint fails.
+  expect(ids.length).toBeGreaterThan(0);
+  expect(ids.every((id) => id.startsWith('authenticated-fallback-'))).toBe(true);
   expect(ids).not.toContain('guest-fallback-events');
   expect(ids).not.toContain('authenticated-fallback-export');
   await expect(banner).not.toContainText(/Find local events|Events search/i);

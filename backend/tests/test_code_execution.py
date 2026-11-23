@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 import hashlib
 import base64
 import importlib.machinery
@@ -123,7 +124,7 @@ sys.modules.setdefault("slowapi", slowapi_stub)
 sys.modules.setdefault("slowapi.util", slowapi_util_stub)
 from toon_format import decode, encode
 
-from backend.apps.code.tasks.run_code_task import RUN_CREDITS_PER_MINUTE as TASK_RUN_CREDITS_PER_MINUTE
+from backend.apps.code.tasks.run_code_task import RUN_CREDITS_PER_SECOND as TASK_RUN_CREDITS_PER_SECOND
 from backend.apps.code.tasks import run_code_task as code_run_task
 from backend.apps.code.tasks.run_code_task import _charge_run_credits
 from backend.apps.code.tasks.run_code_task import _safe_artifact_metadata
@@ -132,7 +133,7 @@ from backend.core.api.app.routes.code_execution import (
     CodeRunClientAttachment,
     CodeRunDependencyInstall as ApiCodeRunDependencyInstall,
     CodeRunClientFile,
-    RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
+    RUN_CREDITS_PER_SECOND as ROUTE_RUN_CREDITS_PER_SECOND,
     _collect_code_files,
     _dependency_installs_from_imports,
     _dependency_installs_from_install_snippets,
@@ -1150,9 +1151,9 @@ async def test_collect_code_files_accepts_selected_client_attachment_fallback() 
     assert base64.b64decode(files[1]["content_base64"]) == b"hello"
 
 
-def test_code_run_cost_is_three_credits_per_minute() -> None:
-    assert ROUTE_RUN_CREDITS_PER_MINUTE == 3
-    assert TASK_RUN_CREDITS_PER_MINUTE == 3
+def test_code_run_cost_is_five_hundredths_of_a_credit_per_second() -> None:
+    assert ROUTE_RUN_CREDITS_PER_SECOND == Decimal("0.05")
+    assert TASK_RUN_CREDITS_PER_SECOND == Decimal("0.05")
 
 
 def test_dependency_install_request_rejects_shell_values() -> None:
@@ -1417,7 +1418,7 @@ async def test_charge_run_credits_links_usage_to_chat(monkeypatch: pytest.Monkey
     assert requests[0]["json"]["usage_details"]["chat_id"] == CHAT_ID
     assert requests[0]["json"]["usage_details"]["message_id"] == MESSAGE_ID
     usage_details = requests[0]["json"]["usage_details"]
-    assert usage_details["credits_per_minute"] == 3
+    assert usage_details["credits_per_second"] == "0.05"
     assert usage_details["code_run_filenames"] == ["main.py"]
 
 
@@ -1457,7 +1458,7 @@ async def test_charge_run_credits_includes_code_run_runtime(monkeypatch: pytest.
         },
         10,
         "execution-1",
-        {"billing_phase": "completed", "duration_seconds": 61.234, "charged_minutes": 2},
+        {"billing_phase": "completed", "duration_seconds": 61.234, "charged_seconds": 61.234},
     )
 
     usage_details = requests[0]["json"]["usage_details"]

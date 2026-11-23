@@ -25,6 +25,8 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 
+from backend.shared.python_utils.voice_call_admission import resumed_voice_delivery
+
 logger = logging.getLogger(__name__)
 
 
@@ -192,6 +194,8 @@ async def _trigger_continuation_without_focus(
             # Signal that this is a continuation after focus mode rejection
             "is_focus_mode_continuation": True,
             # Continuation creates its own assistant message. Client merges for display when previous was focus activation.
+            # A call turn stays spoken; an ended call continues as a text turn.
+            **await resumed_voice_delivery(cache_service, pending_context, user_id=user_id, chat_id=chat_id),
         }
         
         from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload

@@ -55,6 +55,7 @@ def _create_tool() -> dict[str, Any]:
         {
             "title": {"type": "string", "description": "Short user-visible task title."},
             "link_to_chat": {"type": "boolean", "default": True, "description": "Link the created task to this chat; false leaves it unlinked."},
+            "plan_id": {"type": "string", "description": "Optional saved Plan to link the task to."},
             "description": {"type": "string", "description": "Optional task details or acceptance criteria."},
             "assignee_type": {"type": "string", "enum": ["user", "openmates"], "default": "user"},
             "status": {"type": "string", "enum": ["backlog", "todo", "in_progress", "blocked"], "default": "todo"},

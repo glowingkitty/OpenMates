@@ -53,3 +53,18 @@ async def resolve_account_contact_email(
             exc_info=True,
         )
         return None
+
+
+async def reporter_is_test_account(directus_service: Any, user_id: Optional[str]) -> bool:
+    """True when the reporting account carries the AI test-user label (`users.is_test_account`).
+
+    Owner, 20 Nov 2026: test accounts never send issue emails (admin notice and reporter
+    confirmation); their reports are still stored and readable. A failed lookup counts as a
+    real user, so a real report never loses its email; the failure is logged."""
+    if not user_id:
+        return False
+    fields = await directus_service.get_user_fields_direct(user_id, ["is_test_account"])
+    if fields is None:
+        logger.warning("Test-account label unreadable for issue report user %s; sending emails", user_id[:8])
+        return False
+    return fields.get("is_test_account") is True

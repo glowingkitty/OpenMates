@@ -165,3 +165,70 @@ async def test_created_project_card_leads_the_resumed_answer(monkeypatch):
     assert text[0] == "```json\n{\"type\":\"focus_mode_activation\",\"embed_id\":\"card\"}\n```\n\n"
     assert "Here is your recipe app." in "".join(text[1:])
     card.assert_awaited_once()
+
+
+CARRIED = "{\"type\":\"focus_mode_activation\",\"embed_id\":\"card\",\"project_created\":true}"
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.assistant-inferred
+async def test_created_project_card_is_kept_for_later_rewrites_of_the_reply(monkeypatch):
+    from backend.apps.ai.processing import project_focus_orchestration as orchestration
+    card = AsyncMock(return_value=CARRIED)
+    monkeypatch.setattr(orchestration, "created_project_activation_reference", card)
+    output, _ = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Writing the files."]], request_overrides={"is_async_skill_continuation": True},
+    )
+    assert [chunk for chunk in output if isinstance(chunk, str)][0] == f"```json\n{CARRIED}\n```\n\n"
+    # Async skills started later in this turn snapshot the request, card included.
+    assert card.await_args.kwargs["request_data"].created_project_card_reference == CARRIED
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.assistant-inferred
+async def test_a_later_continuation_leads_its_rewrite_with_the_carried_card(monkeypatch):
+    # The creation record was consumed by the first continuation, so the card
+    # comes from the request snapshot of the async skill that continuation started.
+    from backend.apps.ai.processing import project_focus_orchestration as orchestration
+    monkeypatch.setattr(orchestration, "created_project_activation_reference", AsyncMock(return_value=None))
+    output, _ = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["The app is committed."]],
+        request_overrides={"is_async_skill_continuation": True, "created_project_card_reference": CARRIED},
+    )
+    text = [chunk for chunk in output if isinstance(chunk, str)]
+    assert text[0] == f"```json\n{CARRIED}\n```\n\n"
+    assert "The app is committed." in "".join(text[1:])
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.assistant-inferred
+@pytest.mark.parametrize("carried", [
+    "not json",
+    "{\"type\":\"app_skill_use\",\"embed_id\":\"card\",\"project_created\":true}",
+    "{\"type\":\"focus_mode_activation\",\"embed_id\":\"card\"}",
+    "{\"type\":\"focus_mode_activation\",\"project_created\":true}",
+])
+def test_only_a_created_project_activation_reference_is_carried(carried):
+    from backend.apps.ai.processing.project_focus_orchestration import carried_created_project_reference
+    assert carried_created_project_reference(SimpleNamespace(created_project_card_reference=carried)) is None
+    assert carried_created_project_reference(SimpleNamespace(created_project_card_reference=CARRIED)) == CARRIED
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.assistant-inferred
+async def test_a_first_turn_never_shows_a_carried_card(monkeypatch):
+    from backend.apps.ai.processing import project_focus_orchestration as orchestration
+    monkeypatch.setattr(orchestration, "created_project_activation_reference", AsyncMock(return_value=None))
+    output, _ = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Hello."]],
+        request_overrides={"is_async_skill_continuation": False, "created_project_card_reference": CARRIED},
+    )
+    assert not any(isinstance(chunk, str) and "focus_mode_activation" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.assistant-inferred
+def test_a_reply_that_created_its_project_never_offers_another_project() -> None:
+    """Recipe proof 22 Nov: the model also activated an earlier Recipe Project; the reply held two activations."""
+    from backend.apps.ai.processing.project_focus_orchestration import focus_modes_after_project_creation
+
+    candidates = {"project-old": {"project_id": "old", "name": "Recipe Web App"}}
+    offered = ["project-old", "code-web-dev"]
+    card = '{"type": "focus_mode_activation", "embed_id": "e-1", "project_created": true}'
+    assert focus_modes_after_project_creation(offered, candidates, card) == ["code-web-dev"]
+    assert focus_modes_after_project_creation(offered, candidates, None) == offered

@@ -31,6 +31,7 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services import e2b_upload_consent
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.embed_service import EmbedService
 from backend.core.api.app.services.limiter import limiter
@@ -47,8 +48,11 @@ MAX_TOTAL_CHARS = 10_000_000
 MAX_ATTACHMENT_BYTES = 5_000_000
 MAX_TOTAL_ATTACHMENT_BYTES = 20_000_000
 EXECUTION_TTL_SECONDS = 3600
-# Catalog price per started sandbox minute (code.run pricing.per_minute).
-RUN_CREDITS_PER_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
+# Catalog price per sandbox second (code.run pricing.per_second); a run is charged
+# ceil(seconds * rate), at least 1 credit once started (code_execution_credits).
+RUN_CREDITS_PER_SECOND = skill_price("code", "run", "per_second")
+# Whole-credit minute rate for display and balance checks only; billing is per second.
+RUN_CREDITS_PER_MINUTE = whole_credits(RUN_CREDITS_PER_SECOND * 60)
 ACTIVE_RUN_TTL_SECONDS = 600
 MAX_ACTIVE_RUNS_PER_USER = 5
 PROVIDER_ACTIVE_RUN_TTL_SECONDS = 600
@@ -243,6 +247,8 @@ class CodeRunAppSkillRunItem(BaseModel):
 class CodeRunAppSkillRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    # Explicit per-request consent: recorded as allowed only when the account has no decision yet.
+    allow_e2b_upload: bool = False
     requests: list[CodeRunAppSkillRunItem] = Field(min_length=1, max_length=10)
 
 
@@ -1252,9 +1258,13 @@ async def start_code_run_execution(
     same_turn_batch_id: str | None = None,
     test_run: dict[str, Any] | None = None,
     command_run: dict[str, Any] | None = None,
+    directus_service: DirectusService | None = None,
+    parent_embed_id: str | None = None,
 ) -> CodeRunStartResponse:
-    if current_user.credits < RUN_CREDITS_PER_MINUTE:
+    if current_user.credits < 1:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
+    # Hard gate: nothing is queued (and no E2B slot reserved) without the account's consent.
+    await e2b_upload_consent.require_e2b_upload_consent(current_user.id, directus_service)
 
     # A cloud command runs exactly its argv; the Project snapshot is not a script
     # whose imports should trigger extra installs.
@@ -1318,6 +1328,8 @@ async def start_code_run_execution(
         "same_turn_batch_id": same_turn_batch_id,
         "test_run": test_run,
         "command_run": command_run,
+        # The chat's "Run" card of an assistant test run; the worker closes it when the run ends.
+        "parent_embed_id": parent_embed_id if test_run else None,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),
@@ -1396,6 +1408,7 @@ async def start_code_run(
         target_embed_id=body.target_embed_id,
         message_id=target_message_id if isinstance(target_message_id, str) else None,
         dependency_installs=body.dependency_installs,
+        directus_service=directus_service,
     )
 
 

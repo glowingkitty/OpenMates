@@ -10,6 +10,8 @@
 // ───────────────────────────────────────────────────────────────
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.layout.responsive-history, chats.surface.semantic-parity
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.start-row-suggestions
 
 import Foundation
 import SwiftUI
@@ -29,6 +31,9 @@ struct FollowUpSuggestions: View {
     let onSelect: (String) -> Void
     private let visibleSuggestions: [FollowUpSuggestionPresentation.Item]
     private let compact: Bool
+    private let singleLine: Bool
+    private let containerIdentifier: String
+    private let rowIdentifierPrefix: String?
 
     @State private var isDismissing = false
 
@@ -37,14 +42,21 @@ struct FollowUpSuggestions: View {
         category: String? = nil,
         icon: String? = nil,
         compact: Bool = false,
+        singleLine: Bool = false,
+        maxVisible: Int = 4,
+        containerIdentifier: String = "suggestions-wrapper",
+        rowIdentifierPrefix: String? = nil,
         onSelect: @escaping (String) -> Void
     ) {
+        self.singleLine = singleLine
+        self.containerIdentifier = containerIdentifier
+        self.rowIdentifierPrefix = rowIdentifierPrefix
         self.suggestions = suggestions
         self.category = category
         self.icon = icon
         self.compact = compact
         self.onSelect = onSelect
-        visibleSuggestions = FollowUpSuggestionPresentation.visibleItems(from: suggestions)
+        visibleSuggestions = FollowUpSuggestionPresentation.visibleItems(from: suggestions, limit: maxVisible)
     }
 
     private var itemSpacing: CGFloat {
@@ -63,8 +75,11 @@ struct FollowUpSuggestions: View {
                 ForEach(visibleSuggestions) { suggestion in
                     Button {
                         guard !isDismissing else { return }
-                        withAnimation(.easeOut(duration: 0.18)) {
-                            isDismissing = true
+                        // Single-line start rows only fill the composer; they stay visible.
+                        if !singleLine {
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                isDismissing = true
+                            }
                         }
                         onSelect(suggestion.body)
                     } label: {
@@ -74,6 +89,8 @@ struct FollowUpSuggestions: View {
                                 .fontWeight(.semibold)
                                 .foregroundStyle(Color.grey70)
                                 .multilineTextAlignment(.trailing)
+                                .lineLimit(singleLine ? 1 : nil)
+                                .truncationMode(.tail)
 
                             FollowUpEnterArrow()
                                 .stroke(
@@ -83,11 +100,12 @@ struct FollowUpSuggestions: View {
                                 .frame(width: 17, height: 17)
                                 .accessibilityHidden(true)
                         }
+                        .frame(maxWidth: singleLine ? .infinity : nil, alignment: .trailing)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .disabled(isDismissing)
-                    .accessibilityIdentifier("follow-up-suggestion-item")
+                    .accessibilityIdentifier(rowIdentifierPrefix.map { "\($0)\(suggestion.id)" } ?? "follow-up-suggestion-item")
                 }
             }
             .frame(maxWidth: 780, alignment: .trailing)
@@ -99,7 +117,7 @@ struct FollowUpSuggestions: View {
             .opacity(isDismissing ? 0 : 1)
             .allowsHitTesting(!isDismissing)
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("suggestions-wrapper")
+            .accessibilityIdentifier(containerIdentifier)
             .onChange(of: suggestions) { _, _ in
                 isDismissing = false
             }
@@ -133,8 +151,8 @@ enum FollowUpSuggestionPresentation {
         .map { Item(id: $0.offset, body: $0.element) }
     }
 
-    static func visibleItems(from suggestions: [String]) -> [Item] {
-        Array(items(from: suggestions).prefix(4))
+    static func visibleItems(from suggestions: [String], limit: Int = 4) -> [Item] {
+        Array(items(from: suggestions).prefix(limit))
     }
 
     private static func stripHTML(from value: String) -> String {

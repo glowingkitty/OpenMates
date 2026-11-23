@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.notifications@2
+specification: feature.notifications@3
 
 settings_ack:
   - id: email-enable-awaits-ack
@@ -235,9 +235,9 @@ web_duplicate_grouping:
     then: Alice sees one error card showing a total count of five, also readable by assistive technology. The first occurrence had no repeat badge; each later trigger increased the same card's count. Updating its display text alone does not increase the count.
   - id: similar-alerts-keep-distinct-targets-and-groups
     assertion_ids: [notifications.web.duplicate-grouping]
-    given: Alice has two chat notification cards with the same preview text but different destination chats, and two error alerts with the same message but different explicit grouping keys.
-    when: Each notification is triggered again for its original chat or grouping key; an unkeyed alert with the same error text is also triggered twice.
-    then: Each chat and explicitly keyed alert keeps its own card and count of two, and the unkeyed alert forms a separate card with a count of two. Different notification types, content, actions, or dismissal options likewise remain separate during automatic grouping.
+    given: Alice's page reloads mid-answer and ten saved results each raise the same warning text under their own grouping key and action.
+    when: The ten warnings fire, followed by a chat card with a different chat title and an error with the same text.
+    then: Alice sees one warning card showing ×10, which one close removes. The chat card and the error keep their own cards, because their type or visible text differs. Resolving one of the ten keys leaves the warning in place until the last key is resolved.
 
 web_duplicate_lifecycle:
   - id: one-dismissal-clears-all-repeats-and-recurrence-starts-fresh

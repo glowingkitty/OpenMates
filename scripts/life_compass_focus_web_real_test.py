@@ -1,7 +1,7 @@
 # contract-test-file: infrastructure
 """Opt-in dev-only real-inference browser proof of the Life coaching "Life compass" focus.
 
-Runs frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts without mocks against
+Runs frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts without mocks against
 https://app.dev.openmates.org: a synthetic exhausted founder talks to the focus, the agreed
 steps become Tasks, a "Life compass" Memory is saved after a clear yes, and a later chat
 approves the Memory and follows up on the steps. Screenshots, the Playwright video, the run
@@ -21,7 +21,7 @@ import os
 
 from design_embroidery_web_real_test import main
 
-SPEC = "tests/life-compass-focus-web-real.spec.ts"
+SPEC = "tests/real-inference-life-compass-focus.spec.ts"
 
 if __name__ == "__main__":
     os.environ["OPENMATES_PROOF_REAL_DEV"] = "1"

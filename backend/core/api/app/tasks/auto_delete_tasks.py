@@ -81,6 +81,10 @@ from backend.core.api.app.services.directus.user.device_management import (
     DEVICE_EXPIRY_DAYS,
     _normalize_device_list,
 )
+from backend.core.api.app.services.issue_report_screenshots import (
+    decrypt_screenshot_keys,
+    issue_has_screenshots,
+)
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -337,14 +341,14 @@ async def _delete_issue_s3_files(
         s3_service:         Initialized S3UploadService.
 
     Returns:
-        Number of S3 files successfully deleted (0, 1, or 2).
+        Number of S3 files successfully deleted (YAML plus every screenshot).
     """
     deleted = 0
 
     # Delete encrypted YAML report (issue-reports/…yaml.encrypted)
     yaml_key_enc = issue.get("encrypted_issue_report_yaml_s3_key")
-    screenshot_key_enc = issue.get("encrypted_screenshot_s3_key")
-    if yaml_key_enc or screenshot_key_enc:
+    has_screenshots = issue_has_screenshots(issue)
+    if yaml_key_enc or has_screenshots:
         await require_storage_available(s3_service)
 
     if yaml_key_enc:
@@ -354,10 +358,9 @@ async def _delete_issue_s3_files(
             deleted += 1
             logger.info("[IssueAutoDelete] Deleted issue report object")
 
-    # Delete screenshot PNG (issue-screenshots/….png)
-    if screenshot_key_enc:
-        s3_key = await encryption_service.decrypt_issue_report_data(screenshot_key_enc)
-        if s3_key:
+    # Delete every screenshot PNG (issue-screenshots/….png); legacy rows hold one key
+    if has_screenshots:
+        for s3_key in await decrypt_screenshot_keys(issue, encryption_service):
             await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_key)
             deleted += 1
             logger.info("[IssueAutoDelete] Deleted issue screenshot object")
@@ -424,7 +427,8 @@ async def _async_auto_delete_old_issues() -> Dict[str, Any]:
             'fields': (
                 'id,'
                 'encrypted_issue_report_yaml_s3_key,'
-                'encrypted_screenshot_s3_key'
+                'encrypted_screenshot_s3_key,'
+                'encrypted_screenshot_s3_keys'
             ),
             'limit': MAX_ISSUES_PER_RUN,
             'sort': 'created_at',  # oldest first

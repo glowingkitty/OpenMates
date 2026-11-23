@@ -1,7 +1,7 @@
 /** Encrypted hosted-file adapter shared by browser and CLI job executors. */
 import { applyProjectFilePatch } from "../utils/projectFilePatch";
 import { projectFileMutationDigest, type ProjectFileMutation } from "../utils/projectFileMutationProtocol";
-import type { ProjectFileJob } from "./projectFileJobExecutor";
+import type { ProjectFileJob } from "./projectFileJobTypes";
 import { matchesProjectSearchQuery, PROJECT_SEARCH_CONTENT_MAX_FILES, PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES, PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES } from "../utils/projectSearchProtocol";
 import { createProjectPathPolicy, type ProjectIgnoreFile, type ProjectPathPolicy } from "../utils/projectPathPolicy";
 import { normalizeHostedProjectPath, projectFileRule, settleHostedPath, settleProjectFileDecision, type ProjectFileDecider } from "./projectState/projectFilePolicy";

@@ -93,6 +93,20 @@ drafts:
     draft_preview_summary_contains: '[Image] Describe this photo'
     editor_can_collapse_to_preview: true
     focus_restores_rendered_embeds: true
+- id: project-mention-draft-preview-shows-project-name
+  given:
+    currentChatId: draft-chat-1
+    text: '@project:<project id>:read Add a harvest log to the planner'
+    mentioned_project_name: Garden planner
+    embeds: []
+  actions:
+  - save_draft
+  - blur_message_editor
+  expect:
+    draft_preview_summary_contains: '@Garden planner Add a harvest log to the planner'
+    start_screen_draft_card_contains: '@Garden planner Add a harvest log to the planner'
+    preview_contains_project_id: false
+    preview_contains_raw_mention_syntax: false
 - id: long-inactive-draft-preview-shortens-with-ellipsis
   given:
     currentChatId: draft-chat-1
@@ -416,3 +430,9 @@ signed_out_states:
   given: A signed-out visitor with guest chat open types "Capital of France?" and clicks Send, but the on-device privacy runtime never finishes loading.
   when: Fifteen seconds pass without the send reaching the server.
   then: A notification says the send is taking too long, the draft text stays in the composer, an active Send comes back, and the message is never sent twice.
+send_collapse:
+- id: phone-send-closes-keyboard-at-once
+  assertion_ids: [message-input.send.collapse-at-send]
+  given: On an iPhone-sized browser the user has expanded the composer to fullscreen and typed "Plan a relaxed weekend in Lisbon".
+  when: The user taps Send while the message is still being prepared and accepted.
+  then: The composer collapses, leaves fullscreen and loses focus at once so the keyboard closes; the text is not saved as a draft. If the send is then rejected, the text comes back in the expanded, focused composer.

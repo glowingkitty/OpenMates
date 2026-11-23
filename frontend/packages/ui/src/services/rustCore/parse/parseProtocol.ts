@@ -7,7 +7,7 @@
  * produced by the page compiler and cross the boundary only as opaque JSON.
  */
 import type { UnitProtocol } from '../host/unitPort';
-import type { ChatRecommendation, ContextEntryHistoryEvent, MemoryWriteUndoneEvent, ReconcileRecommendationsInput } from '../../../types/recommendations';
+import type { ChatRecommendation, ContextEntryHistoryEvent, MemoryWriteUndoneEvent, ReconcileRecommendationsInput, WorkflowStartSuggestion, WorkflowStartSuggestionsInput } from '../../../types/recommendations';
 
 export type ParsePhase = 'streaming' | 'final';
 export interface ParseBlockRef { id: string; markdown: string }
@@ -19,7 +19,8 @@ export type ParseOperation =
 	| { kind: 'commit-tail' }
 	| { kind: 'replace-block'; index: number; blockId: string }
 	| { kind: 'delete-block'; index: number; blockId: string }
-	| { kind: 'convergence-failure'; reason: 'non-local-divergence' };
+	| { kind: 'convergence-failure'; reason: 'non-local-divergence' }
+	| { kind: 'replace-document'; reason: 'non-local-divergence' };
 /** `reuse` is the previous committed index whose compiled document is reused; null means compile. */
 export interface ParsePlan {
 	committed: Array<ParseBlockRef & { reuse: number | null }>;
@@ -40,6 +41,8 @@ export interface ParseUnitProtocol extends UnitProtocol {
 	recoverGeneratedImages: { request: { source: string; parents: string }; response: Record<string, unknown> | null };
 	/** Chat Recommendations duplicate/dismiss policy (packages/openmates-rust/src/client/recommendations.rs). */
 	reconcileRecommendations: { request: { input: ReconcileRecommendationsInput }; response: ChatRecommendation[] };
+	/** Start-screen workflow suggestions of many chats' Recommendations states (workflow_start_suggestions.rs). */
+	workflowStartSuggestions: { request: { input: WorkflowStartSuggestionsInput }; response: WorkflowStartSuggestion[] };
 	/** Validated context_entry system message content (JSON text). */
 	buildContextEntryEvent: { request: { event: ContextEntryHistoryEvent }; response: string };
 	/** Event object, or null when the content is not a valid context_entry event. */
@@ -56,6 +59,7 @@ export interface ParseBinding {
 	parse_image_recovery_parents(sourceJson: string): string;
 	parse_recover_generated_images(sourceJson: string, parentsJson: string): string;
 	parse_reconcile_recommendations(inputJson: string): string;
+	parse_workflow_start_suggestions(inputJson: string): string;
 	parse_build_context_entry_event(eventJson: string): string;
 	parse_context_entry_event(content: string): string;
 	parse_memory_write_undone(content: string): string;
@@ -64,7 +68,7 @@ export interface ParseBinding {
 const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = [
 	'parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues',
 	'parse_image_recovery_parents', 'parse_recover_generated_images',
-	'parse_reconcile_recommendations', 'parse_build_context_entry_event', 'parse_context_entry_event',
+	'parse_reconcile_recommendations', 'parse_workflow_start_suggestions', 'parse_build_context_entry_event', 'parse_context_entry_event',
 	'parse_memory_write_undone',
 ];
 

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.projects
 version: 2
-status: draft
+status: approved
 title: Projects
 summary: 'Projects are encrypted Personal or Team workspaces that organize OpenMates artifacts and context, including Specifications,
   Plans, Tasks, and materialized Checks, through file-like previews and consistent fullscreen detail surfaces.
@@ -349,6 +349,13 @@ assertions:
     capable executor is ready, within the original request and after current focus, role, path, write-policy, approval, and
     base checks. Another logged-in device is not automatically an authorized executor. The server must not bypass client-side
     encryption to keep working. Waiting alone must not run repeated model calls or consume model tokens.
+- id: projects.files.executor-answers
+  type: behavior
+  must: An authorized client that receives a Project file operation answers it within seconds. When it cannot execute the
+    operation (for example its privacy layer or the chat key is unavailable in that client), it reads, decrypts and transmits
+    nothing and reports the operation failed with a stable error code, so the assistant can tell the user instead of waiting
+    silently for minutes. The waiting state of projects.files.executor-wait applies only when no capable executor received the
+    operation.
 - id: projects.files.wait-deadlines
   type: invariant
   must: Deterministic processing persists one waiting episode for the chat interruption, with a start time, a reminder due
@@ -533,7 +540,52 @@ assertions:
 - id: projects.keys.client-wrapped
   type: privacy
   must: Project keys remain client-wrapped for the authorized Personal or Team context; Team wrappers include hashed Team
-    identity and key epoch and no surface exposes raw Project keys.
+    identity and key epoch and no surface exposes raw Project keys. The only hand-over of a Project key outside the user's
+    devices is the sealed grant to a hosted Project job's own E2B sandbox in projects.keys.sandbox-sealed-handover.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.keys.sandbox-sealed-handover
+  type: privacy
+  must: For an agent job on a hosted Project, a device that holds the Project key gives it only to that job's E2B sandbox,
+    sealed to the sandbox's fresh in-memory X25519 public key, with the sandbox id, job id, Project id and an expiry bound
+    inside the sealed grant. The OpenMates server only relays the sealed grant, which it cannot open, and never stores, logs
+    or traces it. The sandbox refuses a grant whose binding or expiry does not match, keeps the key in memory only, and the
+    key is gone when the sandbox is killed. The server moves only ciphertext into the sandbox and commits only revisions the
+    sandbox encrypted; Project keys and files stay client-encrypted at rest.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.jobs
+  type: behavior
+  must: Every agent job in a chat on a hosted Project of a user who allows E2B processing runs its Project file operations
+    and commands in that chat's E2B sandbox, which holds the decrypted Project as a normal file tree. The job uses the model
+    that the user or model routing picks, as in any other chat. Sandbox time is billed per second.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.lifetime
+  type: privacy
+  must: A Project sandbox is killed 15 minutes after its last activity and at the latest 4 hours after it started; the user
+    can opt in per job to up to 24 hours, for jobs that should go on while every device is closed. A sandbox is never paused,
+    so neither the key nor plaintext rests at E2B, and the server kills any sandbox past its maximum or without a job record.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.write-back
+  type: invariant
+  must: Each file change in the sandbox is committed as it happens as a new encrypted revision against the revision it was
+    based on. When another device changed the file meanwhile, a three-way merge keeps both edits; a real conflict goes to the
+    assistant while the job runs and is offered as a proposed change after it ended. No device's edit is overwritten or lost.
+    The sandbox holds only the Project key, so a file it creates carries only the Project key wrapper; only the server's
+    sandbox write-back may store such a create, and creates sent by devices still need both wrappers.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.device-fallback
+  type: behavior
+  must: Users who decline E2B processing keep today's device-based execution of Project file operations unchanged, as a slow
+    fallback for small edits that receives no further development.
   depends_on:
   - models.ProjectKeyWrapper
   - examples.project_key_wrappers
@@ -674,8 +726,10 @@ assertions:
   type: behavior
   must: When a chat without an active Project asks the assistant to build a multi-file application such as a web app or
     a native app, preprocessing decides that a new Project is needed and the Project is created without a confirmation
-    step. The chat shows a created-Project card with an undo control, the Project uses the Apply and show write policy,
-    and its default Work on (project) focus becomes active in that chat at once. The assistant reply starts with that focus
+    step. The chat shows the system event "Created <name> project · Undo" in the style of the other chat system
+    events, with the Project name as a link and Undo as a small text link, followed by the regular focus activation
+    embed; the Project uses the Apply and show write policy, and its default Work on (project) focus becomes active in
+    that chat at once. The assistant reply starts with that focus
     shown as already active (no countdown, no accept or reject) and marked as following the Project creation, and every
     client keeps it as the chat's active focus, also after a reload. A request for a single script or snippet
     creates no Project. Undo removes the Project and its focus but leaves the chat and its embeds intact. Creation uses
@@ -732,6 +786,27 @@ assertions:
     browser tests, the recording) that is shown in the assistant reply that interprets the run, also when the model does
     not link it itself, so every client shows the failing and the passing runs in the chat. This holds as well when
     several runs of one turn resume together.
+  depends_on:
+  - examples.project_agentic_coding
+- id: projects.agentic.earlier-steps-stay
+  type: behavior
+  must: A coding turn that continues after a command, a test run or another background step keeps every earlier step of
+    its reply visible while the next step streams and after it finishes. The skill cards the earlier steps showed (Run,
+    Read files, web research) lead the continued reply in their original order, and the assistant's skill area holds
+    only skill cards, never file content; a command's terminal output belongs to its Run card, never to the reply as a
+    separate code block. The server keeps only the references of those cards between steps, never their text.
+  depends_on:
+  - examples.project_agentic_coding
+- id: projects.agentic.files-as-code-embeds
+  type: behavior
+  must: In a chat on a cloud Project, every file the assistant creates appears as a normal code embed inside its reply,
+    streaming live as it is written, exactly as when a user asks for code in a normal chat, and that embed is the
+    Project file, saved in the Project before any later command of the turn runs. An edit of an existing file appears
+    as the normal diff embed and is saved as a new revision of that Project file. The files of a step sit in the normal
+    horizontal embed row with show more at its end. The reply refers to those files with the normal inline embed
+    references instead of listing folder or file names as plain text. No separate "File changed" or "Project file
+    changed" entry is shown, neither in the reply nor below the chat; "Created <name> project · Undo" stays the system
+    event above the reply, followed by the focus activation embed.
   depends_on:
   - examples.project_agentic_coding
 - id: projects.agentic.test-run-installs-dependencies
@@ -797,6 +872,70 @@ assertions:
     folders without Git are edited directly as before.
   depends_on:
   - examples.project_chat_worktrees
+- id: projects.presentation.tile
+  type: behavior
+  must: Each Project tile in the Projects workspace (recent row and Show all grid) shows the Project name, its one-line
+    description when it has one, its icon and the colour gradient of its category, which are the same category gradients
+    chats use. A Project without a category keeps the Projects gradient and its icon falls back to the category icon,
+    then to a folder.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.encrypted
+  type: privacy
+  must: Description, icon, category and the record of who set each of them are stored only encrypted with the Project
+    key, like the Project name. The server sees only ciphertext; it handles plaintext only transiently while proposing
+    values and never stores or logs it.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.normalised
+  type: invariant
+  must: A proposed description is one line of at most 140 characters, cut at a word boundary; an icon is a kebab-case
+    icon name of at most 40 characters; a category is one of the chat categories other than the internal OpenMates and
+    onboarding ones. Anything else is dropped, never guessed.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.creation-same-call
+  type: behavior
+  must: When the assistant creates a Project, the same short naming call that names it also writes the description from
+    the user's first request and picks the icon and the category; the projects.create skill takes them as tool arguments.
+    Creation adds no model call, and the client encrypts the values into the new Project.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.specification-refresh
+  type: behavior
+  must: The first time the user approves a Specification of a Project, the client asks for a new description, icon and
+    category from that Specification's title and summary and writes them once. Later approvals change nothing.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.manual-lock
+  type: invariant
+  must: The user can change the description, icon and category of a Project by hand. A field the user changed, including
+    a description cleared by hand, is never overwritten by the assistant, the Specification refresh or the backfill.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.dominant-category
+  type: behavior
+  must: For a mixed Project the strongest evidence decides the category. At creation the user's request decides, on
+    Specification approval the Specification decides, and in the backfill the category most of the Project's chats share
+    decides, with a tie going to the most recently updated of those chats; without categorised chats the proposal decides.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.backfill
+  type: behavior
+  must: A Project created before presentation existed, that has at least one item, is described once by a client that can
+    decrypt it, the next time that client opens the Projects workspace (at most five Projects per visit, one after the
+    other). Values the Project already had count as the user's. A Project too thin to describe gets an icon and a category
+    but no invented description. Whether a Project has items comes from the item count in the Project list, which the
+    server counts live from the Project's items.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.suggest-route
+  type: security
+  must: Description, icon and category proposals outside creation come from one first-party route that requires a signed-in
+    session (no API keys), is rate limited per user, charges no credits, uses one small model call, bounds its input and
+    stores nothing.
+  depends_on:
+  - examples.project_presentation
 applies_to:
   rest_api:
     required: true
@@ -915,6 +1054,7 @@ examples:
   - project_uploads
   - project_document_creation
   - project_assistant_creation
+  - project_presentation
   - project_application_files
   - project_commits
   - project_chat_worktrees

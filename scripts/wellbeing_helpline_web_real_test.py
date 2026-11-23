@@ -2,7 +2,7 @@
 # contract-test-file: infrastructure
 """Opt-in dev-only real-inference browser proof for wellbeing support.
 
-Runs frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts without mocks
+Runs frontend/apps/web_app/tests/real-inference-wellbeing-helpline.spec.ts without mocks
 against https://app.dev.openmates.org: acute distress in a second turn gets a
 supportive answer with the helpline card; a clearly fictional dark scene gets
 an answer and no card. Wellbeing never records strikes, so the personal dev
@@ -22,7 +22,7 @@ import sys
 
 from design_embroidery_web_real_test import main
 
-SPEC = "tests/wellbeing-helpline-real.spec.ts"
+SPEC = "tests/real-inference-wellbeing-helpline.spec.ts"
 
 if __name__ == "__main__":
     sys.exit(main(spec=SPEC, title="Wellbeing helpline", doc=__doc__))

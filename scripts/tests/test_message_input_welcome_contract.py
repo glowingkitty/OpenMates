@@ -57,8 +57,12 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert "opacity:0;" in welcome
     assert "visibility:hidden;" in welcome
     assert "display:none;" not in welcome
-    for region in ("daily-inspiration-area", "center-content", "guest-interest-tags-overlay", "top-buttons"):
+    # The Daily Inspiration banner is gone (TASK-1321); its cards now live in the
+    # start row inside center-content, which must hide with the welcome.
+    for region in ("center-content", "guest-interest-tags-overlay", "top-buttons"):
         assert f".{region}.welcome-hiding" in source
+    assert ".center-content.welcome-hiding .recent-chats-scroll-container" in source
+    assert "daily-inspiration-area" not in source, "No Daily Inspiration banner region on the start screen"
     assert 'const hideWelcomeContent = $derived(hideWelcomeForKeyboard || (showWelcome && showVoiceCallBarHere));' in source
     assert 'class:welcome-hiding={hideWelcomeContent}' in source
     assert 'inert={hideWelcomeContent}' in source
@@ -131,7 +135,9 @@ def test_expanded_landing_intro_preserves_measurable_composer_reserve() -> None:
     assert 'class:composer-focused={messageInputFocused}' in source
     assert 'inert={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}' in source
     assert 'aria-hidden={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}' in source
-    assert "{#key guestLandingIntroResetToken}" in source
+    # The start screen no longer mounts the Daily Inspiration banner (TASK-1321), so there is
+    # no banner to remount on reset; the reset itself must still run on every exit path.
+    assert "guestLandingIntroResetToken" not in source
     assert source.count("resetGuestLandingIntroState();") >= 4
     assert "bottom: calc(0px - var(--landing-intro-input-reserve, 0px));" in banner_source, (
         "The landing intro overlay must extend through the measured composer reserve"

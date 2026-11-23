@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 _KEY_FIELD = "encrypted_project_key"
 _CACHED_PROJECT_FIELDS = {
     "project_id", "encrypted_name", "encrypted_slug", "encrypted_description",
-    "encrypted_icon", "encrypted_color", "pinned", "archived", "is_private",
+    "encrypted_icon", "encrypted_color", "encrypted_category", "encrypted_presentation_state", "pinned", "archived", "is_private",
     "is_shared", "version", "updated_at", "last_opened_at", "item_count",
 }
 _WATERMARK_FIELDS = (

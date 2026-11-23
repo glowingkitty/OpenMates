@@ -31,6 +31,8 @@ from backend.shared.python_utils.chat_completion_recovery_job import build_seale
 if TYPE_CHECKING:
     from backend.apps.ai.processing.postprocessor import PostProcessingResult
 
+from backend.shared.python_utils.voice_call_admission import paused_voice_delivery
+
 logger = logging.getLogger(__name__)
 
 
@@ -215,6 +217,22 @@ def build_preprocessing_result(fixture_data: Dict[str, Any]) -> PreprocessingRes
         relevant_app_skills=preprocessing.get("relevant_app_skills", []),
         llm_response_temp=preprocessing.get("llm_response_temp"),
         complexity=preprocessing.get("complexity"),
+    )
+
+
+def fixture_answering_mate_id(preprocessing_result: PreprocessingResult, mates: List[Any]) -> Optional[str]:
+    """The Mate that answers a replayed turn.
+
+    Many fixtures record the placeholder mate "default". A real turn is always
+    answered by a real Mate (the one of its category), so a replayed call turn
+    speaks in that Mate's voice instead of staying silent.
+    """
+    known = {getattr(mate, "id", None) for mate in mates}
+    if preprocessing_result.selected_mate_id in known:
+        return preprocessing_result.selected_mate_id
+    return next(
+        (mate.id for mate in mates if getattr(mate, "category", None) == preprocessing_result.category),
+        None,
     )
 
 
@@ -479,10 +497,15 @@ async def replay_fixture(
 
     if memory_request_key:
         from backend.apps.ai.processing.memory_permission_request import issue_memory_permission_request
+        from backend.apps.ai.utils.mate_utils import load_mates_config
+        mates = load_mates_config()
         request_id = await issue_memory_permission_request(
             request_data=request_data, missing_keys=[memory_request_key], task_id=task_id,
             cache_service=cache_service, encryption_service=encryption_service,
             user_vault_key_id=user_vault_key_id, log_prefix=f"[MOCK fixture={fixture_id}]",
+            mates=mates,
+            answering_mate_id=fixture_answering_mate_id(preprocessing_result, mates),
+            output_language=getattr(preprocessing_result, "output_language", None),
         )
         if not request_id:
             raise RuntimeError("[MOCK] The Memory permission request message could not be created")
@@ -812,6 +835,7 @@ def _build_mock_pending_focus_activation_context(
         "recovery_turn_id": request_data.recovery_turn_id,
         "recovery_public_key": request_data.recovery_public_key,
         "chat_key_version": request_data.chat_key_version,
+        **paused_voice_delivery(request_data),
     }
 
 
@@ -1029,7 +1053,7 @@ async def _recreate_fixture_embeds(
                     celery_app_instance.send_task(
                         "apps.ai.tasks.focus_mode_auto_confirm",
                         kwargs={"chat_id": request_data.chat_id},
-                        queue="app_ai",
+                        queue="app_ai_routing",  # focus timers use the short stage-one lane
                         countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
                     )
                     logger.info(

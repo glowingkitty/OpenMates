@@ -61,4 +61,27 @@ test.describe('Chat context menu', () => {
     await list.getByTestId('chat-context-mark-unread').click();
     await expect(list.locator('[data-usage-id]').first()).toHaveAttribute('data-testid', 'chat-context-mark-unread');
   });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  test('shows privacy placeholders in the summary by their short label, never with the nonce', async ({ page }, testInfo) => {
+    const chat = {
+      chat_id: 'anonymous-preview-menu-privacy',
+      is_anonymous: true,
+      title: 'Save job application profile memory',
+      chat_summary: 'Saved a memory about the sales lead role at [PERSON_NAME_1_28b05927d8a946ec] with ask-first permission.',
+      created_at: 1788883200,
+      updated_at: 1788883200,
+      messages_v: 1,
+      title_v: 1,
+      unread_count: 0,
+    };
+    const params = new URLSearchParams({ chrome: '0', theme: 'dark', width: '420', props: JSON.stringify({ chat }) });
+    await page.goto(`/dev/preview/chats/ChatContextMenu?${params}`);
+    await waitForComponentPreview(page);
+    const menu = page.getByTestId('context-menu');
+    await expect(menu).toContainText('the sales lead role at [PERSON_NAME_1] with ask-first permission');
+    await expect(menu).not.toContainText('28b05927d8a946ec');
+    await testInfo.attach('context-menu-privacy-summary', { body: await menu.screenshot(), contentType: 'image/png' });
+  });
 });
+

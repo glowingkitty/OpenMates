@@ -38,6 +38,8 @@ MARGIN_MM = 1.0
 # A jump to the next shape of the same thread longer than this gets a trim first,
 # so no connecting stitch is left lying across the fabric between separate shapes.
 TRIM_DISTANCE_MM = 1.0
+# Shape index of the sew-on border's parts (they belong to no source element).
+BORDER_INDEX = -1
 # A fill whose mean width (2 x area / outline length) is below this is sewn across its length.
 NARROW_BAND_MM = 3.0
 
@@ -479,11 +481,11 @@ def finish_order(ordered: list[Shape2D]) -> None:
                             and shape.geom.distance(following.geom) > TRIM_DISTANCE_MM)
 
 
-def prepare(svg_text: str, scan: SourceScan, width_mm: float, start_colour: str | None = None) -> Prepared:
+def prepare(svg_text: str, scan: SourceScan, width_mm: float, end_colour: str | None = None) -> Prepared:
     """Apply the fixed rules and return the shapes in sewing order with notes.
 
-    ``start_colour`` is the thread already in the machine (a sew-on border's), so
-    shapes of that colour that can be sewn at once come first.
+    ``end_colour`` is the thread sewn right after the design (a sew-on border's),
+    so shapes of that colour are sewn as late as their stacking allows.
     """
     source, dropped, width, height = load_and_scale(svg_text, scan, width_mm)
     notes: list[dict[str, str | int]] = []
@@ -504,7 +506,7 @@ def prepare(svg_text: str, scan: SourceScan, width_mm: float, start_colour: str 
     naive_changes = colour_changes([shape.colour for shape in shapes])
     deps = _dependencies(shapes)
     items = [OrderItem(k, shape.colour, shape.kind, shape.centre()) for k, shape in enumerate(shapes)]
-    ordered = [shapes[k] for k in plan_order(items, deps, start_colour=start_colour)]
+    ordered = [shapes[k] for k in plan_order(items, deps, end_colour=end_colour)]
     ordered = _bands_to_satin(_split_parts(_merge_blocks(ordered)))
     finish_order(ordered)
     grouped_changes = colour_changes([shape.colour for shape in ordered])

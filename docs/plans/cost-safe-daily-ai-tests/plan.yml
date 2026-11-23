@@ -107,7 +107,7 @@ context_discovery:
     - scripts/tests/test_run_tests_backend_mock_preflight.py
     - scripts/tests/test_release_core_journeys_gate.py
     - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
-    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
   verified_facts:
     - TEST_MOCK is not a full-provider replay because postprocessing remains real.
     - Live replay fails on covered cache misses rather than calling the real provider.

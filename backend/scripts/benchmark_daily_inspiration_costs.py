@@ -432,7 +432,7 @@ async def worker(options):
     from backend.shared.providers.typesafe import client as jev_client
 
     modules = {name: importlib.import_module(PACKAGE + '.' + name)
-               for name in ('generator', 'wiki_generator', 'video_processor', 'feature_suggestions')}
+               for name in ('generator', 'wiki_generator', 'video_processor')}
     if options.mode == 'original':
         modules['validator'] = importlib.import_module(PACKAGE + '.validator')
         expected_root = Path(options.historical_source_dir).resolve()
@@ -660,7 +660,7 @@ async def worker(options):
                        'historical_ref': BASELINE_REF if options.mode == 'original' else None,
                        'source_sha256': {name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
                                          for name, module in modules.items()},
-                       'requested_counts': {'video': 3, 'wiki': 3, 'feature': 4},
+                       'requested_counts': {'video': 3, 'wiki': 3},
                        'runtime_tariff_sha256': {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                            for relative in ('backend/providers/mistral.yml', 'backend/providers/google.yml',
                                             'backend/providers/inception.yml', 'backend/providers/brave.yml')},
@@ -676,13 +676,10 @@ async def worker(options):
                 except BaseException as error:
                     row.update(status='interrupted' if isinstance(error, asyncio.CancelledError) else 'failed', error=type(error).__name__)
                 finally:
-                    tips = modules['feature_suggestions'].build_feature_inspirations(4, language=language)
-                    row['items'].extend(item.model_dump(mode='json') for item in tips)
-                    row.setdefault('counts', {})['feature'] = len(tips)
                     row['seconds'] = time.monotonic() - stamp
                     row['source_ids'] = [item.get('video', {}).get('youtube_id') if item.get('video') else
                         item.get('wiki', {}).get('wiki_title') for item in row['items'] if item.get('video') or item.get('wiki')]
-                    row['full_ten_card_refresh'] = row['counts'] == {'video': 3, 'wiki': 3, 'feature': 4}
+                    row['full_six_card_refresh'] = row['counts'] == {'video': 3, 'wiki': 3}
                     summarize_row(row)
                     atomic_json(path, row)
                     ACTIVE.reset(token)
@@ -764,7 +761,7 @@ def main():
             for path in (root / mode_output_name(mode, options.historical_deadline_seconds)).glob('*.json')]
     pool_rows = [json.loads(path.read_text()) for path in (root / 'current-pool-review').glob('*.json')]
     atomic_json(root / 'summary.json', {'processes': results, 'refreshes': [
-        {key: row.get(key) for key in ('mode', 'language', 'status', 'counts', 'full_ten_card_refresh', 'logical_facade_calls', 'logical_search_calls', 'observed_models', 'seconds', 'cost', 'source_ids')}
+        {key: row.get(key) for key in ('mode', 'language', 'status', 'counts', 'full_six_card_refresh', 'logical_facade_calls', 'logical_search_calls', 'observed_models', 'seconds', 'cost', 'source_ids')}
         for row in rows], 'separate_current_pool_review_samples': [
             {key: row.get(key) for key in ('language', 'status', 'input_count', 'output_count', 'seconds', 'cost', 'scope')}
             for row in pool_rows],

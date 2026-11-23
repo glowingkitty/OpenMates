@@ -15,6 +15,9 @@
   import { getProject, type ProjectViewModel } from '../../../services/projectService';
   import { createProjectCheck } from '../../../services/projectCheckService';
   import { text } from '../../../i18n/translations';
+  import { openChatById } from '../plans/planEmbedModel';
+  import { loadSpecPlanLinks } from '../specifications/loadSpecPlanLinks';
+  import type { SpecPlanTask } from '../specifications/specPlanLinks';
   import CheckEmbedFullscreen from './CheckEmbedFullscreen.svelte';
   import { checkViewFromSkill, draftFromSkill } from './checkSkillView';
 
@@ -29,9 +32,11 @@
   let saving = $state(false);
   let saved = $state(false);
   let failed = $state(false);
+  let planTasks = $state<SpecPlanTask[] | undefined>(undefined);
 
   onMount(async () => {
     const chatId = sourceChat?.chatId ?? get(activeChatStore);
+    void loadSpecPlanLinks(chatId).then((links) => { if (links) planTasks = links.tasks; });
     try {
       const index = chatId ? await loadChatProjectIndex() : [];
       const home = index.find((entry) => entry.chats.some((chat) => chat.chatId === chatId));
@@ -56,7 +61,7 @@
   }
 </script>
 
-<CheckEmbedFullscreen {check} {onClose} {embedId} {hasPreviousEmbed} {hasNextEmbed}
+<CheckEmbedFullscreen {check} {onClose} {planTasks} onOpenChat={openChatById} {embedId} {hasPreviousEmbed} {hasNextEmbed}
   {onNavigatePrevious} {onNavigateNext} navigateDirection={navigateDirection ?? undefined}
   {showChatButton} {onShowChat} showActions={false}
   onRun={() => {}} onCancel={() => {}} onConfirm={() => {}} onSelectRun={() => {}} onOpenTestResult={() => {}}>

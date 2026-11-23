@@ -29,9 +29,18 @@ def isolated_voice_completion_fixture(text: str) -> str | None:
     if not isolated_voice_fixture_enabled():
         return None
     return {
-        "How do I make": "incomplete",
+        # A held turn: the CI microphone fixture pauses for longer than the 2 s
+        # still-thinking window, so it is classified as an open hold (no deadline).
+        "How do I make": "hold",
         "How do I make ramen?": "complete",
     }.get(text)
+
+
+def isolated_voice_intent_fixture(text: str) -> str | None:
+    """Model-judged waiting intent of known CI microphone transcripts, behind every CI guard."""
+    if not isolated_voice_fixture_enabled():
+        return None
+    return {"Wait a second.": "wait", "I am back.": "resume", "Repeat that.": "repeat"}.get(text)
 
 
 VOICE_RICH_SOURCE_URL = "https://app.dev.openmates.org/store-examples/generate-1.webp"

@@ -295,6 +295,8 @@ export interface UserPlanDetailState {
 }
 
 export interface CreateUserPlanInput {
+  /** Server-chosen id (assistant-requested Plans); a fresh id when omitted. */
+  planId?: string;
   title: string;
   goal: string;
   scopeIn?: string;
@@ -909,7 +911,7 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   if (work) {
     // Rust validates first (the TS refusal precedence), then the page makes and wraps the key.
     const timestamp = nowSeconds();
-    const request = await workDecide<WorkRequest>(work, "planCreateBody", { input, plan_id: crypto.randomUUID(), timestamp });
+    const request = await workDecide<WorkRequest>(work, "planCreateBody", { input, plan_id: input.planId ?? crypto.randomUUID(), timestamp });
     const planKey = generateEmbedKey();
     const encryptedPlanKey = await encryptChatKeyWithMasterKey(planKey);
     if (!encryptedPlanKey) throw new Error("Could not wrap plan key with master key");
@@ -929,7 +931,7 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   const timestamp = nowSeconds();
   const primaryChatId = input.primaryChatId ?? null;
   const body: EncryptedUserPlanRecord = {
-    plan_id: crypto.randomUUID(),
+    plan_id: input.planId ?? crypto.randomUUID(),
     ...(await encryptPlanFields(input, planKey)),
     encrypted_linked_project_ids: await encryptWithEmbedKey(JSON.stringify(linkedProjectIds), planKey),
     status: input.status ?? "draft",

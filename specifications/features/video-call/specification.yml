@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 17
+version: 19
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -190,6 +190,19 @@ assertions:
     encrypted persistence and chat UI, with no separate live-model continuation or bypass of cancellation.
   depends_on:
   - examples.memories_and_focus
+- id: video-call.chat.permission-prompt
+  type: behavior
+  must: When a call turn waits for the user's tap (memory sharing or another approval), the call plays a distinct "needs
+    you" chime and then a ready-made line in the answering Mate's voice and the user's language saying what is needed;
+    after the tap a short ready-made confirmation is spoken and the answer is spoken as usual, including after a focus
+    activation or rejection. Approval is only ever a manual tap. In a call a memory request shows a countdown, is
+    reminded aloud after about 15 seconds and after about 30 seconds continues without memories, says so, and records
+    an encrypted "memory request timed out" event in the chat that is never sent to the AI. Text chats never cancel a
+    request on their own and offer a clear "Continue without memories" action. Ready-made lines cost no credits.
+    After approval, in calls and text chats, the user message shows each included memory by its title with its icon
+    in a round circle in its colour, as memories show elsewhere, never a bare count such as "(1)".
+  depends_on:
+  - examples.permission_prompt
 - id: video-call.chat.assistant-identity
   type: behavior
   must: Assistant chat messages lacking a Mate category use OpenMates as their fallback name and the shipped OpenMates
@@ -248,7 +261,8 @@ assertions:
     call/turn identities. The ordinary assistant stream owns the full rich message and its encrypted persistence. Speech-only
     text never overwrites rich content. Duplicate events, late packets, reconnect and reload do not duplicate a turn.
     Interrupted assistant text remains recoverable with its actual heard boundary; text conversation can continue after
-    hangup. Listener acknowledgements do not become new tasks.
+    hangup. Listener acknowledgements do not become new tasks. Every word of every consecutive turn arrives in order;
+    a slow credit check or per-minute charge never delays the live transcript or the forwarding of later microphone audio.
   depends_on:
   - examples.migration_canonical_rich_history
 - id: video-call.chat.typed-input
@@ -259,6 +273,22 @@ assertions:
     answer model.
   depends_on:
   - examples.migration_typed_normal_turn
+- id: video-call.chat.stt-special-terms
+  type: behavior
+  must: A chat may keep a short list of special terms (names, product words), stored client-encrypted with the chat like
+    other chat content. The call device sends the list in plaintext only over the authenticated call connection, the same
+    exposure as the call audio. The server validates it (bounded count and length), passes it to speech recognition as
+    recognition hints for that call only, keeps it in memory and never persists or logs it. Invalid lists are rejected
+    without ending the call.
+  depends_on:
+  - examples.stt_special_terms
+- id: video-call.chat.pasted-text-not-read-aloud
+  type: behavior
+  must: Text pasted into the call composer is marked as pasted on the call connection. The assistant must not read pasted
+    text aloud; it summarises it or refers to it. Typed text is still answered aloud and the mark is held server-side for
+    that call turn only.
+  depends_on:
+  - examples.pasted_text
 - id: video-call.audio.single-owner
   type: invariant
   must: The call owns microphone capture and the shared assistant speech player while connecting or active. Composer
@@ -352,7 +382,7 @@ assertions:
     visible; the user can expand it again. Visual capture uses bounded sampled frames at no more than one per second;
     only the exact owner-encrypted source attachment selected for a request enters ordinary multimodal processing, never
     the STT socket. The native Apple apps (iOS, iPadOS, macOS) offer the same Video control, preview, permission and
-    bounded-frame rules. Web screen sharing remains a follow-up.
+    bounded-frame rules. Web calls offer screen sharing on desktop browsers with getDisplayMedia.
   depends_on:
   - examples.migration_camera_ordinary_input
 - id: video-call.video.apple-screen-share
@@ -362,8 +392,19 @@ assertions:
     per second, 1280x720, the camera's size cap) in the app's shared container, and the call sends it as visual input
     marked as screen under the same rules as camera frames; the camera takes precedence while it is on. The frame the
     broker selects for a turn is saved as the exact source attachment under the same provenance rules as camera frames.
-    Stopping the broadcast turns visual input off; ending the call discards the frame. macOS, watchOS and web do not
+    Stopping the broadcast turns visual input off; ending the call discards the frame. macOS and watchOS do not
     offer screen sharing yet.
+  depends_on:
+  - examples.source_frames
+- id: video-call.video.web-screen-share
+  type: behavior
+  must: A web call offers Share screen only where the browser supports display capture (feature detection of
+    getDisplayMedia, never user-agent sniffing; touch-only devices are excluded), so it appears on desktop Chrome,
+    Edge, Firefox and macOS Safari and never on iOS, iPadOS or Android browsers. Sharing starts and stops only by the
+    user's tap, replaces a running camera, and shows 'You are sharing your screen' with a Stop button; ending the
+    share from the browser's own stop-sharing control also stops it quietly. Screen frames travel the camera frame
+    path unchanged (at most one bounded JPEG per second, marked as screen, source attachment encrypted by its owner
+    under the same provenance rules), and ending the call stops the capture.
   depends_on:
   - examples.source_frames
 - id: video-call.video.source-frame-provenance
@@ -427,12 +468,11 @@ assertions:
     such as hmm, hmmmm, mhm, mhmm, mm-hmm, uh-huh, okay, yeahhh or right, leave speech and generation uninterrupted
     and do not become a new request or unrelated consent; a cue that answers a pending assistant question is an answer.
     A clear stop or intentional correction yields promptly, cancels further answer/speech work through existing cancellation,
-    and rejects stale packets. A long verbatim run of the assistant's own speech picked up by the microphone is recapture
-    and never interrupts. Keep listening after an initial acknowledgement so okay but show Berlin instead becomes a
+    and rejects stale packets. An utterance heard during playback that is only a verbatim run of three or more words of
+    the assistant's own speech is microphone recapture; it never interrupts and never becomes a message, unless intent
+    classification judges it a deliberate quote or answer. Keep listening after an initial acknowledgement so okay but show Berlin instead becomes a
     correction. Use bounded intent classification and preserve substantive finalized requests on classifier failure;
     never discard them silently. Already committed actions are neither undone nor automatically repeated.
-  depends_on:
-  - examples.interruption_intent
 - id: video-call.audio.spoken-rich-response
   type: behavior
   must: >-
@@ -525,6 +565,51 @@ assertions:
     suspension or microphone mute never acts as an implicit user command or drops pending final words.
   depends_on:
   - examples.complete_turn
+- id: video-call.audio.pause-verdict
+  type: invariant
+  must: After each pause one fast model check (target about 250 ms, provider order set by configuration, no keyword
+    lists) judges by meaning whether the user is finished, still thinking, unsure or asks for more time, and the turn
+    is submitted after about 0.5 s, 2 s or up to 6 s of further silence for finished, still thinking and unsure, and not automatically for a request to hold (the turn stays open and the call reacts to the intent). The same call returns an
+    intent of none, wait, resume or repeat for a request to hold, a return, or a repeat of the last answer. A low-confidence
+    or unknown answer is unsure and none; a timeout or outage fails open like a finished turn and never blocks it.
+    When the user starts speaking again the assistant's speech stops at once.
+  depends_on:
+  - examples.complete_turn
+- id: video-call.sounds.ambient-skill-loop
+  type: behavior
+  must: >-
+    While the assistant runs a skill during a live web call, a soft local loop plays at or below call-cue
+    loudness; it stops as soon as the skill finishes, speech starts, the user mutes, the page goes to the
+    background or the call ends, and never outlives a lost finish event.
+  depends_on:
+  - examples.call_activity
+- id: video-call.sounds.ambient-focus-chime
+  type: behavior
+  must: >-
+    When a focus mode starts in the call's chat, one soft local chime plays; none plays while muted, in the
+    background or after the call ended.
+  depends_on:
+  - examples.call_activity
+- id: video-call.sounds.local-only
+  type: invariant
+  must: >-
+    Ambient call sounds use their own local output and are never routed into the microphone audio sent to
+    the assistant or into the assistant speech playback.
+  depends_on:
+  - examples.call_activity
+- id: video-call.waiting.spoken-intent-and-merge
+  type: invariant
+  must: The call bar's call controls are mute and end call; it has no hold or pause button. Waiting starts only from the
+    caller's natural-language request in any language (such as "give me a second" or "wait") or from a hard signal
+    (typing, the file picker, an upload), and a spoken "I'm back" or the end of the hard signal leaves it. The state shows
+    "Waiting for you"; entering plays and shows the ready-made line "Okay, I'm waiting." and leaving "Okay, go on.",
+    with no inference and no credits. While waiting the assistant stays quiet and any current speech stops. A spoken
+    request to wait comes from the completion decision's intent field (none, wait, resume, repeat), never
+    from keyword lists, and a hard signal always wins. What the caller said before waiting and what they say after it
+    are sent as one turn. The intent "repeat" replays the stored last answer's audio and text without new inference
+    and without credits.
+  depends_on:
+  - examples.waiting_merge
 applies_to:
   rest_api:
     required: false
@@ -580,6 +665,7 @@ examples:
   - call_strip
   - call_events
   - orchestration_continuity
+  - permission_prompt
 
 notes:
   version_12_scope_authorization: >-
@@ -603,3 +689,22 @@ notes:
     spawned main chats and sub-chats as one continuous conversation: reports and other cross-chat events are
     interpreted in one automatic turn that is spoken after the current speech and never over the user, close
     events are combined, and a sub-chat continuation after hangup continues as a text turn.
+  version_18_spoken_permission_prompt: >-
+    Direct owner instruction on 2026-11-20 (verified dev-connector brief, TASK-81 part 1) requires a memory or
+    approval request during a call to be spoken (chime, ready-made line, confirmation after the tap), the answer
+    after a focus decision to stay spoken, an in-call countdown with a reminder at about 15 s and a self-cancel
+    "without memories" at about 30 s with a timed-out chat event, and a clear "Continue without memories" action in
+    text chats; approval stays a manual tap.
+  version_19_approval: >-
+    The owner approved version 19 on 2026-11-22 as his own decision on record (verified dev-connector receipt
+    d35806980f111a04); camera, screen share, menu and close stay as they are.
+  version_19_hold_button_removed: >-
+    version 19: hold button removed on owner request 2026-11-21 (verified dev-connector message). Waiting starts
+    only from the caller's natural-language request or the hard signals (typing, file picker, upload). Also in 19:
+    consecutive turns keep every word while the call's per-minute charge runs (video-call.chat.transcripts), and an
+    approved memory request shows each included memory by title, icon and colour circle (video-call.chat.permission-prompt).
+  version_18_approval: >-
+    The owner approved version 18 on 2026-11-21 (verified dev-connector receipt). Not built yet: the encrypted
+    per-chat storage of the special-terms list and its editing UI (video-call.chat.stt-special-terms); calls already
+    accept the list over the call connection and pass it to speech recognition. Storage and uploads during a call
+    follow after 2026-11-23.

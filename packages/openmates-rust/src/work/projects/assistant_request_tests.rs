@@ -283,11 +283,12 @@ async fn failed_focus_activation_deletes_the_new_project_and_reports_the_error()
         stored.lock().unwrap().is_none(),
         "no half-created Project remains"
     );
-    assert!(log
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|(line, _)| line.starts_with("DELETE /v1/projects/")));
+    assert!(
+        log.lock()
+            .unwrap()
+            .iter()
+            .any(|(line, _)| line.starts_with("DELETE /v1/projects/"))
+    );
 }
 
 // contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
@@ -325,12 +326,14 @@ async fn created_project_is_found_again_after_reload_and_undo_removes_it() {
         deactivate < delete,
         "focus is deactivated before the Project is deleted"
     );
-    assert!(reloaded
-        .projects()
-        .created_for_chat(CHAT)
-        .await
-        .unwrap()
-        .is_none());
+    assert!(
+        reloaded
+            .projects()
+            .created_for_chat(CHAT)
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 // contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
@@ -342,11 +345,12 @@ async fn undo_refuses_a_project_the_assistant_did_not_create_for_the_chat() {
         c.projects().undo_created(CHAT).await.unwrap_err(),
         Error::Forbidden
     );
-    assert!(log
-        .lock()
-        .unwrap()
-        .iter()
-        .all(|(l, _)| !l.starts_with("DELETE")));
+    assert!(
+        log.lock()
+            .unwrap()
+            .iter()
+            .all(|(l, _)| !l.starts_with("DELETE"))
+    );
 }
 
 // contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
@@ -363,4 +367,34 @@ fn every_numbered_slug_taken_still_leaves_a_random_last_try() {
         assistant_slug("Recipe Manager", 6),
         assistant_slug("Recipe Manager", 6)
     );
+}
+
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
+#[test]
+fn parse_reads_optional_icon_and_category_and_refuses_wrong_types() {
+    let action = "pending_client_action";
+    let mut value = request_event(1_000);
+    value[action]["icon"] = json!("Chef-Hat");
+    value[action]["category"] = json!("cooking_food");
+    value[action]["description"] = json!("  Keeps\nrecipes ");
+    let request = ProjectCreateRequest::parse(&value, CHAT, 1_000).unwrap();
+    assert_eq!(request.icon.as_deref(), Some("chef-hat"));
+    assert_eq!(request.category.as_deref(), Some("cooking_food"));
+    assert_eq!(request.description, "Keeps recipes");
+    value[action]["category"] = json!("nonsense");
+    assert_eq!(
+        ProjectCreateRequest::parse(&value, CHAT, 1_000)
+            .unwrap()
+            .category,
+        None
+    );
+    value[action]["icon"] = json!(5);
+    assert_eq!(
+        ProjectCreateRequest::parse(&value, CHAT, 1_000)
+            .unwrap_err()
+            .1,
+        ProjectCreateRefusal::Invalid
+    );
+    value[action]["icon"] = Value::Null;
+    assert!(ProjectCreateRequest::parse(&value, CHAT, 1_000).is_ok());
 }

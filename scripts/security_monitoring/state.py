@@ -96,6 +96,10 @@ CREATE TABLE IF NOT EXISTS triage_lock (
     holder TEXT,
     expires_at TEXT
 );
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 OPEN_STATES = ("open", "acknowledged")
@@ -322,6 +326,27 @@ class Store:
             if row["incident_key"] not in keep:
                 resolved.extend(self.resolve_incident_key(row["incident_key"], now))
         return resolved
+
+    def incidents_opened_between(self, start: datetime, end: datetime) -> list[dict[str, Any]]:
+        rows = self._execute(
+            "SELECT * FROM incidents WHERE opened_at > ? AND opened_at <= ? ORDER BY opened_at", (utc(start), utc(end))
+        ).fetchall()
+        return [{**dict(row), "details": json.loads(row["details"])} for row in rows]
+
+    def incidents_resolved_between(self, start: datetime, end: datetime) -> list[dict[str, Any]]:
+        rows = self._execute(
+            "SELECT * FROM incidents WHERE state = 'resolved' AND resolved_at > ? AND resolved_at <= ? ORDER BY resolved_at",
+            (utc(start), utc(end)),
+        ).fetchall()
+        return [{**dict(row), "details": json.loads(row["details"])} for row in rows]
+
+    # -- small key/value state (digest cursor, guard cursors) ------------
+    def get_meta(self, key: str) -> str | None:
+        row = self._execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return str(row["value"]) if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        self._execute("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
 
     def acknowledge(self, incident_id: str, now: datetime) -> bool:
         cursor = self._execute(

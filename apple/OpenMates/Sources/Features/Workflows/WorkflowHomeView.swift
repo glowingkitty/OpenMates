@@ -4,6 +4,8 @@
 // frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte.
 // Specification: specifications/features/workflows-ui/specification.yml
 // Assertions: workflows-ui.workspace.recommendation-led-composition, workflows-ui.responsive-accessible-reachable
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.start-row-cards, daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions
 
 import SwiftUI
 
@@ -21,7 +23,6 @@ struct WorkflowHomeView: View {
     @State private var browseMode = BrowseMode.recent
     private var showingAll: Bool { browseMode != .recent }
     @State private var newStarterIDs: Set<String> = []
-    @State private var measuredBannerBottom: CGFloat?
     @State private var measuredComposerTop: CGFloat?
     @State private var keyboardMinY: CGFloat?
     @State private var measuredToolbarBottom: CGFloat?
@@ -84,29 +85,14 @@ struct WorkflowHomeView: View {
         ]
     }
 
-    private var workflowInspiration: DailyInspirationData {
-        DailyInspirationData(
-            inspirationId: "hardcoded-workflow-trigger",
-            text: AppStrings.workflowInspirationPhrase,
-            title: AppStrings.workflowInspirationTitle,
-            category: "productivity",
-            feature: DailyInspirationFeature(
-                iconName: "workflow", title: AppStrings.workflowInspirationFeatureTitle,
-                description: AppStrings.workflowInspirationFeatureDescription
-            )
-        )
-    }
-
     var body: some View {
         GeometryReader { geometry in
             let narrow = geometry.size.width < 550
             let globalBottom = geometry.frame(in: .global).maxY
             let keyboardOverlap = max(0, globalBottom - (keyboardMinY ?? globalBottom))
-            let bannerHeight: CGFloat = geometry.size.width < 730
-                ? 190 : max(240, min(420, geometry.size.height * 0.35))
             let placement = WorkspaceContinuationLayoutPolicy.resolve(
                 width: geometry.size.width, height: geometry.size.height,
-                bannerBottom: showingAll ? (measuredToolbarBottom ?? 52) : (measuredBannerBottom ?? bannerHeight),
+                bannerBottom: measuredToolbarBottom ?? 52,
                 composerTop: measuredComposerTop ?? max(0, geometry.size.height - 100 - keyboardOverlap),
                 // The NEW badge adds a second row above the real preview.
                 requiredExpandedHeight: landingCards.contains(where: \.isNew) ? 400 : 368
@@ -114,20 +100,6 @@ struct WorkflowHomeView: View {
             ZStack(alignment: .bottom) {
                 ZStack(alignment: .bottom) {
                     VStack(spacing: 0) {
-                        if !showingAll {
-                            InspirationCard(
-                                inspiration: workflowInspiration,
-                                containerSize: geometry.size,
-                                heightOverride: bannerHeight,
-                                ctaTitle: AppStrings.localized("daily_inspiration.click_to_open_settings"),
-                                tapHint: AppStrings.workflowInspirationPhrase,
-                                isInteractive: false
-                            ) { }
-                            .accessibilityIdentifier("workflows-daily-inspiration-area")
-                            .onGeometryChange(for: CGFloat.self) { proxy in
-                                proxy.frame(in: .named(continuationCoordinateSpace)).maxY
-                            } action: { measuredBannerBottom = $0 }
-                        }
                         topControls(showingAll: showingAll)
                             .onGeometryChange(for: CGFloat.self) { proxy in
                                 proxy.frame(in: .named(continuationCoordinateSpace)).maxY
@@ -217,16 +189,7 @@ struct WorkflowHomeView: View {
 
     private func topControls(showingAll: Bool) -> some View {
         HStack(spacing: 20) {
-            Button(action: onReportIssue) {
-                Icon("bug", size: 23)
-                    .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 42, height: 42)
-                    .background(Color.grey0, in: Circle())
-                    .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(AppStrings.settingsReportIssue)
-            .accessibilityIdentifier("workflows-home-report-issue")
+            WorkspaceReportIssueButton(accessibilityIdentifier: "workflows-home-report-issue", action: onReportIssue)
             if showingAll {
                 Button {
                     browseMode = .recent
@@ -252,10 +215,23 @@ struct WorkflowHomeView: View {
         .accessibilityIdentifier(showingAll ? "workflows-all-toolbar" : "workflows-home-controls")
     }
 
+    private var rowActions: [StartRowAction] {
+        var actions: [StartRowAction] = []
+        if store.accountId != nil {
+            actions.append(StartRowAction(title: AppStrings.workflowHomeShowAll, icon: "workflow",
+                identifier: "workflows-show-all") { browseMode = .workflows })
+        }
+        actions.append(StartRowAction(title: AppStrings.workflowHomeShowTemplates, icon: "layout-template",
+            identifier: "workflows-show-templates") { if store.accountId != nil, !store.isLoading { browseMode = .templates } })
+        actions.append(StartRowAction(title: AppStrings.workflowHomeSearch, icon: "search",
+            identifier: "workflows-search", action: searchUnavailable))
+        return actions
+    }
+
     private func homeCenter(width: CGFloat, tallCards: Bool) -> some View {
         VStack(spacing: tallCards ? 10 : 22) {
             VStack(spacing: 8) {
-                Text(AppStrings.workflowHomeGreeting(greetingName))
+                Text(store.accountId == nil ? AppStrings.workflowHomeGuestGreeting : AppStrings.workflowHomeGreeting(greetingName))
                     .font(.omH2.weight(.semibold))
                     .foregroundStyle(Color.grey80)
                     .frame(height: tallCards ? 68 : 46)
@@ -264,16 +240,18 @@ struct WorkflowHomeView: View {
                             .foregroundStyle(Color.grey30)
                             .accessibilityHidden(true)
                     }
-                Text(AppStrings.workflowHomeSubtitle)
+                Text(store.accountId == nil ? AppStrings.workflowHomeGuestSubtitle : AppStrings.workflowHomeSubtitle)
                     .font(.omP.weight(.semibold))
                     .foregroundStyle(Color.grey60)
             }
             .multilineTextAlignment(.center)
             .accessibilityIdentifier("workflows-home-greeting")
 
+            let cardWidth = max(180, min(300, width - 20))
+            let sideInset = max((width - cardWidth) / 2, CGFloat.spacing5)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(landingCards) { card in
+                HStack(spacing: .spacing8) {
+                    ForEach(Array(landingCards.prefix(StartScreenRow.maxCards))) { card in
                         VStack(spacing: 7) {
                             if card.isNew {
                                 Text(AppStrings.workflowHomeBadgeNew)
@@ -285,34 +263,26 @@ struct WorkflowHomeView: View {
                             homeCard(card, tall: tallCards)
                         }
                     }
+                    StartRowActionsTile(actions: rowActions, width: cardWidth, height: tallCards ? 200 : 44)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("workflows-row-actions")
                 }
-                .padding(.horizontal, max(0, (width - 300) / 2))
+                .padding(.leading, sideInset)
+                .padding(.trailing, .spacing12)
                 .padding(.vertical, tallCards ? 12 : 6)
             }
             .frame(height: (tallCards ? 224 : 56) + (landingCards.contains(where: \.isNew) ? 31 : 0))
             .accessibilityIdentifier("workflow-mixed-row")
 
-            HStack(spacing: 12) {
-                if store.accountId != nil {
-                    WorkspaceContinuationLink(
-                        title: AppStrings.workflowHomeShowAll, icon: "workflow",
-                        identifier: "workflows-show-all"
-                    ) { browseMode = .workflows }
-                }
-                Button {
-                    browseMode = .templates
-                } label: {
-                    Text(AppStrings.localized("workflows.home.show_templates"))
-                }
-                .disabled(store.accountId == nil || store.isLoading)
-                .accessibilityIdentifier("workflows-show-templates")
-                WorkspaceContinuationLink(
-                    title: AppStrings.workflowHomeSearch, icon: "search",
-                    identifier: "workflows-search", action: searchUnavailable
-                )
+            // Same single-line follow-up chips as the Chats start screen (web TASK-1321).
+            FollowUpSuggestions(suggestions: (1...3).map { AppStrings.workflowStartSuggestion($0) }, singleLine: true,
+                maxVisible: StartScreenSuggestions.maxVisible,
+                containerIdentifier: "workflows-start-suggestions",
+                rowIdentifierPrefix: "workflows-start-suggestion-") { suggestion in
+                instruction = suggestion
             }
-            .font(.omP.weight(.bold))
-            .foregroundStyle(Color.grey60)
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity)
 
             if !promptActive, let error = store.errorMessage {
                 Text(error).font(.omSmall).foregroundStyle(Color.error)

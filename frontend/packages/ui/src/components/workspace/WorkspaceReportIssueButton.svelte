@@ -12,7 +12,8 @@
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { reportIssueStore } from '../../stores/reportIssueStore';
 
-  let { toolbar = false }: { toolbar?: boolean } = $props();
+  /** toolbar: pill inside a HeaderActionMenu. showLabel: start screens show "Report issue" next to the icon where it fits, like Chats. */
+  let { toolbar = false, showLabel = false }: { toolbar?: boolean; showLabel?: boolean } = $props();
 
   function openReportIssue(): void {
     reportIssueStore.set({
@@ -31,15 +32,15 @@
     <button type="button" class="header-action" data-testid="report-issue-button" aria-label={$text('header.report_issue')} onclick={openReportIssue} use:tooltip><span class="clickable-icon icon_bug top-button" aria-hidden="true"></span><span class="action-label">{$text('header.report_issue')}</span></button>
   </div>
 {:else}
-<div class="report-issue-button-shell" data-testid="report-issue-button-shell">
+<div class="report-issue-button-shell" class:with-label={showLabel} data-testid="report-issue-button-shell">
   <button
-    class="clickable-icon icon_bug report-issue-button"
+    class="report-issue-button"
     type="button"
     data-testid="report-issue-button"
     aria-label={$text('header.report_issue')}
-    title={$text('header.report_issue')}
+    title={showLabel ? undefined : $text('header.report_issue')}
     onclick={openReportIssue}
-  ></button>
+  ><span class="clickable-icon icon_bug" aria-hidden="true"></span>{#if showLabel}<span class="report-issue-label" data-testid="report-issue-label">{$text('header.report_issue')}</span>{/if}</button>
 </div>
 
 {/if}
@@ -61,6 +62,29 @@
   }
 
   .report-issue-button {
+    all: unset;
     flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-4);
+    box-sizing: border-box;
+    min-width: 25px;
+    min-height: 25px;
+    cursor: pointer;
+    color: var(--color-font-primary);
+    font-weight: 600;
+  }
+
+  .report-issue-button:focus-visible {
+    outline: 2px solid var(--color-grey-70);
+    outline-offset: 3px;
+    border-radius: var(--radius-3);
+  }
+
+  /* Same text treatment as the Chats header pill (HeaderActionMenu .action-label). */
+  .report-issue-label {
+    padding-inline-end: var(--spacing-4);
+    white-space: nowrap;
   }
 </style>

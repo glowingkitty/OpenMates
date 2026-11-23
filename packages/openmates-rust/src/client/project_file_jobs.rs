@@ -23,8 +23,8 @@ use std::fmt;
 /// WebSocket and turn capability that opts into Project file jobs.
 pub(super) const PROJECT_FILE_JOBS_CAPABILITY: &str = "project_file_jobs";
 
-/// Only native cores own the hosted-file executor; other targets never advertise.
-pub(super) const PROJECT_FILE_JOBS_AVAILABLE: bool = cfg!(all(feature = "workflow-yaml", unix));
+/// Every core with `workflow-yaml` owns the hosted-file executor; others never advertise.
+pub(super) const PROJECT_FILE_JOBS_AVAILABLE: bool = cfg!(feature = "workflow-yaml");
 
 /// Per-turn state of the file-job protocol, carried with the Project state.
 #[derive(Clone, Debug, Default)]
@@ -35,6 +35,12 @@ pub(super) struct FileJobState {
     pub(super) notices: Vec<String>,
     /// The chat's privacy mappings; file writes restore placeholders with them.
     pub(super) mappings: FileJobMappings,
+    /// Interactive approvals, pending prompts and applied events.
+    pub(super) approvals: approvals::Approvals,
+    /// Web-mode privacy (restore before running, redact before sending).
+    /// Only cores with `workflow-yaml` run file jobs, so only they carry it.
+    #[cfg(feature = "workflow-yaml")]
+    pub(super) privacy: Option<privacy::PrivacyLayer>,
 }
 
 /// The chat's privacy mappings: wiped on drop and never printed.
@@ -59,6 +65,10 @@ impl FileJobState {
     /// Remember the chat's privacy mappings; later file writes restore with them.
     pub(super) fn set_mappings(&mut self, mappings: &[Value]) {
         self.mappings = FileJobMappings(mappings.to_vec());
+        #[cfg(feature = "workflow-yaml")]
+        if let Some(layer) = &mut self.privacy {
+            layer.add_mappings(mappings);
+        }
     }
 
     /// One-line summaries for the shell (applied or rejected file changes).
@@ -70,6 +80,11 @@ impl FileJobState {
         self.finished.clear();
         self.notices.clear();
         self.mappings = FileJobMappings::default();
+        self.approvals = approvals::Approvals::default();
+        #[cfg(feature = "workflow-yaml")]
+        {
+            self.privacy = None;
+        }
     }
 }
 
@@ -79,10 +94,37 @@ impl Wipe for FileJobState {
     }
 }
 
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 #[path = "project_file_job_frames.rs"]
 mod frames;
 
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 #[path = "project_file_job_snapshot.rs"]
 mod snapshot;
+
+#[path = "project_file_job_approvals.rs"]
+mod approvals;
+#[cfg(feature = "workflow-yaml")]
+#[path = "project_file_job_privacy.rs"]
+mod privacy;
+pub(in crate::client) use approvals::FileJobChats;
+#[cfg(feature = "workflow-yaml")]
+pub use privacy::ProjectFilePrivacyBlob;
+
+#[cfg(feature = "workflow-yaml")]
+#[path = "project_file_job_steps.rs"]
+mod steps;
+#[cfg(feature = "workflow-yaml")]
+pub use steps::{ProjectFileJobFrame, ProjectFileJobStep};
+
+#[cfg(all(test, feature = "workflow-yaml"))]
+#[path = "project_file_job_approvals_tests.rs"]
+mod approvals_tests;
+
+#[cfg(all(test, feature = "workflow-yaml"))]
+#[path = "project_file_job_privacy_tests.rs"]
+mod privacy_tests;
+
+#[cfg(all(test, feature = "workflow-yaml"))]
+#[path = "project_file_job_web_privacy_tests.rs"]
+mod web_privacy_tests;

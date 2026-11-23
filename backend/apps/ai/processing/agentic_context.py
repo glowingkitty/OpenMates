@@ -151,6 +151,10 @@ async def private_focus_candidates(request: Any, directus: Any, cache: Any) -> l
         else:
             complete = False
     request._private_focus_candidates_discovery_complete = complete
+    # Content-free counts: shows whether a stored Focus was listed, had its body sent and passed revision checks.
+    logger.info("Private Project Focus candidates chat=%s catalog=%d bodies=%d offered=%d",
+                request.chat_id, len(getattr(request, "project_focus_catalog", []) or []),
+                len(getattr(request, "project_focus_documents", []) or []), len(result))
     return result
 
 

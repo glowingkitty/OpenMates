@@ -353,10 +353,33 @@ def search_query(kind: str, request: Mapping[str, Any], today: date) -> str:
     if kind == KIND_EVENT:
         parts.append(str(request.get("location") or "").strip())
         start = str(request.get("start_date") or "")[:4]
-        parts.append(start if start.isdigit() else f"{today.year} {today.year + 1}")
+        end = str(request.get("end_date") or "")[:4]
+        first = int(start) if start.isdigit() else today.year
+        # An open-ended window also covers the next year: late in a year the next edition of an
+        # annual event is dated the year after the start date.
+        last = int(end) if end.isdigit() and int(end) >= first else first + 1
+        parts.append(" ".join(str(year) for year in range(first, min(last, first + 1) + 1)))
     else:
         parts.append("buy price")
     return " ".join(part for part in parts if part)[:300]
+
+
+def _page_budget(urls: Sequence[str]) -> List[str]:
+    """The pages to read: one page per site first, in search order, then more pages of the same sites.
+
+    The reader serves one site at a time, one second apart, so several pages of one site (an event's
+    news and calendar pages) queue behind each other and time out, together with the site's top page
+    that names the event. Every site's top result therefore comes before a second page of any site.
+    """
+    first: Dict[str, str] = {}
+    rest: List[str] = []
+    for url in urls:
+        site = (urlsplit(url).hostname or "").lower()
+        if site in first:
+            rest.append(url)
+        else:
+            first[site] = url
+    return [*first.values(), *rest][:MAX_PAGES]
 
 
 async def _read_page(url: str) -> Optional[Dict[str, Any]]:
@@ -405,7 +428,7 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
     # Excluded sites are dropped before the page budget so they never take a slot.
     allowed = [url for url in found_urls if not excluded_host(url, blocked)]
     outcome.pages_excluded = len(found_urls) - len(allowed)
-    urls = allowed[:MAX_PAGES]
+    urls = _page_budget(allowed)
     outcome.pages_found = len(urls)
 
     async def page_rows(url: str) -> List[Dict[str, Any]]:

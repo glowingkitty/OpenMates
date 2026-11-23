@@ -29,7 +29,8 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.websockets import manager as ws_manager
-from backend.apps.ai.daily_inspiration.feature_suggestions import (
+from backend.apps.ai.daily_inspiration.schemas import (
+    drop_unsupported_inspirations,
     has_complete_daily_inspiration_set,
 )
 
@@ -200,6 +201,8 @@ async def get_daily_inspirations(
         limit=10,  # Max 10 (3 per day × ~3 days)
     )
 
+    # Retired legacy feature cards are never delivered to clients.
+    inspirations = drop_unsupported_inspirations(inspirations)
     if inspirations and not has_complete_daily_inspiration_set(inspirations):
         logger.info(
             "[daily_inspirations_api] Ignoring incomplete legacy inspiration set for user %s…",

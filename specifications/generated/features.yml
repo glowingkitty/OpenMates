@@ -16,10 +16,10 @@ summary:
       implemented: 19
       not_planned: 19
     apple:
-      tested: 15
-      partial: 34
+      tested: 14
+      partial: 36
       failing: 5
-      implemented: 40
+      implemented: 39
       in_progress: 6
       planned: 7
       not_planned: 20
@@ -46,12 +46,12 @@ summary:
     rest_api:
       live: 5
       tested: 2
-      partial: 33
+      partial: 34
       failing: 16
       not_run: 26
       implemented: 16
       planned: 2
-      not_planned: 27
+      not_planned: 26
     sdk_npm:
       partial: 3
       not_run: 20
@@ -202,7 +202,7 @@ features:
   description: Pick an automatic or explicit model per request tier, override it per chat in the composer.
   specifications:
   - id: feature.ai-model-routing
-    status: draft
+    status: approved
     path: specifications/features/ai-model-routing
   apps: []
   product_features:
@@ -221,8 +221,8 @@ features:
       assertions:
         passing: 2
         failing: 8
-        not_run: 4
-        missing: 10
+        not_run: 5
+        missing: 9
         counted: 24
       failing_tests:
       - frontend/apps/web_app/tests/ai-model-settings.spec.ts › AI settings overview, tier, provider, and model detail match
@@ -254,7 +254,6 @@ features:
       - frontend/apps/web_app/tests/composer-model-routing.spec.ts
       - frontend/apps/web_app/tests/default-model-settings.spec.ts
       - frontend/apps/web_app/tests/gpt61-sol-model-picker.spec.ts
-      - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
       - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
       - frontend/apps/web_app/tests/mistral-large4-model-picker.spec.ts
       - frontend/apps/web_app/tests/model-toggle-settings.spec.ts
@@ -262,6 +261,8 @@ features:
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
       - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
       - frontend/apps/web_app/tests/provider-temporary-pricing.spec.ts
+      - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
       - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
@@ -354,10 +355,10 @@ features:
       key_unit_tests:
       - backend/tests/test_ai_model_routing.py
       - backend/tests/test_main_processor_invalid_tool_calls.py
-      - backend/tests/test_preprocessor.py
       - backend/tests/test_preprocessor_jev.py
+      - backend/tests/test_preprocessor.py
       - backend/tests/test_main_factual_prompt.py
-      unit_test_files: 30
+      unit_test_files: 31
     sdk_npm:
       status: implemented
       source: intent
@@ -530,7 +531,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 32
+  assertions: 33
   surfaces:
     web:
       status: failing
@@ -539,9 +540,9 @@ features:
       assertions:
         passing: 19
         failing: 3
-        not_run: 4
+        not_run: 5
         missing: 6
-        counted: 32
+        counted: 33
       failing_tests:
       - frontend/apps/web_app/tests/ai-settings-breadcrumb.spec.ts › model and provider detail pages use banner shell and
         back returns to AI settings
@@ -572,7 +573,8 @@ features:
       - frontend/apps/web_app/tests/example-chats-load.spec.ts
       - frontend/apps/web_app/tests/memory-reuse.spec.ts
       - frontend/apps/web_app/tests/memory-write-undo.spec.ts
-      - frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-memory-suggestions.spec.ts
+      - frontend/apps/web_app/tests/real-inference-press-release-project-memory.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-workflow-side-panel.spec.ts
@@ -591,8 +593,8 @@ features:
         passing: 10
         failing: 0
         not_run: 1
-        missing: 21
-        counted: 32
+        missing: 22
+        counted: 33
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatCardsParityUITests.swift
@@ -617,8 +619,8 @@ features:
         passing: 2
         failing: 4
         not_run: 6
-        missing: 20
-        counted: 32
+        missing: 21
+        counted: 33
       failing_tests:
       - frontend/apps/web_app/tests/cli-memories.spec.ts › AI memory types are absent and creation is rejected
       - 'frontend/apps/web_app/tests/cli-memories.spec.ts › full memory lifecycle: create → list (decrypted) → update → delete'
@@ -658,11 +660,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
+        passing: 15
         failing: 2
         not_run: 6
         missing: 10
-        counted: 32
+        counted: 33
       failing_tests:
       - frontend/apps/web_app/tests/memories-public-catalog.spec.ts › public metadata exposes reviewed app Memories separately
         from encrypted private types
@@ -685,8 +687,8 @@ features:
         passing: 2
         failing: 0
         not_run: 4
-        missing: 26
-        counted: 32
+        missing: 27
+        counted: 33
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/memories-public-catalog.spec.ts
@@ -703,8 +705,8 @@ features:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 30
-        counted: 32
+        missing: 31
+        counted: 33
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/memories-public-catalog.spec.ts
@@ -797,7 +799,7 @@ features:
       - frontend/packages/ui/src/components/apps/__tests__/appsRequestComposerLifetime.test.ts
       - frontend/packages/ui/src/components/apps/__tests__/appsResultFullscreenLifetime.test.ts
       - frontend/packages/ui/src/components/apps/__tests__/appsResultPreviewGroup.test.ts
-      unit_test_files: 38
+      unit_test_files: 39
     apple:
       status: partial
       source: tests
@@ -1317,7 +1319,7 @@ features:
       - backend/tests/test_assistant_speech_streaming.py
       - backend/tests/test_assistant_speech_asset_publication.py
       - backend/tests/test_assistant_speech_projection.py
-      unit_test_files: 19
+      unit_test_files: 20
     sdk_npm:
       status: not_planned
       source: intent
@@ -2033,7 +2035,7 @@ features:
   description: Sidebar chat navigation with running chats first and nested Project navigation.
   specifications:
   - id: feature.chat-navigation
-    status: draft
+    status: approved
     path: specifications/features/chat-navigation
   apps: []
   product_features: []
@@ -2042,7 +2044,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 9
+  assertions: 13
   surfaces:
     web:
       status: failing
@@ -2051,9 +2053,9 @@ features:
       assertions:
         passing: 5
         failing: 4
-        not_run: 0
+        not_run: 4
         missing: 0
-        counted: 9
+        counted: 13
       failing_tests:
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts › groups saved chats, navigates deep folders and reveals
         running descendants globally
@@ -2063,6 +2065,7 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/chat-menu-parity.spec.ts
+      - frontend/apps/web_app/tests/chat-sidebar-overlay.spec.ts
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
       - frontend/apps/web_app/tests/components/chat-context-menu-preview.spec.ts
       - frontend/apps/web_app/tests/components/chat-project-navigation.spec.ts
@@ -2075,12 +2078,12 @@ features:
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
       key_unit_tests:
+      - frontend/apps/web_app/src/lib/sidebarOverlay.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
       - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
       - frontend/packages/ui/src/utils/__tests__/chatProjectNavigation.test.ts
       - frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
-      - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
-      unit_test_files: 17
+      unit_test_files: 18
     apple:
       status: partial
       source: tests
@@ -2089,8 +2092,8 @@ features:
         passing: 7
         failing: 0
         not_run: 0
-        missing: 2
-        counted: 9
+        missing: 6
+        counted: 13
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
@@ -2121,8 +2124,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 3
-        counted: 9
+        missing: 7
+        counted: 13
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -2257,7 +2260,7 @@ features:
       - backend/tests/test_cancelled_reply_recovery.py
       - backend/tests/test_chat_failure_notifications.py
       - backend/tests/test_preprocessor_context_startup.py
-      unit_test_files: 21
+      unit_test_files: 22
     apple:
       status: partial
       source: tests
@@ -2373,21 +2376,24 @@ features:
   assertions: 5
   surfaces:
     web:
-      status: partial
+      status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 4
-        failing: 0
+        passing: 3
+        failing: 1
         not_run: 1
         missing: 0
         counted: 5
+      failing_tests:
+      - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts › focus mode UI elements work correctly after activation
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
       - frontend/apps/web_app/tests/chat-queued-followups-same-tab.spec.ts
       - frontend/apps/web_app/tests/chat-queued-followups.spec.ts
       - frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts
+      - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
@@ -2922,7 +2928,7 @@ features:
   description: A finished assistant reply stays unread until its last line has been visible in the user's viewport.
   specifications:
   - id: feature.chat-unread
-    status: draft
+    status: approved
     path: specifications/features/chat-unread
   apps: []
   product_features: []
@@ -2951,8 +2957,9 @@ features:
       - frontend/apps/web_app/tests/chat-unread-read-position.spec.ts
       key_unit_tests:
       - backend/tests/test_phased_sync_handler.py
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
       - frontend/packages/ui/src/stores/__tests__/unreadMessagesStore.test.ts
-      unit_test_files: 2
+      unit_test_files: 3
     apple:
       status: implemented
       source: intent
@@ -3054,7 +3061,7 @@ features:
   description: End-to-end encrypted chats that sync across devices and recover unfinished answers.
   specifications:
   - id: feature.chats
-    status: draft
+    status: approved
     path: specifications/features/chats
   apps: []
   product_features:
@@ -3065,23 +3072,25 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 29
+  assertions: 32
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 9
-        failing: 14
-        not_run: 4
+        passing: 10
+        failing: 15
+        not_run: 5
         missing: 2
-        counted: 29
+        counted: 32
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
       - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts › browser renders recovered initial title and summary before
         any assistant completion, then refines both after reconnect
+      - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts › shows the first message while the generated chat
+        title is pending
       - frontend/apps/web_app/tests/components/chat-message-copy.spec.ts › assistant actions reveal gradient labels on hover
         and focus and copy the entire selected response
       - frontend/apps/web_app/tests/components/chat-message-results-width.spec.ts › ${variant} fills the map and calendar
@@ -3162,19 +3171,25 @@ features:
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
       - frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts
       - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+      - frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts
       - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
       - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+      - frontend/apps/web_app/tests/chat-finished-turn-resend.spec.ts
+      - frontend/apps/web_app/tests/chat-first-send-title-and-composer.spec.ts
       - frontend/apps/web_app/tests/chat-flow.spec.ts
       - frontend/apps/web_app/tests/chat-followup-recovery-disabled.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
       - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
+      - frontend/apps/web_app/tests/chat-paste-long-list-send.spec.ts
       - frontend/apps/web_app/tests/chat-reload-followup-send.spec.ts
       - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
       - frontend/apps/web_app/tests/chat-saved-followup-admission.spec.ts
       - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
       - frontend/apps/web_app/tests/components/chat-assistant-response-activity.spec.ts
+      - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+      - frontend/apps/web_app/tests/components/chat-context-menu-preview.spec.ts
       - frontend/apps/web_app/tests/components/chat-header-image-lifecycle.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
       - frontend/apps/web_app/tests/components/chat-inline-ratio-math.spec.ts
@@ -3190,6 +3205,7 @@ features:
       - frontend/apps/web_app/tests/components/embed-preview-info-top.spec.ts
       - frontend/apps/web_app/tests/components/embed-workspace.spec.ts
       - frontend/apps/web_app/tests/components/event-reference-hydration.spec.ts
+      - frontend/apps/web_app/tests/components/generated-media-generate-card.spec.ts
       - frontend/apps/web_app/tests/components/grouped-result-preview.spec.ts
       - frontend/apps/web_app/tests/components/image-embed-message-actions.spec.ts
       - frontend/apps/web_app/tests/components/image-embed-preview-layout.spec.ts
@@ -3227,10 +3243,12 @@ features:
       - frontend/apps/web_app/tests/connection-status.spec.ts
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+      - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
       - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
       - frontend/apps/web_app/tests/embed-canonical-replay.spec.ts
       - frontend/apps/web_app/tests/embed-catalog-hyphen-roundtrip.spec.ts
       - frontend/apps/web_app/tests/embed-fullscreen-followup.spec.ts
+      - frontend/apps/web_app/tests/embed-not-found-no-toast.spec.ts
       - frontend/apps/web_app/tests/embed-preview-backfill-replay.spec.ts
       - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
       - frontend/apps/web_app/tests/example-chat-embed-uuid-isolation.spec.ts
@@ -3249,6 +3267,8 @@ features:
       - frontend/apps/web_app/tests/persisted-draft-discovery.spec.ts
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
       - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-upload-svg.spec.ts
+      - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
       - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
       - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
       - frontend/apps/web_app/tests/source-quote-verification.spec.ts
@@ -3260,7 +3280,6 @@ features:
       - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
       - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
-      - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
       - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
@@ -3274,17 +3293,17 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 153
+      unit_test_files: 160
     apple:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 12
+        passing: 13
         failing: 4
         not_run: 0
-        missing: 13
-        counted: 29
+        missing: 15
+        counted: 32
       failing_tests:
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testSavedChatCommitsTheExactPreflightInferencePayload
@@ -3295,6 +3314,8 @@ features:
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AppSkillInputPreviewUITests.swift
+      - apple/OpenMatesUITests/AppleInteractionBudgetUITests.swift
+      - apple/OpenMatesUITests/AppleParityScreensUITests.swift
       - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift
       - apple/OpenMatesUITests/AssistantBatchActivityPreviewUITests.swift
       - apple/OpenMatesUITests/ChatCardsParityUITests.swift
@@ -3344,7 +3365,7 @@ features:
       - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
       - apple/OpenMatesTests/StreamingClientFanoutTests.swift
       - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
-      unit_test_files: 70
+      unit_test_files: 71
       platforms:
       - ios
       - ipados
@@ -3373,8 +3394,8 @@ features:
         passing: 1
         failing: 5
         not_run: 10
-        missing: 13
-        counted: 29
+        missing: 16
+        counted: 32
       failing_tests:
       - frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts › pair login, whoami, chats list, send/stream, cancel,
         follow-up, show, restart, TUI and logout
@@ -3447,7 +3468,7 @@ features:
       - backend/tests/test_stream_consumer_recovery.py
       - backend/tests/test_agent_context_history_transport.py
       - backend/tests/test_chat_completion_recovery_retention.py
-      unit_test_files: 70
+      unit_test_files: 72
     sdk_npm:
       status: not_run
       source: tests
@@ -3799,6 +3820,7 @@ features:
     assertion_ids:
     - chats.rendering.inline-entity-interaction
     - chats.rendering.preview-info-top
+    - chats.rendering.skill-card-call-order
     - chats.rendering.skill-failure-banner
     - chats.rendering.web-history-entrance
     surfaces:
@@ -3807,11 +3829,11 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
+          passing: 3
           failing: 2
           not_run: 0
           missing: 0
-          counted: 4
+          counted: 5
         failing_tests:
         - frontend/apps/web_app/tests/components/embed-preview-info-top.spec.ts › expanded and full-image previews keep one
           visible info bar above content
@@ -3849,8 +3871,8 @@ features:
           passing: 1
           failing: 0
           not_run: 0
-          missing: 3
-          counted: 4
+          missing: 4
+          counted: 5
       watchos:
         status: unverified
         source: intent
@@ -3869,8 +3891,8 @@ features:
           passing: 0
           failing: 0
           not_run: 1
-          missing: 3
-          counted: 4
+          missing: 4
+          counted: 5
       tui:
         status: failing
         source: tests
@@ -4548,7 +4570,8 @@ features:
 - id: continue-carousel
   name: Continue Carousel
   kind: core
-  description: The Chats start screen promotes timely saved items and recent chats.
+  description: The Chats start screen promotes timely chats in its row and shows the next saved event as a compact entry below
+    it.
   specifications:
   - id: feature.continue-carousel
     status: draft
@@ -4560,7 +4583,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 2
+  assertions: 3
   surfaces:
     web:
       status: partial
@@ -4569,26 +4592,27 @@ features:
       assertions:
         passing: 1
         failing: 0
-        not_run: 1
+        not_run: 2
         missing: 0
-        counted: 2
+        counted: 3
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-continue-carousel.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
       - frontend/packages/ui/src/services/rustCore/__tests__/continueCarouselVectors.test.ts
       unit_test_files: 2
     apple:
-      status: tested
+      status: partial
       source: tests
-      intent: implemented
+      intent: in_progress
       assertions:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 0
-        counted: 2
+        missing: 1
+        counted: 3
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/WelcomeContinueUITests.swift
@@ -4677,10 +4701,11 @@ features:
 - id: daily-inspiration
   name: Daily Inspiration
   kind: core
-  description: Personalised daily inspiration cards, with a public default for signed-out visitors.
+  description: Personalised daily video and article cards inside the start-screen row (signed in and signed out, no banner),
+    with a public default; the row ends with its browse actions and suggestions follow below it.
   specifications:
   - id: feature.daily-inspiration
-    status: draft
+    status: approved
     path: specifications/features/daily-inspiration
   apps: []
   product_features: []
@@ -4689,24 +4714,27 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 8
+  assertions: 16
   surfaces:
     web:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 2
-        failing: 2
-        not_run: 3
+        passing: 9
+        failing: 0
+        not_run: 6
         missing: 1
-        counted: 8
-      failing_tests:
-      - frontend/apps/web_app/tests/inspiration-language.spec.ts › Withheld editorial inventory keeps the ten-card guest fallback
-        usable
+        counted: 16
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts
+      - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
       - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
+      - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
+      - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+      - frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
+      - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
       - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
       - frontend/apps/web_app/tests/inspiration-language.spec.ts
       - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
@@ -4714,30 +4742,38 @@ features:
       - frontend/apps/web_app/tests/provider-boundary.spec.ts
       - frontend/apps/web_app/tests/session-503-inspiration-recovery.spec.ts
       - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+      - frontend/apps/web_app/tests/start-screens-layout.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+      - frontend/packages/ui/src/utils/__tests__/startScreenRow.test.ts
       - frontend/packages/ui/src/services/__tests__/dailyInspirationDB.language.test.ts
       - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
-      - scripts/tests/test_message_input_welcome_contract.py
-      unit_test_files: 5
+      unit_test_files: 6
     apple:
       status: partial
       source: tests
-      intent: implemented
+      intent: in_progress
       assertions:
-        passing: 6
+        passing: 9
         failing: 0
-        not_run: 0
-        missing: 2
-        counted: 8
+        not_run: 3
+        missing: 4
+        counted: 16
       key_tests: []
       e2e_tests:
+      - apple/OpenMatesUITests/AppleParityScreensUITests.swift
+      - apple/OpenMatesUITests/AppsWorkspaceParityUITests.swift
       - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
+      - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+      - apple/OpenMatesUITests/ProjectsFilesParityUITests.swift
+      - apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift
+      - apple/OpenMatesUITests/WorkflowsParityUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/ChatSyncParityTests.swift
-      unit_test_files: 1
+      - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+      unit_test_files: 2
       platforms:
       - ios
       - ipados
@@ -4778,18 +4814,18 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 5
-        missing: 3
-        counted: 8
+        not_run: 4
+        missing: 12
+        counted: 16
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_daily_inspiration_public_defaults.py
+      - backend/tests/test_daily_inspiration_content_policy.py
       - backend/tests/test_daily_inspiration_activity.py
       - backend/tests/test_daily_inspiration_config.py
       - backend/tests/test_daily_inspiration_decisions.py
-      - backend/tests/test_daily_inspiration_generator.py
-      unit_test_files: 13
+      unit_test_files: 14
     sdk_npm:
       status: implemented
       source: intent
@@ -4968,7 +5004,7 @@ features:
     display for all focus modes.
   specifications:
   - id: feature.focus-modes
-    status: draft
+    status: approved
     path: specifications/features/focus-modes
   apps: []
   product_features: []
@@ -4984,10 +5020,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 12
+        passing: 14
         failing: 1
-        not_run: 8
-        missing: 10
+        not_run: 7
+        missing: 9
         counted: 31
       failing_tests:
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts › OpenMates app does not offer the retired Welcome focus mode
@@ -5005,15 +5041,16 @@ features:
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
-      - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
-      - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-project-layered-focus.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-authoring-focus.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-sub-chats.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
       - frontend/packages/ui/src/services/__tests__/projectAuthoringClientService.test.ts
+      - backend/tests/test_chat_turn_preflight_handler.py
+      - backend/tests/test_project_focus_card_identity.py
       - frontend/packages/ui/src/components/settings/focusModeInstructions.test.ts
-      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      - frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      unit_test_files: 7
+      unit_test_files: 11
     apple:
       status: partial
       source: tests
@@ -5078,10 +5115,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 16
+        passing: 18
         failing: 1
-        not_run: 6
-        missing: 8
+        not_run: 5
+        missing: 7
         counted: 31
       failing_tests:
       - backend/tests/test_delegated_primary_read.py › test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis
@@ -5347,7 +5384,7 @@ features:
       - backend/tests/test_app_packages_events_dispatch.py
       - backend/tests/test_app_packages_jobs_dispatch.py
       - backend/tests/test_app_packages_result_photo_relevance.py
-      unit_test_files: 8
+      unit_test_files: 9
     sdk_npm:
       status: not_planned
       source: intent
@@ -5515,7 +5552,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 8
+  assertions: 11
   surfaces:
     web:
       status: failing
@@ -5523,10 +5560,10 @@ features:
       intent: implemented
       assertions:
         passing: 2
-        failing: 4
+        failing: 5
         not_run: 0
-        missing: 2
-        counted: 8
+        missing: 4
+        counted: 11
       failing_tests:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts › shows notification and submits details only after
         user confirmation
@@ -5539,6 +5576,7 @@ features:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
       - frontend/apps/web_app/tests/components/report-issue-composer.spec.ts
       - frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
+      - frontend/apps/web_app/tests/components/report-issue-screenshots.spec.ts
       - frontend/apps/web_app/tests/report-issue-context-fallback.spec.ts
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts
       - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
@@ -5556,16 +5594,17 @@ features:
       assertions:
         passing: 5
         failing: 0
-        not_run: 0
-        missing: 3
-        counted: 8
+        not_run: 2
+        missing: 4
+        counted: 11
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
       - apple/OpenMatesUITests/SettingsFullParityUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/SettingsFullParityTests.swift
-      unit_test_files: 1
+      - apple/OpenMatesTests/NativePerformanceSignalsTests.swift
+      unit_test_files: 2
       platforms:
       - ios
       - ipados
@@ -5606,9 +5645,9 @@ features:
       assertions:
         passing: 2
         failing: 1
-        not_run: 0
-        missing: 5
-        counted: 8
+        not_run: 1
+        missing: 7
+        counted: 11
       failing_tests:
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts › Report issue API accepts long user-written titles
       key_tests: []
@@ -5619,7 +5658,8 @@ features:
       - backend/tests/test_admin_debug_log_query.py
       - backend/tests/test_issue_report_archive.py
       - backend/tests/test_issue_report_auth.py
-      unit_test_files: 4
+      - backend/tests/test_issue_report_screenshots.py
+      unit_test_files: 7
     sdk_npm:
       status: not_planned
       source: intent
@@ -5655,7 +5695,7 @@ features:
     and real example discovery.
   specifications:
   - id: feature.landing-onboarding
-    status: draft
+    status: approved
     path: specifications/features/landing-onboarding
   apps: []
   product_features: []
@@ -5685,6 +5725,7 @@ features:
       - frontend/apps/web_app/tests/components/guest-welcome-preview.spec.ts
       - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
       - frontend/apps/web_app/tests/guest-workspace-navigation.spec.ts
+      - frontend/apps/web_app/tests/header-mobile-layout.spec.ts
       - frontend/apps/web_app/tests/landing-default-examples.spec.ts
       - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
       - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -6414,7 +6455,7 @@ features:
   description: 'The chat composer: text, attachments, drafts, voice recording, suggestions and send.'
   specifications:
   - id: feature.message-input
-    status: draft
+    status: approved
     path: specifications/features/message-input
   apps: []
   product_features:
@@ -6424,7 +6465,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 24
+  assertions: 25
   surfaces:
     web:
       status: failing
@@ -6432,10 +6473,10 @@ features:
       intent: implemented
       assertions:
         passing: 7
-        failing: 12
+        failing: 13
         not_run: 4
         missing: 1
-        counted: 24
+        counted: 25
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -6487,6 +6528,7 @@ features:
       - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
       - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
       - frontend/apps/web_app/tests/audio-recording.spec.ts
+      - frontend/apps/web_app/tests/chat-first-send-title-and-composer.spec.ts
       - frontend/apps/web_app/tests/chat-focused-scroll.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
@@ -6545,7 +6587,7 @@ features:
       - backend/tests/test_streaming_transcript_correction.py
       - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
       - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
-      unit_test_files: 47
+      unit_test_files: 49
     apple:
       status: failing
       source: tests
@@ -6554,8 +6596,8 @@ features:
         passing: 9
         failing: 1
         not_run: 1
-        missing: 13
-        counted: 24
+        missing: 14
+        counted: 25
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
       key_tests: []
@@ -7105,6 +7147,7 @@ features:
     - message-input.focus.guest-welcome-suppression
     - message-input.focus.parent-state
     - message-input.focus.workspace-suppression
+    - message-input.send.collapse-at-send
     - message-input.send.ownership
     surfaces:
       web:
@@ -7113,10 +7156,10 @@ features:
         intent: unverified
         assertions:
           passing: 0
-          failing: 3
+          failing: 4
           not_run: 0
           missing: 1
-          counted: 4
+          counted: 5
         failing_tests:
         - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts › failed send keeps the expanded draft and accepted
           retry collapses and blurs
@@ -7144,8 +7187,8 @@ features:
           passing: 3
           failing: 0
           not_run: 1
-          missing: 0
-          counted: 4
+          missing: 1
+          counted: 5
       cli:
         status: unverified
         source: intent
@@ -7752,7 +7795,7 @@ features:
   description: Notification settings, email and push notifications, and notification history.
   specifications:
   - id: feature.notifications
-    status: approved
+    status: draft
     path: specifications/features/notifications
   apps: []
   product_features: []
@@ -7768,16 +7811,14 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
+        passing: 15
         failing: 9
-        not_run: 1
+        not_run: 0
         missing: 4
         counted: 28
       failing_tests:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts › shows notification and submits details only after
         user confirmation
-      - frontend/apps/web_app/tests/components/notification-grouping.spec.ts › chat targets stay separate and one action handles
-        a repeated keyed group
       - frontend/apps/web_app/tests/components/notification-grouping.spec.ts › repeated errors update one card, retain its
         place, and dismiss once
       - frontend/apps/web_app/tests/notification-mobile.spec.ts › mobile notification stays inset and auto-dismisses with
@@ -7788,10 +7829,12 @@ features:
         state for notification suppression
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/background-chat-notification.spec.ts
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/components/event-sounds.spec.ts
       - frontend/apps/web_app/tests/components/notification-grouping.spec.ts
+      - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
       - frontend/apps/web_app/tests/components/workflow-completion-status.spec.ts
       - frontend/apps/web_app/tests/components/workflow-run-exact-target.spec.ts
       - frontend/apps/web_app/tests/connection-status.spec.ts
@@ -7801,6 +7844,8 @@ features:
       - frontend/apps/web_app/tests/notification-email-preferences.spec.ts
       - frontend/apps/web_app/tests/notification-mobile.spec.ts
       - frontend/apps/web_app/tests/notification-stack.spec.ts
+      - frontend/apps/web_app/tests/project-result-notice.spec.ts
+      - frontend/apps/web_app/tests/real-inference-chat-notice-headline.spec.ts
       - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
       - frontend/apps/web_app/tests/reminder-email-delivery.spec.ts
       - frontend/apps/web_app/tests/reminder-email.spec.ts
@@ -7816,16 +7861,16 @@ features:
       - frontend/apps/web_app/src/lib/workflowCompletionRoute.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
       - backend/tests/test_bank_transfer_duplicate_reference_email.py
-      unit_test_files: 16
+      unit_test_files: 17
     apple:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 6
+        passing: 8
         failing: 0
         not_run: 0
-        missing: 22
+        missing: 20
         counted: 28
       key_tests: []
       e2e_tests:
@@ -7833,10 +7878,10 @@ features:
       key_unit_tests:
       - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
       - apple/OpenMatesTests/NativeHapticsPolicyTests.swift
+      - apple/OpenMatesTests/SettingsFullParityTests.swift
       - apple/OpenMatesTests/NotificationPreviewCryptoTests.swift
       - apple/OpenMatesTests/WorkflowsParityTests.swift
-      - backend/tests/test_workflow_completion_notifications.py
-      unit_test_files: 5
+      unit_test_files: 6
       platforms:
       - ios
       - ipados
@@ -7931,7 +7976,7 @@ features:
   description: Personal data in a message is replaced with placeholders before it reaches the server or a model.
   specifications:
   - id: feature.pii-protection
-    status: draft
+    status: approved
     path: specifications/features/pii-protection
   apps: []
   product_features:
@@ -7967,6 +8012,7 @@ features:
       - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
       - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
       - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+      - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
       - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
       - frontend/apps/web_app/tests/projects-flow.spec.ts
       - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
@@ -7978,7 +8024,7 @@ features:
       - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
       - frontend/packages/ui/src/components/enter_message/services/__tests__/embedContentRedaction.test.ts
       - frontend/packages/ui/src/services/__tests__/piiDisplayAliases.test.ts
-      unit_test_files: 21
+      unit_test_files: 23
     apple:
       status: partial
       source: tests
@@ -8525,7 +8571,7 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/components/safety-appeal.spec.ts
       - frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts
-      - frontend/apps/web_app/tests/safety-suspension-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-safety-suspension.spec.ts
       key_unit_tests:
       - backend/tests/test_generated_media_graph.py
       unit_test_files: 1
@@ -8629,7 +8675,7 @@ features:
   description: 'The settings shell on web and Apple: navigation, sections and footer.'
   specifications:
   - id: feature.settings-ui
-    status: draft
+    status: approved
     path: specifications/features/settings-ui
   apps: []
   product_features: []
@@ -8638,7 +8684,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 9
+  assertions: 10
   surfaces:
     web:
       status: failing
@@ -8647,9 +8693,9 @@ features:
       assertions:
         passing: 1
         failing: 7
-        not_run: 0
+        not_run: 1
         missing: 1
-        counted: 9
+        counted: 10
       failing_tests:
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts › Report issue form submits successfully and shows confirmation
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts › guest settings routes replace AI after opening a dynamic
@@ -8669,6 +8715,7 @@ features:
       - frontend/apps/web_app/tests/components/language-settings.spec.ts
       - frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
       - frontend/apps/web_app/tests/components/settings-avatar.spec.ts
+      - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
       - frontend/apps/web_app/tests/components/settings-storage-overview.spec.ts
       - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
       - frontend/apps/web_app/tests/components/settings-teams-storage.spec.ts
@@ -8681,6 +8728,7 @@ features:
       - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+      - frontend/apps/web_app/tests/settings-overlay-motion.spec.ts
       - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
       - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
       - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
@@ -8701,8 +8749,8 @@ features:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 3
-        counted: 9
+        missing: 4
+        counted: 10
       key_tests: []
       e2e_tests:
       - apple/OpenMatesMacUITests/SettingsMacPrivacyParityUITests.swift
@@ -10002,18 +10050,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 49
+  assertions: 58
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 28
+        passing: 33
         failing: 6
-        not_run: 5
+        not_run: 9
         missing: 11
-        counted: 50
+        counted: 59
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10034,7 +10082,10 @@ features:
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-openmates-identity.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-voice-transcript-status.spec.ts
+      - frontend/apps/web_app/tests/components/included-memory-pills.spec.ts
+      - frontend/apps/web_app/tests/components/memory-request-call-countdown.spec.ts
       - frontend/apps/web_app/tests/components/skill-input-thumbnails.spec.ts
+      - frontend/apps/web_app/tests/components/speech-toggle-tooltip.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-apple-parity.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-artifact-progress.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts
@@ -10047,17 +10098,21 @@ features:
       - frontend/apps/web_app/tests/components/voice-call-live-transcript.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-media.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts
+      - frontend/apps/web_app/tests/components/voice-call-screen-share.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
+      - frontend/apps/web_app/tests/components/voice-call-waiting.spec.ts
+      - frontend/apps/web_app/tests/voice-call-ambient-sounds.spec.ts
       - frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
       - frontend/apps/web_app/tests/voice-call-real.spec.ts
+      - frontend/apps/web_app/tests/voice-call-screen-share.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
       - backend/tests/test_voice_call_protocol.py
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
-      - backend/tests/test_voice_call_admission.py
-      unit_test_files: 61
+      - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+      unit_test_files: 68
     apple:
       status: partial
       source: tests
@@ -10066,8 +10121,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 11
-        counted: 41
+        missing: 20
+        counted: 50
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
@@ -10138,20 +10193,20 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 11
+        passing: 14
         failing: 0
-        not_run: 4
+        not_run: 5
         missing: 0
-        counted: 15
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_voice_realtime_turn.py
-      - backend/tests/test_call_message_completed_handler.py
       - backend/tests/test_voice_status.py
+      - backend/tests/test_call_message_completed_handler.py
       - backend/tests/test_preprocessing_voice_delivery.py
       - backend/tests/test_voice_call_instructions.py
-      unit_test_files: 23
+      unit_test_files: 27
     sdk_npm:
       status: not_planned
       source: intent
@@ -10182,7 +10237,9 @@ features:
       unit_test_files: 0
   notes: Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server;
     the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed.
-    Apple does not opt in yet. The voice-call web spec is the key end-to-end test.
+    Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Spoken tap requests (needs-you chime, ready-made
+    line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so
+    far; the Apple app ignores the voice_call_permission_prompt event.
 - id: webhooks
   name: Webhooks
   kind: core
@@ -10337,9 +10394,10 @@ features:
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/helpline-card.spec.ts
-      - frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts
-      key_unit_tests: []
-      unit_test_files: 0
+      - frontend/apps/web_app/tests/real-inference-wellbeing-helpline.spec.ts
+      key_unit_tests:
+      - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/HelplinesRenderer.test.ts
+      unit_test_files: 1
     apple:
       status: planned
       source: intent
@@ -10632,6 +10690,7 @@ features:
       - frontend/apps/web_app/tests/projects-flow.spec.ts
       - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+      - frontend/apps/web_app/tests/start-screens-layout.spec.ts
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
       - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
@@ -10715,9 +10774,10 @@ features:
       key_tests: []
       e2e_tests: []
       key_unit_tests:
+      - backend/tests/test_feature_availability_enforcement.py
       - backend/tests/test_feature_availability_service.py
       - backend/tests/test_retired_app_capabilities.py
-      unit_test_files: 2
+      unit_test_files: 3
     sdk_npm:
       status: not_planned
       source: intent
@@ -11265,17 +11325,18 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 10
+        passing: 11
         failing: 0
         not_run: 0
-        missing: 7
+        missing: 6
         counted: 17
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_business_company_ownership.py
       - backend/tests/test_business_search_investors.py
-      unit_test_files: 2
+      - backend/tests/test_app_packages_generic_contract.py
+      unit_test_files: 3
     sdk_npm:
       status: implemented
       source: intent
@@ -11763,7 +11824,7 @@ features:
   description: Get coding help, docs & project advice.
   specifications:
   - id: feature.app-skill.code-run
-    status: draft
+    status: approved
     path: specifications/features/app-skills/code-run
   apps:
   - code
@@ -11775,7 +11836,7 @@ features:
     - app:code
     dev: enabled
     prod: enabled
-  assertions: 37
+  assertions: 39
   surfaces:
     web:
       status: failing
@@ -11784,32 +11845,38 @@ features:
       assertions:
         passing: 7
         failing: 1
-        not_run: 11
-        missing: 20
-        counted: 39
+        not_run: 14
+        missing: 19
+        counted: 41
       failing_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
       key_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
       - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
       e2e_tests:
+      - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
       - frontend/apps/web_app/tests/application-preview.spec.ts
+      - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
       - frontend/apps/web_app/tests/code-run-dependency-flow.spec.ts
       - frontend/apps/web_app/tests/code-run-languages.spec.ts
       - frontend/apps/web_app/tests/components/application-preview-readiness.spec.ts
       - frontend/apps/web_app/tests/components/code-run-dependencies.spec.ts
+      - frontend/apps/web_app/tests/components/code-run-embed-preview.spec.ts
+      - frontend/apps/web_app/tests/components/e2b-consent-run-start.spec.ts
+      - frontend/apps/web_app/tests/components/e2b-upload-consent-request.spec.ts
       - frontend/apps/web_app/tests/components/remote-command-review.spec.ts
       - frontend/apps/web_app/tests/components/test-result-embed.spec.ts
+      - frontend/apps/web_app/tests/e2b-upload-consent.spec.ts
       - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/codeRunService.test.ts
+      - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
       - backend/tests/test_remote_command_service.py
       - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
       - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
-      - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
-      unit_test_files: 12
+      unit_test_files: 14
     apple:
       status: partial
       source: tests
@@ -11818,8 +11885,8 @@ features:
         passing: 9
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 37
+        missing: 30
+        counted: 39
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AgenticCodingPreviewUITests.swift
@@ -11842,12 +11909,14 @@ features:
       assertions:
         passing: 9
         failing: 0
-        not_run: 8
-        missing: 20
-        counted: 37
+        not_run: 9
+        missing: 21
+        counted: 39
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+      - frontend/apps/web_app/tests/cli-native-code-run-real.spec.ts
+      - frontend/apps/web_app/tests/cli-native-code-run.spec.ts
       - frontend/apps/web_app/tests/cli-project-file-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_remote_command_service.py
@@ -11876,11 +11945,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 16
+        passing: 17
         failing: 0
-        not_run: 6
+        not_run: 7
         missing: 15
-        counted: 37
+        counted: 39
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11889,7 +11958,7 @@ features:
       - backend/tests/test_code_run_billing_attribution.py
       - backend/tests/test_e2b_code_runner.py
       - backend/tests/test_application_preview_config.py
-      unit_test_files: 25
+      unit_test_files: 36
     sdk_npm:
       status: not_run
       source: tests
@@ -11898,8 +11967,8 @@ features:
         passing: 0
         failing: 0
         not_run: 2
-        missing: 35
-        counted: 37
+        missing: 37
+        counted: 39
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11913,8 +11982,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 37
-        counted: 37
+        missing: 39
+        counted: 39
       key_tests: []
       evidence: generated/app_skills.py apps.code (generic skill call)
       e2e_tests: []
@@ -11926,7 +11995,7 @@ features:
   description: Find icons and visual assets, and read your Figma or Penpot designs to build them.
   specifications:
   - id: feature.app-skill.design-embroidery
-    status: draft
+    status: approved
     path: specifications/features/app-skills/design-embroidery
   - id: feature.app-skills.design-figma
     status: draft
@@ -11940,7 +12009,7 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 28
+  assertions: 30
   surfaces:
     web:
       status: partial
@@ -11949,36 +12018,38 @@ features:
       assertions:
         passing: 7
         failing: 0
-        not_run: 2
-        missing: 19
-        counted: 28
+        not_run: 5
+        missing: 18
+        counted: 30
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
+      - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
       - frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts
       - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_design_embroidery_skill.py
       - frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts
       - backend/tests/test_generated_media_graph.py
+      - frontend/packages/ui/src/components/embeds/design/embroideryProgress.test.ts
       - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
-      - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
-      unit_test_files: 5
+      unit_test_files: 6
     apple:
-      status: implemented
-      source: intent
+      status: partial
+      source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
         not_run: 0
-        missing: 14
-        counted: 14
+        missing: 15
+        counted: 16
       key_tests: []
       evidence: apple/OpenMates/Sources/Features/Embeds/Renderers/DesignEmbroideryEmbedRenderer.swift, app:design:search_icons
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - apple/OpenMatesTests/HostingEmbedModelTests.swift
+      unit_test_files: 1
       platforms:
       - ios
       - ipados
@@ -11991,8 +12062,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 28
+        missing: 30
+        counted: 30
       key_tests: []
       evidence: openmates apps design search_icons|export-icon
       e2e_tests: []
@@ -12018,16 +12089,16 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 21
+        passing: 23
         failing: 0
         not_run: 0
         missing: 7
-        counted: 28
+        counted: 30
       key_tests: []
       e2e_tests: []
       key_unit_tests:
-      - backend/tests/test_design_embroidery_skill.py
       - backend/tests/test_design_embroidery_task.py
+      - backend/tests/test_design_embroidery_skill.py
       - backend/tests/test_embroidery_geometry.py
       - backend/tests/test_figma_get_design_skill.py
       - backend/tests/test_embroidery_sandbox_rules.py
@@ -12040,8 +12111,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 28
+        missing: 30
+        counted: 30
       key_tests: []
       evidence: sdk.design facade (npm)
       e2e_tests: []
@@ -12055,8 +12126,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 28
+        missing: 30
+        counted: 30
       key_tests: []
       evidence: sdk.design facade (py)
       e2e_tests: []
@@ -12296,7 +12367,7 @@ features:
     - app:docs
     dev: enabled
     prod: enabled
-  assertions: 4
+  assertions: 5
   surfaces:
     web:
       status: partial
@@ -12306,8 +12377,8 @@ features:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 2
-        counted: 4
+        missing: 3
+        counted: 5
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/docs-editor.spec.ts
@@ -12364,19 +12435,21 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_planned
-      source: intent
+      status: not_run
+      source: tests
       intent: not_planned
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
+        not_run: 1
         missing: 0
-        counted: 0
+        counted: 1
+      conflict: marked not_planned, but tests on rest_api exist
       key_tests: []
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - backend/tests/test_docx_model_fence.py
+      unit_test_files: 1
     sdk_npm:
       status: implemented
       source: intent
@@ -12538,7 +12611,7 @@ features:
   description: Keep saved event information.
   specifications:
   - id: feature.app-skill.events-search
-    status: draft
+    status: approved
     path: specifications/features/app-skills/events-search
   apps:
   - events
@@ -12549,9 +12622,9 @@ features:
     ids:
     - app:events
     - skill:events:search
-    dev: partial
+    dev: enabled
     prod: enabled
-  assertions: 12
+  assertions: 13
   surfaces:
     web:
       status: failing
@@ -12560,9 +12633,9 @@ features:
       assertions:
         passing: 2
         failing: 2
-        not_run: 0
+        not_run: 1
         missing: 9
-        counted: 13
+        counted: 14
       failing_tests:
       - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts › event fullscreen forwards visible event fields
         while excluding raw and nested transport metadata
@@ -12576,9 +12649,9 @@ features:
       - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
       - frontend/apps/web_app/tests/components/skill-failure-feedback.spec.ts
       key_unit_tests:
-      - backend/tests/test_preprocessor_skill_resolver.py
       - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventResult.test.ts
+      - backend/tests/test_preprocessor_skill_resolver.py
       - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
       - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
       unit_test_files: 6
@@ -12590,8 +12663,8 @@ features:
         passing: 1
         failing: 0
         not_run: 0
-        missing: 11
-        counted: 12
+        missing: 12
+        counted: 13
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -12610,8 +12683,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 12
-        counted: 12
+        missing: 13
+        counted: 13
       key_tests: []
       evidence: openmates apps events search
       e2e_tests: []
@@ -12639,9 +12712,9 @@ features:
       assertions:
         passing: 11
         failing: 1
-        not_run: 0
+        not_run: 1
         missing: 0
-        counted: 12
+        counted: 13
       failing_tests:
       - backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned
       key_tests: []
@@ -12652,7 +12725,7 @@ features:
       - backend/tests/test_app_skill_processing_quality.py
       - backend/tests/test_events_provider_routing.py
       - backend/tests/test_search_relevance.py
-      unit_test_files: 8
+      unit_test_files: 9
     sdk_npm:
       status: implemented
       source: intent
@@ -12661,8 +12734,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 12
-        counted: 12
+        missing: 13
+        counted: 13
       key_tests: []
       evidence: src/generated/appSkills.ts apps.events (generic skill call)
       e2e_tests: []
@@ -12676,8 +12749,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 12
-        counted: 12
+        missing: 13
+        counted: 13
       key_tests: []
       evidence: generated/app_skills.py apps.events (generic skill call)
       e2e_tests: []
@@ -13660,9 +13733,10 @@ features:
       - frontend/apps/web_app/tests/skill-images-search.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/ai-generated-badge.spec.ts
+      - frontend/apps/web_app/tests/components/generated-media-generate-card.spec.ts
       - frontend/apps/web_app/tests/components/images-modify-embed.spec.ts
       - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
-      - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
       - frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/images/__tests__/imageDraft.test.ts
@@ -13925,11 +13999,11 @@ features:
         missing: 2
         counted: 8
       key_tests:
-      - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
       evidence: 'real dev web proof: scripts/life_compass_focus_web_real_test.py (activation, Tasks, consented Memory, later-chat
         follow-up)'
       e2e_tests:
-      - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
       key_unit_tests: []
       unit_test_files: 0
     apple:
@@ -15155,7 +15229,7 @@ features:
     - skill:openmates:get-docs
     dev: partial
     prod: partial
-  assertions: 18
+  assertions: 21
   surfaces:
     web:
       status: partial
@@ -15164,13 +15238,14 @@ features:
       assertions:
         passing: 2
         failing: 0
-        not_run: 7
-        missing: 9
-        counted: 18
+        not_run: 9
+        missing: 10
+        counted: 21
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
       - frontend/apps/web_app/tests/components/chat-orchestration-event-notice.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-sub-chats.spec.ts
       - frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
       key_unit_tests:
       - backend/tests/test_preprocessor_skill_resolver.py
@@ -15201,8 +15276,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 18
-        counted: 18
+        missing: 21
+        counted: 21
       key_tests: []
       evidence: openmates apps openmates get-docs|share-usecase
       e2e_tests: []
@@ -15228,19 +15303,20 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 16
+        passing: 17
         failing: 0
         not_run: 0
-        missing: 2
-        counted: 18
+        missing: 4
+        counted: 21
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_chat_orchestration_skills.py
       - backend/tests/test_chat_orchestration_main_chats_jobs.py
       - backend/tests/test_chat_orchestration_interpretation.py
+      - backend/tests/test_focus_mode_routing.py
       - backend/tests/test_server_turn_dispatch.py
-      unit_test_files: 4
+      unit_test_files: 5
     sdk_npm:
       status: implemented
       source: intent
@@ -15271,6 +15347,86 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  subfeatures:
+  - id: sub-chats
+    name: Sub-chats
+    description: Complex work splits into sub-chats in any focus; they keep the Project focus and link to the assumption or
+      Task they work on
+    assertion_ids:
+    - chat-orchestration.sub-chats.focus-inheritance
+    - chat-orchestration.sub-chats.general-delegation
+    - chat-orchestration.sub-chats.work-links
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 2
+          missing: 1
+          counted: 3
+      apple:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 3
+          counted: 3
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: partial
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 1
+          failing: 0
+          not_run: 0
+          missing: 2
+          counted: 3
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
 - id: pdf
   name: PDF
   kind: app
@@ -15422,7 +15578,7 @@ features:
     - platform:plans
     dev: enabled
     prod: disabled
-  assertions: 17
+  assertions: 19
   surfaces:
     web:
       status: failing
@@ -15431,9 +15587,9 @@ features:
       assertions:
         passing: 7
         failing: 1
-        not_run: 2
-        missing: 7
-        counted: 17
+        not_run: 3
+        missing: 8
+        counted: 19
       failing_tests:
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts › Plan cards open a canonical shared-header detail page
       key_tests: []
@@ -15442,10 +15598,12 @@ features:
       - frontend/apps/web_app/tests/components/chat-active-plan.spec.ts
       - frontend/apps/web_app/tests/components/plan-embed.spec.ts
       - frontend/apps/web_app/tests/components/plan-skill-embeds.spec.ts
+      - frontend/apps/web_app/tests/components/sub-chat-work-link.spec.ts
       - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
       - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
       - frontend/apps/web_app/tests/plans-flow.spec.ts
       - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-sub-chats.spec.ts
       - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
       key_unit_tests:
@@ -15482,8 +15640,8 @@ features:
         passing: 0
         failing: 0
         not_run: 9
-        missing: 8
-        counted: 17
+        missing: 10
+        counted: 19
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
@@ -15510,15 +15668,15 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 2
         failing: 0
         not_run: 10
         missing: 7
-        counted: 17
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -15527,7 +15685,7 @@ features:
       - backend/tests/test_workspace_change_history.py
       - backend/tests/test_plan_assumption_workflow.py
       - backend/tests/test_user_task_admission.py
-      unit_test_files: 7
+      unit_test_files: 13
     sdk_npm:
       status: not_run
       source: tests
@@ -15536,8 +15694,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 11
-        counted: 17
+        missing: 13
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -15553,8 +15711,8 @@ features:
         passing: 0
         failing: 0
         not_run: 7
-        missing: 10
-        counted: 17
+        missing: 12
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -15935,7 +16093,7 @@ features:
   description: Organize chats, files, embeds, and project workspaces.
   specifications:
   - id: feature.projects
-    status: draft
+    status: approved
     path: specifications/features/projects
   apps:
   - projects
@@ -15947,18 +16105,18 @@ features:
     - platform:projects
     dev: enabled
     prod: disabled
-  assertions: 58
+  assertions: 75
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 19
+        passing: 21
         failing: 14
-        not_run: 7
-        missing: 18
-        counted: 58
+        not_run: 12
+        missing: 28
+        counted: 75
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_multiple_project_jobs_dispatch_only_first
@@ -15977,6 +16135,7 @@ features:
         binding is unavailable
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
       - frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
@@ -15987,21 +16146,24 @@ features:
       - frontend/apps/web_app/tests/components/project-file-approval.spec.ts
       - frontend/apps/web_app/tests/components/project-file-references.spec.ts
       - frontend/apps/web_app/tests/components/project-focus-policy.spec.ts
+      - frontend/apps/web_app/tests/components/project-read-reference-card.spec.ts
       - frontend/apps/web_app/tests/components/project-readme-figma.spec.ts
       - frontend/apps/web_app/tests/components/project-timeline.spec.ts
       - frontend/apps/web_app/tests/components/projects-file-actions.spec.ts
+      - frontend/apps/web_app/tests/components/projects-presentation-tiles.spec.ts
       - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
       - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
       - frontend/apps/web_app/tests/components/remote-command-review.spec.ts
-      - frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
       - frontend/apps/web_app/tests/project-plans-flow.spec.ts
       - frontend/apps/web_app/tests/project-task-sync.spec.ts
       - frontend/apps/web_app/tests/project-timeline-flow.spec.ts
       - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
       - frontend/apps/web_app/tests/projects-create-edit-files.spec.ts
       - frontend/apps/web_app/tests/projects-flow.spec.ts
+      - frontend/apps/web_app/tests/projects-presentation-flow.spec.ts
       - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
       - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+      - frontend/apps/web_app/tests/real-inference-press-release-project-memory.spec.ts
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
       key_unit_tests:
@@ -16010,7 +16172,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
       - backend/tests/test_project_file_references.py
       - backend/tests/test_project_focus_early_routing.py
-      unit_test_files: 35
+      unit_test_files: 38
     apple:
       status: failing
       source: tests
@@ -16019,8 +16181,8 @@ features:
         passing: 15
         failing: 2
         not_run: 1
-        missing: 40
-        counted: 58
+        missing: 57
+        counted: 75
       failing_tests:
       - apple/OpenMatesUITests/DevComponentPreviewUITests.swift › testProjectsWorkspaceLandingOverviewAndFilesAtWebPhoneWidth
       key_tests: []
@@ -16053,8 +16215,8 @@ features:
         passing: 21
         failing: 0
         not_run: 16
-        missing: 21
-        counted: 58
+        missing: 38
+        counted: 75
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
@@ -16099,11 +16261,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 26
+        passing: 27
         failing: 0
-        not_run: 7
-        missing: 25
-        counted: 58
+        not_run: 17
+        missing: 31
+        counted: 75
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
@@ -16112,8 +16274,8 @@ features:
       - backend/tests/test_project_remote_sources.py
       - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
       - backend/tests/test_embed_version_routes.py
-      - backend/tests/test_project_embed_adoption.py
-      unit_test_files: 42
+      - backend/tests/test_async_skill_continuation.py
+      unit_test_files: 50
     sdk_npm:
       status: not_run
       source: tests
@@ -16122,8 +16284,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 52
-        counted: 58
+        missing: 69
+        counted: 75
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16139,8 +16301,8 @@ features:
         passing: 0
         failing: 0
         not_run: 5
-        missing: 53
-        counted: 58
+        missing: 70
+        counted: 75
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16155,6 +16317,7 @@ features:
     - projects.creation.assistant-inferred
     - projects.creation.machine-folder
     - projects.keys.client-wrapped
+    - projects.keys.sandbox-sealed-handover
     - projects.lifecycle.encrypted-crud
     - projects.links.openmates-only-encrypted
     - projects.uploads.project-wrapped
@@ -16164,11 +16327,11 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 3
-          not_run: 3
-          missing: 1
-          counted: 7
+          not_run: 2
+          missing: 2
+          counted: 8
         failing_tests:
         - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts › groups saved chats, navigates deep folders and reveals
           running descendants globally
@@ -16184,8 +16347,8 @@ features:
           passing: 3
           failing: 0
           not_run: 0
-          missing: 4
-          counted: 7
+          missing: 5
+          counted: 8
       cli:
         status: partial
         source: tests
@@ -16194,8 +16357,8 @@ features:
           passing: 1
           failing: 0
           not_run: 3
-          missing: 3
-          counted: 7
+          missing: 4
+          counted: 8
       tui:
         status: unverified
         source: intent
@@ -16213,9 +16376,9 @@ features:
         assertions:
           passing: 4
           failing: 0
-          not_run: 1
+          not_run: 2
           missing: 2
-          counted: 7
+          counted: 8
       sdk_npm:
         status: not_run
         source: tests
@@ -16224,8 +16387,8 @@ features:
           passing: 0
           failing: 0
           not_run: 3
-          missing: 4
-          counted: 7
+          missing: 5
+          counted: 8
       sdk_pypi:
         status: not_run
         source: tests
@@ -16234,8 +16397,8 @@ features:
           passing: 0
           failing: 0
           not_run: 3
-          missing: 4
-          counted: 7
+          missing: 5
+          counted: 8
   - id: file-reading-search
     name: Project files and search
     description: Search scope/consistency, embed adoption, previews, items
@@ -16752,6 +16915,8 @@ features:
     name: Agentic runs and checks
     description: Long turns, test results, checks, workspace chain, remote access
     assertion_ids:
+    - projects.agentic.earlier-steps-stay
+    - projects.agentic.files-as-code-embeds
     - projects.agentic.long-turn-stays-online
     - projects.agentic.test-result-in-reply
     - projects.agentic.test-run-installs-dependencies
@@ -16768,9 +16933,9 @@ features:
         assertions:
           passing: 3
           failing: 0
-          not_run: 0
-          missing: 5
-          counted: 8
+          not_run: 1
+          missing: 6
+          counted: 10
       apple:
         status: partial
         source: tests
@@ -16779,8 +16944,8 @@ features:
           passing: 1
           failing: 0
           not_run: 0
-          missing: 7
-          counted: 8
+          missing: 9
+          counted: 10
       cli:
         status: partial
         source: tests
@@ -16789,8 +16954,8 @@ features:
           passing: 1
           failing: 0
           not_run: 1
-          missing: 6
-          counted: 8
+          missing: 8
+          counted: 10
       tui:
         status: unverified
         source: intent
@@ -16808,9 +16973,9 @@ features:
         assertions:
           passing: 2
           failing: 0
-          not_run: 2
+          not_run: 4
           missing: 4
-          counted: 8
+          counted: 10
       sdk_npm:
         status: unverified
         source: intent
@@ -16819,8 +16984,8 @@ features:
           passing: 0
           failing: 0
           not_run: 0
-          missing: 8
-          counted: 8
+          missing: 10
+          counted: 10
       sdk_pypi:
         status: unverified
         source: intent
@@ -16829,8 +16994,93 @@ features:
           passing: 0
           failing: 0
           not_run: 0
-          missing: 8
-          counted: 8
+          missing: 10
+          counted: 10
+  - id: tile-presentation
+    name: Project tile description, icon and category
+    description: Encrypted one-line description, icon and category gradient on Project tiles; set at assistant creation and
+      once on Specification approval, manual edits locked, older Projects backfilled once by the client
+    assertion_ids:
+    - projects.presentation.backfill
+    - projects.presentation.creation-same-call
+    - projects.presentation.dominant-category
+    - projects.presentation.encrypted
+    - projects.presentation.manual-lock
+    - projects.presentation.normalised
+    - projects.presentation.specification-refresh
+    - projects.presentation.suggest-route
+    - projects.presentation.tile
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 5
+          missing: 4
+          counted: 9
+      apple:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 9
+          counted: 9
+      cli:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 9
+          counted: 9
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: partial
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 1
+          failing: 0
+          not_run: 3
+          missing: 5
+          counted: 9
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 9
+          counted: 9
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 9
+          counted: 9
   - id: project-timeline
     name: Project Timeline tab
     description: Newest-first commits and file activity of a Project with restore of files to a commit as new versions (web,
@@ -17310,7 +17560,7 @@ features:
       - frontend/apps/web_app/tests/components/slides-presenter.spec.ts
       - frontend/apps/web_app/tests/components/slides-svg-animation.spec.ts
       - frontend/apps/web_app/tests/components/slides-template-embed.spec.ts
-      - frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-slides-focus-modes.spec.ts
       - frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts
       - frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts
       - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
@@ -17320,8 +17570,8 @@ features:
       - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts
       - frontend/packages/ui/src/components/embeds/slides/slidesTemplates.test.ts
       - frontend/packages/ui/src/services/rustCore/presentRemote/__tests__/presentRemoteUnit.test.ts
-      - frontend/packages/ui/src/components/embeds/slides/__tests__/slideImage.test.ts
-      unit_test_files: 11
+      - backend/tests/test_tool_protocol_guard.py
+      unit_test_files: 12
     apple:
       status: tested
       source: tests
@@ -17847,18 +18097,18 @@ features:
     - platform:tasks
     dev: enabled
     prod: disabled
-  assertions: 29
+  assertions: 30
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 10
         failing: 2
         not_run: 7
         missing: 11
-        counted: 29
+        counted: 30
       failing_tests:
       - frontend/apps/web_app/tests/unified-detail-header.spec.ts › Task title and description expose hints, save, and undo
         semantics
@@ -17919,8 +18169,8 @@ features:
         passing: 2
         failing: 0
         not_run: 17
-        missing: 10
-        counted: 29
+        missing: 11
+        counted: 30
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-claude-session-tasks.spec.ts
@@ -17961,8 +18211,8 @@ features:
         passing: 6
         failing: 0
         not_run: 13
-        missing: 10
-        counted: 29
+        missing: 11
+        counted: 30
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/storage-archive-lifecycle.spec.ts
@@ -17982,8 +18232,8 @@ features:
         passing: 0
         failing: 0
         not_run: 9
-        missing: 20
-        counted: 29
+        missing: 21
+        counted: 30
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -17998,8 +18248,8 @@ features:
         passing: 0
         failing: 0
         not_run: 10
-        missing: 19
-        counted: 29
+        missing: 20
+        counted: 30
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -18928,7 +19178,7 @@ features:
     status: draft
     path: specifications/features/workflows
   - id: feature.workflows-ui
-    status: draft
+    status: approved
     path: specifications/features/workflows-ui
   apps:
   - workflows
@@ -18940,18 +19190,18 @@ features:
     - platform:workflows
     dev: enabled
     prod: enabled
-  assertions: 88
+  assertions: 92
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 31
+        passing: 33
         failing: 17
-        not_run: 16
+        not_run: 18
         missing: 24
-        counted: 88
+        counted: 92
       failing_tests:
       - frontend/apps/web_app/tests/components/workflow-ai-pending-preview.spec.ts › shows a read-only pending workflow at
         laptop and phone widths
@@ -18991,6 +19241,7 @@ features:
       - frontend/apps/web_app/tests/components/workflow-chat-embed.spec.ts
       - frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
       - frontend/apps/web_app/tests/components/workflow-choice-loop.spec.ts
+      - frontend/apps/web_app/tests/components/workflow-description-clamp.spec.ts
       - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
       - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
       - frontend/apps/web_app/tests/components/workflow-graph-reorder-inputs.spec.ts
@@ -19011,6 +19262,7 @@ features:
       - frontend/apps/web_app/tests/landing-guest-workflows.spec.ts
       - frontend/apps/web_app/tests/marketing-landing-workspaces.spec.ts
       - frontend/apps/web_app/tests/notification-email-links.spec.ts
+      - frontend/apps/web_app/tests/start-screens-layout.spec.ts
       - frontend/apps/web_app/tests/tasks-workflow-run-detail.spec.ts
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-workflow-side-panel.spec.ts
@@ -19043,9 +19295,9 @@ features:
       assertions:
         passing: 18
         failing: 0
-        not_run: 4
+        not_run: 5
         missing: 0
-        counted: 22
+        counted: 23
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/TooltipHelpParityUITests.swift
@@ -19085,13 +19337,13 @@ features:
       - frontend/apps/web_app/tests/cli-workflow-data-branches.spec.ts
       - frontend/apps/web_app/tests/cli-workflow-files.spec.ts
       - frontend/apps/web_app/tests/cli-workflow-skill-safety.spec.ts
-      - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-jobs-search-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
       key_unit_tests:
       - frontend/packages/openmates-cli/tests/workflows.test.ts
       - backend/tests/test_workflow_nl_planner.py
@@ -19637,7 +19889,7 @@ features:
       - apple/OpenMatesTests/NotificationPreviewCryptoTests.swift
       - apple/OpenMatesTests/PushCompletionNoticePolicyTests.swift
       - backend/tests/test_completion_push_cache_fallback.py
-      unit_test_files: 18
+      unit_test_files: 19
       platforms:
       - ios
       - ipados
@@ -20604,7 +20856,6 @@ features:
       - frontend/apps/web_app/tests/components/video-transcript-media-ccc.spec.ts
       - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
       - frontend/apps/web_app/tests/example-chat-hosting-domains.spec.ts
-      - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
       - frontend/apps/web_app/tests/jobs-search-example.spec.ts
       - frontend/apps/web_app/tests/landing-audio-targeted.spec.ts
       - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
@@ -20617,6 +20868,8 @@ features:
       - frontend/apps/web_app/tests/models3d-search.spec.ts
       - frontend/apps/web_app/tests/pdf-flow.spec.ts
       - frontend/apps/web_app/tests/provider-boundary.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-upload-svg.spec.ts
       - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
       - frontend/apps/web_app/tests/skill-business-trademarks-browser.spec.ts
       - frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts
@@ -20641,7 +20894,7 @@ features:
       - backend/tests/test_generated_media_graph.py
       - backend/tests/test_main_processor_invalid_tool_calls.py
       - frontend/packages/ui/src/components/embeds/images/__tests__/imageGenerationMetadata.test.ts
-      unit_test_files: 39
+      unit_test_files: 40
     apple:
       status: partial
       source: tests
@@ -20755,7 +21008,7 @@ features:
       - backend/tests/test_external_result_sanitizer_batching.py
       - backend/tests/test_app_skill_output_safety.py
       - backend/tests/test_async_recovery_handoff.py
-      unit_test_files: 72
+      unit_test_files: 73
     sdk_npm:
       status: partial
       source: tests
@@ -23819,11 +24072,13 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 1
+        not_run: 2
         missing: 0
-        counted: 1
+        counted: 2
       key_tests: []
-      e2e_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
+      - frontend/apps/web_app/tests/real-inference-gemini-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_message_received_test_markers.py
       unit_test_files: 1
@@ -23937,7 +24192,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 16
+  assertions: 17
   surfaces:
     web:
       status: live
@@ -23980,8 +24235,8 @@ features:
         passing: 0
         failing: 0
         not_run: 12
-        missing: 4
-        counted: 16
+        missing: 5
+        counted: 17
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -24012,9 +24267,9 @@ features:
       assertions:
         passing: 2
         failing: 1
-        not_run: 5
+        not_run: 6
         missing: 8
-        counted: 16
+        counted: 17
       failing_tests:
       - frontend/apps/web_app/tests/development-service-health.spec.ts › catalog retains unpriced providers and search skills
         load their request schemas
@@ -24072,7 +24327,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 13
+  assertions: 17
   surfaces:
     web:
       status: not_planned
@@ -24114,8 +24369,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 13
-        counted: 13
+        missing: 17
+        counted: 17
       key_tests: []
       evidence: openmates server monitoring run|status|digest
       e2e_tests: []
@@ -24329,6 +24584,7 @@ features:
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/plan-skill-embeds.spec.ts
+      - frontend/apps/web_app/tests/components/spec-sub-chat-links.spec.ts
       - frontend/apps/web_app/tests/components/specification-embed.spec.ts
       - frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
       - frontend/apps/web_app/tests/project-specifications-web-flow.spec.ts
@@ -24635,6 +24891,8 @@ features:
       - frontend/apps/web_app/tests/cli-native-apps.spec.ts
       - frontend/apps/web_app/tests/cli-native-billing.spec.ts
       - frontend/apps/web_app/tests/cli-native-chats.spec.ts
+      - frontend/apps/web_app/tests/cli-native-code-run-real.spec.ts
+      - frontend/apps/web_app/tests/cli-native-code-run.spec.ts
       - frontend/apps/web_app/tests/cli-native-content.spec.ts
       - frontend/apps/web_app/tests/cli-native-misc.spec.ts
       - frontend/apps/web_app/tests/cli-native-notifications.spec.ts

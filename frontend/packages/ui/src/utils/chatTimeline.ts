@@ -2,6 +2,7 @@
 import type { Message } from '../types/chat';
 import MarkdownIt from 'markdown-it';
 import { voiceTranscriptDisplayText } from './voiceTranscriptDisplay';
+import { appsResultContextDisplayText } from './appsResultContextDisplay';
 
 export type TimelineEntry = Pick<Message, 'message_id' | 'created_at' | 'role' | 'user_message_id'> & { bookmarked?: boolean; response_id?: string };
 export type TimelinePreview = { user: Message; assistant: Message | null; pending: boolean };
@@ -50,7 +51,7 @@ export function timelinePreviewText(message: Message): string {
   let remaining = 400;
   if (typeof message.content === 'string') {
     // Previews need readable text, not hydration or application-store imports.
-    const tokens = markdown.parse(voiceTranscriptDisplayText(message.content.slice(0, 16000), message.role), {});
+    const tokens = markdown.parse(appsResultContextDisplayText(voiceTranscriptDisplayText(message.content.slice(0, 16000), message.role), message.role), {});
     const walk = (items: typeof tokens): void => {
       for (const token of items) {
         if (remaining-- <= 0) return;

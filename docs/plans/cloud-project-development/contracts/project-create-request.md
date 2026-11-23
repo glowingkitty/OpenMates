@@ -60,7 +60,9 @@ WebSocket event `project_create_requested`:
       "message_id": "<user message id of this turn>",
       "team_id": null,
       "name": "Recipe Manager",
-      "description": "",
+      "description": "Save recipes and plan meals for the week.",
+      "icon": "chef-hat",
+      "category": "cooking_food",
       "kind": "web_app",
       "subfolder": "web-app",
       "write_mode": "apply_and_show",
@@ -82,7 +84,8 @@ Field rules:
 | `request_id` | Opaque, unique; echo it unchanged. Pattern `project-create-request-<uuid4>`. |
 | `origin` | `preprocessor`: assistant-inferred, the turn resumes after the report. `skill`: produced by the `projects.create` app skill (returned in its skill result, not via this event); same fields, `kind`/`subfolder` are `null`, `focus.activate` is `none`, and no report is expected. |
 | `team_id` | Create the Project in this Team when set, else personal. |
-| `name`, `description` | Plaintext proposal (<=120 / <=400 chars). Encrypt client-side like a user-created Project. |
+| `name`, `description` | Plaintext proposal (<=120 / <=400 chars; the tile description is cut to 140). Encrypt client-side like a user-created Project. |
+| `icon`, `category` | Tile presentation from the same naming call (no extra model call): a lowercase icon id and one of the 16 Project categories, or `null`. The client encrypts both and writes the presentation state with source `assistant` (`docs/plans/project-presentation/contract.md`). |
 | `kind`, `subfolder` | `web_app` -> `web-app`, `native_app` -> `native-app`. The application's files later live under `<subfolder>/` (P11). The client creates no files for this request. |
 | `write_mode` | Always `apply_and_show`; send it as `write_mode` on create. |
 | `focus.activate` | `immediate`: activate the default focus right after creation, no countdown and no confirmation. |
@@ -166,6 +169,13 @@ before the turn resumes shows none). Fields: `focus_id: "project-<project_id>"`,
 id persisted as the active focus) and `project_name` (the proposed name, the
 same plaintext the request already carried). Clients render it as the
 "Created project <name>" card with Undo.
+
+The created record is consumed by that first continuation, but the reply is
+often rewritten by later continuations of the same turn (file writes, test
+runs, commits started by the model). The server keeps the card's reference on
+the turn's request (`created_project_card_reference`), so every async skill
+snapshot carries it and each later rewrite again starts with the same card;
+the finished message always shows it.
 
 After `project_create_confirmed` the original turn resumes as an async continuation
 (`skill_id` `project_create_request`). For `created` the new Project focus is active,

@@ -35,7 +35,7 @@ export interface ChatRecommendation {
  * suggestions (project_authoring_recommendation events of the active Project);
  * they are not persisted in chats.encrypted_recommendations.
  */
-export type RecommendationCardKind = ChatRecommendationKind | 'focus';
+export type RecommendationCardKind = Exclude<ChatRecommendationKind, 'workflow'> | 'focus';
 
 /** One entry of the Recommendations card: a chat recommendation or a Project Focus suggestion. */
 export interface RecommendationCardItem {
@@ -113,4 +113,17 @@ export interface MemoryWriteUndoneEvent {
   entry_id: string;
   /** Unix seconds. */
   undone_at: number;
+}
+
+/** Input of the Rust start-screen workflow suggestion policy (workflow_start_suggestions.rs). */
+export interface WorkflowStartSuggestionsInput {
+	states: ChatRecommendationsState[];
+	/** Clamped to 1..=10 by the core. */
+	limit: number;
+}
+
+/** One start-screen workflow suggestion. */
+export interface WorkflowStartSuggestion {
+	title: string;
+	summary: string;
 }

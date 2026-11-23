@@ -17,6 +17,35 @@ import time
 from urllib.parse import urlparse
 
 MEDIA_SUFFIXES = {".mp4", ".webm", ".png", ".jpg", ".jpeg"}
+PROOF_AUDIO_MANIFEST = "proof-audio-manifest"
+
+
+def with_proof_audio(directory, attachments):
+    """Attachments plus the sound-carrying videos of a proof-audio manifest the run could not mux.
+
+    Voice and audio specs record the page's audio (tests/helpers/proof-audio.ts) and mux it into
+    ``video-with-audio.webm`` inside the run; where ffmpeg was missing they attach the manifest
+    instead and the muxing happens here (scripts/proof_video_audio.py).
+    """
+    # Sibling script, imported only when a manifest is present (run as a script or as scripts.ci_evidence).
+    if __package__:
+        from . import proof_video_audio
+    else:
+        import proof_video_audio
+
+    expanded = []
+    for attachment in attachments:
+        if attachment.get("name") != PROOF_AUDIO_MANIFEST:
+            expanded.append(attachment)
+            continue
+        manifest = resolve_attachment(directory, attachment.get("path", ""))
+        for index, video in enumerate(proof_video_audio.mux(manifest)):
+            expanded.append({
+                "name": f"video-with-audio-{index}" if index else "video-with-audio",
+                "path": str(video.relative_to(directory)),
+                "contentType": "video/webm",
+            })
+    return expanded
 
 
 def resolve_attachment(directory, name):
@@ -79,6 +108,8 @@ def collect(directory, receipt):
     for report_file in sorted(directory.rglob("ci-spec-*.json")):
         for attempt in attempts(json.loads(report_file.read_text())):
             attachments = attempt.pop("attachments")
+            if any(a.get("name") == PROOF_AUDIO_MANIFEST for a in attachments):
+                attachments = with_proof_audio(directory, attachments)
             has_video = False
             for attachment in attachments:
                 name = attachment.get("path", "")

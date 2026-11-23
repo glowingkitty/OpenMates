@@ -25,6 +25,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.voice_call_pasted import mark_pasted
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.voice_call_support import (
     LOCK_RENEW_SECONDS, _acquire_lock, _authoritative_credits, _billing,
@@ -32,18 +33,23 @@ from backend.core.api.app.routes.voice_call_support import (
 )
 from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
+from backend.core.api.app.routes.voice_call_terms import parse_terms
 from backend.shared.providers.voxtral_voice import VoxtralVoiceSession, VOXTRAL_VOICE_MODEL, STREAMING_DELAY_MS
+from backend.shared.python_utils.voice_pause_decision import PAUSE_WAIT_SECONDS, PauseDecision, as_pause_decision, classify_voice_pause
 from backend.shared.providers.live_voice import LiveVoiceSession
 from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals
 from backend.shared.python_utils.voice_call_registry import (
     ACTIVE_TTL_SECONDS, finalize_active_call, issue_message_id, register_active_call, renew_active_call,
 )
 from backend.core.api.app.routes.voice_call_orchestration import CallInterpretationGate
+from backend.core.api.app.routes.voice_call_waiting import VoiceWaiting
 from backend.shared.testing.voice_call_fixture import (
     IsolatedVoxtralVoiceFixture, VOICE_ACK_DEFAULT_TIMESTAMP, consume_voice_ack_fixture_write_failure,
     isolated_voice_fixture_enabled, set_voice_ack_fixture_fail_next_write,
     set_voice_ack_fixture_profile_mode, voice_ack_fixture_requires_profile,
 )
+
+from backend.core.api.app.routes.voice_call_audio import MicAudioForwarder
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1")
@@ -63,10 +69,12 @@ MAX_TEXT_IDENTITIES = 2048
 # new speech that may never come. "incomplete" thinking pauses stay held.
 # Real TTS calls showed STT-punctuated pauses ("I would like to know.") judged
 # uncertain; 2.5s keeps ordinary ~2-3s thinking pauses in one turn.
-UNCERTAIN_SILENCE_FALLBACK_SECONDS = 2.5
+UNCERTAIN_SILENCE_FALLBACK_SECONDS = PAUSE_WAIT_SECONDS["unsure"]
+# A "still thinking" verdict submits after this much further silence.
+STILL_THINKING_SILENCE_SECONDS = PAUSE_WAIT_SECONDS["still_thinking"]
 # Hard overall deadline of the "done talking?" check after turn.end. A miss or
 # provider outage counts as complete (logged), so the check cannot block a turn.
-COMPLETION_CHECK_DEADLINE_SECONDS = 0.6
+COMPLETION_CHECK_DEADLINE_SECONDS = 0.6  # transport budget; the model call itself targets 0.25s
 # A late delta only re-runs the check when this much budget is still left.
 COMPLETION_RECHECK_MIN_BUDGET_SECONDS = 0.15
 MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
@@ -86,6 +94,10 @@ def _ordered_message_id(last: int = 0) -> tuple[str, int]:
 
 class ContextLimitError(ValueError):
     pass
+
+
+class InsufficientCreditsError(RuntimeError):
+    """The account cannot pay for the call; the client shows the credits message."""
 
 
 def _context(value: Any) -> tuple[str, list[dict[str, Any]]]:
@@ -446,21 +458,25 @@ def _material_change(checked: str, current: str) -> bool:
     return words(checked) != words(current)
 
 
-async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION_CHECK_DEADLINE_SECONDS) -> str:
+async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION_CHECK_DEADLINE_SECONDS) -> PauseDecision:
     """Separate, bounded completion gate; never run ordinary preprocessing here."""
     try:
         if isolated_voice_fixture_enabled():
-            from backend.shared.testing.voice_call_fixture import isolated_voice_completion_fixture
-            return isolated_voice_completion_fixture(text) or "uncertain"
-        from backend.shared.python_utils.voice_turn_completion import classify_voice_turn_completion
-        return await asyncio.wait_for(classify_voice_turn_completion(
+            from backend.shared.testing.voice_call_fixture import (
+                isolated_voice_completion_fixture, isolated_voice_intent_fixture)
+            fixture_intent = isolated_voice_intent_fixture(text)
+            if fixture_intent is not None:
+                complete = as_pause_decision("complete")
+                return PauseDecision(complete.verdict, fixture_intent, complete.wait_seconds)  # type: ignore[arg-type]  # fixed CI intents
+            return as_pause_decision(isolated_voice_completion_fixture(text) or "uncertain")
+        return await asyncio.wait_for(classify_voice_pause(
             text, websocket.app.state.secrets_manager, timeout), timeout=timeout + 0.05)
     except TimeoutError:
         logger.warning("VOICE_COMPLETION_CHECK timeout after=%.2fs", timeout)
-        return "unavailable"
+        return as_pause_decision("unavailable")
     except Exception as exc:
         logger.warning("VOICE_COMPLETION_CHECK unavailable category=%s", type(exc).__name__)
-        return "unavailable"
+        return as_pause_decision("unavailable")
 
 
 async def _prewarm_completion() -> None:
@@ -527,6 +543,10 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     lease_task: asyncio.Task[None] | None = None
     registry_task: asyncio.Task[None] | None = None
     prewarm_task: asyncio.Task[None] | None = None
+    audio: MicAudioForwarder | None = None
+    audio_progress = asyncio.Event()
+    audio_progress_wait: asyncio.Task[bool] | None = None
+    drain_audio = True
     lock_client: Any = None
     lock_key = lock_token = ""
     registered = False
@@ -551,6 +571,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     last_activity: tuple[bool, bool, bool] | None = None
     stage = "start_validation"
     gate: CallInterpretationGate | None = None
+    waiting = VoiceWaiting()
 
     async def send(event: dict[str, Any]) -> None:
         await websocket.send_json(event)
@@ -719,7 +740,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
 
     async def finish_ready_turns(now: float) -> None:
         nonlocal current
-        from backend.shared.python_utils.voice_call_intent import assistant_question_pending, is_explicit_voice_stop, is_listener_acknowledgement
+        from backend.shared.python_utils.voice_call_intent import (
+            assistant_question_pending, is_explicit_voice_stop, is_listener_acknowledgement, is_microphone_recapture)
         for turn in list(turns.values()):
             if turn.classifier is not None:
                 if not turn.classifier.done():
@@ -743,6 +765,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 # A model-supported echo verdict is tied to playback of this
                 # exact answer. Never let late results suppress real new speech.
                 reason = "echo"
+            elif turn.verdict != "interrupt" and turn.assistant_speaking and (
+                    is_microphone_recapture(text, turn.assistant_text) or (
+                        turn.assistant_id is not None and turn.assistant_id == assistant["assistant_message_id"]
+                        and is_microphone_recapture(text, assistant["text"]))):
+                # Heard during playback and nothing but a verbatim slice of that
+                # speech: microphone recapture, which also never barges in. A
+                # deliberate quote is an interrupt verdict and stays a turn.
+                reason = "echo"
             elif turn.assistant_active and (turn.verdict == "backchannel" or (turn.verdict == "uncertain" and is_listener_acknowledgement(text)
                     and not assistant_question_pending(turn.assistant_text))):
                 reason = "backchannel"
@@ -754,6 +784,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     # The silence window after an uncertain decision elapsed
                     # without new speech for this exact text revision.
                     verdict = "complete"
+                    decision = None
                 else:
                     if turn.completion is None:
                         if turn.completion_text != text:
@@ -761,7 +792,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         continue
                     if not turn.completion.done():
                         continue
-                    verdict = turn.completion.result()
+                    decision = as_pause_decision(turn.completion.result())
+                    verdict = decision.completion
                     turn.completion = None
                     if turn.completion_text != text and _material_change(turn.completion_text, text):
                         # Words arrived after the check started: its verdict is
@@ -771,27 +803,43 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             start_completion(turn, text, remaining)
                             continue
                         verdict = "unavailable"
+                        decision = as_pause_decision("unavailable")
                     elif turn.completion_text != text:
                         turn.completion_text = text
+                # The model-judged intent (hold, back, repeat) is acted on by the
+                # waiting state below, whatever the verdict.
+                intent = decision.intent if decision is not None else "none"
                 if verdict == "unavailable":
                     # Timeout/outage never blocks the turn: send it as complete.
                     logger.warning("VOICE_COMPLETION_CHECK fail_open call_id=%s verdict=complete", call_id)
                     verdict = "complete"
-                if verdict != "complete":
-                    if verdict == "incomplete":
-                        # A thinking pause stays held until new speech continues it.
+                if verdict != "complete" and intent == "none":
+                    if decision is not None and decision.verdict == "wait":
+                        # The user asked to hold: no automatic submission; the
+                        # turn stays open until speech continues it.
                         turn.deadline = None
+                    elif verdict == "incomplete":
+                        turn.submit_on_silence = True
+                        turn.deadline = now + STILL_THINKING_SILENCE_SECONDS
                     else:
                         turn.submit_on_silence = True
                         turn.deadline = now + UNCERTAIN_SILENCE_FALLBACK_SECONDS
                     await send({"type": "transcript.pending", "call_id": call_id,
                                 "message_id": turn.message_id,
-                                "reason": "incomplete" if verdict == "incomplete" else "uncertain"})
+                                "reason": "incomplete" if verdict == "incomplete" or (
+                                    decision is not None and decision.verdict == "wait") else "uncertain"})
                     continue
-                await interrupt(turn)
-                turn.text = text
-                await transcript(turn, final=True)
+                reason, text = await waiting.route(text, intent, send=send, call_id=call_id)
+                if reason == "waiting" and turn.assistant_active:
+                    await interrupt(turn, "waiting")
+                if reason is None:
+                    await interrupt(turn)
+                    turn.text = text
+                    await transcript(turn, final=True)
             if reason is not None:
+                # No transcript text is logged; the reason makes discards diagnosable.
+                logger.info("Voice transcript discarded call_id=%s message_id=%s reason=%s",
+                            call_id, turn.message_id, reason)
                 await send({"type": "transcript.discarded", "call_id": call_id,
                             "message_id": turn.message_id, "reason": reason})
             invalidate_completion(turn)
@@ -834,7 +882,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
                     (time.monotonic() - accepted_at) * 1000)
         if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < REALTIME_CREDITS_PER_MINUTE:
-            raise RuntimeError("Insufficient credits")
+            raise InsufficientCreditsError("Insufficient credits")
         stage = "lock"
         logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
                     (time.monotonic() - accepted_at) * 1000)
@@ -873,22 +921,45 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         await activity()
         client_receive = asyncio.create_task(websocket.receive_text())
         provider_receive = asyncio.create_task(provider.receive())
+        live_provider = provider
+
+        async def admit_audio(size: int) -> None:
+            # Checked before the frame that starts a new minute reaches the provider.
+            prospective = ledger.audio_bytes + size
+            prospective_credits = math.ceil(prospective / (PCM_INPUT_BYTES_PER_SECOND * 60)) * REALTIME_CREDITS_PER_MINUTE
+            reserve = prospective_credits - ledger.charged
+            if is_payment_enabled() and reserve > 0 and await _authoritative_credits(websocket, user_id) < reserve:
+                raise InsufficientCreditsError("Insufficient credits")
+
+        async def accept_audio(size: int) -> None:
+            ledger.audio_bytes += size
+            await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
+
+        audio = MicAudioForwarder(call_id=call_id, admit=admit_audio, send_audio=live_provider.send_audio,
+                                  end_audio=live_provider.end_audio, accepted=accept_audio, progress=audio_progress.set)
+        audio_progress_wait = asyncio.create_task(audio_progress.wait())
         while True:
             now = time.monotonic()
             if lease_task.done():
                 await lease_task
+            if audio.task.done():
+                await audio.task
+                raise RuntimeError("Voice audio forwarding stopped")
             if registry_task.done():
                 await registry_task
             if now - last_auth_check >= 5:
                 if not await _session_still_valid(websocket, auth_data):
                     raise RuntimeError("Session expired or revoked")
                 last_auth_check = now
-            waiters = {client_receive, provider_receive, lease_task, registry_task}
+            waiters = {client_receive, provider_receive, lease_task, registry_task, audio.task, audio_progress_wait}
             waiters.update(turn.classifier for turn in turns.values() if turn.classifier is not None)
             waiters.update(turn.completion for turn in turns.values() if turn.completion is not None)
             deadlines = [turn.deadline for turn in turns.values() if turn.deadline is not None and turn.deadline > now]
             timeout = min(1.0, max(0, min(deadlines) - now)) if deadlines else 1.0
             done, _ = await asyncio.wait(waiters, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+            if audio_progress_wait in done:
+                audio_progress.clear()
+                audio_progress_wait = asyncio.create_task(audio_progress.wait())
             if client_receive in done:
                 raw = client_receive.result()
                 if len(raw.encode("utf-8")) > MAX_EVENT_BYTES:
@@ -904,29 +975,43 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     chunk = _decode_media(event.get("data"), max_bytes=MAX_AUDIO_CHUNK)
                     if len(chunk) % 2:
                         raise ValueError("PCM audio is invalid")
-                    prospective = ledger.audio_bytes + len(chunk)
+                    prospective = audio.queued_bytes + len(chunk)
                     if prospective > ((time.monotonic() - started + AUDIO_JITTER_SECONDS) * PCM_INPUT_BYTES_PER_SECOND + allowance):
                         raise ValueError("Audio stream exceeds real-time rate")
-                    prospective_credits = math.ceil(prospective / (PCM_INPUT_BYTES_PER_SECOND * 60)) * REALTIME_CREDITS_PER_MINUTE
-                    reserve = prospective_credits - ledger.charged
-                    if is_payment_enabled() and reserve > 0 and await _authoritative_credits(websocket, user_id) < reserve:
-                        raise RuntimeError("Insufficient credits")
-                    await asyncio.wait_for(provider.send_audio(event["data"]), 5)
-                    ledger.audio_bytes = prospective
+                    # Credits, provider write and charge run in order on the
+                    # forwarder, so transcript events keep flowing meanwhile.
+                    audio.push(event["data"], len(chunk))
                     listening = True
-                    await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
+                elif kind == "hold":
+                    if event.get("call_id") != call_id or type(event.get("active")) is not bool:
+                        raise ValueError("Invalid hold event")
+                    pending = current.text if current is not None else ""
+                    if event["active"] and current is not None:
+                        invalidate_completion(current)
+                        turns.pop(current.message_id, None)
+                        await send({"type": "transcript.discarded", "call_id": call_id,
+                                    "message_id": current.message_id, "reason": "waiting"})
+                        current = None
+                    await waiting.set_active(event["active"], send=send, call_id=call_id, pending_text=pending)
                 elif kind == "audio_stream_end":
-                    await asyncio.wait_for(provider.end_audio(), 5)
+                    audio.end()
                     listening = False
                 elif kind == "assistant_state":
                     speaking, generating = event.get("speaking"), event.get("generating", False)
                     text, identity = event.get("text", ""), event.get("assistant_message_id")
                     task_id = event.get("assistant_task_id")
+                    clip_audio_url = event.get("clip_audio_url")
                     if (type(speaking) is not bool or type(generating) is not bool or not isinstance(text, str)
                             or len(text) > MAX_TEXT_CHARS or (identity is not None and
                             (not isinstance(identity, str) or not MESSAGE_ID.fullmatch(identity)))
-                            or (task_id is not None and (not isinstance(task_id, str) or not MESSAGE_ID.fullmatch(task_id)))):
+                            or (task_id is not None and (not isinstance(task_id, str) or not MESSAGE_ID.fullmatch(task_id)))
+                            or (clip_audio_url is not None and (not isinstance(clip_audio_url, str) or len(clip_audio_url) > 256))):
                         raise ValueError("Invalid assistant state")
+                    if clip_audio_url:
+                        # A playing prerecorded clip: its approved words join the
+                        # spoken text so its microphone echo is recapture (EYHC5).
+                        from backend.apps.audio.assistant_speech.acknowledgements import prerecorded_clip_text
+                        text = "\n".join(part for part in (prerecorded_clip_text(clip_audio_url), text) if part)
                     assistant.update(speaking=speaking, generating=generating, text=text,
                                      assistant_message_id=identity, assistant_task_id=task_id)
                 elif kind == "text_input":
@@ -946,10 +1031,22 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 turn = _SpeechTurn(identity, created, assistant["assistant_message_id"],
                                     assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
                                     assistant_task_id=assistant["assistant_task_id"], text=text)
+                                if event.get("pasted") is True:
+                                    await mark_pasted(websocket.app.state.cache_service, call_id, identity)
                                 await interrupt(turn, "text_input")
                                 await transcript(turn, final=True)
                                 seen_text_ids[identity] = (text, created)
                             await send({"type": "text_input.accepted", "call_id": call_id, "message_id": identity})
+                elif kind == "stt_terms":
+                    set_bias = getattr(provider, "set_context_bias", None)
+                    try:
+                        terms = parse_terms(event)
+                    except ValueError:
+                        await send({"type": "stt_terms_rejected", "call_id": call_id, "code": "invalid_terms"})
+                    else:
+                        if set_bias is not None:
+                            await set_bias(terms)
+                        await send({"type": "stt_terms.accepted", "call_id": call_id, "count": len(terms)})
                 elif kind in {"camera_state", "camera_frame", "source_frame_saved", "source_frame_failed"}:
                     if event.get("call_id") != call_id:
                         raise PermissionError("Visual call binding mismatch")
@@ -1047,6 +1144,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     except WebSocketDisconnect:
         pass
     except asyncio.CancelledError:
+        drain_audio = False
         raise
     except Exception as exc:
         frames = traceback.extract_tb(exc.__traceback__)
@@ -1054,13 +1152,25 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         logger.warning("Voice call ended category=%s function=%s line=%s stage=%s call_id=%s",
                        type(exc).__name__, origin.name if origin else "unknown", origin.lineno if origin else 0, stage, call_id)
         try:
-            code = "context_too_large" if isinstance(exc, ContextLimitError) else "transcript_limit" if isinstance(exc, TranscriptLimitError) else "call_unavailable"
+            code = ("context_too_large" if isinstance(exc, ContextLimitError)
+                    else "transcript_limit" if isinstance(exc, TranscriptLimitError)
+                    else "insufficient_credits" if isinstance(exc, InsufficientCreditsError)
+                    else "call_unavailable")
             await send({"type": "error", "code": code, "stage": stage, "message": "Call unavailable. Your call has ended."})
         except Exception:
             pass
     finally:
         visuals.close()
+        if audio is not None and drain_audio:
+            # Frames the client sent before the end still reach the provider in order.
+            try:
+                await audio.drain()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("Voice audio drain failed call_id=%s category=%s", call_id, type(exc).__name__)
         tasks = [task for task in (client_receive, provider_receive, lease_task, registry_task, prewarm_task,
+                 audio.task if audio is not None else None, audio_progress_wait,
                  *(turn.classifier for turn in turns.values()), *completion_tasks) if task is not None]
         for task in tasks:
             task.cancel()

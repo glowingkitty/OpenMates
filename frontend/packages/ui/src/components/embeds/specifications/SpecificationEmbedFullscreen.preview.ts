@@ -7,6 +7,7 @@
  */
 import type { SpecificationDocument } from './SpecificationDocument';
 import type { SpecificationRevisionSummary } from './SpecificationRevision';
+import type { SpecPlanLinks } from './specPlanLinks';
 
 const document: SpecificationDocument = {
   title: 'Teams', project: 'OpenMates', category: 'Feature',
@@ -67,7 +68,27 @@ const storedDocument: SpecificationDocument = {
   flows: [], models: [],
 };
 
+// A Plan was created after approval: assumptions get a checking sub-chat, Tasks a working sub-chat.
+export const planLinks: SpecPlanLinks = {
+  planId: 'preview-plan-teams',
+  assumptions: [
+    { text: 'Members already have verified email addresses.', status: 'checking', linkedSubChatId: 'preview-chat-assumption-1' },
+    { text: 'Team deletion keeps personal chats untouched.', status: 'confirmed', linkedSubChatId: 'preview-chat-assumption-2' },
+  ],
+  tasks: [
+    { taskId: 'task-1', title: 'Add the Team creation form', description: 'Implements openmates.teams.lifecycle.encrypted-profiled', status: 'in_progress', linkedSubChatId: 'preview-chat-task-1' },
+    { taskId: 'task-2', title: 'Gate member roles', description: 'Implements openmates.teams.membership.role-gated', status: 'todo', linkedSubChatId: 'preview-chat-task-2' },
+    { taskId: 'task-3', title: 'Write the migration note', description: 'Documentation only', status: 'todo', linkedSubChatId: null },
+  ],
+};
+
 export const variants = {
+  'with-plan': {
+    ...base,
+    document: { ...document, assumptions: planLinks.assumptions.map((item) => item.text) },
+    plan: planLinks,
+    onOpenChat: (chatId: string) => { (window as unknown as { __openedChat?: string }).__openedChat = chatId; },
+  },
   'stored-document': { ...base, document: storedDocument, approval: { state: 'draft' as const, approved_revision_id: null, approved_at: null } },
   draft: { ...base, approval: { state: 'draft' as const, approved_revision_id: null, approved_at: null } },
   // Design to refine: status strip, revisions panel, approval confirmation.

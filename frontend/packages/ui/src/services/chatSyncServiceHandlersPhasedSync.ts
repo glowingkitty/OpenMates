@@ -902,10 +902,7 @@ async function storeRecentChats(
 
       // Populate in-memory unread badge store from server-authoritative count
       // so badges render correctly without waiting for a per-chat read status event.
-      const syncedUnread = mergedChat.unread_count ?? 0;
-      if (syncedUnread > 0) {
-        unreadMessagesStore.setUnread(chatId, syncedUnread);
-      }
+      unreadMessagesStore.reconcileWithServer(chatId, mergedChat.unread_count);
 
       // Phase 2 is now metadata-only — messages arrive in Phase 3 (background sync).
       // Check if messages were provided (legacy/backwards compat) or metadata-only.
@@ -1145,10 +1142,7 @@ async function storeAllChats(
       }
 
       // Populate in-memory unread badge store from server-authoritative count
-      const syncedUnread3 = mergedChat.unread_count ?? 0;
-      if (syncedUnread3 > 0) {
-        unreadMessagesStore.setUnread(chatId, syncedUnread3);
-      }
+      unreadMessagesStore.reconcileWithServer(chatId, mergedChat.unread_count);
 
       // Check if we should sync messages
       const shouldSyncMessages =

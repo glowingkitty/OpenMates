@@ -628,6 +628,24 @@ def test_career_pilot_is_phased_and_user_overridable():
     assert all("five" not in r.text for p in f.phases for r in p.requirements)
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases
+def test_create_cv_master_cv_tailoring_and_style_note():
+    root = Path(__file__).resolve().parents[2]
+    path = root / "backend/apps/jobs/focus_modes/create-cv/SKILL.md"
+    f = AppFocusDefinition.model_validate(load_focus_mode_from_skill_md(str(path), "jobs"))
+    assert [p.id for p in f.phases] == ["gather", "confirm_facts", "draft", "refine"]
+    by_id = {p.id: " ".join(p.instructions.split()) for p in f.phases}
+    assert "master CV" in by_id["gather"]
+    assert "Style note" in by_id["refine"] and "Master CV format" in by_id["refine"]
+    for kind in ("job", "project", "education", "skill", "language", "volunteering", "talk"):
+        assert kind in by_id["refine"]
+    assert "style note" in by_id["draft"] and "Never invent" in by_id["draft"]
+    assert "start from the master CV" in by_id["draft"]
+    assert "save only after the user agrees" in by_id["refine"]
+    assert "memory-saving tool call succeeded" in path.read_text()
+    assert "identity numbers" in by_id["refine"]
+
+
 # contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
 @pytest.mark.parametrize("assigned_apps", [None, ["web"], []])
 @pytest.mark.parametrize("project", [False, True])
@@ -691,6 +709,7 @@ def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned
     wrapper.body[0].body[0] = helper
     scope = dict(focus_phase_runtimes=[runtime], request_data=request, secrets_manager=None,
         phase_prompt=phase_prompt, active_project_focus=project_focus, active_project_sources=[],
+        project_code_fences=False,
         build_project_focus_prompt=build_project_focus_prompt,
         without_unscoped_project_search=without_unscoped_project_search,
         user_requested_skills_only=False, baseline_skills={"web-search", "images-search"},

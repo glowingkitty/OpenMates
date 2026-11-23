@@ -1,64 +1,77 @@
 /**
- * Component proof for the assistant-created Project activation card.
- * Two separate rows: creation (with Undo) and focus (activated, no countdown).
- * Undo uses the preview's injected handler; production wiring needs the core Worker binding.
+ * Component proof for an assistant-created Project: a chat-history system event
+ * "Created <name> project · Undo" (Project name is a link), followed by the regular,
+ * already-active focus mode activation embed (no extra rows, no Undo on the embed).
  */
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 
-const BASE = '/dev/preview/embeds/focus_mode/FocusModeActivationEmbed';
+const EVENT = '/dev/preview/projects/ProjectCreatedEventNotice';
+const EMBED = '/dev/preview/embeds/focus_mode/FocusModeActivationEmbed';
 
 async function attachShot(testInfo: import('@playwright/test').TestInfo, name: string, locator: import('@playwright/test').Locator) {
     await testInfo.attach(name, { body: await locator.screenshot(), contentType: 'image/png' });
 }
 
-test.describe('Project created activation card', () => {
-    // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent
-    test('shows creation row with Undo, then the active focus row, and undoes', async ({ page }, testInfo) => {
-        await page.goto(`${BASE}?chrome=0&variant=projectCreated`);
+test.describe('Project created system event', () => {
+    // contract-test: direct surface=gui.web assertions=projects.creation.assistant-inferred
+    test('shows Created <name> project with the name as a link and an Undo text link', async ({ page }, testInfo) => {
+        await page.goto(`${EVENT}?chrome=0&width=393`);
         await waitForComponentPreview(page);
-        const card = page.getByTestId('project-created-card');
-        await expect(card).toBeVisible();
-        const created = page.getByTestId('project-created-row');
-        const focus = page.getByTestId('project-focus-row');
-        await expect(created).toContainText('Created project');
-        await expect(page.getByTestId('project-created-name')).toHaveText('Garden notes');
-        await expect(focus).toContainText('Work on');
-        await expect(focus).toContainText('Garden notes');
+        const row = page.getByTestId('project-created-event');
+        await expect(row).toHaveAttribute('data-state', 'created');
+        await expect(row).toContainText('Created Recipe Manager project');
+        await expect(page.getByTestId('project-created-name')).toHaveText('Recipe Manager');
+        await expect(page.getByTestId('project-created-undo')).toBeEnabled();
+        expect((await row.getByRole('note').boundingBox())!.height).toBeLessThan(80);
+        await attachShot(testInfo, 'project-created-event', row);
+    });
+
+    // contract-test: direct surface=gui.web assertions=projects.creation.assistant-inferred
+    test('shows the undoing, undone and error states', async ({ page }, testInfo) => {
+        await page.goto(`${EVENT}?chrome=0&width=393&variant=undoing`);
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('project-created-undo')).toBeDisabled();
+        await attachShot(testInfo, 'project-created-event-undoing', page.getByTestId('project-created-event'));
+
+        await page.goto(`${EVENT}?chrome=0&width=393&variant=undone`);
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('project-created-event')).toHaveAttribute('data-state', 'undone');
+        await expect(page.getByTestId('project-created-status')).toHaveText('Project removed');
+        await expect(page.getByTestId('project-created-undo')).toHaveCount(0);
+        await attachShot(testInfo, 'project-created-event-undone', page.getByTestId('project-created-event'));
+
+        await page.goto(`${EVENT}?chrome=0&width=393&variant=failed`);
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('project-created-undo-error')).toHaveText('Could not undo. Please try again.');
+        await expect(page.getByTestId('project-created-undo')).toBeEnabled();
+        await attachShot(testInfo, 'project-created-event-failed', page.getByTestId('project-created-event'));
+    });
+
+    // contract-test: supporting surface=gui.web assertions=projects.creation.assistant-inferred
+    test('offers no Undo when the shell cannot run it', async ({ page }) => {
+        await page.goto(`${EVENT}?chrome=0&variant=noUndo`);
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('project-created-name')).toBeVisible();
+        await expect(page.getByTestId('project-created-undo')).toHaveCount(0);
+    });
+});
+
+test.describe('Focus embed after a created Project', () => {
+    // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent
+    test('shows the regular activated focus embed with no created row and no Undo', async ({ page }, testInfo) => {
+        await page.goto(`${EMBED}?chrome=0&variant=projectCreated`);
+        await waitForComponentPreview(page);
+        const bar = page.getByTestId('focus-mode-bar');
+        await expect(bar).toBeVisible();
+        await expect(bar).toHaveClass(/activated/);
         await expect(page.getByTestId('focus-status-value')).toHaveText('Focus activated');
-        const [a, b] = await Promise.all([created.boundingBox(), focus.boundingBox()]);
-        expect(a!.y + a!.height).toBeLessThanOrEqual(b!.y + 1);
+        await expect(page.getByTestId('project-created-card')).toHaveCount(0);
+        await expect(page.getByTestId('project-created-row')).toHaveCount(0);
+        await expect(page.getByTestId('project-created-undo')).toHaveCount(0);
         await expect(page.getByTestId('focus-progress-bar')).toHaveCount(0);
         await expect(page.getByTestId('focus-reject-hint')).toHaveCount(0);
-        await expect(page.getByTestId('project-focus-grant-access')).toHaveCount(0);
-        await expect(page.getByTestId('project-focus-decline-access')).toHaveCount(0);
-        await attachShot(testInfo, 'focus-activation-project-created', card);
-
-        await page.getByTestId('project-created-undo').click();
-        await expect(page.getByTestId('project-created-status')).toHaveText('Project creation undone');
-        await expect(page.getByTestId('project-created-undo')).toHaveCount(0);
-        await expect(focus).toHaveAttribute('data-state', 'inactive');
-        await expect(page.getByTestId('focus-status-value')).not.toHaveText('Focus activated');
-        await attachShot(testInfo, 'focus-activation-project-created-undone', card);
-    });
-
-    // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent
-    test('undone variant renders undone state on reload', async ({ page }) => {
-        await page.goto(`${BASE}?chrome=0&variant=projectCreatedUndone`);
-        await waitForComponentPreview(page);
-        await expect(page.getByTestId('project-created-status')).toHaveText('Project creation undone');
-        await expect(page.getByTestId('project-focus-row')).toHaveAttribute('data-state', 'inactive');
-        await expect(page.getByTestId('project-created-undo')).toHaveCount(0);
-    });
-
-    // contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
-    test('fits a 393px phone width', async ({ page }, testInfo) => {
-        await page.setViewportSize({ width: 393, height: 800 });
-        await page.goto(`${BASE}?chrome=0&width=393&variant=projectCreated`);
-        await waitForComponentPreview(page);
-        const card = page.getByTestId('project-created-card');
-        await expect(page.getByTestId('project-created-undo')).toBeVisible();
-        await attachShot(testInfo, 'focus-activation-project-created-393', card);
+        await attachShot(testInfo, 'focus-activation-project-created', bar);
     });
 });

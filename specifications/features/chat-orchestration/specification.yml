@@ -313,6 +313,32 @@ assertions:
   depends_on:
   - models.OrchestrationEvent
   - examples.cross_chat_safety
+- id: chat-orchestration.sub-chats.general-delegation
+  type: behavior
+  must: Sub-chats are a general mechanism, not a Deep research special case. In any focus and in plain chats, when a
+    request is complex and splits into two or more independent, substantial parts, the assistant starts one sub-chat per
+    part instead of doing every part in the main chat, then coordinates there - it summarises the results and asks the user
+    only for the decisions that remain. Simple, short, single-answer or conversational requests and tightly dependent
+    parts are answered directly without sub-chats. Existing limits stay - three automatic sub-chats per turn, more need the
+    user's confirmation, and a sub-chat of a sub-chat cannot start further sub-chats.
+  depends_on:
+  - examples.sub_chat_delegation
+- id: chat-orchestration.sub-chats.focus-inheritance
+  type: behavior
+  must: A sub-chat started from a chat with an active Project focus has that Project focus as its base for its whole life,
+    with the same instructions and write rules, and shows it in its focus pill. The starting chat may give a sub-chat one
+    specific focus on top - a built-in focus or the Project Focus it currently uses - and the two-focus rule applies there
+    too, so activating another specific focus replaces it and the base stays. A chat without a Project focus starts
+    sub-chats without one.
+  depends_on:
+  - examples.sub_chat_focus
+- id: chat-orchestration.sub-chats.work-links
+  type: behavior
+  must: A sub-chat started for a Plan assumption or a Task is linked to it - the assumption records the sub-chat as its
+    checking chat and the Task as its working chat. The Specification, Check and Plan cards and the chat's active Plan
+    show the linked sub-chat and open it, and the sub-chat names the assumption or Task it works on with a way back.
+  depends_on:
+  - examples.sub_chat_links
 applies_to:
   rest_api:
     required: true
@@ -352,6 +378,9 @@ examples:
   - billing
   - user_awareness
   - cross_chat_safety
+  - sub_chat_delegation
+  - sub_chat_focus
+  - sub_chat_links
 notes:
   design_authorization: >-
     Product decisions (one spawn mechanism with a kind, system events instead of the carousel, report-to-creator plus

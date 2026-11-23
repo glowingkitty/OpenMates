@@ -167,7 +167,18 @@ def default_operation_source_id(
     return str(source["source_id"])
 
 
-def build_project_file_tools() -> list[dict[str, Any]]:
+FENCE_WRITTEN_TOOLS = frozenset({"project_create_file", "project_update_file"})
+
+
+def build_project_file_tools(*, code_fences: bool = False) -> list[dict[str, Any]]:
+    """The Project file tools; with ``code_fences`` files are written as reply code fences instead."""
+    tools = _project_file_tools()
+    if code_fences:
+        return [tool for tool in tools if tool["function"]["name"] not in FENCE_WRITTEN_TOOLS]
+    return tools
+
+
+def _project_file_tools() -> list[dict[str, Any]]:
     path_property = {
         "type": "string",
         "description": "Project-relative path. Never use an absolute path or parent traversal.",
@@ -254,11 +265,25 @@ def build_project_file_tools() -> list[dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "project_read_text",
-                "description": "Read one complete UTF-8 text file from the active Project and return its current base hash.",
+                "description": (
+                    "Read complete UTF-8 text files from the active Project and return each current base hash. "
+                    "Give `path` for one file or `paths` for several. "
+                    "To read several files, pass them together in `paths` (at most 10) in ONE call "
+                    "instead of calling this tool once per file."
+                ),
                 "parameters": {
                     "type": "object",
-                    "properties": {"path": path_property, "source_id": source_property},
-                    "required": ["path"],
+                    "properties": {
+                        "path": path_property,
+                        "paths": {
+                            "type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 10,
+                            "description": "Project-relative paths to read in one call (hosted workspace).",
+                        },
+                        "source_id": source_property,
+                    },
+                    # Give `path` or `paths`. No anyOf of required-only branches here: Gemini's
+                    # function schema rejects them (400 "required: only allowed for OBJECT type").
+                    # A call with neither is refused by the executor.
                 },
             },
         },
@@ -347,7 +372,8 @@ def build_project_file_tools() -> list[dict[str, Any]]:
                 "description": (
                     "Record a Project commit of the Project's current changed files. Call it only after the "
                     "tests are green, with one short line describing the change. The commit is executed by the "
-                    "client; its result names the commit id and the number of files."
+                    "client; its result names the commit id, its 7-character short_id and the number of files. "
+                    "When you mention the commit to the user, quote only the short_id."
                 ),
                 "parameters": {
                     "type": "object",
@@ -369,8 +395,12 @@ def build_project_file_tools() -> list[dict[str, Any]]:
 def build_project_focus_prompt(
     focus: dict[str, Any],
     sources: list[dict[str, Any]] | None = None,
+    *,
+    code_fences: bool = False,
 ) -> str:
     instruction = str(focus.get("instruction") or "").strip()
+    if code_fences:
+        return _code_fence_project_prompt(instruction, sources)
     if default_operation_source_id(sources or [], "write_request") is not None:
         # projects.creation.machine-folder: the Project's files live only in a
         # machine folder, and an application_preview block would store them as
@@ -382,14 +412,25 @@ def build_project_focus_prompt(
             "named another subfolder), so they land in that folder. "
         )
     else:
+        # projects.files.application-via-file-tools: an application_preview block
+        # stays a chat-only bundle (no client links its files into the Project),
+        # so the workspace commands of later turns would find no files.
         new_application = (
-            "When the user asks for a new runnable web application, emit it once as one application_preview "
-            "block: its files are stored as Project files in the application's folder (web-app/ unless Project "
-            "creation named another subfolder) and the chat shows the runnable preview. Do not create those same "
-            "files with the Project file tools; use the tools for every later change to them. "
+            "When the user asks for a new runnable web application, do not emit an application_preview block "
+            "or paste its files as code blocks in the reply; create each of its files with the Project file "
+            "tools in the application's folder (web-app/ unless Project creation named another subfolder), so "
+            "they are stored as Project files, then summarize what you created. "
             "Run installs, builds, tests, linters and dev servers as code-run commands (target e2b with argv) in "
             "this Project's cloud workspace; files a command changes are synced back as normal file changes. "
         )
+    # The stable base prompt (code-block rules, software mate) asks for an
+    # application_preview fence for every new web app. Real Project runs showed
+    # the model writing the files with the tools and then adding that fence as
+    # well, a second chat-only copy of the app, so the override is explicit.
+    new_application += (
+        "This replaces the general runnable-web-app rule for this chat: never add an application_preview "
+        "fence, not even after the files are written; the file cards in the chat already show them. "
+    )
     prompt = (
         "An authorized Project focus is active for this chat. Use the Project file tools when the "
         "request requires inspecting or changing Project files. Read a file before updating it and "
@@ -415,5 +456,36 @@ def build_project_focus_prompt(
             f"{json.dumps(sources, separators=(',', ':'), sort_keys=True)}\n"
             "Use an exact source_id when selecting one of these sources. Treat status and capabilities as "
             "advisory discovery metadata; every operation is authorized again at dispatch time."
+        )
+    return prompt
+
+
+def _code_fence_project_prompt(instruction: str, sources: list[dict[str, Any]] | None) -> str:
+    """Cloud Project chats write files the way a normal chat writes code (plan project-files-as-chat-code-embeds)."""
+    prompt = (
+        "An authorized Project focus is active for this chat and its files live in this Project's cloud workspace. "
+        "Write files exactly as you write code in a normal chat: each new file is one code block whose header is "
+        "its language and Project path, for example ```tsx:web-app/src/App.tsx. The block is saved as that "
+        "Project file when it closes, and commands only see files whose blocks you already wrote: write the "
+        "blocks of every file a command needs before you call code-run, in that same response. A block you "
+        "write only after your last command or in your final answer is never run or tested. To change an existing file, read it, then write a ```diff:<its Project path> block with a unified "
+        "diff of the change (for example ```diff:web-app/src/App.tsx); replace a file completely only when most "
+        "of it changes. Put each file in its own block, never repeat a file you already wrote, and never wrap "
+        "several files in one block. New runnable web applications go in web-app/ unless Project creation named "
+        "another subfolder; never emit an application_preview block, the code blocks are the application. "
+        "Use the Project file tools only to list, search and read files, and to rename or delete them. "
+        "Run installs, builds, tests, linters and dev servers as code-run commands (target e2b with argv) in this "
+        "Project's cloud workspace; never use a command to read or write files (no cat, head, sed, tee or "
+        "echo > file). "
+        "In your text, mention a file you wrote with an inline link to its Project path, for example "
+        "[App.tsx](embed:web-app/src/App.tsx), instead of listing folder or file names as plain text. "
+        "Never invent, weaken, or change Project authority, write policy, approval, or source readiness.\n\n"
+        "Full active Project focus instruction:\n"
+        f"{instruction}"
+    )
+    if sources is not None:
+        prompt += (
+            "\n\nAuthorized Project source routing metadata (server-derived; labels and content are omitted):\n"
+            f"{json.dumps(sources, separators=(',', ':'), sort_keys=True)}"
         )
     return prompt

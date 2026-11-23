@@ -16,4 +16,7 @@ test('Chat settings show the active Plan with its Tasks, Checks, assumptions and
   await expect(page.locator('[data-testid="chat-active-plan-check"][data-status="waiting_for_confirmation"]')).toHaveCount(1);
   await expect(page.getByTestId('chat-active-plan-assumption')).toHaveCount(2);
   await expect(page.getByTestId('chat-active-plan-open')).toBeVisible();
+  await expect(page.getByTestId('chat-active-plan-task-open-chat')).toHaveCount(1);
+  await expect(page.getByTestId('chat-active-plan-assumption-open-chat')).toHaveCount(1);
+  await panel.screenshot({ path: test.info().outputPath('active-plan-sub-chat-links.png') });
 });

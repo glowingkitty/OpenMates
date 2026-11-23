@@ -12,7 +12,7 @@ web_welcome:
   - landing-onboarding.uses-real-chat-shell
   given: Alice is signed in and has recent chats.
   when: Alice opens the ordinary new-chat welcome.
-  then: 'Her recent chats appear beneath the localized Continue where you left off: label.'
+  then: 'Her recent chats appear beneath the localized Continue your recent chats: label.'
 examples_discovery:
 - id: all-real-examples
   given: Sam is signed out and has selected an interest.

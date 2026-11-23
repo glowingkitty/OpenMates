@@ -16,7 +16,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.31.0"
+    MARKETING_VERSION: "0.32.0"
     CURRENT_PROJECT_VERSION: 13
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
@@ -48,9 +48,10 @@ packages:
     url: https://github.com/DePasqualeOrg/swift-tokenizers.git
     exactVersion: 0.5.0
 
+  # Vendored local copy of upstream revision 12ce737 (ONNX Runtime 1.20.0): the
+  # upstream package repository is gone. See Vendor/onnxruntime-spm/Package.swift.
   OnnxRuntime:
-    url: https://github.com/microsoft/onnxruntime-swift-package-manager.git
-    revision: 12ce7374c86944e1f68f3a866d10105d8357f074
+    path: Vendor/onnxruntime-spm
 
 targets:
   OpenMates:

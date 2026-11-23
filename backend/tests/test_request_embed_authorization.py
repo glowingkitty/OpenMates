@@ -9,6 +9,11 @@ import pytest
 from backend.core.api.app.routes.handlers.websocket_handlers.request_embed_handler import handle_request_embed
 
 
+def _not_found_payload(embed_id: str) -> dict:
+    """The refused-read frame: generic message plus a code clients use to skip the error toast."""
+    return {"message": "Embed not found", "status": 404, "code": "embed_not_found", "embed_id": embed_id}
+
+
 def _source_lookup(directus: SimpleNamespace, metadata: dict | None) -> None:
     async def get_items(collection: str, params: dict, **kwargs):
         assert collection == "chats"
@@ -45,7 +50,7 @@ async def test_foreign_embed_id_is_denied_before_cache_read(status) -> None:
     )
     cache.get.assert_not_awaited()
     assert manager.send_personal_message.await_args.args[0] == {
-        "type": "error", "payload": {"message": "Embed not found", "status": 404},
+        "type": "error", "payload": _not_found_payload("foreign-embed"),
     }
 
 
@@ -73,7 +78,7 @@ async def test_team_embed_request_checks_current_membership_before_cache_read() 
     cache.get.assert_not_awaited()
     directus.embed.get_embed_by_id.assert_not_awaited()
     assert manager.send_personal_message.await_args.args[0] == {
-        "type": "error", "payload": {"message": "Embed not found", "status": 404},
+        "type": "error", "payload": _not_found_payload("embed-1"),
     }
 
 
@@ -95,7 +100,7 @@ async def test_foreign_chat_id_is_denied_before_embed_or_cache_read() -> None:
     cache.get.assert_not_awaited()
     directus.embed.get_embed_by_id.assert_not_awaited()
     assert manager.send_personal_message.await_args.args[0] == {
-        "type": "error", "payload": {"message": "Embed not found", "status": 404},
+        "type": "error", "payload": _not_found_payload("foreign-embed"),
     }
 
 
@@ -189,7 +194,7 @@ async def test_team_finished_upload_denies_mismatched_or_removed_viewer(denial: 
     cache.get.assert_not_awaited()
     directus.embed.get_sync_embed_key_window_for_page.assert_not_awaited()
     assert manager.send_personal_message.await_args.args[0] == {
-        "type": "error", "payload": {"message": "Embed not found", "status": 404},
+        "type": "error", "payload": _not_found_payload("uploaded-image"),
     }
 
 
@@ -219,7 +224,7 @@ async def test_team_unbound_upload_cache_without_canonical_head_is_denied() -> N
 
     cache.get.assert_awaited_once()
     assert manager.send_personal_message.await_args.args[0] == {
-        "type": "error", "payload": {"message": "Embed not found", "status": 404},
+        "type": "error", "payload": _not_found_payload("uploaded-image"),
     }
 
 
@@ -532,7 +537,7 @@ async def test_non_client_terminal_envelopes_are_not_served_as_readable_executio
     )
     directus.embed.get_sync_embed_key_window_for_page.assert_not_awaited()
     assert manager.send_personal_message.await_args.args[0] == {
-        'type': 'error', 'payload': {'message': 'Embed not found', 'status': 404},
+        'type': 'error', 'payload': _not_found_payload("failed-skill"),
     }
 
 

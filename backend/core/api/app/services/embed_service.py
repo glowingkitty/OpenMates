@@ -2103,8 +2103,12 @@ class EmbedService(SlidesEmbedMixin):
         provenance: Optional[str] = None,
         log_prefix: str = "",
         embed_id: Optional[str] = None,
+        project_source: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create a finished generated-application parent embed for code file embeds.
+
+        ``project_source`` marks an app that lives in a Project folder and is previewed
+        from the chat's Project sandbox (no file refs; keys: project_id, project_name, cwd).
 
         Passing an existing ``embed_id`` re-publishes that parent with a fuller file
         list as its next ``version_number``: a finished version is sealed for chat
@@ -2148,6 +2152,10 @@ class EmbedService(SlidesEmbedMixin):
             }
             if provenance:
                 content["provenance"] = provenance
+            if project_source:
+                content["source"] = "project_sandbox"
+                content.update({key: project_source[key] for key in ("project_id", "project_name", "cwd", "team_id")
+                                if isinstance(project_source.get(key), str)})
             if version_number is not None:
                 content["version_number"] = version_number
             content_toon = encode(_flatten_for_toon_tabular(content))
@@ -4143,6 +4151,11 @@ class EmbedService(SlidesEmbedMixin):
                             model_text_parts.append(value)
                         elif isinstance(value, list):
                             model_text_parts.append(" ".join(str(item) for item in value))
+                    runs = block.get("runs") if isinstance(block, dict) else None
+                    if isinstance(runs, list):
+                        model_text_parts.extend(
+                            run["text"] for run in runs if isinstance(run, dict) and isinstance(run.get("text"), str)
+                        )
                 text_content = " ".join(model_text_parts)
             else:
                 text_content = re.sub(r'<[^>]+>', ' ', html_content)
@@ -6060,6 +6073,12 @@ class EmbedService(SlidesEmbedMixin):
             original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
             original_metadata = {}
             if original_content:
+                # Task-failure cleanup finds placeholders by their unencrypted
+                # cache record, which has no app/skill; the sealed content does.
+                if app_id in {None, "", "unknown"} and original_content.get("app_id"):
+                    app_id = str(original_content["app_id"])
+                if skill_id in {None, "", "unknown"} and original_content.get("skill_id"):
+                    skill_id = str(original_content["skill_id"])
                 # Extract metadata fields that should be preserved
                 for key in ['query', 'provider', 'providers', 'url', 'input_data']:
                     if key in original_content:

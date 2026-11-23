@@ -20,6 +20,7 @@ from backend.core.api.app.services.sub_chat_orchestration_service import (
     SubChatOrchestrationService,
 )
 
+from backend.apps.ai.sub_chat_focus_links import child_active_focus_id
 from backend.shared.python_utils.saved_chat_turn_authority import saved_chat_turn
 
 logger = logging.getLogger(__name__)
@@ -175,6 +176,8 @@ def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]], max_template_
                     "wait_for_completion": wait_for_completion,
                     "budget_limit": budget_limit,
                     "report_trigger": report_trigger,
+                    "focus_id": sc.get("focus_id"),
+                    "link": sc.get("link"),
                 })
         else:
             sc_id = str(uuid.uuid4())
@@ -188,6 +191,8 @@ def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]], max_template_
                 "wait_for_completion": wait_for_completion,
                 "budget_limit": budget_limit,
                 "report_trigger": report_trigger,
+                "focus_id": sc.get("focus_id"),
+                "link": sc.get("link"),
             })
 
     return spawned_sub_chats
@@ -342,6 +347,12 @@ async def create_sub_chat_records(
             log_prefix,
             len(spawned_sub_chats),
         )
+        if not verification_claim:
+            from backend.apps.ai.sub_chat_focus_links import apply_inheritance_and_task_links
+            await apply_inheritance_and_task_links(
+                spawned_sub_chats, request_data=request_data,
+                directus_service=directus_service, log_prefix=log_prefix,
+            )
         return dispatch_tokens
     except Exception as sc_err:
         logger.error("%s [SUB_CHAT] Error preparing sub-chat batch: %s", log_prefix, sc_err, exc_info=True)
@@ -423,7 +434,7 @@ async def dispatch_sub_chat_task(
             "is_incognito": request_data.is_incognito,
             "is_external": request_data.is_external,
             "mate_id": "george",
-            "active_focus_id": request_data.active_focus_id,
+            "active_focus_id": child_active_focus_id(sub_chat, request_data),
             "user_preferences": request_data.user_preferences or {},
             "budget_limit": sub_chat.get("budget_limit"),
         }

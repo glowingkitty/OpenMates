@@ -55,7 +55,12 @@ export function bindProductionCoreInvalidations(input: {
   const own = (release: () => void) => {
     if (closed) release(); else releases.push(release);
   };
-  const revoke = close;
+  // Name the fixed trigger of a revocation so a session that keeps expiring
+  // (first call after signup, TASK-950) shows what closed it.
+  const revokeBy = (trigger: string) => (origin?: object) => {
+    if (!closed) console.info('[RustCore] session revoked by', trigger);
+    close(origin);
+  };
   try {
     const legacy = input.createChannel(LEGACY_CRYPTO_CHANNEL);
     own(() => legacy.close());
@@ -63,13 +68,14 @@ export function bindProductionCoreInvalidations(input: {
       const value = (event as MessageEvent<unknown>).data;
       // Match the legacy receiver's clearAll boundary, including extra fields.
       // keyLoaded carries no revocation and must not trigger a new admission.
-      if (typeof value === "object" && value !== null && "type" in value && value.type === "clearAll") revoke();
+      if (typeof value === "object" && value !== null && "type" in value && value.type === "clearAll") revokeBy("crypto_clear_all")();
     };
     legacy.addEventListener("message", message);
     own(() => legacy.removeEventListener("message", message));
-    legacy.addEventListener("messageerror", close);
-    own(() => legacy.removeEventListener("messageerror", close));
-    own(registerWorkspaceCacheClear(revoke));
+    const messageError = () => revokeBy("crypto_message_error")();
+    legacy.addEventListener("messageerror", messageError);
+    own(() => legacy.removeEventListener("messageerror", messageError));
+    own(registerWorkspaceCacheClear(() => revokeBy("workspace_clear")()));
 
     const source = input.createChannel(PROFILE_MUTATION_CHANNEL);
     let profileClosed = false;
@@ -79,7 +85,7 @@ export function bindProductionCoreInvalidations(input: {
       close() { if (!profileClosed) { profileClosed = true; source.close(); } },
     };
     own(() => profile.close());
-    own(bindProductionProfileLifetime({ ...input, channel: profile, host: { close:()=>close() } },origin=>close(origin)));
+    own(bindProductionProfileLifetime({ ...input, channel: profile, host: { close:()=>revokeBy("profile_host")() } },revokeBy("profile_lifetime")));
     return Object.assign(() => close(), { handover });
   } catch (error) { close(); throw error; }
 }

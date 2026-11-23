@@ -146,8 +146,8 @@ def test_only_generated_svg_and_svg_code_embeds_are_vector_sources() -> None:
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.billing.metered
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("seconds", "credits"), [(21.0, 4), (60.0, 4), (61.0, 8), (179.0, 12)])
-async def test_sandbox_time_is_charged_per_started_minute(seconds: float, credits: int) -> None:
+@pytest.mark.parametrize(("seconds", "credits"), [(21.0, 2), (60.0, 4), (61.0, 5), (179.0, 12)])
+async def test_sandbox_time_is_charged_per_second(seconds: float, credits: int) -> None:
     async def no_pricing(_model: str) -> None:
         raise AssertionError("no rework means no pricing lookup")
 

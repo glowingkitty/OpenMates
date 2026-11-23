@@ -54,6 +54,9 @@ QUOTED_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>[\"'])/(?!/|p/)(?P<path>[^\"'
 CSS_URL_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>url\(\s*[\"']?)/(?!/|p/)(?P<path>[^)\"'\s]+)")
 UPSTREAM_PATH_SEGMENT_SAFE_CHARS = "@"
 VITE_HMR_CLIENT_PATH = "@vite/client"
+# Stand-in for Vite's HMR client: it exports every name the real client exports, since one
+# missing name fails the whole importing module graph. Recipe proof 22 Nov: /@react-refresh
+# imports injectQuery; without it React's refresh runtime never linked and the app stayed blank.
 VITE_HMR_CLIENT_SHIM = b"""
 const styles = new Map();
 
@@ -89,7 +92,23 @@ export function removeStyle(id) {
     styles.delete(id);
   }
 }
+
+export function injectQuery(url, queryToInject) {
+  if (url[0] !== '.' && url[0] !== '/') return url;
+  const pathname = url.replace(/[?#].*$/, '');
+  const { search, hash } = new URL(url, 'http://vite.dev');
+  return `${pathname}?${queryToInject}${search ? '&' + search.slice(1) : ''}${hash || ''}`;
+}
+
+export class ErrorOverlay extends HTMLElement {}
 """.strip()
+# An inline <script> (no src): Vite's React plugin puts its refresh preamble here as
+# `import { injectIntoGlobalHook } from "/@react-refresh"`; unrewritten, it misses the signed
+# path, the preamble never loads and the app renders nothing (recipe proof, 22 Nov).
+INLINE_SCRIPT_PATTERN = re.compile(
+    r"(?P<open><script\b(?![^>]*\bsrc\s*=)[^>]*>)(?P<body>.*?)(?P<close></script>)",
+    re.IGNORECASE | re.DOTALL,
+)
 VITE_HMR_CLIENT_SCRIPT_PATTERN = re.compile(
     r"\s*<script\b(?=[^>]*\bsrc=[\"']/(?:t/[^/]+/|p/[^/]+/[^/]+/)?@vite/client[\"'])[^>]*>\s*</script>",
     re.IGNORECASE,
@@ -196,7 +215,22 @@ async def build_preview_gateway_response(
             headers=preview_gateway_security_headers(),
         )
 
-    upstream_base_url = _select_upstream_base_url(session, path)
+    extra_headers: dict[str, str] = {}
+    if session.get("preview_source") == "project_sandbox" and session.get("status") == "running":
+        # Project previews: the sandbox's traffic token is read from the sandbox record per
+        # request and added here only; it is never stored in the session or sent to the browser.
+        from backend.apps.code.project_sandbox_preview import project_preview_upstream
+
+        upstream = await project_preview_upstream(cache_service, session)
+        if upstream is None:
+            return JSONResponse(
+                status_code=410,
+                content={"status": "sandbox_stopped", "session_id": session_id},
+                headers=preview_gateway_security_headers(),
+            )
+        upstream_base_url, extra_headers = upstream
+    else:
+        upstream_base_url = _select_upstream_base_url(session, path)
     if not isinstance(upstream_base_url, str) or not upstream_base_url.strip():
         return JSONResponse(
             status_code=202,
@@ -214,7 +248,7 @@ async def build_preview_gateway_response(
         upstream_url,
         method,
         body=body,
-        headers=_filtered_request_headers(request_headers or {}),
+        headers={**_filtered_request_headers(request_headers or {}), **extra_headers},
     )
     if upstream.status_code >= 500:
         logger.warning(
@@ -317,6 +351,12 @@ def _rewrite_root_relative_preview_references(
     if content_type == "text/html":
         text = VITE_HMR_CLIENT_SCRIPT_PATTERN.sub("", text)
         text = HTML_ROOT_PATH_PATTERN.sub(rewrite_match, text)
+        text = INLINE_SCRIPT_PATTERN.sub(
+            lambda script: script.group("open")
+            + QUOTED_ROOT_PATH_PATTERN.sub(rewrite_match, script.group("body"))
+            + script.group("close"),
+            text,
+        )
     elif content_type == "text/css":
         text = CSS_URL_ROOT_PATH_PATTERN.sub(rewrite_match, text)
     else:

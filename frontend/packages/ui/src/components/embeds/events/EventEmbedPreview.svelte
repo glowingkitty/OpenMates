@@ -27,7 +27,7 @@
   import { getContext } from 'svelte';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from '../../../types/authoredResult';
   import ResultEmbedMapPreview from '../ResultEmbedMapPreview.svelte';
-  import { eventCalendarBadge, formatEventResultTime, normalizeEventResult, validEventCoordinates, type EventResult } from './eventResult';
+  import { eventCalendarBadge, formatEventResultTime, normalizeEventResult, ownEventContent, validEventCoordinates, type EventResult } from './eventResult';
 
   const presentation = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
 
@@ -66,7 +66,7 @@
     event = normalizeEventResult(decodedContent, id);
   }
 
-  const sourceEvent = $derived(normalizeEventResult(presentation?.presentationContent ?? presentation?.content ?? event, id));
+  const sourceEvent = $derived(normalizeEventResult(ownEventContent(presentation, event), id));
   const previewStatus = $derived(sourceEvent.authoring && ['processing', 'error', 'cancelled'].includes(String(sourceEvent.status))
     ? sourceEvent.status as 'processing' | 'error' | 'cancelled' : sourceEvent.title ? 'finished' : 'processing');
   const badge = $derived(eventCalendarBadge(sourceEvent.date_start, sourceEvent.timezone));

@@ -1,0 +1,718 @@
+schema_version: 1
+cadence: daily
+date: '2026-11-19'
+generated_at: '2026-11-23T00:47:29+00:00'
+range:
+  since: '2026-11-19T00:00:00+00:00'
+  until: '2026-11-20T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 7
+  section_counts:
+    features: 5
+    bug_fixes: 0
+    improvements: 0
+    docs: 1
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 3
+  dev_only_items: 7
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:slides:template
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:code:write_specification
+    kind: platform
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: admin_config
+  - id: focus:slides:design_template
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:slides:plan_presentation
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:design:get_design
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:design
+    source: backend/apps/design/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:list-spawned-chats
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:read-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:report-to-creator
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:send-to-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:start-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(notifications): sharper notification type wording, summary benchmark, dev push proof'
+    section: features
+    commits:
+    - dffc6f295c
+    authored_at: '2026-11-19T10:44:46+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/scripts/probe_chat_response_email.py
+    - backend/scripts/probe_notification_summary_push.py
+    - docs/plans/unified-notifications/notification-summary-benchmark.md
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(notifications): push and email summary headline from the post-processing call, device-sealed'
+    section: features
+    commits:
+    - 99205e3475
+    authored_at: '2026-11-19T09:55:29+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/notification_summary.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/notification_email_preferences.py
+    - backend/core/api/app/services/notification_headline_handoff.py
+    - backend/core/api/app/services/push_notification_content.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/templates/email/chat-message-notification.mjml
+    - backend/scripts/benchmark_notification_summary_models.py
+    - backend/scripts/notification_summary_benchmark_cases.py
+    - backend/tests/test_chat_email_notification_service.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_notification_summary.py
+    - backend/tests/test_notification_summary_benchmark.py
+    - backend/tests/test_push_notification_preview.py
+    - backend/tests/test_push_preferences_route.py
+    - docs/plans/unified-notifications/plan.yml
+    - docs/plans/unified-notifications/spec-amendment-task-390.patch
+    - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.preview.ts
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/chat.yml
+    - frontend/packages/ui/src/stores/pushNotificationStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(notifications): chat title in push, sealed to the device'
+    section: features
+    commits:
+    - 7d73e0a534
+    authored_at: '2026-11-19T09:16:07+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/notification_email_preferences.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/templates/email/chat-message-notification.mjml
+    - backend/scripts/probe_chat_response_email.py
+    - backend/tests/test_chat_email_notification_service.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_push_notification_preview.py
+    - backend/tests/test_push_preferences_route.py
+    - docs/plans/unified-notifications/plan.yml
+    - docs/plans/unified-notifications/spec-amendment-task-390.patch
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/chat.yml
+    - frontend/packages/ui/src/stores/pushNotificationStore.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(chat-lifecycle): queued chat starts as timer waiters, ✅/❓ rule for auto-started chats, ❓ pushes keep chats
+      open'
+    section: features
+    commits:
+    - 51c07b257b
+    authored_at: '2026-11-19T09:07:25+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_waiting.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_daily_meeting_waiting.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(agent-question): ✅ done and ❓ ask Discord pushes, one per chat event'
+    section: features
+    commits:
+    - 14da1cd123
+    authored_at: '2026-11-19T08:46:35+00:00'
+    changed_paths:
+    - CLAUDE.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/agent_question.py
+    - scripts/claude_idle_nudge.py
+    - scripts/tests/test_agent_question.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes: []
+  improvements: []
+  docs:
+  - title: 'docs(chat-lifecycle): a queued chat start sends no Discord push'
+    section: docs
+    commits:
+    - ddcf5b89d7
+    authored_at: '2026-11-19T13:05:09+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test(notifications): real dev proof for the notification headline and sealed push'
+    section: tests
+    commits:
+    - 1454f74ca1
+    authored_at: '2026-11-19T10:56:27+00:00'
+    changed_paths:
+    - backend/scripts/probe_notification_headline_live.py
+    - backend/scripts/probe_notification_summary_push.py
+    - scripts/notification_summary_real_test.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'docs(chat-lifecycle): a queued chat start sends no Discord push'
+    commits:
+    - ddcf5b89d7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(notifications): real dev proof for the notification headline and sealed push'
+    commits:
+    - 1454f74ca1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(notifications): sharper notification type wording, summary benchmark, dev push proof'
+    commits:
+    - dffc6f295c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(notifications): push and email summary headline from the post-processing call, device-sealed'
+    commits:
+    - 99205e3475
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(notifications): chat title in push, sealed to the device'
+    commits:
+    - 7d73e0a534
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat(chat-lifecycle): queued chat starts as timer waiters, ✅/❓ rule for auto-started chats, ❓ pushes keep chats
+      open'
+    commits:
+    - 51c07b257b
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(agent-question): ✅ done and ❓ ask Discord pushes, one per chat event'
+    commits:
+    - 14da1cd123
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat(notifications): sharper notification type wording, summary benchmark, dev push proof'
+    commits:
+    - dffc6f295c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat(notifications): push and email summary headline from the post-processing call, device-sealed'
+    commits:
+    - 99205e3475
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat(notifications): chat title in push, sealed to the device'
+    commits:
+    - 7d73e0a534
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ddcf5b89d7987457a94d42c5c310eaa8c5e4201d
+    short_sha: ddcf5b89d7
+    authored_at: '2026-11-19T13:05:09+00:00'
+    subject: 'docs(chat-lifecycle): a queued chat start sends no Discord push'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    related_feature_ids: []
+  - sha: 1454f74ca13432aec8876583dd9dde241a44273e
+    short_sha: 1454f74ca1
+    authored_at: '2026-11-19T10:56:27+00:00'
+    subject: 'test(notifications): real dev proof for the notification headline and sealed push'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/probe_notification_headline_live.py
+    - backend/scripts/probe_notification_summary_push.py
+    - scripts/notification_summary_real_test.py
+    related_feature_ids: []
+  - sha: dffc6f295c6e26412e0c5cb373a5c2681ae63032
+    short_sha: dffc6f295c
+    authored_at: '2026-11-19T10:44:46+00:00'
+    subject: 'feat(notifications): sharper notification type wording, summary benchmark, dev push proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/scripts/probe_chat_response_email.py
+    - backend/scripts/probe_notification_summary_push.py
+    - docs/plans/unified-notifications/notification-summary-benchmark.md
+    related_feature_ids:
+    - app:ai
+  - sha: 99205e34757fd2f707b67a0bc62357db1858fa5a
+    short_sha: 99205e3475
+    authored_at: '2026-11-19T09:55:29+00:00'
+    subject: 'feat(notifications): push and email summary headline from the post-processing call, device-sealed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/notification_summary.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/notification_email_preferences.py
+    - backend/core/api/app/services/notification_headline_handoff.py
+    - backend/core/api/app/services/push_notification_content.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/templates/email/chat-message-notification.mjml
+    - backend/scripts/benchmark_notification_summary_models.py
+    - backend/scripts/notification_summary_benchmark_cases.py
+    - backend/tests/test_chat_email_notification_service.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_notification_summary.py
+    - backend/tests/test_notification_summary_benchmark.py
+    - backend/tests/test_push_notification_preview.py
+    - backend/tests/test_push_preferences_route.py
+    - docs/plans/unified-notifications/plan.yml
+    - docs/plans/unified-notifications/spec-amendment-task-390.patch
+    - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.preview.ts
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/chat.yml
+    - frontend/packages/ui/src/stores/pushNotificationStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 7d73e0a5344c266c093c17daa13c43fe841be0fb
+    short_sha: 7d73e0a534
+    authored_at: '2026-11-19T09:16:07+00:00'
+    subject: 'feat(notifications): chat title in push, sealed to the device'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/notification_email_preferences.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/templates/email/chat-message-notification.mjml
+    - backend/scripts/probe_chat_response_email.py
+    - backend/tests/test_chat_email_notification_service.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_push_notification_preview.py
+    - backend/tests/test_push_preferences_route.py
+    - docs/plans/unified-notifications/plan.yml
+    - docs/plans/unified-notifications/spec-amendment-task-390.patch
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/chat.yml
+    - frontend/packages/ui/src/stores/pushNotificationStore.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 51c07b257b24d514e2c352d896b723cd36c0c010
+    short_sha: 51c07b257b
+    authored_at: '2026-11-19T09:07:25+00:00'
+    subject: 'feat(chat-lifecycle): queued chat starts as timer waiters, ✅/❓ rule for auto-started chats, ❓ pushes keep chats
+      open'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_waiting.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_daily_meeting_waiting.py
+    related_feature_ids: []
+  - sha: 14da1cd123f36e7653ddf8c148cbf29d6dc3946d
+    short_sha: 14da1cd123
+    authored_at: '2026-11-19T08:46:35+00:00'
+    subject: 'feat(agent-question): ✅ done and ❓ ask Discord pushes, one per chat event'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - CLAUDE.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/agent_question.py
+    - scripts/claude_idle_nudge.py
+    - scripts/tests/test_agent_question.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on the development of a unified notification system and improvements to internal chat lifecycle
+    management. Key advancements include work on device-sealed push notifications and automated status reporting for agent
+    activities.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Development is underway for a unified notification system featuring device-sealed push notifications that include
+      chat titles and AI-generated summary headlines.
+    evidence:
+      commits:
+      - 7d73e0a534
+      - 99205e3475
+      - dffc6f295c
+    release_status: dev_only
+  - text: Internal chat lifecycle logic was updated to support queued starts and automated status updates for agent tasks
+      via Discord.
+    evidence:
+      commits:
+      - 51c07b257b
+      - 14da1cd123
+      - ddcf5b89d7
+    release_status: dev_only
+  internal_progress:
+  - text: New benchmarking scripts and live proofs were implemented to validate notification headline generation and push
+      delivery.
+    evidence:
+      commits:
+      - 1454f74ca1
+      - dffc6f295c
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Unified notification system enhancements and device-sealed push notifications.
+      evidence:
+        commits:
+        - dffc6f295c
+        - 99205e3475
+        - 7d73e0a534
+      reason: These features are currently in development and have not been merged to the main branch.
+    rationale: No user-facing changes were released to the main branch during this period. All work remains in development.
+  social_video_recommendations:
+  - idea: A preview of the upcoming unified notification system, highlighting how device-sealed push notifications protect
+      chat privacy while providing useful context.
+    priority: medium
+    reason: The work on notification summaries and sealed push content provides a concrete privacy and utility story.
+    evidence:
+      commits:
+      - 99205e3475
+      - 7d73e0a534
+  quality_notes:
+  - Notification summary quality is being tracked via new benchmarking tools.
+  - Push notification security is being enhanced through device-sealed content delivery.
+  validation_warnings: []

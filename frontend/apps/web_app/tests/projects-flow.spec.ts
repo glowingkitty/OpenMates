@@ -75,7 +75,9 @@ test.describe('Projects v1 flow', () => {
       await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
     }
     await expect(page.getByTestId('projects-start-screen')).toBeVisible();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    // Issue ZSN8N: no banner; project inspirations sit in the start row instead.
+    await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+    await expect(page.getByTestId('project-inspiration-card').first()).toBeAttached({ timeout: 15000 });
     await expect(page.getByTestId('project-input-composer')).toBeVisible();
     await expect(page.getByTestId('project-input-mic')).toBeVisible();
     await expect(page.getByTestId('project-write-policy-dialog')).toHaveCount(0);

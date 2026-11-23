@@ -1,0 +1,349 @@
+schema_version: 2
+id: project-presentation
+title: Project descriptions, icons and categories
+status: implementing
+goal: 'Project tiles in the Projects workspace show a short one-line description, a fitting icon and the gradient
+  of the Project''s category, the same category gradients chats use. The assistant writes all three when it creates
+  a Project, in the same turn and without an extra model call, and refreshes them once when the user approves a
+  Specification. Everything stays encrypted with the Project key like chat titles and summaries. A field the user
+  edits by hand is never overwritten by the assistant again. Existing Projects are backfilled once by the client
+  the next time it opens the Projects workspace. No image generation (TASK-1261 stays parked). Apple follows through
+  the Apple chat.
+
+  '
+scope:
+  in:
+  - Two additive, nullable, Project-key encrypted Directus fields on projects, encrypted_category and encrypted_presentation_state,
+    next to the existing encrypted_description and encrypted_icon.
+  - The assistant-inferred creation naming call returns name, description, icon and category in one tool call; the
+    projects.create skill takes description, icon and category as tool arguments; the create request carries them
+    as optional plaintext fields that only the client encrypts.
+  - A first-party route POST /v1/projects/presentation/suggest that turns transient plaintext context into a description,
+    icon and category with one small model call and stores nothing.
+  - Shared Rust core policy for normalising a proposal, the per-field manual-edit lock, the once-only Specification
+    refresh, backfill eligibility and the dominant-category rule; web uses it through the existing Project decision
+    unit.
+  - Web Project tiles (recent row and Show all grid) with description, icon and category gradient; manual edit of
+    description, icon and category in the Project header; refresh after Specification approval; one-time backfill.
+  - CLI project show/list output and projects update flags for icon and category.
+  out:
+  - Image generation or uploaded icons (TASK-1261).
+  - Apple implementation (handed to the Apple chat with the final behaviour).
+  - Re-describing a Project on every change; only creation, the first Specification approval and the one-time backfill
+    write automatically.
+decisions:
+- id: D-1
+  status: active
+  decision: Category and the presentation state live in their own encrypted fields so the list call returns everything
+    a tile needs. The state is JSON {"v":1,"sources":{"description":"assistant|backfill|user","icon":...,"category":...},
+    "specification_refreshed":bool,"backfilled":bool}. The server sees only ciphertext.
+  reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
+  decided_at: '2026-11-21'
+- id: D-2
+  status: active
+  decision: Creation reuses the existing short naming call (the workspace ask model, Gemini 3.8 Flash with Mercury 3 as the alternative) and asks it for the description, icon
+    and category in the same tool call, so creation costs no extra model call. The projects.create skill gets them
+    from the main model's tool call.
+  reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
+  decided_at: '2026-11-21'
+- id: D-3
+  status: active
+  decision: After the user approves a Specification the client sends its title and summary to the suggest route
+    (the same transient-plaintext pattern as chat processing) and writes the result once; later approvals do not
+    rewrite.
+  reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
+  decided_at: '2026-11-21'
+- id: D-4
+  status: active
+  decision: 'A Project without presentation state is backfilled once by the client that can decrypt it, the next
+    time it opens the Projects workspace: up to five Projects per visit, one after the other, from the name, item
+    names and chat titles. A thin Project gets an icon and category but no invented description.'
+  reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
+  decided_at: '2026-11-21'
+- id: D-5
+  status: active
+  decision: 'Mixed Projects: the strongest evidence wins. At creation the user''s request decides. On Specification
+    approval the Specification decides. On backfill the category most of the Project''s chats share wins, ties go
+    to the most recently updated of those chats, and without categorised chats the model decides from the name and
+    contents.'
+  reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
+  decided_at: '2026-11-21'
+- id: D-6
+  status: active
+  decision: Every manual edit of description, icon or category marks that field as user sourced; automatic writes
+    skip user-sourced fields. Clearing the description by hand is also a user choice and stays empty.
+  reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
+  decided_at: '2026-11-21'
+- id: D-7
+  status: active
+  decision: The suggest route is first-party only (session auth, no API keys), rate limited to 20 per minute per
+    user, and charges no credits, like /v1/projects/ask/plan. One call is about 1,500 input and up to 300 output tokens on
+    Gemini 3.8 Flash (Mercury 3 when Gemini is unavailable), roughly USD 0.005. No server-side step picks Mistral
+    Small on its own (owner, 2026-11-21); users can still choose it for their chats.
+  reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
+  decided_at: '2026-11-21'
+scenarios:
+- id: S-1
+  title: Assistant creates a Project
+  given:
+  - A user asks the assistant to build a multi-file app in a chat.
+  when:
+  - The assistant creates the Project in that turn.
+  then:
+  - The Project tile shows the description
+  - icon and category gradient chosen in the naming call.
+- id: S-2
+  title: Specification approval refreshes once
+  given:
+  - A Project whose description the user has not edited.
+  when:
+  - The user approves a Specification
+  - then approves another later.
+  then:
+  - The first approval rewrites description
+  - icon and category; the second changes nothing.
+- id: S-3
+  title: Manual edits are kept
+  given:
+  - The user changed the icon and category by hand.
+  when:
+  - A Specification is approved.
+  then:
+  - Icon and category stay as the user chose; only non-user fields change.
+- id: S-4
+  title: Existing Projects are backfilled once
+  given:
+  - A Project created before this feature
+  - without presentation state.
+  when:
+  - The user opens the Projects workspace.
+  then:
+  - The client fills description
+  - icon and category once and the tile shows them.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: The create request carries description, icon and category from one naming call and the core encrypts them
+    into the new Project.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-PY
+  - T-RUST
+- id: AC-2
+  scenario: S-2
+  text: Specification approval refreshes presentation exactly once and skips user-sourced fields.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-RUST
+- id: AC-3
+  scenario: S-3
+  text: Manual description, icon and category edits are saved encrypted and lock the field.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-RUST
+  - T-E2E
+- id: AC-4
+  scenario: S-4
+  text: A Project without presentation state is backfilled once on the next Projects visit and its tile shows the
+    result.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-E2E
+- id: AC-5
+  scenario: S-1
+  text: Tiles on phone and desktop show description, icon and category gradient.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-COMPONENT
+  - T-E2E
+tests:
+- id: T-PY
+  type: pytest
+  file: backend/tests/test_project_presentation.py
+  command: python3 scripts/ci_coordinator.py submit --mode pytest --spec backend/tests/test_project_presentation.py
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - naming call returns presentation
+  - create action carries it
+  - suggest route validates and normalises
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-11-21T19:45:00+00:00'
+      command: ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_projects.py --spec backend/tests/test_project_presentation.py --spec backend/tests/test_project_create_request.py --spec backend/tests/test_chat_project_title.py --spec backend/tests/test_workspace_ask_pipeline.py (includes the Gemini-first model check)
+      run_id: '44940316457'
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
+      execution_environment: isolated_github_ci
+- id: T-RUST
+  type: unit
+  file: packages/openmates-rust/src/work/projects/presentation_tests.rs
+  command: python3 scripts/ci_coordinator.py submit --mode rust-check
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - manual lock
+  - once-only refresh
+  - backfill eligibility
+  - dominant category
+  - normalisation
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-11-21T19:45:00+00:00'
+      command: ci_coordinator.py submit --mode rust-check --spec all (cargo test --workspace --locked --no-fail-fast, wasm32 browser-bindings check)
+      run_id: '44940370891'
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
+      execution_environment: isolated_github_ci
+- id: T-COMPONENT
+  type: playwright
+  file: frontend/apps/web_app/tests/components/projects-presentation-tiles.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --mode component --spec components/projects-presentation-tiles.spec.ts
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - tile description
+  - icon and gradient on phone and desktop
+  - appearance settings offer the 16 category gradients and the icon list
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-11-21T19:45:00+00:00'
+      command: ci_coordinator.py submit --mode component --no-prepared-builds --spec components/projects-presentation-tiles.spec.ts (3/3 passed; tile, phone and appearance screenshots inspected)
+      run_id: '44940374799'
+      harness_commit: 37ad542615c0e607ed7a29c4578e4d376defb6ca
+      profile: component
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/44940374799/artifacts/14721771151
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
+      execution_environment: isolated_github_ci
+- id: T-E2E
+  type: playwright
+  file: frontend/apps/web_app/tests/projects-presentation-flow.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --mode e2e --spec projects-presentation-flow.spec.ts
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - backfill once, from decrypted Project content through the real suggest route
+  - only ciphertext in the PATCH
+  - manual icon edit kept on the tile
+  covers:
+  - AC-3
+  - AC-4
+  - AC-5
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-11-21T19:45:00+00:00'
+      command: ci_coordinator.py submit --mode e2e --spec projects-presentation-flow.spec.ts (1/1 passed; backfilled and manual-icon tiles inspected)
+      run_id: '44940788916'
+      harness_commit: 37ad542615c0e607ed7a29c4578e4d376defb6ca
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/44940788916/artifacts/14721154310
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
+      execution_environment: isolated_github_ci
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: planned
+  approach: Backend naming call and suggest route, Rust presentation policy, web tiles, header editing, Specification
+    refresh and backfill.
+  recorded_at: '2026-11-21'
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement backend, core and web lanes, then run the focused checks.
+  command: python3 scripts/plan_validate.py docs/plans/project-presentation/plan.yml
+  expected_outcome: Validated plan and green focused checks.
+  last_verified_commit: 05cee35e33
+  blocker: null
+tasks:
+- id: TASK-1
+  title: Backend, core and web Project presentation
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+  expected_files: &id001
+  - backend/apps/ai/processing/workspace_ask_planner.py
+  - packages/openmates-rust/src/work/projects/presentation.rs
+  - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+  verification_ids:
+  - T-PY
+  - T-RUST
+  - T-COMPONENT
+  - T-E2E
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+implementation_state:
+  subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-11-21'
+    reason: Marco approved feature.projects@2 through the owner's authenticated dev connector (receipt f5b1820602ffa0f2)
+      after the dev deploy, together with the switch of the suggest route to Gemini.
+  plan:
+    status: approved
+    approved_at: '2026-11-21'

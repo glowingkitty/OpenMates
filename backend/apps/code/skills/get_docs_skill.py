@@ -324,7 +324,9 @@ Match the library to the user's question based on:
 
 You MUST call the select_library function with one library_id from the provided options."""
 
-# Function calling tool definition for all providers (Groq, Cerebras, Mistral)
+GET_DOCS_GEMINI_FALLBACK_MODEL = "google/gemini-3.5-flash-lite"
+
+# Function calling tool definition for all providers (Groq, Cerebras, Gemini)
 # All providers use OpenAI-compatible function calling
 LIBRARY_SELECTION_TOOL = {
     "type": "function",
@@ -394,12 +396,12 @@ async def select_library_with_llm(
     Use LLM to select the best library from search results.
     
     All providers use function calling (tool use) for reliable structured responses.
-    Groq, Cerebras, and Mistral all support OpenAI-compatible function calling.
+    Groq, Cerebras, and Gemini all support function calling.
     
     Fallback chain:
     1. Primary: openai/gpt-oss-20b via Groq (with function calling)
     2. Fallback 1: gpt-oss-120b via Cerebras (with function calling)
-    3. Fallback 2: mistral-small-latest via Mistral (with function calling)
+    3. Fallback 2: google/gemini-3.5-flash-lite (with function calling)
     4. Fallback 3: First search result (no LLM)
     
     Returns the selected library_id or None if selection fails.
@@ -438,7 +440,7 @@ async def select_library_with_llm(
     # Tool definition for function calling (used by all providers)
     tools = [LIBRARY_SELECTION_TOOL]
     
-    use_groq = use_cerebras = use_mistral = True
+    use_groq = use_cerebras = use_gemini = True
     if policy is not None and not policy.is_default:
         user_routes = policy.author_routes((), task_id=task_id)
         if user_routes and user_routes[0].user_selected:
@@ -448,12 +450,12 @@ async def select_library_with_llm(
             return chosen or libraries[0].get("id")
         use_groq = _fallback_model_allowed(policy, "groq/openai/gpt-oss-20b")
         use_cerebras = _fallback_model_allowed(policy, "openai/gpt-oss-120b")
-        use_mistral = _fallback_model_allowed(policy, "mistral/mistral-small-latest", direct_server="mistral")
+        use_gemini = _fallback_model_allowed(policy, GET_DOCS_GEMINI_FALLBACK_MODEL)
 
     # Import LLM clients
     from backend.apps.ai.llm_providers.groq_client import invoke_groq_chat_completions
     from backend.apps.ai.llm_providers.cerebras_wrapper import invoke_cerebras_chat_completions
-    from backend.apps.ai.llm_providers.mistral_client import invoke_mistral_chat_completions
+    from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
     
     # Try Groq gpt-oss-20b with function calling (primary)
     # Use tool_choice="required" since we have exactly one tool - this ensures the function is always called
@@ -508,31 +510,28 @@ async def select_library_with_llm(
             logger.warning(f"[{task_id}] Cerebras selection failed: {e}", exc_info=True)
     
     
-    # Try Mistral mistral-small-latest with function calling (fallback 2)
-    if use_mistral:
+    # Try Gemini 3.5 Flash-Lite with function calling (fallback 2). Mistral models are never an
+    # automatic choice (owner decision, 21 Nov).
+    if use_gemini:
         try:
-            logger.info(f"[{task_id}] Trying Mistral mistral-small-latest with function calling (required)")
-            result = await invoke_mistral_chat_completions(
+            logger.info(f"[{task_id}] Trying {GET_DOCS_GEMINI_FALLBACK_MODEL} with function calling")
+            result = await call_preprocessing_llm(
                 task_id=task_id,
-                model_id="mistral-small-latest",
-                messages=messages,
+                model_id=GET_DOCS_GEMINI_FALLBACK_MODEL,
+                message_history=messages,
+                tool_definition=LIBRARY_SELECTION_TOOL,
                 secrets_manager=secrets_manager,
                 temperature=0,
-                max_tokens=500,  # Increased from 100 - function calls need more tokens
-                tools=tools,
-                tool_choice="required"  # Force function calling - more reliable with single tool
+                observability_purpose="code_get_docs_library",
             )
-        
-            selected_id = _extract_library_id_from_response(result, valid_ids, task_id, "Mistral")
-            if selected_id:
-                logger.info(f"[{task_id}] Library selected via Mistral: {selected_id}")
+            selected_id = (result.arguments or {}).get("library_id")
+            if selected_id in valid_ids:
+                logger.info(f"[{task_id}] Library selected via Gemini: {selected_id}")
                 return selected_id
-            else:
-                logger.warning(f"[{task_id}] Mistral returned no valid library_id. Response: success={result.success}, tool_calls={len(result.tool_calls_made) if result.tool_calls_made else 0}, error={result.error_message if not result.success else None}")
-            
+            logger.warning(f"[{task_id}] Gemini returned no valid library_id. error={result.error_message}")
         except Exception as e:
-            logger.warning(f"[{task_id}] Mistral selection failed: {e}", exc_info=True)
-    
+            logger.warning(f"[{task_id}] Gemini selection failed: {e}", exc_info=True)
+
     # All providers failed - return first result as fallback
     logger.warning(f"[{task_id}] All LLM providers failed, using first search result as fallback")
     return libraries[0].get("id") if libraries else None
@@ -546,7 +545,7 @@ def _extract_library_id_from_response(result, valid_ids: set, task_id: str = "",
     1. Tool calls (function calling) - primary method for all providers
     2. Plain text with library ID pattern - fallback
     
-    All providers (Groq, Cerebras, Mistral) use OpenAI-compatible function calling,
+    All providers (Groq, Cerebras, Gemini) use function calling,
     so tool_calls_made should contain the parsed function call.
     
     Args:
@@ -568,7 +567,7 @@ def _extract_library_id_from_response(result, valid_ids: set, task_id: str = "",
         return None
     
     # Extract from tool calls (function calling) - primary method
-    # All providers (Groq, Cerebras, Mistral) use OpenAI-compatible format
+    # Groq and Cerebras use the OpenAI-compatible format
     if result.tool_calls_made:
         for tool_call in result.tool_calls_made:
             if tool_call.function_name == "select_library":

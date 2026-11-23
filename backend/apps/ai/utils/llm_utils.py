@@ -49,6 +49,7 @@ from backend.apps.ai.utils.timeout_utils import (
     PREPROCESSING_TIMEOUT_SECONDS,
     PREPROCESSING_TOTAL_TIMEOUT_SECONDS,
     get_first_chunk_timeout_seconds,
+    SOLE_ROUTE_FIRST_CHUNK_TIMEOUT_SECONDS,
     get_inter_chunk_timeout_seconds,
 )
 from backend.apps.ai.utils.preprocessing_history import (
@@ -758,11 +759,11 @@ def resolve_fallback_servers_from_provider_config(model_id: str, server_region_p
     servers to be configured in provider YAML files instead of hardcoded in app.yml.
     
     Args:
-        model_id: Full model ID in format "provider/model-id" (e.g., "mistral/mistral-small-latest")
+        model_id: Full model ID in format "provider/model-id" (e.g., "google/gemini-3.5-flash-lite")
     
     Returns:
         List of fallback model IDs in format "server/model-id" or "server/provider/model-id"
-        (e.g., ["openrouter/mistralai/mistral-small-2603"])
+        (e.g., ["google_ai_studio/gemini-3.5-flash-lite"])
         Returns empty list if no fallbacks are configured or model not found.
     """
     try:
@@ -2322,6 +2323,14 @@ async def call_main_llm_stream(
             return True
         return signature_providers == {provider_prefix}
 
+    # A tool-loop follow-up whose history carries Gemini thought signatures can only
+    # run on the API surface that minted them: when exactly one route remains, a
+    # first-chunk timeout has no failover target and just ends the turn answer-only,
+    # so that sole route gets the longer sole-route first-chunk timeout.
+    sole_signature_route = bool(signature_providers) and sum(
+        1 for server in servers_to_try if _server_matches_google_thought_signatures(server)
+    ) == 1
+
     def _messages_for_server(server_model_id: str) -> List[Dict[str, Any]]:
         messages = (
             _strip_thought_signatures_from_messages(llm_api_messages)
@@ -2729,6 +2738,8 @@ async def call_main_llm_stream(
                 # Success! Wrap stream with timeout for first chunk AND inter-chunk timeout
                 first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                if sole_signature_route:
+                    first_chunk_timeout_seconds = max(first_chunk_timeout_seconds, SOLE_ROUTE_FIRST_CHUNK_TIMEOUT_SECONDS)
                 if original_model_id == MERCURY_MODEL and first_substantive_timeout_seconds is not None:
                     # The generic idle watchdog must not cut a healthy HIGH
                     # reasoning attempt short before its substantive deadline.

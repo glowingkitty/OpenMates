@@ -391,3 +391,45 @@ def test_source_timeout_is_recorded_as_incomplete_never_raised(inv):
     assert by_name["ubuntu_usn"].error_code == "http_503"
     assert by_name["cisa_kev"].ok  # the official mirror answered after the primary URL refused
     assert by_name["dependabot"].ok and any(item.source == "dependabot" for item in items)
+
+
+# Monitoring coverage: security-monitoring.inventory.explicit
+# contract-test: infrastructure
+def test_swift_range_requirement_uses_floor_and_is_queried_against_osv(tmp_path):
+    root = write_repo(tmp_path)
+    pbx = root / "apple/OpenMates.xcodeproj/project.pbxproj"
+    pbx.write_text(PBXPROJ + (
+        "\t\tA2 /* XCRemoteSwiftPackageReference \"my-swift-lib\" */ = {\n\t\t\tisa = XCRemoteSwiftPackageReference;\n"
+        "\t\t\trepositoryURL = \"https://github.com/example/my-swift-lib.git\";\n\t\t\trequirement = {\n"
+        "\t\t\t\tkind = upToNextMajorVersion;\n\t\t\t\tminimumVersion = 1.8.0;\n\t\t\t};\n\t\t};\n"
+        "\t\tA3 /* XCRemoteSwiftPackageReference \"pinned-lib\" */ = {\n\t\t\tisa = XCRemoteSwiftPackageReference;\n"
+        "\t\t\trepositoryURL = \"https://github.com/example/pinned-lib.git\";\n\t\t\trequirement = {\n"
+        "\t\t\t\tkind = revision;\n\t\t\t\trevision = 12ce7374c86944e1f68f3a866d10105d8357f074;\n\t\t\t};\n\t\t};\n"), encoding="utf-8")
+    inv = inventory.build_inventory(root, all_reports(), NOW)
+    assert find(inv, "github.com/example/my-swift-lib")[0].version == "1.8.0"
+    queries = sources.packages._osv_queries(inv)
+    assert ("SwiftURL", "github.com/example/my-swift-lib", "1.8.0") in queries
+    assert ("SwiftURL", "github.com/example/swift-sodium", "0.9.1") in queries
+    assert not [query for query in queries if query[1].endswith("pinned-lib")]  # commit pins are not versions
+    item = AdvisoryItem(source="osv", advisory_id=GHSA, aliases=(CVE,), title="swift flaw", severity="high",
+                        published_at=None, modified_at=None,
+                        affected=({"ecosystem": "SwiftURL", "name": "github.com/example/my-swift-lib", "versions": ["1.8.0"]},))
+    observations = matcher.match([item], inv, {})
+    assert observations and observations[0].match_strength == "exact_version"
+
+
+# Monitoring coverage: security-monitoring.inventory.explicit
+# contract-test: infrastructure
+def test_extra_cargo_locks_from_env_are_internal_and_labelled_neutrally(tmp_path, monkeypatch):
+    lock = tmp_path / "elsewhere" / "Cargo.lock"
+    lock.parent.mkdir()
+    lock.write_text('version = 3\n\n[[package]]\nname = "my_provider_dep"\nversion = "2.0.1"\n'
+                    'source = "registry+https://github.com/rust-lang/crates.io-index"\n', encoding="utf-8")
+    missing = tmp_path / "gone" / "Cargo.lock"
+    monkeypatch.setenv("SECURITY_MONITORING_EXTRA_CARGO_LOCKS", f"{lock}:{missing}")
+    inv = inventory.build_inventory(write_repo(tmp_path / "repo"), all_reports(), NOW)
+    asset = find(inv, "my_provider_dep")[0]
+    assert asset.ecosystem == "crates.io" and asset.exposure == "internal" and asset.environments == ("dev", "prod")
+    assert asset.source_file == "extra-cargo-lock:1"
+    assert not inv.complete and "extra-cargo-lock:2: SourceUnreadable" in inv.incomplete_sources
+    assert "elsewhere" not in repr(inv)

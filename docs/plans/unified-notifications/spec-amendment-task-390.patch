@@ -1,0 +1,82 @@
+diff -ruN a/specifications/features/apple-notifications/specification.yml b/specifications/features/apple-notifications/specification.yml
+--- a/specifications/features/apple-notifications/specification.yml	2026-11-19 09:32:25.326780959 +0000
++++ b/specifications/features/apple-notifications/specification.yml	2026-11-19 09:32:25.387781169 +0000
+@@ -123,7 +123,7 @@
+     depends_on: [models.ApplePushRegistration, examples.registration_lifecycle]
+   - id: apple-notifications.payload.privacy-safe
+     type: privacy
+-    must: APNs alert fields contain localized generic text without private chat titles or message plaintext; an optional preview is encrypted to the target device, decrypted only by the notification service extension, and falls back to generic text when absent or invalid.
++    must: APNs alert fields contain localized generic text without private chat titles or message plaintext; an optional preview is encrypted to the target device, decrypted only by the notification service extension, and falls back to generic text when absent or invalid. The sealed envelope may also carry the notification headline "<icon> <summary>" and the context line `in "<chat title>"` (default on, opt-out includeChatTitle) and, only when the user opted in (includePreview, default off), the first lines of the answer; alert fields still never contain any of it. Apple, Google and push services see only ciphertext.
+     depends_on: [models.ApplePushPayload, examples.payload_privacy]
+   - id: apple-notifications.preview.readable
+     type: behavior
+diff -ruN a/specifications/features/notifications/examples.yml b/specifications/features/notifications/examples.yml
+--- a/specifications/features/notifications/examples.yml	2026-11-19 09:32:25.362781083 +0000
++++ b/specifications/features/notifications/examples.yml	2026-11-19 09:32:25.388781173 +0000
+@@ -156,6 +156,36 @@
+     when: The sender reaches its final delivery boundary.
+     then: His hidden content remains absent; disabled or unverified delivery is suppressed. Optional preview preparation never overrides the latest preference or leaks private text into logs or retained metadata.
+ 
++chat_title_headline:
++  - id: push-summary-default
++    platform: apple
++    input: {summary_type: done, summary: "Gemini 4 models added, 3 tests pass", chat_title: "Garden planning notes", include_chat_title: default, include_preview: default, device_key_registered: true}
++    expect: {sealed_title: "✅ Gemini 4 models added, 3 tests pass", sealed_body: 'in "Garden planning notes"', alert_fields_generic: true, plaintext_on_wire: false}
++  - id: push-preview-opt-in
++    platform: apple
++    input: {include_preview: true, device_key_registered: true}
++    expect: {sealed_body_contains_first_lines_of_answer: true, alert_fields_generic: true}
++  - id: push-opted-out
++    platform: apple
++    input: {include_chat_title: false}
++    expect: {sealed_title: null, alert_fields_generic: true}
++  - id: push-hidden-or-incognito-chat
++    platform: apple
++    input: {chat: hidden}
++    expect: {content_notification: false, alert_fields_generic: true}
++  - id: push-summary-failed
++    platform: apple
++    input: {summary: unavailable, chat_title: "Garden planning notes"}
++    expect: {sealed_title: "Mate in Garden planning notes"}
++  - id: email-default-generic
++    platform: email
++    input: {include_content: false}
++    expect: {subject: "Mate messaged you in OpenMates.", body_has_title: false}
++  - id: email-content-opt-in
++    platform: email
++    input: {include_content: true, summary_type: question, summary: "Which garden bed first?"}
++    expect: {subject: "❓ Which garden bed first?", body_has_title: true, body_has_open_chat_link: true}
++
+ notification_history:
+   - id: cli-lists-past-notifications
+     surface: cli
+diff -ruN a/specifications/features/notifications/specification.yml b/specifications/features/notifications/specification.yml
+--- a/specifications/features/notifications/specification.yml	2026-11-19 09:32:25.346781028 +0000
++++ b/specifications/features/notifications/specification.yml	2026-11-19 09:32:25.388781173 +0000
+@@ -272,6 +272,18 @@
+     type: privacy
+     must: Notification storage, logs, email payloads, push payloads, and history summaries avoid durable plaintext private chat, reminder, workflow, billing, or account-secret content unless that channel is explicitly user-addressed and authorized; encrypted or redacted summaries are used otherwise.
+     depends_on: [models.NotificationHistoryItem.summary, models.PushSubscription.endpoint_ciphertext, examples.privacy_boundaries]
++  - id: notifications.chat.title-headline
++    type: privacy
++    must: The existing post-answer processing call also returns a notification type (done, question or info) and a one-line summary of about 90 characters in the chat language; no extra LLM request is made and no credits are charged for it. A chat-message push shows title "<icon> <summary>" (done ✅, question ❓, info ℹ️) and body `in "<chat title>"` by default (push preference includeChatTitle); an optional preview of the first lines of the answer is off by default (includePreview). All of it is sealed to the receiving device inside the encrypted envelope and shown by the notification extension, so APNs, FCM, push services, notification history and public streams only see ciphertext and generic alert text. The chat title is the transient value of the current inference request, never a decrypted stored title. Incognito and hidden chats never get content notifications, nothing is sent while the user is active in that chat, and a missing or invalid summary falls back to generic text. Where the content cannot be sealed (Apple Watch, team, direct and workflow-output messages) the generic text stays.
++    depends_on: [examples.chat_title_headline]
++  - id: notifications.email.content-opt-in
++    type: privacy
++    must: Chat-message email is generic by default (no chat title, no content). Only when the user turned on the email content setting (default off, behind the existing email consent) the subject is "<icon> <summary>" and the body shows the chat title, the first lines of the answer and an open-chat link; the setting text states plainly that this content then travels as plain text through the mail provider and stays in the mailbox. Hidden chats stay generic even then.
++    depends_on: [examples.chat_title_headline]
++  - id: notifications.settings.missed-warning
++    type: behavior
++    must: Notification settings show push (summary and title, answer preview) and email (generic or content) choices on every surface including iOS, and a clear warning when email notifications are off and no push is set up on any device.
++    depends_on: [examples.chat_title_headline]
+   - id: notifications.delivery.idempotent
+     type: invariant
+     must: Retries, duplicate workers, reconnects, and multi-device clients preserve one logical notification history item and at most one successful delivery per channel for the same notification id.
+@@ -402,6 +414,7 @@
+   - reminder_email_targets
+   - reminder_email_preview_access
+   - push_delivery
++  - chat_title_headline
+   - notification_history
+   - privacy_boundaries
+   - delivery_idempotency

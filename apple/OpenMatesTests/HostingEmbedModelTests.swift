@@ -145,4 +145,18 @@ final class HostingEmbedModelTests: XCTestCase {
         XCTAssertEqual(EmbedVisualSkillIcon.name(for: parent), "search")
         XCTAssertEqual(EmbedVisualSkillIcon.name(for: DevHostingEmbedFixtures.domain()), "search")
     }
+
+    // contract-test: supporting surface=gui.apple assertions=design-embroidery.progress.input-and-stages
+    func testEmbroiderySkillCardUsesTheNeedleIconNotTheAISparkle() {
+        let embroidery = EmbedRecord(id: "embroidery-run", type: "app-skill-use", status: .processing,
+                                     data: .raw(["type": AnyCodable("app_skill_use"), "app_id": AnyCodable("design"),
+                                                 "skill_id": AnyCodable("embroidery")]),
+                                     parentEmbedId: nil, appId: "design", skillId: "embroidery", embedIds: nil, createdAt: nil)
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: embroidery), "embroidery")
+        let image = EmbedRecord(id: "image-run", type: "app-skill-use", status: .processing,
+                                data: .raw(["type": AnyCodable("app_skill_use"), "app_id": AnyCodable("images"),
+                                            "skill_id": AnyCodable("generate")]),
+                                parentEmbedId: nil, appId: "images", skillId: "generate", embedIds: nil, createdAt: nil)
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: image), "ai")
+    }
 }

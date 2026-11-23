@@ -1,12 +1,12 @@
 schema_version: 1
 id: feature.chat-unread
 version: 1
-status: draft
+status: approved
 title: Chat Unread State
 summary: >
   A finished assistant reply stays unread until its last line has been visible
   in the user's viewport. Unread chats show a counter on their chat list row and
-  on their "Continue where you left off" entry in the web app and the terminal
+  on their "Continue your recent chats" entry in the web app and the terminal
   UI, and the state persists across reloads and the user's devices.
 
 scope:
@@ -45,7 +45,7 @@ assertions:
     depends_on: [examples.follow_up]
   - id: chat-unread.surfaces.sidebar-and-continue
     type: behavior
-    must: Every unread chat shows the same unread counter (capped as 9+) on its chat list row and on its "Continue where you left off" entry, in the web app (sidebar row and Continue carousel card) and in the terminal UI (chat list row and home-screen continue entry), including while that chat is open; the counter disappears from both when the chat is marked read.
+    must: Every unread chat shows the same unread counter (capped as 9+) on its chat list row and on its "Continue your recent chats" entry, in the web app (sidebar row and Continue carousel card) and in the terminal UI (chat list row and home-screen continue entry), including while that chat is open; the counter disappears from both when the chat is marked read.
     depends_on: [examples.surfaces]
   - id: chat-unread.persistence.cross-device
     type: invariant

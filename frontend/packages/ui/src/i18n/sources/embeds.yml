@@ -11698,6 +11698,16 @@ projects.references.count:
   en: '{count} file references'
   de: '{count} Dateiverweise'
   verified_by_human: []
+projects.references.count_singular:
+  context: Number of project file references found when there is exactly one, count is a placeholder
+  en: '{count} file reference'
+  de: '{count} Dateiverweis'
+  verified_by_human: []
+projects.references.more:
+  context: Hidden files on a Project read card, count is a placeholder
+  en: '+{count} more'
+  de: '+{count} weitere'
+  verified_by_human: []
 projects.references.empty:
   context: Honest empty state when a Project search returned no file references
   en: No file references found
@@ -16509,6 +16519,126 @@ slides_editor_notes_placeholder:
   sv: "Anteckningar som bara du ser när du presenterar"
   he: "הערות שרק אתה רואה בזמן ההצגה"
   verified_by_human: []
+design.embroidery.progress_reading:
+  context: "Step shown on the embroidery card while the source graphic is read"
+  en: "Reading the graphic…"
+  de: "Grafik wird gelesen…"
+  zh: "正在读取图形…"
+  es: "Leyendo el gráfico…"
+  fr: "Lecture du graphique…"
+  pt: "Lendo o gráfico…"
+  ru: "Чтение графики…"
+  ja: "グラフィックを読み込み中…"
+  ko: "그래픽을 읽는 중…"
+  it: "Lettura della grafica…"
+  tr: "Grafik okunuyor…"
+  vi: "Đang đọc hình…"
+  id: "Membaca grafik…"
+  pl: "Odczytywanie grafiki…"
+  nl: "Afbeelding lezen…"
+  ar: "جارٍ قراءة الرسم…"
+  hi: "ग्राफ़िक पढ़ा जा रहा है…"
+  th: "กำลังอ่านกราฟิก…"
+  cs: "Načítám grafiku…"
+  sv: "Läser grafiken…"
+  he: "קורא את הגרפיקה…"
+  verified_by_human: []
+design.embroidery.progress_checking:
+  context: "Step shown on the embroidery card while the design is checked for embroidery"
+  en: "Checking the design…"
+  de: "Design wird geprüft…"
+  zh: "正在检查设计…"
+  es: "Revisando el diseño…"
+  fr: "Vérification du motif…"
+  pt: "Verificando o design…"
+  ru: "Проверка дизайна…"
+  ja: "デザインを確認中…"
+  ko: "디자인을 확인하는 중…"
+  it: "Controllo del disegno…"
+  tr: "Tasarım kontrol ediliyor…"
+  vi: "Đang kiểm tra thiết kế…"
+  id: "Memeriksa desain…"
+  pl: "Sprawdzanie projektu…"
+  nl: "Ontwerp controleren…"
+  ar: "جارٍ فحص التصميم…"
+  hi: "डिज़ाइन जाँचा जा रहा है…"
+  th: "กำลังตรวจสอบดีไซน์…"
+  cs: "Kontroluji návrh…"
+  sv: "Kontrollerar designen…"
+  he: "בודק את העיצוב…"
+  verified_by_human: []
+design.embroidery.progress_adjusting:
+  context: "Step shown on the embroidery card while a model adjusts the design so it can be sewn"
+  en: "Adjusting the design for embroidery…"
+  de: "Design wird für Stickerei angepasst…"
+  zh: "正在调整设计以便刺绣…"
+  es: "Adaptando el diseño para bordar…"
+  fr: "Adaptation du motif pour la broderie…"
+  pt: "Ajustando o design para bordado…"
+  ru: "Адаптация дизайна для вышивки…"
+  ja: "刺繍用にデザインを調整中…"
+  ko: "자수용으로 디자인을 조정하는 중…"
+  it: "Adattamento del disegno al ricamo…"
+  tr: "Tasarım nakış için uyarlanıyor…"
+  vi: "Đang điều chỉnh thiết kế để thêu…"
+  id: "Menyesuaikan desain untuk bordir…"
+  pl: "Dopasowywanie projektu do haftu…"
+  nl: "Ontwerp aanpassen voor borduren…"
+  ar: "جارٍ تعديل التصميم للتطريز…"
+  hi: "डिज़ाइन को कढ़ाई के लिए ढाला जा रहा है…"
+  th: "กำลังปรับดีไซน์สำหรับงานปัก…"
+  cs: "Upravuji návrh pro výšivku…"
+  sv: "Anpassar designen för broderi…"
+  he: "מתאים את העיצוב לרקמה…"
+  verified_by_human: []
+design.embroidery.progress_stitching:
+  context: "Step shown on the embroidery card while the stitches, machine files and stitch preview are created"
+  en: "Creating stitches and preview…"
+  de: "Stiche und Vorschau werden erstellt…"
+  zh: "正在生成针迹和预览…"
+  es: "Creando puntadas y vista previa…"
+  fr: "Création des points et de l’aperçu…"
+  pt: "Criando pontos e pré-visualização…"
+  ru: "Создание стежков и превью…"
+  ja: "ステッチとプレビューを作成中…"
+  ko: "스티치와 미리보기를 만드는 중…"
+  it: "Creazione di punti e anteprima…"
+  tr: "Dikişler ve önizleme oluşturuluyor…"
+  vi: "Đang tạo mũi thêu và bản xem trước…"
+  id: "Membuat jahitan dan pratinjau…"
+  pl: "Tworzenie ściegów i podglądu…"
+  nl: "Steken en voorbeeld maken…"
+  ar: "جارٍ إنشاء الغرز والمعاينة…"
+  hi: "टाँके और पूर्वावलोकन बनाए जा रहे हैं…"
+  th: "กำลังสร้างฝีเข็มและตัวอย่าง…"
+  cs: "Vytvářím stehy a náhled…"
+  sv: "Skapar stygn och förhandsvisning…"
+  he: "יוצר תפרים ותצוגה מקדימה…"
+  verified_by_human: []
+design.embroidery.progress_saving:
+  context: "Step shown on the embroidery card while the machine files are saved"
+  en: "Saving the machine files…"
+  de: "Maschinendateien werden gespeichert…"
+  zh: "正在保存机器文件…"
+  es: "Guardando los archivos de máquina…"
+  fr: "Enregistrement des fichiers machine…"
+  pt: "Salvando os arquivos da máquina…"
+  ru: "Сохранение файлов для машины…"
+  ja: "マシンファイルを保存中…"
+  ko: "기계 파일을 저장하는 중…"
+  it: "Salvataggio dei file macchina…"
+  tr: "Makine dosyaları kaydediliyor…"
+  vi: "Đang lưu tệp máy thêu…"
+  id: "Menyimpan file mesin…"
+  pl: "Zapisywanie plików maszyny…"
+  nl: "Machinebestanden opslaan…"
+  ar: "جارٍ حفظ ملفات الآلة…"
+  hi: "मशीन फ़ाइलें सहेजी जा रही हैं…"
+  th: "กำลังบันทึกไฟล์เครื่อง…"
+  cs: "Ukládám soubory pro stroj…"
+  sv: "Sparar maskinfilerna…"
+  he: "שומר את קובצי המכונה…"
+  verified_by_human: []
 design.embroidery.threads:
   context: "Heading above the thread list of an embroidery result"
   en: "Threads"
@@ -18366,6 +18496,30 @@ code.test_result.no_video:
   cs: "Pro toto spuštění není k dispozici video"
   sv: "Ingen video tillgänglig för den här körningen"
   he: "אין וידאו זמין להרצה זו"
+  verified_by_human: []
+code.test_result.with_setup:
+  context: "Test result fullscreen, after the time the tests ran: the whole run including install and server start; {duration} is a formatted time such as 19.6 s"
+  en: "{duration} with setup"
+  de: "{duration} mit Einrichtung"
+  zh: "含准备 {duration}"
+  es: "{duration} con preparación"
+  fr: "{duration} avec préparation"
+  pt: "{duration} com preparação"
+  ru: "{duration} с подготовкой"
+  ja: "準備込みで {duration}"
+  ko: "준비 포함 {duration}"
+  it: "{duration} con preparazione"
+  tr: "hazırlıkla {duration}"
+  vi: "{duration} kể cả chuẩn bị"
+  id: "{duration} dengan persiapan"
+  pl: "{duration} z przygotowaniem"
+  nl: "{duration} met voorbereiding"
+  ar: "{duration} مع التجهيز"
+  hi: "तैयारी सहित {duration}"
+  th: "{duration} รวมการเตรียม"
+  cs: "{duration} s přípravou"
+  sv: "{duration} med förberedelse"
+  he: "{duration} כולל הכנה"
   verified_by_human: []
 video_generate.apply:
   context: "Button that applies all pending edits to a video"

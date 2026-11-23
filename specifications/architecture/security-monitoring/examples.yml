@@ -67,7 +67,7 @@ ssh:
   given: The upload server's report shows a successful SSH login with a key fingerprint that is not on
     the expected list, and a new line in /root/.ssh/authorized_keys.
   when: The collector processes the report.
-  then: Discord and email receive one immediate intrusion alert naming the server, the unknown fingerprint
+  then: One immediate email intrusion alert names the server, the unknown fingerprint
     and the changed file. No AI triage is waited on. The alert stays open until acknowledged or until
     a later report shows the expected keys.
 triage:
@@ -89,9 +89,9 @@ triage:
 triage_dispatch:
 - id: unread-report-starts-no-new-chat
   assertion_ids: [security-monitoring.triage.no-repeat-dispatch]
-  given: At 10:00 a triage chat ran for a reachable Directus advisory and sent an urgent Discord and email notification. The operator has not read or acted on it.
+  given: At 10:00 a triage chat ran for a reachable Directus advisory and sent an urgent email. The operator has not read or acted on it.
   when: The watcher runs at 11:00, 12:00 and every following hour, and still sees the same advisory and the same Directus version.
-  then: No further triage chat starts. The incident stays open in its Task and in the next daily digest, and no extra Discord message is sent.
+  then: No further triage chat starts. The incident stays open in its Task and in the next daily digest, and no extra email is sent.
 - id: exploitation-change-retriages-once
   assertion_ids: [security-monitoring.triage.no-repeat-dispatch]
   given: An advisory was triaged as affected_fix_soon on Monday. On Wednesday CISA adds it to the known-exploited catalog.
@@ -117,16 +117,32 @@ release_age:
 - id: old-enough-fix-applies-now
   assertion_ids:
   - security-monitoring.release-age.security-priority
-  given: An urgent Dependabot alert names fixed versions 4.6.6 (published 5 days ago) and 4.7.1 (published
+  given: An urgent Dependabot alert names fixed versions 4.6.6 (published 8 days ago) and 4.7.1 (published
     yesterday).
   when: The fix chat selects a version.
-  then: It selects 4.6.6, the oldest fixing version. The release is older than 72 hours, so it is applied
-    immediately without the 7-day routine wait.
+  then: It selects 4.6.6, the oldest fixing version. The release is older than 7 days, so it is applied
+    immediately.
+- id: young-fix-waits-unless-actively-exploited
+  assertion_ids:
+  - security-monitoring.release-age.security-priority
+  given: The only fixing version of a reachable library was published 4 days ago. The CVE is not in the
+    CISA known-exploited catalog.
+  when: The fix-version checks run.
+  then: The bump waits until the version is 7 days old; meanwhile an allowlisted mitigation is applied
+    if one exists. Had the CVE been in the known-exploited catalog, the 4-day-old version would be taken
+    once the integrity checks passed.
+- id: chat-install-of-young-version-refused
+  assertion_ids:
+  - security-monitoring.release-age.install-time
+  given: A dev chat runs "pnpm add some-lib@2.3.0" and 2.3.0 was published 2 days ago.
+  when: The Bash guard checks the command.
+  then: The install is refused with the newest version that is at least 7 days old as a suggestion. "pnpm
+    install --frozen-lockfile" and "pip install --require-hashes -r requirements.txt" stay allowed.
 - id: too-new-fix-becomes-mitigation
   assertion_ids:
   - security-monitoring.release-age.security-priority
-  given: The only fixing version was published 10 hours ago, the issue is reachable on an internet-facing
-    endpoint, and the diff adds a new postinstall script.
+  given: The only fixing version was published 10 hours ago, the flaw is in the known-exploited catalog,
+    and the diff adds a new postinstall script.
   when: The deterministic fix-version checks run.
   then: The bump is refused. An allowlisted mitigation such as disabling the affected route is deployed
     to dev, and the bump is scheduled for when a qualifying version exists.
@@ -135,7 +151,7 @@ autofix:
   assertion_ids:
   - security-monitoring.autofix.guarded-dev-only
   given: An urgent verdict proposes bumping a Python dependency in backend/core/api/requirements.txt to
-    a fixed version that is 4 days old.
+    a fixed version that is 9 days old.
   when: The fix chat runs.
   then: It starts its own session, changes only that requirement, passes isolated CI and deploys to dev.
     The notification lists "release to production" and "update upload server image" as manual steps.
@@ -146,6 +162,15 @@ autofix:
   when: The fix chat prepares the change.
   then: The change is refused before commit. The incident is downgraded to a fix-soon Task with a manual-action
     notification.
+- id: daily-patch-minor-batch
+  assertion_ids:
+  - security-monitoring.autofix.guarded-dev-only
+  given: Three open fix-soon advisories affect opentelemetry-api 1.40.0 with fixes in 1.45.1 and 1.45.2,
+    both older than 7 days, and twenty advisories affect a CMS image whose fixes need a new major version.
+  when: The daily fix lane runs.
+  then: One fix chat bumps opentelemetry-api and its sibling packages to 1.45.2, passes isolated CI and
+    deploys to dev, and its transcript is kept. The CMS image gets no automatic change; the daily email
+    lists it once as "needs a decision - major upgrade".
 notifications:
 - id: urgent-message-content
   assertion_ids:
@@ -153,37 +178,79 @@ notifications:
   given: An urgent kernel privilege-escalation verdict affects dev and prod. The dev server is running
     an older kernel than the one installed.
   when: Notifications are sent.
-  then: Discord and email each receive one message listing the CVE, the dev and prod environments, the
-    verdict and evidence summary, "no automatic fix possible", and the checklist "reboot dev into the
-    installed kernel; patch and reboot prod via update-prod-server".
+  then: One email is sent at once listing the CVE, the dev and prod environments, the verdict and evidence
+    summary, "no automatic fix possible", and the checklist "reboot dev into the installed kernel; patch
+    and reboot prod via update-prod-server".
 - id: fix-soon-creates-task
   assertion_ids:
   - security-monitoring.notifications.deterministic-dual-channel
   given: A medium-severity verdict is affected_fix_soon.
   when: Notifications are sent.
-  then: One Discord message is sent and one OpenMates Task is created. The item appears in the next email
-    digest, with no immediate email.
+  then: One OpenMates Task is created and no email is sent at once. The item appears under "New" in the
+    next daily email and under "Still open" on every later day until it is fixed.
+- id: daily-email-new-then-still-open
+  assertion_ids:
+  - security-monitoring.notifications.deterministic-dual-channel
+  given: 82 advisories were already open yesterday, 21 of them on the same CMS image. Since the last daily
+    email one new advisory was opened and one was fixed.
+  when: The daily email is sent.
+  then: It starts with "NEW since last email" listing the new and the fixed item, then "STILL OPEN" with
+    one line per package and severity (the 21 CMS advisories as one line), then the watcher footer. Its
+    title reads "[Security] Daily - 1 new, 1 fixed, 81 open".
 health:
 - id: reverted-fix-alerts
   assertion_ids:
   - security-monitoring.health.no-silent-failure
   given: An auto-fix deployed to dev, and the dev smoke check failed afterwards.
   when: The revert completes.
-  then: Discord and email receive an alert saying the fix was reverted and the vulnerability is still
+  then: One immediate email says the fix was reverted and the vulnerability is still
     open, with the incident still listed as urgent.
 - id: timeout-is-not-safe
   assertion_ids:
   - security-monitoring.health.no-silent-failure
   given: The triage chat exceeds its time limit without returning verdicts.
   when: The dispatcher records the run.
-  then: The observations stay open as untriaged, and an immediate failed-triage alert is sent. Nothing
-    is marked not affected.
+  then: The observations stay open as untriaged and a failed-triage health incident opens; it is listed
+    under "New" in the next daily email. Nothing is marked not affected.
 content_boundary:
 - id: no-addresses-or-secrets
   assertion_ids:
   - security-monitoring.content.boundary
   given: An intrusion alert is caused by a login from a specific source IP address, and the triage transcript
     contains an environment variable value.
-  when: The Discord and email messages are rendered.
+  when: The email is rendered.
   then: The messages name the server, key fingerprint and change type only. The source address and the
     transcript stay on the dev server outside git.
+config_guard:
+- id: new-hook-command-is-urgent
+  assertion_ids:
+  - security-monitoring.config-guard.hooks-and-settings
+  given: A dev commit adds a PostToolUse hook command to .claude/settings.json.
+  when: The next hourly run checks new commits.
+  then: One urgent email names the commit, author and file and asks to confirm or revert it. The incident
+    stays open until acknowledged. A later commit that only rewords a skill description is listed once
+    under "New" in the daily email.
+images:
+- id: vendored-library-in-running-image
+  assertion_ids:
+  - security-monitoring.images.running-digests
+  given: The running API image contains a vendored brotli library inside its Node runtime that no lockfile
+    lists, and the openobserve image has no shell to read runtime versions.
+  when: The daily image scan runs.
+  then: The brotli finding is recorded with its path inside the image and that image's digest. The openobserve
+    runtime check is reported as incomplete coverage, not as clean.
+reboots:
+- id: dev-reboot-waits-for-tests
+  assertion_ids:
+  - security-monitoring.os.reboot-windows
+  given: A kernel update on dev needs a reboot, and a Playwright run is still going at 04:00 Berlin time.
+  when: The dev reboot timer fires.
+  then: The reboot waits and retries every 15 minutes; it happens at 04:30 once the run has ended. Without
+    a pending reboot, nothing happens.
+- id: exploited-flaw-asks-before-sunday
+  assertion_ids:
+  - security-monitoring.os.reboot-windows
+  given: On a Tuesday an actively exploited kernel flaw is fixed by an update that needs a production reboot.
+  when: The update is installed on production.
+  then: Production is not rebooted. The operator gets one question asking to reboot before Sunday; without
+    an answer it reboots on Sunday at 04:30.

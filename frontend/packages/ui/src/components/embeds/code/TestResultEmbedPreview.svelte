@@ -12,9 +12,9 @@
   import { text } from '../../../i18n/translations';
   import {
     findEvidence,
-    formatDuration,
     parseTestResult,
     resolveArtifactEvidenceUrl,
+    testResultDurations,
     testResultTitle,
     type EvidenceUrlResolver,
   } from './testResultContent';
@@ -111,7 +111,8 @@
             <img class="tr-frame-img" data-testid="test-result-preview-frame" src={frameUrl} alt={title} loading="lazy" onerror={() => { console.warn('[TestResultEmbedPreview] evidence frame failed to load'); frameFailed = true; }} />
           {:else}
             <div class="tr-placeholder" data-testid="test-result-preview-placeholder">
-              <span class="tr-placeholder-status">{statusLabel}</span>
+              <!-- The status badge below already names the result; the frame area says what is missing. -->
+              <span class="tr-placeholder-status">{$text('embeds.code.test_result.no_video')}</span>
             </div>
           {/if}
         </div>
@@ -126,9 +127,9 @@
         </div>
         <p class="tr-counts" data-testid="test-result-preview-counts">
           <span class="tr-count-passed">{view.passed} {$text('embeds.code.test_result.status_passed')}</span>
-          <span class="tr-count-failed">{view.failed} {$text('embeds.code.test_result.status_failed')}</span>
+          <span class="tr-count-failed" class:tr-count-zero={view.failed === 0} data-testid="test-result-preview-count-failed">{view.failed} {$text('embeds.code.test_result.status_failed')}</span>
           {#if view.skipped > 0}<span>{view.skipped} {$text('embeds.code.test_result.status_skipped')}</span>{/if}
-          {#if view.durationMs !== undefined}<span>{formatDuration(view.durationMs)}</span>{/if}
+          {#if testResultDurations(view).tests}<span data-testid="test-result-preview-duration">{testResultDurations(view).tests}</span>{/if}
         </p>
       </div>
     </div>
@@ -142,7 +143,7 @@
   .tr-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--color-grey-10); }
   .tr-passed .tr-placeholder { background: var(--color-grey-10); border-bottom: 4px solid var(--color-app-code-start); }
   .tr-failed .tr-placeholder, .tr-error .tr-placeholder, .tr-timed_out .tr-placeholder { background: var(--color-error-light); border-bottom: 4px solid var(--color-error); }
-  .tr-placeholder-status { font-size: var(--font-size-p); font-weight: 600; color: var(--color-font-secondary); }
+  .tr-placeholder-status { padding: 0 var(--spacing-8); text-align: center; font-size: var(--font-size-small); font-weight: 600; color: var(--color-font-secondary); }
   .tr-info { display: flex; flex-direction: column; gap: var(--spacing-3); padding: var(--spacing-6) var(--spacing-12); flex: 0 0 auto; justify-content: center; }
   /* Wide cards are the grouped carousel: clear its bottom arrows (10px inset + 36px). */
   @container result-card (min-width: 401px) { .tr-info { padding-inline: calc(var(--spacing-12) + 32px); } }
@@ -151,4 +152,8 @@
   .tr-row { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
   .tr-counts { margin: 0; display: flex; flex-wrap: wrap; gap: var(--spacing-4); font-size: var(--font-size-small); color: var(--color-font-secondary); }
   .tr-count-failed { color: var(--color-error); }
+  /* A "·" between counts, as in the card subtitles, so "4 Passed 0 Failed" never reads as one phrase. */
+  .tr-counts > span + span::before { content: '·'; margin-right: var(--spacing-4); color: var(--color-font-secondary); }
+  /* Nothing failed: the zero count is neutral, never an error colour. */
+  .tr-count-failed.tr-count-zero { color: var(--color-font-secondary); }
 </style>

@@ -888,7 +888,10 @@
         "text": "Zobrazit vizualizaci"
       },
       "interactive_html_blocked": {
-        "text": "Tato vizualizace se pokusila otevřít jinou stránku a byla zastavena."
+        "text": "Tato vizualizace se pokusila otevřít jinou stránku. V chatu to není povoleno, proto byla pozastavena."
+      },
+      "interactive_html_reload": {
+        "text": "Znovu načíst vizualizaci"
       },
       "search_repos": {
         "text": "Hledat repozitáře",
@@ -2762,6 +2765,12 @@
       "reject_all": {
         "text": "Odmítnout vše"
       },
+      "continue_without_memories": {
+        "text": "Pokračovat bez vzpomínek"
+      },
+      "call_countdown_label": {
+        "text": "Zbývající čas do odpovědi bez vzpomínek"
+      },
       "entry_singular": {
         "text": "záznam"
       },
@@ -3720,7 +3729,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Pokračujte tam, kde jste skončili:"
+        "text": "Pokračujte v nedávných chatech:"
+      },
+      "active_title_single": {
+        "text": "Máte 1 aktivní chat:"
+      },
+      "active_title": {
+        "text": "Máte aktivní chaty: {count}:"
+      },
+      "active_card_label": {
+        "text": "Aktivní"
       },
       "guest_title": {
         "text": "Prozkoumejte ukázkové chaty:"
@@ -4311,76 +4329,6 @@
         "text": "Fermiho paradox se ptá, proč jsme nenašli žádné přesvědčivé důkazy o mimozemských civilizacích. Prozkoumej možná vysvětlení."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Měj vlastní zálohu. Exportuj si svá data z OpenMates, kdykoli potřebuješ."
-      },
-      "title": {
-        "text": "Exportuj svá data z OpenMates"
-      },
-      "description": {
-        "text": "Zálohuj si chaty, nastavení, vzpomínky a další."
-      },
-      "assistant_response": {
-        "text": "Exportuj si kopii svých dat z OpenMates v nastavení účtu. Přihlas se pro přístup ke svým šifrovaným datům."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Chceš silnější kontrolu soukromí? Přidej osobní údaje, které má OpenMates skrýt."
-      },
-      "title": {
-        "text": "Vlastní detekce osobních údajů"
-      },
-      "description": {
-        "text": "Chraň osobní údaje před odesláním modelu."
-      },
-      "assistant_response": {
-        "text": "Vyber si osobní údaje, které má OpenMates před odesláním modelu skrýt. Spravovat je můžeš v nastavení soukromí."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Potřebuješ cílenější odpověď? Dej svému parťákovi konkrétní úkol."
-      },
-      "title": {
-        "text": "Režimy zaměření"
-      },
-      "description": {
-        "text": "Nasměruj chat ke konkrétnímu cíli."
-      },
-      "assistant_response": {
-        "text": "Použij režim zaměření a nasměruj chat ke konkrétnímu cíli. Dostupné režimy najdeš v Aplikacích."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Neustálé opakování unavuje. Ulož si kontext, který si mají tvoji parťáci pamatovat."
-      },
-      "title": {
-        "text": "Vzpomínky"
-      },
-      "description": {
-        "text": "Ukládej si užitečné předvolby a kontext."
-      },
-      "assistant_response": {
-        "text": "Ukládej si užitečné předvolby a kontext jako vzpomínky a pak si vyber, co mohou tvoji parťáci používat."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Hledáš, co podniknout? Objev akce ve svém okolí."
-      },
-      "title": {
-        "text": "Najít místní akce"
-      },
-      "description": {
-        "text": "Hledej kurzy, setkání a další akce."
-      },
-      "assistant_response": {
-        "text": "Použij vyhledávání akcí a najdi kurzy a setkání ve svém okolí. Vyber místo a téma a zjisti, co se děje poblíž."
-      }
-    },
     "collective": {
       "title": {
         "text": "Kolektivní chování zvířat"
@@ -4421,62 +4369,6 @@
       },
       "assistant_response": {
         "text": "Konstrukce stabilizované rovnováhou tahu a tlaku."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citace z důvěryhodných zdrojů"
-      },
-      "description": {
-        "text": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď."
-      },
-      "phrase": {
-        "text": "Chceš ověřit odpověď? Požádej OpenMates o citaci ze zdroje."
-      },
-      "assistant_response": {
-        "text": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Rozpoznávání obrázků AI"
-      },
-      "description": {
-        "text": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu."
-      },
-      "phrase": {
-        "text": "Zajímá tě, zda obrázek vytvořila AI? Nahraj ho a prozkoumej příznaky."
-      },
-      "assistant_response": {
-        "text": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Anonymní chaty"
-      },
-      "description": {
-        "text": "Začni dočasný chat, pokud ho nechceš ukládat do historie."
-      },
-      "phrase": {
-        "text": "Potřebuješ dočasnou konverzaci? Nech ji mimo uloženou historii chatů."
-      },
-      "assistant_response": {
-        "text": "Začni dočasný chat, pokud ho nechceš ukládat do historie."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Nastavení soukromí"
-      },
-      "description": {
-        "text": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě."
-      },
-      "phrase": {
-        "text": "Prohlédni si ochranu OpenMates dřív, než budeš nastavení naléhavě potřebovat."
-      },
-      "assistant_response": {
-        "text": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě."
       }
     }
   },
@@ -4690,6 +4582,56 @@
       },
       "ask_question": {
         "text": "Zeptejte se na tuto dokumentaci..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Aby se to spustilo, tvůj kód a soubory se odešlou do E2B, poskytovatele cloudového sandboxu, a spustí se tam, v USA. U úloh Projektu se do sandboxu vloží i celý Projekt a klíč, který ho otevírá, zapečetěný tak, aby ho mohl otevřít jen tento sandbox. Sandbox se poté smaže."
+      },
+      "privacy_policy": {
+        "text": "Zásady ochrany osobních údajů"
+      },
+      "own_machine_hint": {
+        "text": "Nebo to spusť na vlastním počítači pomocí:"
+      },
+      "allow": {
+        "text": "Povolit"
+      },
+      "own_machine": {
+        "text": "Použít vlastní počítač"
+      },
+      "not_now": {
+        "text": "Teď ne"
+      },
+      "answered": {
+        "text": "Tvoje odpověď:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Spouštění kódu v cloudovém sandboxu E2B není pro tvůj účet povoleno, takže se nic nespustilo. Můžeš to změnit v Nastavení > Soukromí, nebo kód spustit na vlastním počítači příkazem vzdáleného přístupu."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Spouštět kód v cloudovém sandboxu E2B"
+      },
+      "description": {
+        "text": "Když je to povoleno, kód a soubory, které spouštíš, se odešlou do E2B, poskytovatele cloudového sandboxu, a zpracují se v USA. U úloh Projektu to zahrnuje Projekt a klíč, který ho otevírá, zapečetěný tak, aby ho mohl otevřít jen tento sandbox. Sandbox se poté smaže. Když to není povoleno, nic se neodešle."
+      },
+      "status_allowed": {
+        "text": "Povoleno"
+      },
+      "status_declined": {
+        "text": "Nepovoleno"
+      },
+      "status_undecided": {
+        "text": "Zatím nerozhodnuto"
+      },
+      "error": {
+        "text": "Toto nastavení se nepodařilo uložit. Zkus to prosím znovu."
       }
     }
   },
@@ -8370,6 +8312,9 @@
         },
         "no_video": {
           "text": "Pro toto spuštění není k dispozici video"
+        },
+        "with_setup": {
+          "text": "{duration} s přípravou"
         }
       }
     },
@@ -12471,7 +12416,7 @@
               "text": "E2B (izolovaný sandbox pro kód)"
             },
             "description": {
-              "text": "E2B spouští vybrané vložené kódy a náhledy generovaných aplikací v izolovaných sandboxech. E2B přijímá kód nebo soubory a prostředky generované aplikace, které se rozhodneš spustit, vstupy za běhu, protokoly náhledů a výstupy spuštění potřebné ke spuštění a zobrazení výsledku v sandboxu. K tomuto sdílení dochází pouze tehdy, když explicitně spustíš kód, vytvoříš generovanou aplikaci, která automaticky spustí krátký náhled snímku obrazovky, nebo spustíš/obnovíš živý náhled aplikace."
+              "text": "E2B spouští vybrané vložené kódy a náhledy generovaných aplikací v izolovaných sandboxech. E2B přijímá kód nebo soubory a prostředky generované aplikace, které se rozhodneš spustit, vstupy za běhu, protokoly náhledů a výstupy spuštění potřebné ke spuštění a zobrazení výsledku v sandboxu. K tomuto sdílení dochází pouze tehdy, když explicitně spustíš kód, vytvoříš generovanou aplikaci, která automaticky spustí krátký náhled snímku obrazovky, nebo spustíš/obnovíš živý náhled aplikace. Když úloha agenta běží v cloudovém projektu, E2B v USA navíc po dobu úlohy přijímá všechny soubory projektu a klíč, který projekt otevírá, zapečetěný tak, aby jej mohl otevřít jen tento sandbox. Sandbox se maže po 15 minutách nečinnosti nebo nejpozději po 4 hodinách (až 24 hodin, pokud to zapneš) a nikdy se nepozastavuje."
             }
           }
         },
@@ -19965,6 +19910,9 @@
       "screenshot_size_too_large": {
         "text": "Snímek obrazovky je příliš velký. Zkuste menší okno."
       },
+      "screenshot_limit_reached": {
+        "text": "Můžete přiložit nejvýše 5 snímků obrazovky."
+      },
       "screenshot_preview_alt": {
         "text": "Náhled snímku obrazovky"
       },
@@ -21150,7 +21098,7 @@
       "text": "Vyzkoušet zdarma"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."
@@ -21938,7 +21886,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Žádost o vzpomínky vypršela, odpověď bez vzpomínek"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Hovory používají přepis Mistral, hlas ElevenLabs v4 Turbo, běžné směrování AI OpenMates a účtování podle využití."

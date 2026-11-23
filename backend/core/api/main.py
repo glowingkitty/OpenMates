@@ -60,6 +60,7 @@ from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API
 from backend.core.api.app.routes import openai_compat  # noqa: E402 # Canonical OpenAI-compatible API routes
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
 from backend.core.api.app.routes import audio_realtime  # noqa: E402 # Authenticated realtime audio transcription proxy
+from backend.core.api.app.routes import e2b_upload_consent as e2b_upload_consent_routes  # noqa: E402 # First-party E2B upload consent settings
 from backend.core.api.app.routes import voice_call  # noqa: E402 # First-party chat-bound voice calls
 from backend.core.api.app.routes import code_notebook_execution  # noqa: E402 # Import Code notebook execution router
 from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
@@ -1432,6 +1433,7 @@ def create_app() -> FastAPI:
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
     app.include_router(audio_realtime.router, include_in_schema=False)  # Realtime voice transcription - web app only
+    app.include_router(e2b_upload_consent_routes.router, include_in_schema=False)  # Session-auth E2B consent settings - first-party only
     app.include_router(voice_call.router, include_in_schema=False)  # Authenticated personal-chat voice calls - web app only
     app.include_router(code_notebook_execution.router, include_in_schema=False)  # Code notebook execution - web app only
     app.include_router(electronics_pcb_schematic.router, include_in_schema=False)  # Electronics PCB schematic E2B compile - web app only

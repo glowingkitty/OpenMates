@@ -57,3 +57,15 @@ async def test_same_turn_resume_carries_the_test_results_of_the_batch(monkeypatc
                   ]}
     await same_turn_skill_barrier.restore_ordered_tool_results(request, checkpoint)
     assert request.completed_result_embed_ids == ["run-1", "run-2"]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.commands
+def test_cloud_command_card_is_appended_once_as_a_code_reference() -> None:
+    from backend.apps.ai.tasks.result_embed_references import completed_command_embed_ids
+
+    ids = completed_command_embed_ids([{"command_embed_id": "term-1"}, {"exit_code": 0}, {"command_embed_id": "term-1"}])
+    assert ids == ["term-1"]
+    text = append_result_embed_references("Ran it.", "code", ids)
+    assert text == 'Ran it.\n\n```json\n{"type": "code", "embed_id": "term-1"}\n```'
+    assert append_result_embed_references(text, "code", ids) == text
+    assert append_result_embed_references("See embed term-1", "code", ids) == "See embed term-1"

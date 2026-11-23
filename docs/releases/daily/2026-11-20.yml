@@ -1,0 +1,4229 @@
+schema_version: 1
+cadence: daily
+date: '2026-11-20'
+generated_at: '2026-11-23T00:47:43+00:00'
+range:
+  since: '2026-11-20T00:00:00+00:00'
+  until: '2026-11-21T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 52
+  section_counts:
+    features: 12
+    bug_fixes: 28
+    improvements: 0
+    docs: 2
+    tests: 10
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 27
+  dev_only_items: 52
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:slides:template
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:code:write_specification
+    kind: platform
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: admin_config
+  - id: focus:slides:design_template
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:slides:plan_presentation
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:design:get_design
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:design
+    source: backend/apps/design/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:list-spawned-chats
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:read-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:report-to-creator
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:send-to-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:start-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(voice-call): pause verdicts decide when a spoken turn is finished'
+    section: features
+    commits:
+    - 0e4e862ef0
+    authored_at: '2026-11-20T18:16:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/voice_call.py
+    - backend/shared/python_utils/voice_pause_decision.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_completion_fixture.py
+    - backend/tests/test_voice_pause_decision.py
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(ai-test-users): reports only collect findings, no test-account issue emails, one Discord message per run
+      with suspect marks'
+    section: features
+    commits:
+    - 011e2dbe6e
+    authored_at: '2026-11-20T17:18:01+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/utils/issue_report_contact_email.py
+    - backend/core/api/app/utils/issue_report_text.py
+    - backend/scripts/ai_test_users/models.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/tests/test_ai_test_users.py
+    - backend/tests/test_issue_report_contact_email.py
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_message.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_scenarios.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - scripts/tests/test_ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_video.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(tooling): dev deploy and restart lock while a real test runs on dev'
+    section: features
+    commits:
+    - 12a46ae5d9
+    authored_at: '2026-11-20T17:08:40+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/ai_test_users.py
+    - scripts/claude_chat_waiters.py
+    - scripts/code_run_real_test.py
+    - scripts/dev_test_lock.py
+    - scripts/maps_closing_time_real_test.py
+    - scripts/sessions.py
+    - scripts/tests/conftest.py
+    - scripts/tests/test_ai_test_users.py
+    - scripts/tests/test_dev_test_lock.py
+    - scripts/workflow_real_test_helpers.py
+    - scripts/workflow_schedule_real_test.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(start-screens): large-card rows with daily inspirations, no banner, event entry below the row'
+    section: features
+    commits:
+    - cd63b6de83
+    authored_at: '2026-11-20T16:54:39+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/content_filter.py
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/static_localizations.json
+    - backend/core/api/app/routes/daily_inspirations_api.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/tests/test_daily_inspiration_content_policy.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_static_localization.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
+    - frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/landing-default-examples.spec.ts
+    - frontend/apps/web_app/tests/landing-guest-workflows.spec.ts
+    - frontend/apps/web_app/tests/marketing-landing-workspaces.spec.ts
+    - frontend/apps/web_app/tests/new-chat-pinned-sort.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    - frontend/packages/ui/src/components/welcome/StartScreenChatCard.svelte
+    - frontend/packages/ui/src/components/welcome/StartScreenRowPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/welcome/StartScreenRowPreviewHarness.svelte
+    - frontend/packages/ui/src/components/welcome/StartScreenUpcomingEntry.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirationFallbackText.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration.yml
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration_fallback.yml
+    - frontend/packages/ui/src/services/__tests__/dailyInspirationDB.language.test.ts
+    - frontend/packages/ui/src/services/dailyInspirationViewed.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - frontend/packages/ui/src/utils/__tests__/startScreenRow.test.ts
+    - frontend/packages/ui/src/utils/continueCardLayout.ts
+    - frontend/packages/ui/src/utils/startScreenRow.ts
+    - frontend/packages/workspaceInspirationDefaults.ts
+    - packages/openmates-rust/src/client/inspirations.rs
+    - scripts/build_daily_inspiration_fallback.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features.yml
+    - specifications/features/continue-carousel/examples.yml
+    - specifications/features/continue-carousel/specification.yml
+    - specifications/features/daily-inspiration/examples.yml
+    - specifications/features/daily-inspiration/specification.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workspace-shell/examples.yml
+    - specifications/features/workspace-shell/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(tooling): short Discord pushes from Claude chats, no lock-screen cut-off'
+    section: features
+    commits:
+    - f2865bd7a7
+    authored_at: '2026-11-20T16:35:51+00:00'
+    changed_paths:
+    - CLAUDE.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/agent_question.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_nudge.py
+    - scripts/discord_summary.py
+    - scripts/prod_email_health.py
+    - scripts/prod_tls_health.py
+    - scripts/tests/test_agent_question.py
+    - scripts/tests/test_discord_summary.py
+    - scripts/tests/test_prod_email_health.py
+    - scripts/tests/test_prod_tls_health.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(ai-test-users): record every persona session video with 7-day S3 links in findings, reports and pushes; read
+      deletion codes from the HTML body'
+    section: features
+    commits:
+    - 3640b2b502
+    authored_at: '2026-11-20T15:26:47+00:00'
+    changed_paths:
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/flows.py
+    - backend/scripts/ai_test_users/inbox.py
+    - backend/scripts/ai_test_users/reports.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/scripts/ai_test_users/transcript.py
+    - backend/tests/test_ai_test_users.py
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_scenarios.py
+    - scripts/ai_test_users_video.py
+    - scripts/tests/test_ai_test_users_video.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(projects): web creates assistant-inferred Projects through the Rust core'
+    section: features
+    commits:
+    - 7740d60a9e
+    authored_at: '2026-11-20T15:14:50+00:00'
+    changed_paths:
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/shared-client.yml
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectCreateRelay.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectCreateRelay.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsClient.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsUnit.ts
+    - packages/openmates-browser-bindings/src/browser_project_file_jobs.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/project_create_request.rs
+    - packages/openmates-rust/src/client/project_create_steps.rs
+    - packages/openmates-rust/src/client/project_create_steps_tests.rs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(ai-test-users): fixed-goal scenario runs with flow verdicts; cleanup never deletes another run''s accounts'
+    section: features
+    commits:
+    - dd5e8e345b
+    authored_at: '2026-11-20T14:16:30+00:00'
+    changed_paths:
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/session.py
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_accounts.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_scenarios.py
+    - scripts/tests/test_ai_test_users_daily.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(projects): web runs hosted Project file jobs through the Rust core (C3w); code-card UI fixes; code-run Spec
+      v3 approved'
+    section: features
+    commits:
+    - 36d9376faf
+    authored_at: '2026-11-20T14:08:36+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/project_file_tools.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/overview.yml
+    - docs/migration/rust/shared-client.yml
+    - docs/migration/rust/web-app-curated.yml
+    - docs/migration/rust/web-app.yml
+    - docs/plans/cloud-project-commands/plan.yml
+    - frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - frontend/apps/web_app/tests/components/application-embed-preview.spec.ts
+    - frontend/apps/web_app/tests/components/test-result-embed.spec.ts
+    - frontend/packages/openmates-cli/src/cliProjectAuthoringSave.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFileJobExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFilePrivacyStorage.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectFilePrivacy.test.ts
+    - frontend/packages/openmates-cli/tests/projectIgnoredReadApproval.test.ts
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/TestResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/TestResultEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
+    - frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
+    - frontend/packages/ui/src/services/browserProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobTypes.ts
+    - frontend/packages/ui/src/services/projectFilePrivacyStorage.ts
+    - frontend/packages/ui/src/services/ruleDocumentService.ts
+    - frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectFileJobRunner.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectFileJobsUnit.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobRunner.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobRunnerBrowser.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsClient.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsUnit.ts
+    - frontend/packages/ui/src/stores/projectFileApprovalStore.ts
+    - packages/openmates-browser-bindings/Cargo.toml
+    - packages/openmates-browser-bindings/src/browser.rs
+    - packages/openmates-browser-bindings/src/browser_project_file_jobs.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/project_create_request.rs
+    - packages/openmates-rust/src/client/project_file_job_approvals.rs
+    - packages/openmates-rust/src/client/project_file_job_approvals_tests.rs
+    - packages/openmates-rust/src/client/project_file_job_frames.rs
+    - packages/openmates-rust/src/client/project_file_job_privacy.rs
+    - packages/openmates-rust/src/client/project_file_job_privacy_tests.rs
+    - packages/openmates-rust/src/client/project_file_job_steps.rs
+    - packages/openmates-rust/src/client/project_file_jobs.rs
+    - packages/openmates-rust/src/client/project_file_jobs_tests.rs
+    - packages/openmates-rust/src/client/send_turn_runtime.rs
+    - packages/openmates-rust/src/client/upload_wasm.rs
+    - packages/openmates-rust/src/lib.rs
+    - packages/openmates-rust/src/path_rules/ignore_rules.rs
+    - packages/openmates-rust/src/path_rules/ignore_rules_tests.rs
+    - packages/openmates-rust/src/path_rules/mod.rs
+    - packages/openmates-rust/src/privacy.rs
+    - packages/openmates-rust/src/privacy/detect.rs
+    - packages/openmates-rust/src/privacy/file_privacy.rs
+    - packages/openmates-rust/src/privacy/file_privacy_tests.rs
+    - packages/openmates-rust/src/source_host/mod.rs
+    - packages/openmates-rust/src/source_host/path_policy.rs
+    - packages/openmates-rust/src/work/projects.rs
+    - packages/openmates-rust/src/work/projects/adoption.rs
+    - packages/openmates-rust/src/work/projects/hosted/job.rs
+    - packages/openmates-rust/src/work/projects/hosted/policy.rs
+    - packages/openmates-rust/src/work/projects/remote_file_jobs.rs
+    - packages/openmates-rust/src/work/projects/remote_ops.rs
+    - scripts/agentic_cloud_project_web_real_test.py
+    - specifications/features/app-skills/code-run/examples.yml
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:test_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, embed:code:application, embed:code:test_result, platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(ai-test-users): every failed run reaches Discord as an alert; approved multi-screenshot report wording'
+    section: features
+    commits:
+    - 1583ed7799
+    authored_at: '2026-11-20T13:59:42+00:00'
+    changed_paths:
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai-test-users-setup.sh
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_report.py
+    - scripts/tests/test_ai_test_users.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: daily AI test users with real web signup, test-account label, multi-screenshot issue reports and small-fix
+      guard'
+    section: features
+    commits:
+    - 0bbe50d656
+    authored_at: '2026-11-20T12:06:29+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/admin_growth_metrics.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/user/user_lookup.py
+    - backend/core/api/app/services/issue_report_screenshots.py
+    - backend/core/api/app/tasks/auto_delete_tasks.py
+    - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+    - backend/core/api/app/tasks/server_stats_tasks.py
+    - backend/core/api/templates/email/issue_report.mjml
+    - backend/core/directus/schemas/gift_cards.yml
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/schemas/users.yml
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/flows.py
+    - backend/scripts/ai_test_users/inbox.py
+    - backend/scripts/ai_test_users/models.py
+    - backend/scripts/ai_test_users/reports.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/scripts/ai_test_users/transcript.py
+    - backend/scripts/create_test_gift_card_batch.py
+    - backend/scripts/debug_issue.py
+    - backend/tests/test_admin_growth_metrics.py
+    - backend/tests/test_ai_test_users.py
+    - backend/tests/test_issue_report_screenshots.py
+    - backend/tests/test_test_account_flag.py
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/plans/regular-ai-test-users/issue-reporting-spec-proposal.md
+    - docs/plans/regular-ai-test-users/plan.yml
+    - frontend/apps/web_app/tests/components/report-issue-screenshots.spec.ts
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/ReportIssueScreenshots.preview.ts
+    - frontend/packages/ui/src/components/settings/ReportIssueScreenshots.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/ai-test-users-setup.sh
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_accounts.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_personas.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_schedule.py
+    - scripts/change_scope.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/claude_dispatch.py
+    - scripts/daily_meeting_growth.py
+    - scripts/sessions.py
+    - scripts/tests/test_ai_test_users.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - scripts/tests/test_change_scope.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_daily_meeting_growth.py
+    - scripts/tests/test_sessions_change_scope.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(chat-lifecycle): a finished or waiting chat frees its slot at once; ✅ done chats are archived; paced reset
+      wake; dead panes closed'
+    section: features
+    commits:
+    - f461b16fff
+    authored_at: '2026-11-20T10:47:16+00:00'
+    changed_paths:
+    - CLAUDE.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/agent_question.py
+    - scripts/claude-idle-chats-setup.sh
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_chat_waiters.py
+    - scripts/tests/test_claude_idle_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix(voice-call): first call after signup connects; Project-draft calls get their chat key; a rejected second spoken
+      turn is retried'
+    section: bug_fixes
+    commits:
+    - 288c3228c3
+    authored_at: '2026-11-20T21:30:38+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_ai_response_storage_confirmation_version.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallTurns.test.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/secondDeviceSavedChatSession.test.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/socketFrameForwarding.test.ts
+    - frontend/packages/ui/src/services/rustCore/productionInvalidationBridge.ts
+    - frontend/packages/ui/src/services/rustCore/secondDeviceSavedChatSession.ts
+    - frontend/packages/ui/src/services/rustCore/socketFrameForwarder.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/services/voiceCallPrivacy.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - packages/openmates-rust/src/client/frame_ingest.rs
+    - packages/openmates-rust/src/client/frame_ingest_tests.rs
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: events found on the web are ranked even when another source returns many listings'
+    section: bug_fixes
+    commits:
+    - e048f1bf29
+    authored_at: '2026-11-20T20:12:08+00:00'
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_rest_api_events.py
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: after an empty specialised skill result the next model call must search the web'
+    section: bug_fixes
+    commits:
+    - 5ed886069b
+    authored_at: '2026-11-20T19:52:36+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/specialised_skill_preference.py
+    - backend/tests/test_specialised_skill_preference.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: an empty specialised skill result falls back to web search; event searches cover next year'
+    section: bug_fixes
+    commits:
+    - add576312d
+    authored_at: '2026-11-20T19:31:47+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/specialised_skill_preference.py
+    - backend/shared/python_utils/web_result_extraction.py
+    - backend/tests/test_specialised_skill_preference.py
+    - backend/tests/test_web_result_extraction.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: conference questions search every events source, not only the official schedules'
+    section: bug_fixes
+    commits:
+    - eab1a9f351
+    authored_at: '2026-11-20T18:45:02+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_rest_api_events.py
+    - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: the answer model calls a matched specialised skill before web search'
+    section: bug_fixes
+    commits:
+    - d4788e1038
+    authored_at: '2026-11-20T18:00:53+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/specialised_skill_preference.py
+    - backend/tests/test_specialised_skill_preference.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai-test-users): run message fits one Discord message (summary as text, causes in embeds, short problems line)'
+    section: bug_fixes
+    commits:
+    - 160d6fbad4
+    authored_at: '2026-11-20T17:27:27+00:00'
+    changed_paths:
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_message.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: conference questions pick the Events app; sends wait for the personal data detector and never leave unprotected'
+    section: bug_fixes
+    commits:
+    - 3001cbffd7
+    authored_at: '2026-11-20T17:00:15+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/events/app.yml
+    - backend/shared/app_packages/overlay.py
+    - backend/tests/test_preprocessor_jev.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/__tests__/headerImageBubbleKey.test.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/components/headerImageBubbleKey.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    - scripts/ci_coverage_manifest.json
+    - scripts/events_question_web_real_test.py
+    - scripts/pii_slow_detector_web_real_test.py
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/pii-protection/examples.yml
+    - specifications/features/pii-protection/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:events'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): authored results existing refs copied as embed:<ref> resolve instead of an empty error card'
+    section: bug_fixes
+    commits:
+    - 8ab30514b3
+    authored_at: '2026-11-20T16:26:29+00:00'
+    changed_paths:
+    - backend/core/api/app/services/authored_existing_cards.py
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/tests/test_authored_result_service.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(projects): web answers Project file jobs (chat key via the WebCrypto master; fail-closed answer within seconds)'
+    section: bug_fixes
+    commits:
+    - a87828e8a2
+    authored_at: '2026-11-20T16:24:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectFileJobRunner.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobRunner.ts
+    - packages/openmates-rust/src/client/project_embed_source.rs
+    - packages/openmates-rust/src/client/project_file_job_frames.rs
+    - packages/openmates-rust/src/client/project_file_job_privacy_tests.rs
+    - packages/openmates-rust/src/client/project_file_job_steps.rs
+    - packages/openmates-rust/src/client/project_file_job_web_privacy_tests.rs
+    - packages/openmates-rust/src/client/project_file_jobs.rs
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(projects): web wraps assistant-created Project keys through the WebCrypto master'
+    section: bug_fixes
+    commits:
+    - e8f9f6fc33
+    authored_at: '2026-11-20T15:46:58+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_create_result_handler.py
+    - packages/openmates-rust/src/client/work_authority.rs
+    - packages/openmates-rust/src/work/mod.rs
+    - packages/openmates-rust/src/work/projects.rs
+    - packages/openmates-rust/src/work/projects/tests.rs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): Workflow Ask AI preprocessing sets china_model_sensitive explicitly'
+    section: bug_fixes
+    commits:
+    - 62392bcea1
+    authored_at: '2026-11-20T15:33:47+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/workflow_preprocessing.py
+    - backend/tests/test_workflow_preprocessing.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(landing): restore the Actionable event embed animation on the standalone website'
+    section: bug_fixes
+    commits:
+    - 326202e513
+    authored_at: '2026-11-20T14:24:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
+    - frontend/packages/public-site/src/components/landing/LandingEventEmbed.svelte
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingFeatureAnimationContent.ts
+    - frontend/packages/ui/src/components/landing/LandingExistingEmbed.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingExistingEmbed.svelte
+    - frontend/packages/ui/src/components/landing/LandingFeatureAnimation.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingFeatureAnimation.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(focus): assistant never writes its own Create Focus link; web proof presses Create Focus in the Recommendations
+      card'
+    section: bug_fixes
+    commits:
+    - 60ee4d0450
+    authored_at: '2026-11-20T14:13:00+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/memory_write_tool.py
+    - backend/tests/test_memory_write_tool.py
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(focus): a request to create a Project Focus offers Create Focus instead of saving a Memory'
+    section: bug_fixes
+    commits:
+    - 2d000adf7b
+    authored_at: '2026-11-20T13:29:23+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/memory_write_tool.py
+    - backend/core/api/app/services/project_recommendation_service.py
+    - backend/scripts/test_project_recommendation_decisions.py
+    - backend/tests/test_memory_write_tool.py
+    - backend/tests/test_project_authoring.py
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chats): a resend of an already finished turn is confirmed quietly, never reprocessed'
+    section: bug_fixes
+    commits:
+    - a570dadb84
+    authored_at: '2026-11-20T13:12:49+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/finished_turn_resend.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_finished_turn_resend.py
+    - frontend/apps/web_app/tests/chat-finished-turn-resend.spec.ts
+    - packages/openmates-rust/src/client/send.rs
+    - packages/openmates-rust/src/client/send_finished_turn.rs
+    - packages/openmates-rust/src/client/send_finished_turn_tests.rs
+    - packages/openmates-rust/src/client/send_turn_runtime.rs
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - specifications/features/chats/examples.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai-test-users): hold the shared dev-stack lease during a run so coordinated api restarts wait'
+    section: bug_fixes
+    commits:
+    - 3e72dfa32a
+    authored_at: '2026-11-20T13:00:55+00:00'
+    changed_paths:
+    - scripts/ai_test_users.py
+    - scripts/tests/test_ai_test_users.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(focus): automatic focus activation no longer expires while AI turns fill the worker'
+    section: bug_fixes
+    commits:
+    - b4891237b3
+    authored_at: '2026-11-20T12:49:54+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/tests/test_focus_authority_lifecycle.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai-test-users): signup in any UI language, re-login before reports, second report, judge knows the run date'
+    section: bug_fixes
+    commits:
+    - 60a87dded4
+    authored_at: '2026-11-20T12:47:50+00:00'
+    changed_paths:
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/flows.py
+    - backend/scripts/ai_test_users/models.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/tests/test_ai_test_users.py
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chat): unread counter clears once the last line of a reply was seen, on phone and tablet, and follows the
+      server count on sync'
+    section: bug_fixes
+    commits:
+    - 01a87e47cd
+    authored_at: '2026-11-20T12:29:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-unread-read-position.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/stores/unreadMessagesStore.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chat-lifecycle): a ✅ push outranks the question guess, so done chats are archived'
+    section: bug_fixes
+    commits:
+    - 56463e7e5d
+    authored_at: '2026-11-20T11:54:13+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): every typed decision purpose answers on Jev; relevance judges no longer start on Gemini Decision 1'
+    section: bug_fixes
+    commits:
+    - 57771836ac
+    authored_at: '2026-11-20T11:48:04+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/tests/test_gemini_decision_routing.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/README.md
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/analyze.py
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/gj-focus.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/gj-voice.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/ratelimit_probe.py
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/run1_burst.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/run2_seq.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/table.md
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(focus): ending a layered focus returns the web pill to the Project; layered pill keeps the focus name readable'
+    section: bug_fixes
+    commits:
+    - 6c6fe8dc66
+    authored_at: '2026-11-20T11:42:47+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_layering.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_layering.py
+    - frontend/apps/web_app/tests/components/project-focus-specialist.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chat-lifecycle): tidy zellij: dead panes with their tabs, empty tabs and the link plugin'
+    section: bug_fixes
+    commits:
+    - a8a3a99aac
+    authored_at: '2026-11-20T10:53:48+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(focus): a new-feature request in a Project chat can auto-layer Write specification'
+    section: bug_fixes
+    commits:
+    - f55445c430
+    authored_at: '2026-11-20T10:45:18+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/plan_focus_routing.py
+    - backend/tests/test_preprocessor_jev.py
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(safety): helpline card renders when its payload arrives late; suspension signs the account out everywhere'
+    section: bug_fixes
+    commits:
+    - 9451baa998
+    authored_at: '2026-11-20T10:30:00+00:00'
+    changed_paths:
+    - backend/shared/python_utils/image_safety/account_suspension.py
+    - backend/tests/test_safety_appeals.py
+    - frontend/apps/web_app/tests/safety-suspension-real.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/HelplinesRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/HelplinesRenderer.test.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(life_coaching): Life compass names a country''s crisis line only when the user named the country'
+    section: bug_fixes
+    commits:
+    - d82122ad1b
+    authored_at: '2026-11-20T10:10:51+00:00'
+    changed_paths:
+    - backend/apps/life_coaching/focus_modes/life-compass/SKILL.md
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/life_coaching_life_compass.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:life_coaching'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(jobs): jobs.search hint no longer says Sweden-only or Germany unavailable'
+    section: bug_fixes
+    commits:
+    - ddec657a10
+    authored_at: '2026-11-20T10:10:03+00:00'
+    changed_paths:
+    - backend/apps/jobs/app.yml
+    - config/cli-command-catalog.json
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-tui-native/assets/cli-command-catalog.json
+    - frontend/packages/openmates-tui-native/assets/manifest.json
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:jobs'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: Project encryption vs agentic coding review (TASK-1063)'
+    section: docs
+    commits:
+    - f1fc1d891c
+    authored_at: '2026-11-20T17:04:28+00:00'
+    changed_paths:
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run0-multi_file_feature.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run0-small_fix.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run0-test_fix_loop.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run1-multi_file_feature.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run1-small_fix.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run1-test_fix_loop.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/dev-log-stats-14-20nov.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/http-calls-small-fix.jsonl
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-multi.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-remote-multi.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-remote-small.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-seed.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-small.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-small2.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-cc-sonnet.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-fetch-1.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-hosted-1.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-remote-3.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/analyze_logs.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/chat_timeline.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/fetchlog.mjs
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/run_claude_code.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/run_openmates.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/run_remote.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/README.md.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/tests/test_sentences.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/tests/test_words.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/__init__.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/report.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/sentences.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/words.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/report.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs(plan): AI test users dev evidence and dev deviations'
+    section: docs
+    commits:
+    - 0356744685
+    authored_at: '2026-11-20T13:17:22+00:00'
+    changed_paths:
+    - docs/plans/regular-ai-test-users/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test(ci): the gifted signup invite allows the Playwright retry a second signup'
+    section: tests
+    commits:
+    - 07a8268edf
+    authored_at: '2026-11-20T20:53:54+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: synthetic events test rows use neutral listing names'
+    section: tests
+    commits:
+    - f301843c2e
+    authored_at: '2026-11-20T20:20:27+00:00'
+    changed_paths:
+    - backend/tests/test_rest_api_events.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(ci): seeded gifted signup invite uses the XXXX-XXXX-XXXX format the signup form accepts'
+    section: tests
+    commits:
+    - 674853ba22
+    authored_at: '2026-11-20T19:46:50+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(ci): seed a single-use gifted invite for signup E2E (self-hosted CI has no gift cards)'
+    section: tests
+    commits:
+    - 32933c1dd2
+    authored_at: '2026-11-20T19:17:06+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(ci): seed a single-use signup gift card in isolated CI'
+    section: tests
+    commits:
+    - 97824e9a25
+    authored_at: '2026-11-20T17:57:55+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(ci): isolated CI fixtures answer request-purpose and upload-image safety checks as benign'
+    section: tests
+    commits:
+    - 090f01cf10
+    authored_at: '2026-11-20T14:10:28+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/voice_pipeline_fixture.py
+    - backend/core/api/app/routes/internal_upload_safety.py
+    - backend/shared/testing/upload_safety_fixture.py
+    - backend/tests/test_upload_safety_fixture.py
+    - backend/tests/test_voice_pipeline_fixture.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(focus): layered-focus web proof waits for the written answer, not the activity card'
+    section: tests
+    commits:
+    - 778d090aae
+    authored_at: '2026-11-20T13:50:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(spec-focus): layered-focus web proof waits for the answer text, not just a quiet UI'
+    section: tests
+    commits:
+    - 2bba3194d3
+    authored_at: '2026-11-20T13:04:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(spec-focus): layered-focus web proof watches the activation card from before the send'
+    section: tests
+    commits:
+    - eb359d19db
+    authored_at: '2026-11-20T12:09:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(spec-focus): real-AI proof waits on message ids and full idle, phone card shot before expand (XUDR8)'
+    section: tests
+    commits:
+    - b40a31394e
+    authored_at: '2026-11-20T11:10:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix(voice-call): first call after signup connects; Project-draft calls get their chat key; a rejected second spoken
+      turn is retried'
+    commits:
+    - 288c3228c3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test(ci): the gifted signup invite allows the Playwright retry a second signup'
+    commits:
+    - 07a8268edf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: synthetic events test rows use neutral listing names'
+    commits:
+    - f301843c2e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: events found on the web are ranked even when another source returns many listings'
+    commits:
+    - e048f1bf29
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: after an empty specialised skill result the next model call must search the web'
+    commits:
+    - 5ed886069b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test(ci): seeded gifted signup invite uses the XXXX-XXXX-XXXX format the signup form accepts'
+    commits:
+    - 674853ba22
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: an empty specialised skill result falls back to web search; event searches cover next year'
+    commits:
+    - add576312d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test(ci): seed a single-use gifted invite for signup E2E (self-hosted CI has no gift cards)'
+    commits:
+    - 32933c1dd2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: conference questions search every events source, not only the official schedules'
+    commits:
+    - eab1a9f351
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'feat(voice-call): pause verdicts decide when a spoken turn is finished'
+    commits:
+    - 0e4e862ef0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: the answer model calls a matched specialised skill before web search'
+    commits:
+    - d4788e1038
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test(ci): seed a single-use signup gift card in isolated CI'
+    commits:
+    - 97824e9a25
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai-test-users): run message fits one Discord message (summary as text, causes in embeds, short problems line)'
+    commits:
+    - 160d6fbad4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(ai-test-users): reports only collect findings, no test-account issue emails, one Discord message per run
+      with suspect marks'
+    commits:
+    - 011e2dbe6e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat(tooling): dev deploy and restart lock while a real test runs on dev'
+    commits:
+    - 12a46ae5d9
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: Project encryption vs agentic coding review (TASK-1063)'
+    commits:
+    - f1fc1d891c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: conference questions pick the Events app; sends wait for the personal data detector and never leave unprotected'
+    commits:
+    - 3001cbffd7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'feat(start-screens): large-card rows with daily inspirations, no banner, event entry below the row'
+    commits:
+    - cd63b6de83
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat(tooling): short Discord pushes from Claude chats, no lock-screen cut-off'
+    commits:
+    - f2865bd7a7
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): authored results existing refs copied as embed:<ref> resolve instead of an empty error card'
+    commits:
+    - 8ab30514b3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(projects): web answers Project file jobs (chat key via the WebCrypto master; fail-closed answer within seconds)'
+    commits:
+    - a87828e8a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(projects): web wraps assistant-created Project keys through the WebCrypto master'
+    commits:
+    - e8f9f6fc33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(ai): Workflow Ask AI preprocessing sets china_model_sensitive explicitly'
+    commits:
+    - 62392bcea1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(ai-test-users): record every persona session video with 7-day S3 links in findings, reports and pushes; read
+      deletion codes from the HTML body'
+    commits:
+    - 3640b2b502
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(projects): web creates assistant-inferred Projects through the Rust core'
+    commits:
+    - 7740d60a9e
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(landing): restore the Actionable event embed animation on the standalone website'
+    commits:
+    - 326202e513
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat(ai-test-users): fixed-goal scenario runs with flow verdicts; cleanup never deletes another run''s accounts'
+    commits:
+    - dd5e8e345b
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(focus): assistant never writes its own Create Focus link; web proof presses Create Focus in the Recommendations
+      card'
+    commits:
+    - 60ee4d0450
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test(ci): isolated CI fixtures answer request-purpose and upload-image safety checks as benign'
+    commits:
+    - 090f01cf10
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(projects): web runs hosted Project file jobs through the Rust core (C3w); code-card UI fixes; code-run Spec
+      v3 approved'
+    commits:
+    - 36d9376faf
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:test_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat(ai-test-users): every failed run reaches Discord as an alert; approved multi-screenshot report wording'
+    commits:
+    - 1583ed7799
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(focus): layered-focus web proof waits for the written answer, not the activity card'
+    commits:
+    - 778d090aae
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(focus): a request to create a Project Focus offers Create Focus instead of saving a Memory'
+    commits:
+    - 2d000adf7b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs(plan): AI test users dev evidence and dev deviations'
+    commits:
+    - 0356744685
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chats): a resend of an already finished turn is confirmed quietly, never reprocessed'
+    commits:
+    - a570dadb84
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test(spec-focus): layered-focus web proof waits for the answer text, not just a quiet UI'
+    commits:
+    - 2bba3194d3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai-test-users): hold the shared dev-stack lease during a run so coordinated api restarts wait'
+    commits:
+    - 3e72dfa32a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(focus): automatic focus activation no longer expires while AI turns fill the worker'
+    commits:
+    - b4891237b3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(ai-test-users): signup in any UI language, re-login before reports, second report, judge knows the run date'
+    commits:
+    - 60a87dded4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chat): unread counter clears once the last line of a reply was seen, on phone and tablet, and follows the
+      server count on sync'
+    commits:
+    - 01a87e47cd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test(spec-focus): layered-focus web proof watches the activation card from before the send'
+    commits:
+    - eb359d19db
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: daily AI test users with real web signup, test-account label, multi-screenshot issue reports and small-fix
+      guard'
+    commits:
+    - 0bbe50d656
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(chat-lifecycle): a ✅ push outranks the question guess, so done chats are archived'
+    commits:
+    - 56463e7e5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): every typed decision purpose answers on Jev; relevance judges no longer start on Gemini Decision 1'
+    commits:
+    - 57771836ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(focus): ending a layered focus returns the web pill to the Project; layered pill keeps the focus name readable'
+    commits:
+    - 6c6fe8dc66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test(spec-focus): real-AI proof waits on message ids and full idle, phone card shot before expand (XUDR8)'
+    commits:
+    - b40a31394e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chat-lifecycle): tidy zellij: dead panes with their tabs, empty tabs and the link plugin'
+    commits:
+    - a8a3a99aac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(chat-lifecycle): a finished or waiting chat frees its slot at once; ✅ done chats are archived; paced reset
+      wake; dead panes closed'
+    commits:
+    - f461b16fff
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(focus): a new-feature request in a Project chat can auto-layer Write specification'
+    commits:
+    - f55445c430
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(safety): helpline card renders when its payload arrives late; suspension signs the account out everywhere'
+    commits:
+    - 9451baa998
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(life_coaching): Life compass names a country''s crisis line only when the user named the country'
+    commits:
+    - d82122ad1b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+  - title: 'fix(jobs): jobs.search hint no longer says Sweden-only or Germany unavailable'
+    commits:
+    - ddec657a10
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: conference questions search every events source, not only the official schedules'
+    commits:
+    - eab1a9f351
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: conference questions pick the Events app; sends wait for the personal data detector and never leave unprotected'
+    commits:
+    - 3001cbffd7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'feat(projects): web runs hosted Project file jobs through the Rust core (C3w); code-card UI fixes; code-run Spec
+      v3 approved'
+    commits:
+    - 36d9376faf
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:test_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix(ai): every typed decision purpose answers on Jev; relevance judges no longer start on Gemini Decision 1'
+    commits:
+    - 57771836ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(jobs): jobs.search hint no longer says Sweden-only or Germany unavailable'
+    commits:
+    - ddec657a10
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix(voice-call): first call after signup connects; Project-draft calls get their chat key; a rejected second spoken
+      turn is retried'
+    commits:
+    - 288c3228c3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: events found on the web are ranked even when another source returns many listings'
+    commits:
+    - e048f1bf29
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: after an empty specialised skill result the next model call must search the web'
+    commits:
+    - 5ed886069b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: an empty specialised skill result falls back to web search; event searches cover next year'
+    commits:
+    - add576312d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: conference questions search every events source, not only the official schedules'
+    commits:
+    - eab1a9f351
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'feat(voice-call): pause verdicts decide when a spoken turn is finished'
+    commits:
+    - 0e4e862ef0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: the answer model calls a matched specialised skill before web search'
+    commits:
+    - d4788e1038
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat(ai-test-users): reports only collect findings, no test-account issue emails, one Discord message per run
+      with suspect marks'
+    commits:
+    - 011e2dbe6e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: conference questions pick the Events app; sends wait for the personal data detector and never leave unprotected'
+    commits:
+    - 3001cbffd7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'feat(start-screens): large-card rows with daily inspirations, no banner, event entry below the row'
+    commits:
+    - cd63b6de83
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(projects): web answers Project file jobs (chat key via the WebCrypto master; fail-closed answer within seconds)'
+    commits:
+    - a87828e8a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(projects): web wraps assistant-created Project keys through the WebCrypto master'
+    commits:
+    - e8f9f6fc33
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(ai): Workflow Ask AI preprocessing sets china_model_sensitive explicitly'
+    commits:
+    - 62392bcea1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(landing): restore the Actionable event embed animation on the standalone website'
+    commits:
+    - 326202e513
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(focus): assistant never writes its own Create Focus link; web proof presses Create Focus in the Recommendations
+      card'
+    commits:
+    - 60ee4d0450
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat(projects): web runs hosted Project file jobs through the Rust core (C3w); code-card UI fixes; code-run Spec
+      v3 approved'
+    commits:
+    - 36d9376faf
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:test_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(focus): a request to create a Project Focus offers Create Focus instead of saving a Memory'
+    commits:
+    - 2d000adf7b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(chats): a resend of an already finished turn is confirmed quietly, never reprocessed'
+    commits:
+    - a570dadb84
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(focus): automatic focus activation no longer expires while AI turns fill the worker'
+    commits:
+    - b4891237b3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(chat): unread counter clears once the last line of a reply was seen, on phone and tablet, and follows the
+      server count on sync'
+    commits:
+    - 01a87e47cd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: daily AI test users with real web signup, test-account label, multi-screenshot issue reports and small-fix
+      guard'
+    commits:
+    - 0bbe50d656
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(ai): every typed decision purpose answers on Jev; relevance judges no longer start on Gemini Decision 1'
+    commits:
+    - 57771836ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(focus): ending a layered focus returns the web pill to the Project; layered pill keeps the focus name readable'
+    commits:
+    - 6c6fe8dc66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(focus): a new-feature request in a Project chat can auto-layer Write specification'
+    commits:
+    - f55445c430
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(safety): helpline card renders when its payload arrives late; suspension signs the account out everywhere'
+    commits:
+    - 9451baa998
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(life_coaching): Life compass names a country''s crisis line only when the user named the country'
+    commits:
+    - d82122ad1b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    newsletter_ready: false
+  - title: 'fix(jobs): jobs.search hint no longer says Sweden-only or Germany unavailable'
+    commits:
+    - ddec657a10
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 288c3228c377f51faceea55b62993f1581259413
+    short_sha: 288c3228c3
+    authored_at: '2026-11-20T21:30:38+00:00'
+    subject: 'fix(voice-call): first call after signup connects; Project-draft calls get their chat key; a rejected second
+      spoken turn is retried'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_ai_response_storage_confirmation_version.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallTurns.test.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/secondDeviceSavedChatSession.test.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/socketFrameForwarding.test.ts
+    - frontend/packages/ui/src/services/rustCore/productionInvalidationBridge.ts
+    - frontend/packages/ui/src/services/rustCore/secondDeviceSavedChatSession.ts
+    - frontend/packages/ui/src/services/rustCore/socketFrameForwarder.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/services/voiceCallPrivacy.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - packages/openmates-rust/src/client/frame_ingest.rs
+    - packages/openmates-rust/src/client/frame_ingest_tests.rs
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 07a8268edf49704fac91e519eb267a19fa8d3149
+    short_sha: 07a8268edf
+    authored_at: '2026-11-20T20:53:54+00:00'
+    subject: 'test(ci): the gifted signup invite allows the Playwright retry a second signup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    related_feature_ids: []
+  - sha: f301843c2ea824a06a4adc14be5681f9ac0f2860
+    short_sha: f301843c2e
+    authored_at: '2026-11-20T20:20:27+00:00'
+    subject: 'test: synthetic events test rows use neutral listing names'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_rest_api_events.py
+    related_feature_ids: []
+  - sha: e048f1bf29a26dbf7f2bfc66c0180e00d1d6ba55
+    short_sha: e048f1bf29
+    authored_at: '2026-11-20T20:12:08+00:00'
+    subject: 'fix: events found on the web are ranked even when another source returns many listings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_rest_api_events.py
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - embed:events:search
+    - skill:events:search
+  - sha: 5ed886069b2e2977e1ad61e78fc05b6b3c52d6f5
+    short_sha: 5ed886069b
+    authored_at: '2026-11-20T19:52:36+00:00'
+    subject: 'fix: after an empty specialised skill result the next model call must search the web'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/specialised_skill_preference.py
+    - backend/tests/test_specialised_skill_preference.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 674853ba2260b4eb58cf76077b65479fe975575b
+    short_sha: 674853ba22
+    authored_at: '2026-11-20T19:46:50+00:00'
+    subject: 'test(ci): seeded gifted signup invite uses the XXXX-XXXX-XXXX format the signup form accepts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    related_feature_ids: []
+  - sha: add576312d0daef1fe18b63569d4d62feb6c2540
+    short_sha: add576312d
+    authored_at: '2026-11-20T19:31:47+00:00'
+    subject: 'fix: an empty specialised skill result falls back to web search; event searches cover next year'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/specialised_skill_preference.py
+    - backend/shared/python_utils/web_result_extraction.py
+    - backend/tests/test_specialised_skill_preference.py
+    - backend/tests/test_web_result_extraction.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 32933c1dd2b2c1ca0269d543fab8ecc05024f5c4
+    short_sha: 32933c1dd2
+    authored_at: '2026-11-20T19:17:06+00:00'
+    subject: 'test(ci): seed a single-use gifted invite for signup E2E (self-hosted CI has no gift cards)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    related_feature_ids: []
+  - sha: eab1a9f351e05699fa4899ef1eaba9881540fffd
+    short_sha: eab1a9f351
+    authored_at: '2026-11-20T18:45:02+00:00'
+    subject: 'fix: conference questions search every events source, not only the official schedules'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_rest_api_events.py
+    - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - embed:events:search
+    - skill:events:search
+  - sha: 0e4e862ef0ac84605b86b3f0795df910711165d3
+    short_sha: 0e4e862ef0
+    authored_at: '2026-11-20T18:16:56+00:00'
+    subject: 'feat(voice-call): pause verdicts decide when a spoken turn is finished'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/voice_call.py
+    - backend/shared/python_utils/voice_pause_decision.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_completion_fixture.py
+    - backend/tests/test_voice_pause_decision.py
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: d4788e103856896e0a48741c2dd56e46d118ff33
+    short_sha: d4788e1038
+    authored_at: '2026-11-20T18:00:53+00:00'
+    subject: 'fix: the answer model calls a matched specialised skill before web search'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/specialised_skill_preference.py
+    - backend/tests/test_specialised_skill_preference.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 97824e9a2582fc91d41f6c8e1722d1164e205216
+    short_sha: 97824e9a25
+    authored_at: '2026-11-20T17:57:55+00:00'
+    subject: 'test(ci): seed a single-use signup gift card in isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    related_feature_ids: []
+  - sha: 160d6fbad40e811a9dd4c60e7bb0cf20f72831af
+    short_sha: 160d6fbad4
+    authored_at: '2026-11-20T17:27:27+00:00'
+    subject: 'fix(ai-test-users): run message fits one Discord message (summary as text, causes in embeds, short problems
+      line)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_message.py
+    related_feature_ids: []
+  - sha: 011e2dbe6e9c935fdebf26108801b1b2f2cd2cc9
+    short_sha: 011e2dbe6e
+    authored_at: '2026-11-20T17:18:01+00:00'
+    subject: 'feat(ai-test-users): reports only collect findings, no test-account issue emails, one Discord message per run
+      with suspect marks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/utils/issue_report_contact_email.py
+    - backend/core/api/app/utils/issue_report_text.py
+    - backend/scripts/ai_test_users/models.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/tests/test_ai_test_users.py
+    - backend/tests/test_issue_report_contact_email.py
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_message.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_scenarios.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - scripts/tests/test_ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_video.py
+    related_feature_ids: []
+  - sha: 12a46ae5d91bd2a9073be5d918c61177fd5230a0
+    short_sha: 12a46ae5d9
+    authored_at: '2026-11-20T17:08:40+00:00'
+    subject: 'feat(tooling): dev deploy and restart lock while a real test runs on dev'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/ai_test_users.py
+    - scripts/claude_chat_waiters.py
+    - scripts/code_run_real_test.py
+    - scripts/dev_test_lock.py
+    - scripts/maps_closing_time_real_test.py
+    - scripts/sessions.py
+    - scripts/tests/conftest.py
+    - scripts/tests/test_ai_test_users.py
+    - scripts/tests/test_dev_test_lock.py
+    - scripts/workflow_real_test_helpers.py
+    - scripts/workflow_schedule_real_test.py
+    related_feature_ids: []
+  - sha: f1fc1d891ca121ca412128e807ab162f152e8cbf
+    short_sha: f1fc1d891c
+    authored_at: '2026-11-20T17:04:28+00:00'
+    subject: 'docs: Project encryption vs agentic coding review (TASK-1063)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run0-multi_file_feature.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run0-small_fix.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run0-test_fix_loop.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run1-multi_file_feature.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run1-small_fix.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/claude-code-diffs/run1-test_fix_loop.diff
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/dev-log-stats-14-20nov.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/http-calls-small-fix.jsonl
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-multi.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-remote-multi.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-remote-small.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-seed.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-small.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timeline-small2.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-cc-sonnet.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-fetch-1.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-hosted-1.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/data/timings-remote-3.json
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/analyze_logs.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/chat_timeline.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/fetchlog.mjs
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/run_claude_code.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/run_openmates.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/run_remote.py
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/README.md.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/tests/test_sentences.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/tests/test_words.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/__init__.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/report.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/sentences.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/harness/seed/textstats/words.py.seed
+    - docs/investigations/project-encryption-agentic-coding-2026-11/report.md
+    related_feature_ids: []
+  - sha: 3001cbffd7f6cec29c2545354b894888a0044858
+    short_sha: 3001cbffd7
+    authored_at: '2026-11-20T17:00:15+00:00'
+    subject: 'fix: conference questions pick the Events app; sends wait for the personal data detector and never leave unprotected'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/events/app.yml
+    - backend/shared/app_packages/overlay.py
+    - backend/tests/test_preprocessor_jev.py
+    - frontend/apps/web_app/tests/events-question-real.spec.ts
+    - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/__tests__/headerImageBubbleKey.test.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/webPIIDetectionService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/webPIIDetectionService.ts
+    - frontend/packages/ui/src/components/headerImageBubbleKey.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    - scripts/ci_coverage_manifest.json
+    - scripts/events_question_web_real_test.py
+    - scripts/pii_slow_detector_web_real_test.py
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/pii-protection/examples.yml
+    - specifications/features/pii-protection/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:events
+  - sha: cd63b6de834b308a9ee3c4a85839bbf332991318
+    short_sha: cd63b6de83
+    authored_at: '2026-11-20T16:54:39+00:00'
+    subject: 'feat(start-screens): large-card rows with daily inspirations, no banner, event entry below the row'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/content_filter.py
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/static_localizations.json
+    - backend/core/api/app/routes/daily_inspirations_api.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/tests/test_daily_inspiration_content_policy.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_static_localization.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
+    - frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/landing-default-examples.spec.ts
+    - frontend/apps/web_app/tests/landing-guest-workflows.spec.ts
+    - frontend/apps/web_app/tests/marketing-landing-workspaces.spec.ts
+    - frontend/apps/web_app/tests/new-chat-pinned-sort.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    - frontend/packages/ui/src/components/welcome/StartScreenChatCard.svelte
+    - frontend/packages/ui/src/components/welcome/StartScreenRowPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/welcome/StartScreenRowPreviewHarness.svelte
+    - frontend/packages/ui/src/components/welcome/StartScreenUpcomingEntry.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirationFallbackText.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration.yml
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration_fallback.yml
+    - frontend/packages/ui/src/services/__tests__/dailyInspirationDB.language.test.ts
+    - frontend/packages/ui/src/services/dailyInspirationViewed.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - frontend/packages/ui/src/utils/__tests__/startScreenRow.test.ts
+    - frontend/packages/ui/src/utils/continueCardLayout.ts
+    - frontend/packages/ui/src/utils/startScreenRow.ts
+    - frontend/packages/workspaceInspirationDefaults.ts
+    - packages/openmates-rust/src/client/inspirations.rs
+    - scripts/build_daily_inspiration_fallback.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features.yml
+    - specifications/features/continue-carousel/examples.yml
+    - specifications/features/continue-carousel/specification.yml
+    - specifications/features/daily-inspiration/examples.yml
+    - specifications/features/daily-inspiration/specification.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workspace-shell/examples.yml
+    - specifications/features/workspace-shell/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+  - sha: f2865bd7a7a395e710caab1de2a2abcaa59160d1
+    short_sha: f2865bd7a7
+    authored_at: '2026-11-20T16:35:51+00:00'
+    subject: 'feat(tooling): short Discord pushes from Claude chats, no lock-screen cut-off'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - CLAUDE.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/agent_question.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_nudge.py
+    - scripts/discord_summary.py
+    - scripts/prod_email_health.py
+    - scripts/prod_tls_health.py
+    - scripts/tests/test_agent_question.py
+    - scripts/tests/test_discord_summary.py
+    - scripts/tests/test_prod_email_health.py
+    - scripts/tests/test_prod_tls_health.py
+    related_feature_ids: []
+  - sha: 8ab30514b32e1600ff288f1f755132bb14134e9b
+    short_sha: 8ab30514b3
+    authored_at: '2026-11-20T16:26:29+00:00'
+    subject: 'fix(ai): authored results existing refs copied as embed:<ref> resolve instead of an empty error card'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/authored_existing_cards.py
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/tests/test_authored_result_service.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a87828e8a2d58d1e15f64d3159e729f10dfa2cd5
+    short_sha: a87828e8a2
+    authored_at: '2026-11-20T16:24:24+00:00'
+    subject: 'fix(projects): web answers Project file jobs (chat key via the WebCrypto master; fail-closed answer within seconds)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectFileJobRunner.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobRunner.ts
+    - packages/openmates-rust/src/client/project_embed_source.rs
+    - packages/openmates-rust/src/client/project_file_job_frames.rs
+    - packages/openmates-rust/src/client/project_file_job_privacy_tests.rs
+    - packages/openmates-rust/src/client/project_file_job_steps.rs
+    - packages/openmates-rust/src/client/project_file_job_web_privacy_tests.rs
+    - packages/openmates-rust/src/client/project_file_jobs.rs
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: e8f9f6fc33bf77f4d19f134b2602566e72376274
+    short_sha: e8f9f6fc33
+    authored_at: '2026-11-20T15:46:58+00:00'
+    subject: 'fix(projects): web wraps assistant-created Project keys through the WebCrypto master'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_create_result_handler.py
+    - packages/openmates-rust/src/client/work_authority.rs
+    - packages/openmates-rust/src/work/mod.rs
+    - packages/openmates-rust/src/work/projects.rs
+    - packages/openmates-rust/src/work/projects/tests.rs
+    related_feature_ids: []
+  - sha: 62392bcea1e6bbbcddb41d6f8a7393f9a44269c7
+    short_sha: 62392bcea1
+    authored_at: '2026-11-20T15:33:47+00:00'
+    subject: 'fix(ai): Workflow Ask AI preprocessing sets china_model_sensitive explicitly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/workflow_preprocessing.py
+    - backend/tests/test_workflow_preprocessing.py
+    related_feature_ids:
+    - app:ai
+  - sha: 3640b2b502e6b1f19d9004f56a6515029c3f13ce
+    short_sha: 3640b2b502
+    authored_at: '2026-11-20T15:26:47+00:00'
+    subject: 'feat(ai-test-users): record every persona session video with 7-day S3 links in findings, reports and pushes;
+      read deletion codes from the HTML body'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/flows.py
+    - backend/scripts/ai_test_users/inbox.py
+    - backend/scripts/ai_test_users/reports.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/scripts/ai_test_users/transcript.py
+    - backend/tests/test_ai_test_users.py
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_scenarios.py
+    - scripts/ai_test_users_video.py
+    - scripts/tests/test_ai_test_users_video.py
+    related_feature_ids: []
+  - sha: 7740d60a9ef91da8e694d023accba50afb8ca5c9
+    short_sha: 7740d60a9e
+    authored_at: '2026-11-20T15:14:50+00:00'
+    subject: 'feat(projects): web creates assistant-inferred Projects through the Rust core'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/shared-client.yml
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectCreateRelay.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectCreateRelay.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsClient.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsUnit.ts
+    - packages/openmates-browser-bindings/src/browser_project_file_jobs.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/project_create_request.rs
+    - packages/openmates-rust/src/client/project_create_steps.rs
+    - packages/openmates-rust/src/client/project_create_steps_tests.rs
+    related_feature_ids: []
+  - sha: 326202e51357e003bd889ad4a1e84ed16c846a41
+    short_sha: 326202e513
+    authored_at: '2026-11-20T14:24:19+00:00'
+    subject: 'fix(landing): restore the Actionable event embed animation on the standalone website'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
+    - frontend/packages/public-site/src/components/landing/LandingEventEmbed.svelte
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingFeatureAnimationContent.ts
+    - frontend/packages/ui/src/components/landing/LandingExistingEmbed.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingExistingEmbed.svelte
+    - frontend/packages/ui/src/components/landing/LandingFeatureAnimation.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingFeatureAnimation.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: dd5e8e345b5c231a5eef5ef920b4358061396118
+    short_sha: dd5e8e345b
+    authored_at: '2026-11-20T14:16:30+00:00'
+    subject: 'feat(ai-test-users): fixed-goal scenario runs with flow verdicts; cleanup never deletes another run''s accounts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/session.py
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_accounts.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_scenarios.py
+    - scripts/tests/test_ai_test_users_daily.py
+    related_feature_ids: []
+  - sha: 60ee4d0450396c06d9d1e0894469b8e09a955518
+    short_sha: 60ee4d0450
+    authored_at: '2026-11-20T14:13:00+00:00'
+    subject: 'fix(focus): assistant never writes its own Create Focus link; web proof presses Create Focus in the Recommendations
+      card'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/memory_write_tool.py
+    - backend/tests/test_memory_write_tool.py
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 090f01cf10c0bd702b6a52de0e62c0afe699da1a
+    short_sha: 090f01cf10
+    authored_at: '2026-11-20T14:10:28+00:00'
+    subject: 'test(ci): isolated CI fixtures answer request-purpose and upload-image safety checks as benign'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/voice_pipeline_fixture.py
+    - backend/core/api/app/routes/internal_upload_safety.py
+    - backend/shared/testing/upload_safety_fixture.py
+    - backend/tests/test_upload_safety_fixture.py
+    - backend/tests/test_voice_pipeline_fixture.py
+    related_feature_ids:
+    - app:ai
+  - sha: 36d9376faf5e72ccf6324ff313ac50a76466c97d
+    short_sha: 36d9376faf
+    authored_at: '2026-11-20T14:08:36+00:00'
+    subject: 'feat(projects): web runs hosted Project file jobs through the Rust core (C3w); code-card UI fixes; code-run
+      Spec v3 approved'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/project_file_tools.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/overview.yml
+    - docs/migration/rust/shared-client.yml
+    - docs/migration/rust/web-app-curated.yml
+    - docs/migration/rust/web-app.yml
+    - docs/plans/cloud-project-commands/plan.yml
+    - frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - frontend/apps/web_app/tests/components/application-embed-preview.spec.ts
+    - frontend/apps/web_app/tests/components/test-result-embed.spec.ts
+    - frontend/packages/openmates-cli/src/cliProjectAuthoringSave.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFileJobExecutor.ts
+    - frontend/packages/openmates-cli/src/projectFilePrivacyStorage.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectFilePrivacy.test.ts
+    - frontend/packages/openmates-cli/tests/projectIgnoredReadApproval.test.ts
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/TestResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/TestResultEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
+    - frontend/packages/ui/src/services/__tests__/hostedProjectPathPolicy.test.ts
+    - frontend/packages/ui/src/services/browserProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobTypes.ts
+    - frontend/packages/ui/src/services/projectFilePrivacyStorage.ts
+    - frontend/packages/ui/src/services/ruleDocumentService.ts
+    - frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectFileJobRunner.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/__tests__/projectFileJobsUnit.test.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobRunner.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobRunnerBrowser.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsClient.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/projects/projectFileJobsUnit.ts
+    - frontend/packages/ui/src/stores/projectFileApprovalStore.ts
+    - packages/openmates-browser-bindings/Cargo.toml
+    - packages/openmates-browser-bindings/src/browser.rs
+    - packages/openmates-browser-bindings/src/browser_project_file_jobs.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/project_create_request.rs
+    - packages/openmates-rust/src/client/project_file_job_approvals.rs
+    - packages/openmates-rust/src/client/project_file_job_approvals_tests.rs
+    - packages/openmates-rust/src/client/project_file_job_frames.rs
+    - packages/openmates-rust/src/client/project_file_job_privacy.rs
+    - packages/openmates-rust/src/client/project_file_job_privacy_tests.rs
+    - packages/openmates-rust/src/client/project_file_job_steps.rs
+    - packages/openmates-rust/src/client/project_file_jobs.rs
+    - packages/openmates-rust/src/client/project_file_jobs_tests.rs
+    - packages/openmates-rust/src/client/send_turn_runtime.rs
+    - packages/openmates-rust/src/client/upload_wasm.rs
+    - packages/openmates-rust/src/lib.rs
+    - packages/openmates-rust/src/path_rules/ignore_rules.rs
+    - packages/openmates-rust/src/path_rules/ignore_rules_tests.rs
+    - packages/openmates-rust/src/path_rules/mod.rs
+    - packages/openmates-rust/src/privacy.rs
+    - packages/openmates-rust/src/privacy/detect.rs
+    - packages/openmates-rust/src/privacy/file_privacy.rs
+    - packages/openmates-rust/src/privacy/file_privacy_tests.rs
+    - packages/openmates-rust/src/source_host/mod.rs
+    - packages/openmates-rust/src/source_host/path_policy.rs
+    - packages/openmates-rust/src/work/projects.rs
+    - packages/openmates-rust/src/work/projects/adoption.rs
+    - packages/openmates-rust/src/work/projects/hosted/job.rs
+    - packages/openmates-rust/src/work/projects/hosted/policy.rs
+    - packages/openmates-rust/src/work/projects/remote_file_jobs.rs
+    - packages/openmates-rust/src/work/projects/remote_ops.rs
+    - scripts/agentic_cloud_project_web_real_test.py
+    - specifications/features/app-skills/code-run/examples.yml
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - embed:code:application
+    - embed:code:test_result
+    - platform:projects
+  - sha: 1583ed7799a403b496f7b2146d82d54d8ed6e837
+    short_sha: 1583ed7799
+    authored_at: '2026-11-20T13:59:42+00:00'
+    subject: 'feat(ai-test-users): every failed run reaches Discord as an alert; approved multi-screenshot report wording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai-test-users-setup.sh
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_report.py
+    - scripts/tests/test_ai_test_users.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 778d090aae049cb79354309bb6c0b7b5dbc36898
+    short_sha: 778d090aae
+    authored_at: '2026-11-20T13:50:03+00:00'
+    subject: 'test(focus): layered-focus web proof waits for the written answer, not the activity card'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 2d000adf7bda3a748eb9600b46368cba8f2a0335
+    short_sha: 2d000adf7b
+    authored_at: '2026-11-20T13:29:23+00:00'
+    subject: 'fix(focus): a request to create a Project Focus offers Create Focus instead of saving a Memory'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/memory_write_tool.py
+    - backend/core/api/app/services/project_recommendation_service.py
+    - backend/scripts/test_project_recommendation_decisions.py
+    - backend/tests/test_memory_write_tool.py
+    - backend/tests/test_project_authoring.py
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 0356744685f868f4899c5c5038962a502b9b6ca9
+    short_sha: 0356744685
+    authored_at: '2026-11-20T13:17:22+00:00'
+    subject: 'docs(plan): AI test users dev evidence and dev deviations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/regular-ai-test-users/plan.yml
+    related_feature_ids: []
+  - sha: a570dadb84b6d090d9b4762dd0233aae83e5141f
+    short_sha: a570dadb84
+    authored_at: '2026-11-20T13:12:49+00:00'
+    subject: 'fix(chats): a resend of an already finished turn is confirmed quietly, never reprocessed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/finished_turn_resend.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_finished_turn_resend.py
+    - frontend/apps/web_app/tests/chat-finished-turn-resend.spec.ts
+    - packages/openmates-rust/src/client/send.rs
+    - packages/openmates-rust/src/client/send_finished_turn.rs
+    - packages/openmates-rust/src/client/send_finished_turn_tests.rs
+    - packages/openmates-rust/src/client/send_turn_runtime.rs
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - specifications/features/chats/examples.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 2bba3194d371b0702942273850c713a7244808cf
+    short_sha: 2bba3194d3
+    authored_at: '2026-11-20T13:04:43+00:00'
+    subject: 'test(spec-focus): layered-focus web proof waits for the answer text, not just a quiet UI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3e72dfa32a668bfdfd4550e8d0af1fb5b1318150
+    short_sha: 3e72dfa32a
+    authored_at: '2026-11-20T13:00:55+00:00'
+    subject: 'fix(ai-test-users): hold the shared dev-stack lease during a run so coordinated api restarts wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ai_test_users.py
+    - scripts/tests/test_ai_test_users.py
+    related_feature_ids: []
+  - sha: b4891237b33581b943a2c851d4f7c988bf0aacd7
+    short_sha: b4891237b3
+    authored_at: '2026-11-20T12:49:54+00:00'
+    subject: 'fix(focus): automatic focus activation no longer expires while AI turns fill the worker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/tests/test_focus_authority_lifecycle.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 60a87dded414da3053b00d68d3a6eddd402ad828
+    short_sha: 60a87dded4
+    authored_at: '2026-11-20T12:47:50+00:00'
+    subject: 'fix(ai-test-users): signup in any UI language, re-login before reports, second report, judge knows the run date'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/flows.py
+    - backend/scripts/ai_test_users/models.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/tests/test_ai_test_users.py
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    related_feature_ids: []
+  - sha: 01a87e47cd57408cf7757919acc632c94ad89832
+    short_sha: 01a87e47cd
+    authored_at: '2026-11-20T12:29:14+00:00'
+    subject: 'fix(chat): unread counter clears once the last line of a reply was seen, on phone and tablet, and follows the
+      server count on sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-unread-read-position.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/stores/unreadMessagesStore.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: eb359d19dbbe0109bc12bae41d2396667ff7eb42
+    short_sha: eb359d19db
+    authored_at: '2026-11-20T12:09:06+00:00'
+    subject: 'test(spec-focus): layered-focus web proof watches the activation card from before the send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0bbe50d65628066b62b9b37b759c321689c8e77e
+    short_sha: 0bbe50d656
+    authored_at: '2026-11-20T12:06:29+00:00'
+    subject: 'feat: daily AI test users with real web signup, test-account label, multi-screenshot issue reports and small-fix
+      guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/admin_growth_metrics.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/user/user_lookup.py
+    - backend/core/api/app/services/issue_report_screenshots.py
+    - backend/core/api/app/tasks/auto_delete_tasks.py
+    - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+    - backend/core/api/app/tasks/server_stats_tasks.py
+    - backend/core/api/templates/email/issue_report.mjml
+    - backend/core/directus/schemas/gift_cards.yml
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/schemas/users.yml
+    - backend/scripts/ai_test_users/driver.py
+    - backend/scripts/ai_test_users/flows.py
+    - backend/scripts/ai_test_users/inbox.py
+    - backend/scripts/ai_test_users/models.py
+    - backend/scripts/ai_test_users/reports.py
+    - backend/scripts/ai_test_users/session.py
+    - backend/scripts/ai_test_users/transcript.py
+    - backend/scripts/create_test_gift_card_batch.py
+    - backend/scripts/debug_issue.py
+    - backend/tests/test_admin_growth_metrics.py
+    - backend/tests/test_ai_test_users.py
+    - backend/tests/test_issue_report_screenshots.py
+    - backend/tests/test_test_account_flag.py
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/plans/regular-ai-test-users/issue-reporting-spec-proposal.md
+    - docs/plans/regular-ai-test-users/plan.yml
+    - frontend/apps/web_app/tests/components/report-issue-screenshots.spec.ts
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/ReportIssueScreenshots.preview.ts
+    - frontend/packages/ui/src/components/settings/ReportIssueScreenshots.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/ai-test-users-setup.sh
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_accounts.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_personas.py
+    - scripts/ai_test_users_report.py
+    - scripts/ai_test_users_schedule.py
+    - scripts/change_scope.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/claude_dispatch.py
+    - scripts/daily_meeting_growth.py
+    - scripts/sessions.py
+    - scripts/tests/test_ai_test_users.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - scripts/tests/test_change_scope.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_daily_meeting_growth.py
+    - scripts/tests/test_sessions_change_scope.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 56463e7e5dcecbfacfcf5a632bf0a9e6089be2c0
+    short_sha: 56463e7e5d
+    authored_at: '2026-11-20T11:54:13+00:00'
+    subject: 'fix(chat-lifecycle): a ✅ push outranks the question guess, so done chats are archived'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    related_feature_ids: []
+  - sha: 57771836acb56252f65b7675bc3553e37d63bdfa
+    short_sha: 57771836ac
+    authored_at: '2026-11-20T11:48:04+00:00'
+    subject: 'fix(ai): every typed decision purpose answers on Jev; relevance judges no longer start on Gemini Decision 1'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/tests/test_gemini_decision_routing.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/README.md
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/analyze.py
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/gj-focus.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/gj-voice.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/ratelimit_probe.py
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/run1_burst.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/run2_seq.rows.jsonl.gz
+    - docs/investigations/gemini-decision-vs-jev-2026-11-20/table.md
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 6c6fe8dc6680cdbc7091ffd74da3f42ff2dc9da6
+    short_sha: 6c6fe8dc66
+    authored_at: '2026-11-20T11:42:47+00:00'
+    subject: 'fix(focus): ending a layered focus returns the web pill to the Project; layered pill keeps the focus name readable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_layering.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_layering.py
+    - frontend/apps/web_app/tests/components/project-focus-specialist.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids:
+    - app:ai
+  - sha: b40a31394efd86fc02a22a7872f4913ffa5789cd
+    short_sha: b40a31394e
+    authored_at: '2026-11-20T11:10:09+00:00'
+    subject: 'test(spec-focus): real-AI proof waits on message ids and full idle, phone card shot before expand (XUDR8)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a8a3a99aaca329ca817b64eb0c37e9179de04c31
+    short_sha: a8a3a99aac
+    authored_at: '2026-11-20T10:53:48+00:00'
+    subject: 'fix(chat-lifecycle): tidy zellij: dead panes with their tabs, empty tabs and the link plugin'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    related_feature_ids: []
+  - sha: f461b16fffb340dc4932855d4ace80f3e7919b10
+    short_sha: f461b16fff
+    authored_at: '2026-11-20T10:47:16+00:00'
+    subject: 'feat(chat-lifecycle): a finished or waiting chat frees its slot at once; ✅ done chats are archived; paced reset
+      wake; dead panes closed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - CLAUDE.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/agent_question.py
+    - scripts/claude-idle-chats-setup.sh
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_chat_waiters.py
+    - scripts/tests/test_claude_idle_chats.py
+    related_feature_ids: []
+  - sha: f55445c430a943aae64ae18fa38eaf73d4713e43
+    short_sha: f55445c430
+    authored_at: '2026-11-20T10:45:18+00:00'
+    subject: 'fix(focus): a new-feature request in a Project chat can auto-layer Write specification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/plan_focus_routing.py
+    - backend/tests/test_preprocessor_jev.py
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 9451baa998c159dedab664468581cbfda20d89ba
+    short_sha: 9451baa998
+    authored_at: '2026-11-20T10:30:00+00:00'
+    subject: 'fix(safety): helpline card renders when its payload arrives late; suspension signs the account out everywhere'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/image_safety/account_suspension.py
+    - backend/tests/test_safety_appeals.py
+    - frontend/apps/web_app/tests/safety-suspension-real.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/HelplinesRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/HelplinesRenderer.test.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: d82122ad1b123331b8c92a4744d0f2b4a5c389b4
+    short_sha: d82122ad1b
+    authored_at: '2026-11-20T10:10:51+00:00'
+    subject: 'fix(life_coaching): Life compass names a country''s crisis line only when the user named the country'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/life_coaching/focus_modes/life-compass/SKILL.md
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/life_coaching_life_compass.yml
+    related_feature_ids:
+    - app:life_coaching
+  - sha: ddec657a106fd22afb6e950563ae901696de2ced
+    short_sha: ddec657a10
+    authored_at: '2026-11-20T10:10:03+00:00'
+    subject: 'fix(jobs): jobs.search hint no longer says Sweden-only or Germany unavailable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/jobs/app.yml
+    - config/cli-command-catalog.json
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-tui-native/assets/cli-command-catalog.json
+    - frontend/packages/openmates-tui-native/assets/manifest.json
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    related_feature_ids:
+    - app:jobs
+llm_summary:
+  overview: OpenMates focused on expanding internal testing automation and refining the foundational logic for voice interactions,
+    AI model routing, and project management. Significant work was completed on the 'AI Test Users' framework to simulate
+    real-world usage and issue reporting.
+  released_changes: []
+  bug_fixes:
+  - text: Resolved issues in voice calls where the first call after signup failed to connect and ensured project-draft calls
+      correctly receive chat keys.
+    evidence:
+      commits:
+      - 288c3228c3
+    release_status: dev_only
+  - text: Improved AI model routing to ensure specialized skills (like event search) fall back to web search when results
+      are empty, and expanded conference search to cover all event sources.
+    evidence:
+      commits:
+      - e048f1bf29
+      - 5ed886069b
+      - add576312d
+      - eab1a9f351
+      - d4788e1038
+      - 3001cbffd7
+      - 57771836ac
+    release_status: dev_only
+  - text: Fixed unread message counter logic to clear only after the last line of a reply is viewed and to stay in sync with
+      server counts.
+    evidence:
+      commits:
+      - 01a87e47cd
+    release_status: dev_only
+  - text: Corrected UI rendering for helpline cards and restored event embed animations on the standalone website.
+    evidence:
+      commits:
+      - 326202e513
+      - 9451baa998
+      - ddec657a10
+    release_status: dev_only
+  unreleased_progress:
+  - text: Developed an automated testing framework using AI personas that can perform real web signups, record session videos,
+      and generate multi-screenshot issue reports.
+    evidence:
+      commits:
+      - 0bbe50d656
+      - 011e2dbe6e
+      - 3640b2b502
+      - dd5e8e345b
+      - 1583ed7799
+      - 3e72dfa32a
+      - 60a87dded4
+    release_status: dev_only
+  - text: Progressed the migration of Project management to the Rust core, including assistant-inferred project creation and
+      secure key wrapping via WebCrypto.
+    evidence:
+      commits:
+      - 7740d60a9e
+      - 36d9376faf
+      - a87828e8a2
+      - e8f9f6fc33
+    release_status: dev_only
+  - text: Refined Focus Mode behaviors, including automatic activation persistence during long AI turns and layered focus
+      routing for specification writing.
+    evidence:
+      commits:
+      - 60ee4d0450
+      - 2d000adf7b
+      - b4891237b3
+      - 6c6fe8dc66
+      - f55445c430
+      - d82122ad1b
+    release_status: dev_only
+  - text: Implemented pause detection logic for voice calls to more accurately determine when a user has finished speaking.
+    evidence:
+      commits:
+      - 0e4e862ef0
+    release_status: dev_only
+  - text: Designed a new start screen experience featuring large-card rows for daily inspirations and upcoming event entries.
+    evidence:
+      commits:
+      - cd63b6de83
+    release_status: dev_only
+  internal_progress:
+  - text: Implemented a deployment and restart lock to prevent infrastructure changes while automated tests are running on
+      the development environment.
+    evidence:
+      commits:
+      - 12a46ae5d9
+    release_status: dev_only
+  - text: Added short Discord notifications for internal agent chats to improve visibility without cutting off lock-screen
+      previews.
+    evidence:
+      commits:
+      - f2865bd7a7
+    release_status: dev_only
+  - text: Optimized internal chat lifecycle management by archiving completed sessions and cleaning up inactive terminal panes.
+    evidence:
+      commits:
+      - f461b16fff
+      - 56463e7e5d
+      - a8a3a99aac
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: New start screen layout with daily inspirations.
+      evidence:
+        commits:
+        - cd63b6de83
+      reason: Feature is currently in dev_only status and not reachable from the main branch.
+    - text: Hosted Project file jobs via Rust core.
+      evidence:
+        commits:
+        - 36d9376faf
+      reason: Feature is currently in dev_only status and depends on the disabled platform:projects feature.
+    rationale: No items from this period are currently released to the main branch or marked as ready for public communication.
+      All user-facing changes are in development.
+  social_video_recommendations:
+  - idea: A technical deep-dive or 'behind the scenes' look at how OpenMates uses pause detection to decide when an AI should
+      respond during a voice call.
+    priority: medium
+    reason: This provides a concrete product story about improving the natural feel of voice interactions.
+    evidence:
+      commits:
+      - 0e4e862ef0
+  quality_notes:
+  - Extensive testing of the signup and issue reporting flows was conducted using automated persona sessions.
+  - Foundational Rust core migration for project management continues with a focus on secure key handling and hosted file
+    jobs.
+  validation_warnings: []

@@ -116,3 +116,33 @@ def test_non_playwright_spec_path_is_ignored(tmp_path: Path, monkeypatch) -> Non
     path = write_spec(tmp_path, "frontend/packages/ui/src/example.spec.ts", "test('unit', () => {});\n")
 
     assert audit.audit_path(path) == []
+
+
+PROOF_OK = "// proof-video: not_required reason=non_visual_setup\n"
+
+
+def test_voice_spec_without_proof_audio_is_reported(tmp_path: Path, monkeypatch) -> None:
+    audit = load_audit_module()
+    monkeypatch.setattr(audit, "REPO_ROOT", tmp_path)
+    path = write_spec(tmp_path, "frontend/apps/web_app/tests/voice-call.spec.ts", PROOF_OK + "test('call', async () => {});\n")
+    problems = audit.audit_path(path)
+    assert len(problems) == 1 and "withProofAudio" in problems[0]
+
+
+def test_fake_microphone_spec_without_proof_audio_is_reported(tmp_path: Path, monkeypatch) -> None:
+    audit = load_audit_module()
+    monkeypatch.setattr(audit, "REPO_ROOT", tmp_path)
+    text = PROOF_OK + "test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream'] } });\n"
+    path = write_spec(tmp_path, "frontend/apps/web_app/tests/composer.spec.ts", text)
+    assert any("records no sound" in p for p in audit.audit_path(path))
+
+
+def test_voice_spec_with_proof_audio_or_waiver_is_clean(tmp_path: Path, monkeypatch) -> None:
+    audit = load_audit_module()
+    monkeypatch.setattr(audit, "REPO_ROOT", tmp_path)
+    helper = write_spec(tmp_path, "frontend/apps/web_app/tests/voice-call.spec.ts",
+                        PROOF_OK + "const test = withProofAudio(baseTest);\n")
+    waived = write_spec(tmp_path, "frontend/apps/web_app/tests/audio-recording.spec.ts",
+                        PROOF_OK + "// proof-audio: not_required reason=upload_only\n")
+    other = write_spec(tmp_path, "frontend/apps/web_app/tests/settings.spec.ts", PROOF_OK)
+    assert audit.audit_path(helper) == [] and audit.audit_path(waived) == [] and audit.audit_path(other) == []

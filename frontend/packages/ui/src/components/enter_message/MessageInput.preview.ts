@@ -32,6 +32,16 @@ export const variants = {
     onFocusPillDeepLink: () => {},
     onFocusPillDeactivate: () => {},
   },
+  // Write specification layered over a Project base (focus-modes.project-layering).
+  layeredWriteSpecification: {
+    showActionButtons: false,
+    activeFocusId: 'code-write_specification',
+    activeFocusAppId: 'code',
+    activeProjectFocusName: 'Garden planner: green island',
+    activeSpecialistFocusName: 'Write specification',
+    onFocusPillDeepLink: () => {},
+    onFocusPillDeactivate: () => {},
+  },
   // Banner placement is the same for every focus mode (focus-modes.banner-placement).
   careerInsightsFocus: {
     showActionButtons: false,

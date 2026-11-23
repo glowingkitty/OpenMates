@@ -1,0 +1,31 @@
+schema_version: 2
+profile: concise
+id: project-sandbox-preview
+title: Project app preview from the chat's sandbox and agentic skill cards
+status: implementing
+goal: |
+  Marco's decision: don't drop the step. Build the app preview card, so a
+  finished app shows as a live preview in the Project chat, and make the proof
+  pass fully, including that step. The preview should come from the sandbox
+  where the app now runs, so you don't build it twice.
+
+  Also: find the root cause of each UI problem in the recipe-app proof (skill
+  area showing terminal code embeds, the Run card without its command, earlier
+  steps vanishing between steps, the Read Project File card) and fix them
+  consistently with the existing skill-embed design system.
+notes: |
+  Owner receipts 267760f3a2effd29 (preview), 57a7cfb4773388a1 (UI defects),
+  46b610d7f262787b + ae882c31e39c3625 (created-Project system event),
+  d839216cc0b9bdba (file-change order).
+
+  Security: the sandbox traffic and access tokens stay server-side; the preview
+  goes through the existing gateway with a short-lived per-user preview
+  session; the raw sandbox address is never handed out; allow_public_traffic is
+  never flipped. Specifications: code-run.cloud.project-preview,
+  projects.agentic.earlier-steps-stay, projects.creation.assistant-inferred.
+
+  Proof: agentic-cloud-project-web-real.spec.ts step d opens the Project app
+  card and sees the live app; component specs code-run-embed-preview,
+  project-read-reference-card, project-file-change-event-notice and
+  focus-activation-project-created; pytest of the preview, carried references,
+  Run card and read fan-out modules.

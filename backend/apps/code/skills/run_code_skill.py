@@ -11,6 +11,7 @@ import base64
 import hashlib
 import inspect
 import json
+import logging
 import re
 import time
 import uuid
@@ -31,6 +32,8 @@ from backend.apps.code.cloud_command import (
 from backend.apps.code.skills.dependency_install import with_dependency_install
 from backend.apps.code.test_run_target import resolve_test_run_target
 from backend.shared.python_schemas.code_test_run import TestRunSpec
+
+logger = logging.getLogger(__name__)
 
 
 CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS = 60 * 60
@@ -101,6 +104,8 @@ class RunCodeRequest(BaseModel):
     )
     # Set by the pipeline when it injected the client's Project snapshot as files.
     project_snapshot: bool = Field(default=False, exclude=True)
+    # Set by the pipeline when the command runs in the chat's hosted Project sandbox: no snapshot is sent.
+    project_sandbox: bool = Field(default=False, exclude=True)
 
 
 class RunCodeResponse(BaseModel):
@@ -563,6 +568,22 @@ class RunCodeSkill(BaseSkill):
         if not chat_id or not message_id or not user_id or not user_vault_key_id or cache_service is None or encryption_service is None:
             return RunCodeResponse(status="error", error="Code Run requires chat, message, user, cache, and encryption context.")
 
+        if request.target != "remote_source":
+            # Defence in depth: the assistant pipeline already paused for consent; nothing may
+            # reach E2B (embeds, uploads, runs) without the account's allowed decision.
+            from backend.core.api.app.services import e2b_upload_consent
+
+            consent_state = await e2b_upload_consent.get_decision(str(user_id))
+            if consent_state["decision"] == "declined":
+                from backend.apps.ai.processing.e2b_upload_consent_request import DECLINED_INSTRUCTION
+
+                return RunCodeResponse(status="e2b_consent_declined", error=DECLINED_INSTRUCTION)
+            if consent_state["decision"] != "allowed":
+                return RunCodeResponse(
+                    status="e2b_consent_required",
+                    error="The user has not yet decided whether files may be sent to E2B; nothing was uploaded.",
+                )
+
         if request.argv and request.test_run is None:
             refusal = file_command_refusal(request.argv)
             if refusal:
@@ -669,6 +690,23 @@ class RunCodeSkill(BaseSkill):
                 directus_service=directus_service,
                 encryption_service=encryption_service,
             )
+        test_parent_embed_id = (kwargs.get("placeholder_embed_ids") or [None])[0] if request.test_run else None
+        if test_parent_embed_id:
+            from backend.apps.code.tasks.command_parent_embed import (
+                publish_running_command_parent, test_run_parent_payload,
+            )
+
+            running = test_run_parent_payload({
+                "test_run": request.test_run.model_dump(), "parent_embed_id": test_parent_embed_id,
+                "chat_id": str(chat_id), "message_id": str(message_id), "user_id": str(user_id),
+                "user_id_hash": hashlib.sha256(str(user_id).encode()).hexdigest(),
+            })
+            try:
+                # The test command on the "Run" card while it runs; the worker closes the card.
+                if running:
+                    await publish_running_command_parent(running, cache_service)
+            except (RuntimeError, ValueError) as card_exc:
+                logger.error("Test run card %s not published while running: %s", test_parent_embed_id, card_exc, exc_info=True)
         execution = await start_code_run_for_assistant(
             current_user=current_user,
             cache_service=cache_service,
@@ -683,7 +721,8 @@ class RunCodeSkill(BaseSkill):
             device_hash=kwargs.get("device_hash"),
             assistant_async_task=True,
             same_turn_batch_id=kwargs.get("same_turn_batch_id"),
-            **({"test_run": request.test_run.model_dump()} if request.test_run is not None else {}),
+            **({"test_run": request.test_run.model_dump(), "parent_embed_id": test_parent_embed_id}
+               if request.test_run is not None else {}),
         )
         return RunCodeResponse(
             execution_id=execution.execution_id,
@@ -780,6 +819,18 @@ class RunCodeSkill(BaseSkill):
             user_vault_key_id=user_vault_key_id, cache_service=cache_service,
             directus_service=directus_service, encryption_service=encryption_service,
         )
+        parent_embed_id = (kwargs.get("placeholder_embed_ids") or [None])[0]
+        from backend.apps.code.tasks.command_parent_embed import publish_running_command_parent
+
+        try:
+            # Before the worker starts, so a fast run's finished card is never overwritten.
+            await publish_running_command_parent({
+                "command_run": {"argv": list(request.argv), "cwd": request.cwd, "parent_embed_id": parent_embed_id},
+                "target_embed_id": target_embed_id, "chat_id": chat_id, "message_id": message_id,
+                "user_id": user_id, "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+            }, cache_service)
+        except (RuntimeError, ValueError) as card_exc:
+            logger.error("Cloud command card for %s not published while running: %s", target_embed_id, card_exc, exc_info=True)
         execution = await start_code_run_for_assistant(
             current_user=current_user, cache_service=cache_service, files=files, target_path=card_path,
             enable_internet=True, chat_id=chat_id, target_embed_id=target_embed_id, message_id=message_id,
@@ -789,7 +840,10 @@ class RunCodeSkill(BaseSkill):
                 "argv": list(request.argv), "cwd": request.cwd, "timeout_seconds": timeout_seconds,
                 "background": request.background, "ready_url": request.ready_url, "project_id": project_id,
                 "repeat_fingerprint": fingerprint,
+                "parent_embed_id": (kwargs.get("placeholder_embed_ids") or [None])[0],
                 "focus_id_hash": (focus or {}).get("focus_id_hash"),
+                **({"project_sandbox": True, "team_id": (focus or {}).get("team_id")}
+                   if request.project_sandbox else {}),
             },
         )
         return RunCodeResponse(

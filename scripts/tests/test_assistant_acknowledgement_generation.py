@@ -132,8 +132,10 @@ def test_localized_plan_has_expected_voice_category_variant_coverage(tmp_path, l
     generator = load_generator()
 
     full_plan = generator.build_plan(language, tmp_path)
-    plan = [item for item in full_plan if item["voice_profile_id"] != generator.SYSTEM_VOICE_PROFILE_ID]
-    assert len(full_plan) == len(plan) + 1
+    mate_plan = [item for item in full_plan if item["voice_profile_id"] != generator.SYSTEM_VOICE_PROFILE_ID]
+    assert len(full_plan) == len(mate_plan) + 1
+    plan = [item for item in mate_plan if item["request_category"] in generator.ACKNOWLEDGEMENT_TEXTS[language]]
+    assert len(mate_plan) == len(plan) + 17 * len(generator.PERMISSION_PROMPT_TEXTS[language])
     voices = {item["voice_profile_id"] for item in plan}
     categories_by_voice = {
         voice: {item["request_category"] for item in plan if item["voice_profile_id"] == voice}
@@ -189,3 +191,20 @@ def test_shipped_chat_start_clips_match_the_manifest():
     for clip in system.values():
         audio = (generator.DEFAULT_OUTPUT_ROOT / clip["relative_path"]).read_bytes()
         assert hashlib.sha256(audio).hexdigest() == clip["sha256"]
+
+
+@pytest.mark.parametrize("language", ["en-US", "de-DE", "es-ES", "fr-FR"])
+def test_permission_prompt_lines_are_recorded_once_per_mate_voice(tmp_path, language):
+    """Ready-made "needs your tap" lines of a call: one clip per Mate voice and line, no inference later."""
+    generator = load_generator()
+
+    items = [entry for entry in generator.build_plan(language, tmp_path)
+             if entry["request_category"] in generator.PERMISSION_PROMPT_TEXTS[language]]
+
+    assert len(items) == 17 * 5
+    assert {item["voice_profile_id"] for item in items} == set(generator.ASSISTANT_VOICE_PROVIDER_IDS)
+    assert {item["variant"] for item in items} == {generator.PERMISSION_PROMPT_VARIANT}
+    assert all(not item.get("leading_chime") for item in items)
+    sample = next(item for item in items if item["request_category"] == "needs_memory")
+    assert sample["relative_path"] == f"{sample['voice_profile_id']}/{language}/needs_memory-1.mp3"
+    assert sample["text"] == generator.PERMISSION_PROMPT_TEXTS[language]["needs_memory"]

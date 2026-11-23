@@ -321,7 +321,7 @@
       onExample={openExample} onClose={onSidebarClose} />
   {/if}
   <div class="workspace-main">
-    <WorkspaceHomeShell surface="apps" heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems}
+    <WorkspaceHomeShell surface="apps" heading={$text('apps_workspace.home_greeting', { values: { name: $authStore.isAuthenticated && $userProfile.username ? $userProfile.username : $text('workflows.home.fallback_name') } })} subtitle={tr('home_prompt')} actionItems={homeItems}
       actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" allItemTestId="apps-all-item"
       fixedAppCatalogCards showAllMode={route?.showAll ?? false} allItems={catalogItems} allItemsEmptyLabel={$text('settings.app_store.all_apps.no_apps_found')}
       showReportIssue showComposer={false} showAllLabel={tr('show_all')} backLabel={tr('back_to_recent')} searchLabel={$text('common.search')}

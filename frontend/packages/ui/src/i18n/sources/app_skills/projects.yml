@@ -106,8 +106,8 @@ skills.search_text:
   verified_by_human: []
 skills.read:
   context: Skill name for reading a file in a Project
-  en: Read Project File
-  de: Projektdatei lesen
+  en: Read files
+  de: Dateien lesen
   verified_by_human: []
 skills.read.description:
   context: Skill description for reading Project file references through a connected client

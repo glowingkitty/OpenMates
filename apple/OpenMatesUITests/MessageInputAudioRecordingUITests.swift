@@ -278,15 +278,15 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
             1,
             "A tap must start exactly one recording overlay"
         )
-        assertRecordingOverlayCopy(in: app)
+        assertCompactRecordingBar(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-cancel-button").isHittable)
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        XCTAssertEqual(overlay.frame.height, 220, accuracy: 1)
+        XCTAssertEqual(overlay.frame.height, 48, accuracy: 1)
         let messageField = element(in: app, identifier: "message-field")
         XCTAssertTrue(messageField.exists, "The welcome composer must stay mounted beneath its recording panel")
         XCTAssertTrue(
             messageField.frame.intersects(overlay.frame),
-            "The 220pt recording panel must occupy the actual welcome composer instead of a detached preview"
+            "The 48pt compact recording bar must occupy the actual welcome composer instead of a detached preview"
         )
         let screenshotAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshotAttachment.name = "Actual welcome composer recording overlay"
@@ -433,10 +433,10 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         let overlay = element(in: app, identifier: "record-overlay")
         XCTAssertTrue(overlay.waitForExistence(timeout: 8))
-        assertRecordingOverlayCopy(in: app)
+        assertCompactRecordingBar(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
         XCTAssertFalse(app.keyboards.firstMatch.exists, "The voice quick action must behave like a microphone tap")
-        XCTAssertEqual(overlay.frame.height, 220, accuracy: 1, "The voice quick action must use the web-sized recording panel")
+        XCTAssertEqual(overlay.frame.height, 48, accuracy: 1, "The voice quick action must use the web compact recording bar")
         assertWelcomeSuppressedAndComposerUsable(in: app)
 
         element(in: app, identifier: "record-cancel-button").tap()
@@ -459,7 +459,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         ])
 
         XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
-        assertRecordingOverlayCopy(in: app)
+        assertCompactRecordingBar(in: app)
         XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
 
         element(in: app, identifier: "record-cancel-button").tap()
@@ -630,6 +630,21 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS[c] %@", text))
             .firstMatch
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.audio.live-editor-transcript
+    private func assertCompactRecordingBar(in app: XCUIApplication,
+                                           file: StaticString = #filePath, line: UInt = #line) {
+        let overlay = element(in: app, identifier: "record-overlay")
+        XCTAssertTrue(overlay.waitForExistence(timeout: 2), file: file, line: line)
+        XCTAssertEqual(overlay.frame.height, 48, accuracy: 1,
+                       "Composer recording bar must match the web compact 48px bar", file: file, line: line)
+        XCTAssertTrue(element(in: app, identifier: "record-cancel-button").isHittable, file: file, line: line)
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").isHittable, file: file, line: line)
+        XCTAssertFalse(element(in: app, identifier: "timer-pill").exists,
+                       "Compact bar hides the timer pill", file: file, line: line)
+        XCTAssertFalse(element(in: app, identifier: "record-shortcuts").exists,
+                       "Compact bar hides the shortcut hint", file: file, line: line)
     }
 
     private func assertRecordingOverlayCopy(in app: XCUIApplication) {

@@ -31,6 +31,12 @@ from backend.shared.python_utils.learning_mode import build_learning_mode_contex
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
+from backend.core.api.app.routes.handlers.websocket_handlers.finished_turn_resend import (
+    REJECTED_ENQUEUE_CODES,
+    acknowledge_finished_enqueue,
+    acknowledge_if_finished,
+    send_origin_chat_message_confirmed as _send_origin_chat_message_confirmed,
+)
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, normalize_team_ai_inference_request, parse_team_message_transport, should_trigger_team_ai
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
@@ -461,36 +467,6 @@ def _sanitize_connected_account_token_refs(value: Any) -> list[dict[str, Any]] |
     return sanitized
 
 
-async def _send_origin_chat_message_confirmed(
-    websocket: WebSocket,
-    manager: ConnectionManager,
-    user_id: str,
-    device_fingerprint_hash: str,
-    payload: dict[str, Any],
-) -> None:
-    """Acknowledge the sender on the same socket before any registry broadcast can race."""
-    message = {"type": "chat_message_confirmed", "payload": payload}
-    send_json = getattr(websocket, "send_json", None)
-    if callable(send_json):
-        try:
-            await send_json(message)
-            logger.debug(
-                "Sent direct chat_message_confirmed for message %s to user %s/%s",
-                payload.get("message_id"),
-                user_id,
-                device_fingerprint_hash,
-            )
-            return
-        except Exception as exc:
-            logger.warning(
-                "Direct chat_message_confirmed send failed for message %s; falling back to manager: %s",
-                payload.get("message_id"),
-                exc,
-            )
-
-    await manager.send_personal_message(message, user_id, device_fingerprint_hash)
-
-
 async def _store_client_encrypted_embeds(
     directus_service: DirectusService,
     encrypted_embeds: list[dict[str, Any]],
@@ -882,12 +858,23 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         expected_wrapped_chat_key=first_personal_admission["wrapped_chat_key"],
                     )
             except ChatRecoveryProtocolError as exc:
+                if exc.code in REJECTED_ENQUEUE_CODES and await acknowledge_if_finished(
+                    directus_service, websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload, path="enqueue_rejected",
+                ):
+                    return
                 await manager.send_personal_message(
                     {"type": "error", "payload": {
                         "code": exc.code,
                         "message": "Durable encrypted preflight did not authorize this request.",
                     }}, user_id, device_fingerprint_hash,
                 )
+                return
+            if await acknowledge_finished_enqueue(
+                    directus_service, websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    enqueue_result=recovery_enqueue_result,
+            ):
                 return
             fast_projection = _authorized_first_personal_projection(
                 recovery_enqueue_result, chat_id=chat_id, user_id=user_id,
@@ -950,6 +937,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return
         if protocol_epoch >= 1:
             if payload.get("protocol_version") != 1 or not payload.get("preflight_id"):
+                if await acknowledge_if_finished(
+                    directus_service, websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload, path="missing_preflight",
+                ):
+                    return
                 await manager.send_personal_message(
                     {
                         "type": "error",
@@ -1152,6 +1144,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
             except ChatRecoveryProtocolError as exc:
+                if exc.code in REJECTED_ENQUEUE_CODES and await acknowledge_if_finished(
+                    directus_service, websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload, path="enqueue_rejected",
+                ):
+                    return
                 await manager.send_personal_message(
                     {
                         "type": "error",
@@ -1163,6 +1160,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     user_id,
                     device_fingerprint_hash,
                 )
+                return
+            if await acknowledge_finished_enqueue(
+                    directus_service, websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    enqueue_result=recovery_enqueue_result,
+            ):
                 return
 
         if is_team_chat:

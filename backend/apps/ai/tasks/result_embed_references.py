@@ -32,3 +32,13 @@ def completed_result_embed_ids(completed_results: Any) -> list[str]:
         if isinstance(embed_id, str) and embed_id and embed_id not in ids:
             ids.append(embed_id)
     return ids
+
+
+def completed_command_embed_ids(completed_results: Any) -> list[str]:
+    """Terminal code embeds of completed cloud commands, in run order, without repeats."""
+    ids: list[str] = []
+    for result in completed_results if isinstance(completed_results, list) else []:
+        embed_id = result.get("command_embed_id") if isinstance(result, dict) else None
+        if isinstance(embed_id, str) and embed_id and embed_id not in ids:
+            ids.append(embed_id)
+    return ids

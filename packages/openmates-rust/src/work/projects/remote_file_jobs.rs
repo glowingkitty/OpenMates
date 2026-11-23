@@ -111,6 +111,7 @@ impl Projects<'_> {
             .await
         {
             Ok(commit) => Ok(json!({
+                "short_id": commit.commit.chars().take(7).collect::<String>(),
                 "commit_id": commit.commit,
                 "message": message,
                 "ahead": commit.ahead,

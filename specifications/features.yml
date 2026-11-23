@@ -266,7 +266,7 @@ features:
       - id: message-rendering
         name: "Message rendering"
         description: "Inline entities, preview info, skill failure banner, history entrance"
-        assertions: ["chats.rendering.inline-entity-interaction", "chats.rendering.preview-info-top", "chats.rendering.skill-failure-banner", "chats.rendering.web-history-entrance"]
+        assertions: ["chats.rendering.inline-entity-interaction", "chats.rendering.preview-info-top", "chats.rendering.skill-card-call-order", "chats.rendering.skill-failure-banner", "chats.rendering.web-history-entrance"]
       - id: followups
         name: "Follow-up suggestions"
         description: "Main-generated composer follow-ups and reconciliation"
@@ -301,17 +301,17 @@ features:
   - id: continue-carousel
     name: "Continue Carousel"
     kind: core
-    description: "The Chats start screen promotes timely saved items and recent chats."
+    description: "The Chats start screen promotes timely chats in its row and shows the next saved event as a compact entry below it."
     specifications: [feature.continue-carousel]
     release: untagged-main
-    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: daily-inspiration
     name: "Daily Inspiration"
     kind: core
-    description: "Personalised daily inspiration cards, with a public default for signed-out visitors."
+    description: "Personalised daily video and article cards inside the start-screen row (signed in and signed out, no banner), with a public default; the row ends with its browse actions and suggestions follow below it."
     specifications: [feature.daily-inspiration]
     release: v0.7.0-alpha
-    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
       cli: "openmates inspirations"
       sdk_npm: "sdk.inspirations facade (both)"
@@ -595,7 +595,7 @@ features:
     surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
     key_tests:
       web: [frontend/apps/web_app/tests/voice-call.spec.ts]
-    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test."
+    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Spoken tap requests (needs-you chime, ready-made line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so far; the Apple app ignores the voice_call_permission_prompt event."
   - id: webhooks
     name: "Webhooks"
     kind: core
@@ -974,7 +974,7 @@ features:
       sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
       sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
     key_tests:
-      web: [frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts]
+      web: [frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts]
   - id: mail
     name: "Mail"
     kind: app
@@ -1106,6 +1106,11 @@ features:
     flags: ["skill:openmates:get-docs"]
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    subfeatures:
+      - id: sub-chats
+        name: "Sub-chats"
+        description: "Complex work splits into sub-chats in any focus; they keep the Project focus and link to the assumption or Task they work on"
+        assertions: ["chat-orchestration.sub-chats.*"]
     evidence:
       cli: "openmates apps openmates get-docs|share-usecase"
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
@@ -1215,6 +1220,10 @@ features:
         name: "Agentic runs and checks"
         description: "Long turns, test results, checks, workspace chain, remote access"
         assertions: ["projects.agentic.*", "projects.checks.*", "projects.workspace.*", "projects.remote-access.*", "projects.sources.*", "projects.history.*"]
+      - id: tile-presentation
+        name: "Project tile description, icon and category"
+        description: "Encrypted one-line description, icon and category gradient on Project tiles; set at assistant creation and once on Specification approval, manual edits locked, older Projects backfilled once by the client"
+        assertions: ["projects.presentation.*"]
       - id: project-timeline
         name: "Project Timeline tab"
         description: "Newest-first commits and file activity of a Project with restore of files to a commit as new versions (web, Apple, CLI)"

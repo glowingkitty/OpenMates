@@ -5,11 +5,11 @@
 <script lang="ts">
   import { text } from '@repo/ui';
   import PlanStatusChip from './PlanStatusChip.svelte';
-  import { assumptionStatusTone } from './planEmbedModel';
+  import { assumptionStatusTone, openChatById } from './planEmbedModel';
   import type { UserPlanAssumptionViewModel } from '../../../services/userPlanService';
   import './PlanSectionStyles.css';
 
-  let { assumptions, onOpenChat }: {
+  let { assumptions, onOpenChat = openChatById }: {
     assumptions: UserPlanAssumptionViewModel[];
     onOpenChat?: (chatId: string) => void;
   } = $props();
@@ -28,7 +28,7 @@
             {#if assumption.evidenceSummary}<small>{assumption.evidenceSummary}</small>{/if}
             {#if assumption.linkedSubChatId}
               {@const chatId = assumption.linkedSubChatId}
-              <button type="button" class="plan-link" data-testid="plan-assumption-open-chat" onclick={() => onOpenChat?.(chatId)}>{$text('plan_embeds.assumption.open_chat')}</button>
+              <button type="button" class="plan-link" data-testid="plan-assumption-open-chat" onclick={() => onOpenChat(chatId)}>{$text('plan_embeds.assumption.open_chat')}</button>
             {/if}
           </div>
           <PlanStatusChip label={$text(`plan_embeds.status.assumption.${assumption.status}`)} tone={assumptionStatusTone(assumption.status)} testId="plan-assumption-status" status={assumption.status} />

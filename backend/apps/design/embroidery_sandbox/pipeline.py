@@ -22,7 +22,7 @@ import zipfile
 from pathlib import Path
 
 from .border import BORDER_INDEX, apply_border
-from .geometry import Prepared, check, prepare
+from .geometry import Prepared, check, load_and_scale, prepare
 from .limits import (
     MAX_STITCHES, RESIZE_MAX_FIRST_RUN_SECONDS, RUN_LIMIT_SECONDS, Options, PipelineError,
     hoop_fit, hoop_fit_width, resized_width,
@@ -60,6 +60,9 @@ AREA_FACTOR = 0.36
 OUTLINE_STITCHES_PER_MM = 3.09
 STITCHES_PER_FILL_PART = 2.2
 SATIN_STITCHES_PER_MM = 6.4
+# A sew-on border's satin edge is denser and always has contour and zigzag underlay
+# (measured on a 3 mm border: 13,300 stitches along 1,426 mm of edge).
+BORDER_SATIN_STITCHES_PER_MM = 9.3
 RUNNING_STITCHES_PER_MM = 0.97
 STITCHES_PER_LINE = 8
 MIN_STITCHES_PER_SECOND = 700
@@ -96,7 +99,8 @@ def _estimate_stitches(prepared: Prepared, fabric: str) -> int:
             total += (shape.geom.area * density + shape.geom.length * OUTLINE_STITCHES_PER_MM
                       + parts * STITCHES_PER_FILL_PART)
         elif shape.kind == "satin":
-            total += shape.geom.length * SATIN_STITCHES_PER_MM + STITCHES_PER_LINE
+            rate = BORDER_SATIN_STITCHES_PER_MM if shape.index == BORDER_INDEX else SATIN_STITCHES_PER_MM
+            total += shape.geom.length * rate + STITCHES_PER_LINE
         else:
             total += shape.geom.length * RUNNING_STITCHES_PER_MM + STITCHES_PER_LINE
     return int(total)
@@ -164,7 +168,7 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
     timings["check"] = round(time.monotonic() - mark, 3)
 
     bordered = options.border_mm is not None
-    start_colour = options.border_colour if bordered else None
+    end_colour = options.border_colour if bordered else None
     out = workdir / "out"
     out.mkdir(exist_ok=True)
     svg_path = out / OUTPUT_NAMES["prepared_svg"]
@@ -173,12 +177,14 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
     timings["prepare"] = timings["inkstitch"] = 0.0
     for attempt in range(2):
         mark = time.monotonic()
-        prepared = prepare(svg_text, scan, width_mm, start_colour)
         if options.fit_hoop and not sized_to_hoop:
-            width_mm = hoop_fit_width(prepared.width_mm, prepared.height_mm,
+            # Only the proportions are needed to size the design to the hoop: skip the full
+            # preparation (overlap cutting, ordering) of the throw-away first size.
+            _, _, proportion_width, proportion_height = load_and_scale(svg_text, scan, width_mm)
+            width_mm = hoop_fit_width(proportion_width, proportion_height,
                                       2 * float(options.border_mm) if bordered else 0.0, options.hoop)
-            prepared = prepare(svg_text, scan, width_mm, start_colour)
             sized_to_hoop = True
+        prepared = prepare(svg_text, scan, width_mm, end_colour)
         if options.fit_hoop:
             prepared.notes.append({"code": "sized_to_hoop", "text": "Sized to fill the hoop"})
         if bordered:

@@ -5,6 +5,8 @@ Commands:
   hourly                       run the hourly watcher (sources, matching, triage dispatch, fixes, alerts)
   inventory                    regenerate and summarize the asset inventory
   digest                       send the daily monitoring digest and check watcher liveness
+  fix-batch                    daily patch/minor security fix lane (7-day rule, dev only)
+  image-scan                   daily scan of running image digests and their runtimes
   status                       show open incidents, lease and recent runs
   acknowledge <incident-id>    mark an incident acknowledged (no further carry-forward alerts)
   install-schedule --print|--apply   render or install the managed crontab block
@@ -60,6 +62,9 @@ def render_crontab(existing: str, project_root: Path) -> str:
         "# Hourly deterministic advisory watcher (+ triage/fix dispatch) and daily digest.",
         f"20 * * * * cd {root} && {env} /usr/bin/python3 scripts/security_monitor.py hourly >> {log} 2>&1",
         f"40 6 * * * cd {root} && {env} /usr/bin/python3 scripts/security_monitor.py digest >> {log} 2>&1",
+        "# Daily running-image scan, then the patch/minor fix lane after the dev reboot window (04:00-06:00 Berlin).",
+        f"10 5 * * * cd {root} && {env} /usr/bin/python3 scripts/security_monitor.py image-scan >> {log} 2>&1",
+        f"30 5 * * * cd {root} && {env} /usr/bin/python3 scripts/security_monitor.py fix-batch >> {log} 2>&1",
         END_MARKER,
     ]
     return "\n".join([*retained, "", *block]).strip() + "\n"
@@ -132,6 +137,30 @@ def cmd_digest(settings: Settings) -> int:
     return 0 if result.get("digest") in {"accepted", "queued", "dry_run"} else 2
 
 
+def cmd_fix_batch(settings: Settings) -> int:
+    lock = RunLock(settings)
+    lock.path = settings.state_dir / "fix-batch.lock"
+    with lock as acquired:
+        if not acquired:
+            print(json.dumps({"outcome": "skipped", "reason": "previous fix batch still active"}))
+            return 0
+        summary = dispatch.run_fix_batch(settings)
+    print(json.dumps(summary, indent=1, sort_keys=True))
+    return 0
+
+
+def cmd_image_scan(settings: Settings) -> int:
+    lock = RunLock(settings)
+    lock.path = settings.state_dir / "image-scan.lock"
+    with lock as acquired:
+        if not acquired:
+            print(json.dumps({"outcome": "skipped", "reason": "previous image scan still active"}))
+            return 0
+        summary = dispatch.run_image_report(settings)
+    print(json.dumps(summary, indent=1, sort_keys=True))
+    return 0
+
+
 def cmd_status(settings: Settings) -> int:
     store = Store.open(settings.state_db, dry_run=True)
     try:
@@ -177,6 +206,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     commands.add_parser("hourly")
     commands.add_parser("inventory")
     commands.add_parser("digest")
+    commands.add_parser("fix-batch")
+    commands.add_parser("image-scan")
     commands.add_parser("status")
     acknowledge = commands.add_parser("acknowledge")
     acknowledge.add_argument("incident_id")
@@ -192,6 +223,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_inventory(settings)
     if args.command == "digest":
         return cmd_digest(settings)
+    if args.command == "image-scan":
+        return cmd_image_scan(settings)
+    if args.command == "fix-batch":
+        return cmd_fix_batch(settings)
     if args.command == "status":
         return cmd_status(settings)
     if args.command == "acknowledge":

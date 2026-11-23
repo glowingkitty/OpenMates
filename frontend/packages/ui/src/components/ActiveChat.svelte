@@ -13,6 +13,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import SubChatWorkLink from './chats/SubChatWorkLink.svelte';
+    import { loadSubChatWork, type SubChatWork } from './chats/subChatWork';
     import ChatTimelineToggle from './ChatTimelineToggle.svelte';
     import { responseUserMessageId } from '../message_parsing/assistantResponseTurn';
     import SharedAuxiliaryLoadButton from './SharedAuxiliaryLoadButton.svelte';
@@ -45,7 +47,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatDB } from '../services/db';
     import { markChatRead, markReadIfLatestReplySeen, hasUnreadRust } from '../services/chatReadState';
     import { unreadMessagesStore } from '../stores/unreadMessagesStore';
-    import ContinueCardUnreadBadge from './workspace/ContinueCardUnreadBadge.svelte';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
@@ -53,7 +54,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { readRustChatHistoryPage, readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
-    import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
     import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
@@ -111,6 +111,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Note: STEP_COMPLETION is not imported as it's not a visible step - users go directly to the app after auto top-up
     } from '../stores/signupState';
     import { signupStore } from '../stores/signupStore';
+    import { firstMessageDisplayTitle, resolveChatDisplayTitle } from '../utils/chatDisplayTitle';
+    import { knownMentionProjectName, loadFirstMessageDisplayTitle, mentionProjectNamesVersion, resolveMentionProjectNames } from '../services/chatFirstMessageTitle';
     import SignupStatusbar from './signup/SignupStatusbar.svelte';
     import { userDB } from '../services/userDB';
 
@@ -157,7 +159,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
-    import ActiveChatsLink from './chats/ActiveChatsLink.svelte';
+    import ActiveChatsHeading from './chats/ActiveChatsHeading.svelte';
+    import { activeChatCount, runningChatGroups } from '../stores/chatActivityStore';
+    import { startRowCardFlip, startRowCardIn } from '../utils/startRowMotion';
     import ChatProjectPicker from './chats/ChatProjectPicker.svelte';
     import { runChatMenuAction, type ChatMenuActionResult } from '../services/chatMenuActionService';
     import { buildChatMenuItems, type ChatMenuAction } from './chats/chatMenuItems';
@@ -174,7 +178,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
     import type { PIIMapping } from '../types/chat'; // PII mapping type
-    import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
+    import { getLucideIcon } from '../utils/categoryUtils';
     import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     import { searchTextHighlightStore, codeLineHighlightStore } from '../stores/messageHighlightStore'; // For source quote text + code line highlighting in embed fullscreen
@@ -183,11 +187,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
-    import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import StartScreenChatCard, { type StartScreenCardGestures } from './welcome/StartScreenChatCard.svelte';
+    import StartScreenUpcomingEntry from './welcome/StartScreenUpcomingEntry.svelte';
+    import StartScreenRowActions, { type StartScreenRowAction } from './welcome/StartScreenRowActions.svelte';
+    import StartScreenChatSuggestions from './welcome/StartScreenChatSuggestions.svelte';
+    import { interleaveStartRow, selectChatRowInspirations, type StartRowEntry } from '../utils/startScreenRow';
+    import { sendInspirationViewed } from '../services/dailyInspirationViewed';
+    import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
     import GuestInterestTags from './GuestInterestTags.svelte';
-    import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
-    import SavedEmbedContinuePreview from './SavedEmbedContinuePreview.svelte';
-    import ActiveChatTaskPreview from './tasks/ActiveChatTaskPreview.svelte';
     import TaskProposalReview from './tasks/TaskProposalReview.svelte';
     import { chatSettingsRouteFor, chatSettingsStore, type ChatSettingsTab } from '../stores/chatSettingsStore';
     import type { UserTaskProposal, UserTaskUpdateProposal } from '../services/userTaskService';
@@ -197,7 +204,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
     import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
-    import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
+    import { chatListCache } from '../services/chatListCache';
+    import { setPendingInspirationChat, getPendingInspirationChat, isPendingInspirationChat, discardPendingInspirationChat } from '../services/pendingInspirationChat'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { localizeIndicatorLine } from './chats/utils/chatIndicatorLines'; // Localises indicator lines decided by the Rust chatState unit when the flag is on
     import type { IndicatorLine } from '../services/rustCore/chatState/transitionProtocol';
@@ -216,10 +224,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { OpenMatesEvent } from '../data/openmatesEvents';
     import {
         AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS,
+        formatOpenMatesEventSummary,
         getOgExampleResumeChat,
-        getContinueGradientColors,
-        getResumeCardGradientStyle,
-        getResumeLargeCardStyle,
         isOgExampleSharedChatCuttlefish,
     } from './activeChatUtils';
 
@@ -261,7 +267,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         onVisibleChatReady?: (chatId: string | null) => void;
     } = $props();
 
-    const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
     const GuestAllExamplesSearchIcon = getLucideIcon('search');
@@ -1151,7 +1156,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // Modify handleLogout to track signup state and reset signup step
     async function handleLogout() {
-        const landingIntroResetTokenBeforeLogout = guestLandingIntroResetToken;
         isLoggingOut.set(true);
         
         // Reset signup step to 1
@@ -1179,9 +1183,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 return;
             }
 
-            if (guestLandingIntroResetToken === landingIntroResetTokenBeforeLogout) {
-                resetGuestLandingIntroState();
-            }
+            resetGuestLandingIntroState();
             currentChat = null;
             currentMessages = [];
             followUpSuggestions = [];
@@ -3297,10 +3299,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         return getAllExampleChats().map(buildExampleChatMeta);
     });
 
-    function getPriorityChatImageBubbles(item: PriorityContinueItem): ResumeCardImageBubble[] | null {
-        return item.kind === 'chat' ? item.imageBubbles : null;
-    }
-
     function isChatInActiveTeamContext(chat: Chat, teamId: string | null): boolean {
         return teamId ? chat.team_id === teamId : !chat.team_id;
     }
@@ -3320,7 +3318,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         clearResumeChatCard();
         recentChats = [];
         priorityContinueItems = [];
-        recentChatTiltStates = [];
         recentChatsScrolledByUser = false;
         welcomeContinueContextTeamId = undefined;
     }
@@ -3334,26 +3331,27 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             .map((item) => item.chat.chat_id)
     ));
     const RECENT_CHATS_TOTAL = 10;
+    // Saved events/appointments are not chats: they leave the row and show as the
+    // compact upcoming entry below it (TASK-1321). Only chat items take row slots.
+    let priorityChatItems = $derived(
+        priorityContinueItems.filter((item): item is PriorityChatContinueItem => item.kind === 'chat')
+    );
+    let upcomingEmbedItem = $derived(
+        priorityContinueItems.find((item): item is SavedEmbedContinueCandidate => item.kind === 'embed') ?? null
+    );
     let hasVisibleResumeChat = $derived.by(() =>
         !!resumeChatData &&
         !priorityContinueChatIds.has(resumeChatData.chat_id) &&
-        priorityContinueItems.length < RECENT_CHATS_TOTAL
+        priorityChatItems.length < RECENT_CHATS_TOTAL
     );
     let visibleRecentChats = $derived.by(() => {
         const remainingSlots = Math.max(
-            RECENT_CHATS_TOTAL - priorityContinueItems.length - (hasVisibleResumeChat ? 1 : 0),
+            RECENT_CHATS_TOTAL - priorityChatItems.length - (hasVisibleResumeChat ? 1 : 0),
             0
         );
         return recentChats
             .filter((meta) => meta.chat.chat_id !== resumeChatData?.chat_id && !priorityContinueChatIds.has(meta.chat.chat_id))
             .slice(0, remainingSlots);
-    });
-    let authRecentOverflowCount = $derived.by(() => {
-        const visiblePriorityChatCount = priorityContinueItems.filter(
-            (item): item is PriorityChatContinueItem => item.kind === 'chat'
-        ).length;
-        const visibleChatCount = visiblePriorityChatCount + (hasVisibleResumeChat ? 1 : 0) + visibleRecentChats.length;
-        return Math.max(($userProfile.total_chat_count ?? 0) - visibleChatCount, 0);
     });
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
     // Set to true the first time the user manually scrolls the carousel so
@@ -3367,10 +3365,186 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let _priorityRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let hasContinueItems = $derived.by(() =>
-        priorityContinueItems.length > 0 ||
+        priorityChatItems.length > 0 ||
+        activeStartRowMetas.length > 0 ||
         !!resumeChatData ||
         ($authStore.isAuthenticated && recentChats.length > 0)
     );
+
+    // ── Authenticated start row (TASK-1321) ─────────────────────────────────
+    // One row of large chat cards: the user's own chats (reminder-priority chats,
+    // the last opened chat, then recent chats; at most 10) with today's unopened
+    // video and article inspirations interleaved: two own chats, then one
+    // inspiration after every third own chat. A user without chats sees only the
+    // inspirations. Rhythm and selection: utils/startScreenRow.ts.
+    type OwnStartRowItem =
+        | { type: 'priority'; item: PriorityChatContinueItem }
+        | { type: 'resume'; chat: Chat }
+        | { type: 'recent'; meta: RecentChatMeta }
+        | { type: 'example'; meta: RecentChatMeta }
+        | { type: 'active'; meta: RecentChatMeta };
+
+    let startRowInspirations = $state<DailyInspiration[]>([]);
+    const unsubscribeStartRowInspirations = dailyInspirationStore.subscribe((state) => {
+        startRowInspirations = selectChatRowInspirations(state.inspirations);
+    });
+    onDestroy(unsubscribeStartRowInspirations);
+
+    // The guest banner used to reload chat inspirations on login and language
+    // change; authenticated start screens no longer mount it, so the row does.
+    let startRowInspirationLoadKey = '';
+    $effect(() => {
+        const isAuthenticated = $authStore.isAuthenticated;
+        const key = `${isAuthenticated ? 'auth' : 'guest'}:${$locale ?? 'en'}`;
+        if (key === startRowInspirationLoadKey) return;
+        const isFirstLoad = startRowInspirationLoadKey === '';
+        startRowInspirationLoadKey = key;
+        // Guests: the app page loads the public defaults on first load; reload only on a language change.
+        if (!isAuthenticated && isFirstLoad) return;
+        void loadDefaultInspirations({ allowIndexedDB: isAuthenticated, surface: 'chats' }).catch((error) => {
+            console.error(`[ActiveChat] Failed to ${isFirstLoad ? 'load' : 'reload'} start-row inspirations:`, error);
+        });
+    });
+
+    // Running chats always come first and are marked active (Marco, 21 Nov). The grouping
+    // (a running sub-chat makes its visible parent active, each parent once) is the Rust
+    // aggregation behind runningChatGroups; here the parents only get their card metadata.
+    let activeStartRowMetas = $state<RecentChatMeta[]>([]);
+    $effect(() => {
+        const groups = $runningChatGroups;
+        const isAuthenticated = $authStore.isAuthenticated;
+        let stale = false;
+        if (!isAuthenticated || groups.length === 0) {
+            activeStartRowMetas = [];
+            return;
+        }
+        const chats = groups.map((group) => group.chat).filter((chat) => !isPublicChat(chat.chat_id)).slice(0, RECENT_CHATS_TOTAL);
+        untrack(() => Promise.all(chats.map((chat) => buildRecentChatMeta(chat))))
+            .then((metas) => { if (!stale) activeStartRowMetas = metas; })
+            .catch((error) => console.error('[ActiveChat] Could not build the active start-row cards', error));
+        return () => { stale = true; };
+    });
+    let activeStartRowChatIds = $derived(new Set(activeStartRowMetas.map((meta) => meta.chat.chat_id)));
+
+    let ownStartRowItems = $derived.by((): OwnStartRowItem[] => [
+        ...activeStartRowMetas.map((meta) => ({ type: 'active' as const, meta })),
+        ...priorityChatItems
+            .filter((item) => !activeStartRowChatIds.has(item.chat.chat_id))
+            .map((item) => ({ type: 'priority' as const, item })),
+        ...(resumeChatData && hasVisibleResumeChat && !activeStartRowChatIds.has(resumeChatData.chat_id)
+            ? [{ type: 'resume' as const, chat: resumeChatData }]
+            : []),
+        ...visibleRecentChats
+            .filter((meta) => !activeStartRowChatIds.has(meta.chat.chat_id))
+            .map((meta) => ({ type: 'recent' as const, meta })),
+    ]);
+
+    // Cards that join the row after it has settled (a chat became active, a new chat) fade in
+    // from below; the first fill after opening the page does not animate.
+    let startRowMotionEnabled = $state(false);
+    $effect(() => {
+        if (startRowEntries.length === 0) return;
+        const timer = setTimeout(() => { startRowMotionEnabled = true; }, 1500);
+        return () => clearTimeout(timer);
+    });
+    // Guests get the same row: example chats (and their own anonymous or shared chats) with the
+    // inspirations interleaved. Example events leave the row for the entry below it.
+    let guestStartRowVisible = $derived.by(() =>
+        !$authStore.isAuthenticated &&
+        (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others || meta.draftPreview)) &&
+        nonAuthRecentChats.some((meta) => !meta.event)
+    );
+    let guestStartRowItems = $derived.by((): OwnStartRowItem[] =>
+        nonAuthRecentChats.filter((meta) => !meta.event).map((meta) => ({ type: 'example' as const, meta }))
+    );
+    let startRowEntries = $derived.by((): StartRowEntry<OwnStartRowItem, DailyInspiration>[] => {
+        if ($authStore.isAuthenticated) return interleaveStartRow(ownStartRowItems, startRowInspirations);
+        return guestStartRowVisible ? interleaveStartRow(guestStartRowItems, startRowInspirations) : [];
+    });
+
+    // Browse actions are the last item of the row (TASK-1321); nothing about browsing sits below it.
+    let startRowActions = $derived.by((): StartScreenRowAction[] =>
+        $authStore.isAuthenticated
+            ? [
+                { id: 'show-all', label: $text('chat.welcome.show_all_chats'), icon: 'messages-square', testId: 'chat-show-all', surface: 'chats', onActivate: handleShowAllChats },
+                { id: 'search', label: $text('common.search'), icon: 'search', testId: 'chat-search', onActivate: handleSearchGuestExamples },
+            ]
+            : [
+                { id: 'interests', label: $text('chat.interests.select_interests'), icon: 'heart', testId: 'guest-interest-select-interests', onActivate: handleGuestInterestSelectInterests },
+                { id: 'show-all', label: $text(activeGuestAllExamplesLinkKey), icon: 'messages-square', testId: 'guest-show-all-examples', surface: activeGuestSurface, onActivate: handleShowAllGuestExamples },
+            ]
+    );
+
+    // One compact upcoming entry below the row: a saved event/appointment for signed-in users,
+    // the next OpenMates event for guests.
+    type StartUpcomingEntry = { title: string; timeLabel: string; appId: string; icon: string | null; category: string | null; onActivate: () => void };
+    let startUpcomingEntry = $derived.by((): StartUpcomingEntry | null => {
+        if ($authStore.isAuthenticated) {
+            const item = upcomingEmbedItem;
+            if (!item) return null;
+            return {
+                title: item.title || $text('common.untitled_chat'),
+                timeLabel: item.priority.label,
+                appId: item.appId,
+                icon: item.icon,
+                category: item.category,
+                onActivate: () => void handleOpenPriorityEmbed(item),
+            };
+        }
+        if (!guestStartRowVisible) return null;
+        const event = nonAuthRecentChats.find((meta) => meta.event)?.event;
+        if (!event) return null;
+        return {
+            title: event.title,
+            timeLabel: formatOpenMatesEventSummary(event) ?? '',
+            appId: 'events',
+            icon: 'calendar',
+            category: null,
+            onActivate: () => openOpenMatesEventEmbed(event),
+        };
+    });
+
+    function getStartRowEntryKey(entry: StartRowEntry<OwnStartRowItem, DailyInspiration>): string {
+        if (entry.kind === 'inspiration') return `inspiration:${entry.item.inspiration_id}`;
+        const own = entry.item;
+        if (own.type === 'priority') return `priority:${own.item.chat.chat_id}`;
+        if (own.type === 'resume') return `resume:${own.chat.chat_id}`;
+        if (own.type === 'example') return `example:${own.meta.chat.chat_id}`;
+        // A distinct key, so a chat that becomes active fades in at the front instead of sliding there.
+        if (own.type === 'active') return `active:${own.meta.chat.chat_id}`;
+        return `recent:${own.meta.chat.chat_id}`;
+    }
+
+    function getStartCardGestures(chat: Chat): StartScreenCardGestures {
+        return {
+            onContextMenu: (event) => handleResumeCardContextMenu(event, chat),
+            onTouchStart: (event) => handleResumeCardTouchStart(event, chat),
+            onTouchMove: handleResumeCardTouchMove,
+            onTouchEnd: handleResumeCardTouchEnd,
+        };
+    }
+
+    function getSharedChatBadge(chat: Chat) {
+        return chat.is_shared_by_others
+            ? { label: $text('chat.header.shared_chat'), testId: 'shared-chat-badge' }
+            : null;
+    }
+
+    /** Report row inspirations once at least half of the card is on screen. */
+    function trackInspirationView(node: HTMLElement, inspirationId: string) {
+        if (typeof IntersectionObserver === 'undefined') {
+            void sendInspirationViewed(inspirationId);
+            return {};
+        }
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                void sendInspirationViewed(inspirationId);
+                observer.disconnect();
+            }
+        }, { threshold: 0.5 });
+        observer.observe(node);
+        return { destroy: () => observer.disconnect() };
+    }
     let isContinueChatsLoading = $derived.by(() => {
         const userHasEncryptedHistory =
             !!$userProfile.last_opened ||
@@ -3389,13 +3563,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
 
-        const sanitizeVisibleDraftPreview = (value: string | null): string | null => formatDraftPreview(value) || null;
+        // Project mentions in the draft show the Project's name, never its id.
+        const sanitizeVisibleDraftPreview = async (value: string | null): Promise<string | null> => {
+            await resolveMentionProjectNames(value, chat.team_id);
+            return formatDraftPreview(value) || null;
+        };
 
         if (isDraftOnly) {
             try {
                 const toDecrypt = chat.encrypted_draft_preview || chat.encrypted_draft_md;
                 if (toDecrypt) {
-                    draftPreview = sanitizeVisibleDraftPreview(await decryptWithMasterKey(toDecrypt));
+                    draftPreview = await sanitizeVisibleDraftPreview(await decryptWithMasterKey(toDecrypt));
                 }
             } catch {
                 draftPreview = null;
@@ -3439,7 +3617,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         try {
             const meta = await chatMetadataCache.getDecryptedMetadata(chat);
             const imageBubbles = chat.resume_card_image_bubbles ?? null;
-            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
+            // A chat whose generated title is still pending shows its first message.
+            const title = resolveChatDisplayTitle(meta?.title, isDraftOnly || meta?.title ? null : await loadFirstMessageDisplayTitle(chat.chat_id));
+            return { chat, title, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? await sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
         } catch {
             return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
         }
@@ -3483,8 +3663,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const metas: RecentChatMeta[] = await Promise.all(
                 topChats.map((chat) => buildRecentChatMeta(chat))
             );
-            recentChatTiltStates = reconcileRecentChatTiltStates(recentChatTiltStates, metas.length);
-            recentChats = metas;
+            // An empty chat (no title, no draft, no user message) is never a card.
+            recentChats = metas.filter((meta) => !!(meta.title || meta.draftPreview));
         } catch (err) {
             console.warn('[ActiveChat] Failed to load recent chats:', err);
         }
@@ -3555,15 +3735,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }, 300);
     }
 
-    /**
-     * Scroll the container so the first card (the primary resume card) is
-     * horizontally centred.
-     */
+    /** Scroll the row back so its first card is centred. */
     async function centerFirstRecentChat(): Promise<void> {
         if (!recentChatsScrollEl) return;
         await tick();
         const container = recentChatsScrollEl;
-        const firstItem = container.querySelector('.saved-embed-continue-preview, .resume-chat-large-card, .resume-chat-card') as HTMLElement | null;
+        const firstItem = container.querySelector('.resume-chat-large-card') as HTMLElement | null;
         if (!firstItem) return;
         const containerWidth = container.offsetWidth;
         const itemLeft = firstItem.offsetLeft;
@@ -3701,8 +3878,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         void contextTeamId;
         if (!isWelcome) {
             nonAuthRecentChatsRequestId++;
-            recentChatTiltStates = [];
-            nonAuthChatTiltStates = [];
             recentChats = [];
             priorityContinueItems = [];
             nonAuthRecentChats = [];
@@ -3713,26 +3888,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const contextChanged = welcomeContinueContextTeamId !== contextTeamId;
             welcomeContinueContextTeamId = contextTeamId;
             nonAuthRecentChatsRequestId++;
-            nonAuthChatTiltStates = [];
             nonAuthRecentChats = [];
             guestAllExamplesVisible = false;
             if (contextChanged) {
                 recentChatsScrolledByUser = false;
-                recentChatTiltStates = [];
                 recentChats = [];
                 priorityContinueItems = [];
             }
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
         } else {
-            recentChatTiltStates = [];
             recentChats = [];
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
             const requestId = ++nonAuthRecentChatsRequestId;
             loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, preserveGuestInterestRanking).then((metas) => {
                 if (requestId !== nonAuthRecentChatsRequestId) return;
-                nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
                 nonAuthRecentChats = metas;
                 centerFirstRecentChat();
             });
@@ -3968,8 +4139,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 return true;
             }
 
-            // Normal path: use cleartext fields as fallback (demo chats have these set directly)
-            const displayTitle = chat.title || decryptedTitle || get(text)('common.untitled_chat');
+            // Normal path: use cleartext fields as fallback (demo chats have these set directly).
+            // Without a generated title yet the card shows the first message, never "Untitled chat".
+            const displayTitle = resolveChatDisplayTitle(chat.title || decryptedTitle,
+                hasTitle ? null : await loadFirstMessageDisplayTitle(chat.chat_id));
+            if (!displayTitle) {
+                console.info(`[ActiveChat] Skipping resume chat without a title or user message: ${chat.chat_id}`);
+                return false;
+            }
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
             const displaySummary = chat.chat_summary || decryptedSummary || null;
@@ -4894,120 +5071,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         viewportHeight = window.innerHeight;
     }
 
-    // chatSide excludes the composer; use the actual room below the banner.
+    // chatSide excludes the composer; its size is the room the start screen has.
     let chatSideWidth = $state(0);
     let chatSideHeight = $state(0);
-    let welcomeBannerHeight = $state(0);
-    let isTallViewport = $derived(hasRoomForLargeContinueCards(chatSideWidth, chatSideHeight - welcomeBannerHeight));
-
-    // Hover tilt effect for the large welcome-screen chat preview card.
-    // Mirrors UnifiedEmbedPreview's 3D hover behavior.
-    let resumeLargeCardElement = $state<HTMLButtonElement | null>(null);
-    let isResumeLargeCardHovering = $state(false);
-    let resumeLargeCardMouseX = $state(0); // Normalized -1..1
-    let resumeLargeCardMouseY = $state(0); // Normalized -1..1
-
-    const RESUME_CARD_TILT_MAX_ANGLE = 3;
-    const RESUME_CARD_TILT_PERSPECTIVE = 800;
-    const RESUME_CARD_TILT_SCALE = 0.985;
-
-    let resumeLargeCardTiltTransform = $derived.by(() => {
-        if (!isResumeLargeCardHovering) {
-            return '';
-        }
-
-        const rotateY = resumeLargeCardMouseX * RESUME_CARD_TILT_MAX_ANGLE;
-        const rotateX = -resumeLargeCardMouseY * RESUME_CARD_TILT_MAX_ANGLE;
-
-        return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
-    });
-
-    function handleResumeLargeCardMouseEnter(e: MouseEvent) {
-        isResumeLargeCardHovering = true;
-        updateResumeLargeCardMousePosition(e);
-    }
-
-    function handleResumeLargeCardMouseMove(e: MouseEvent) {
-        if (!isResumeLargeCardHovering || !resumeLargeCardElement) {
-            return;
-        }
-
-        updateResumeLargeCardMousePosition(e);
-    }
-
-    function handleResumeLargeCardMouseLeave() {
-        isResumeLargeCardHovering = false;
-        resumeLargeCardMouseX = 0;
-        resumeLargeCardMouseY = 0;
-    }
-
-    function updateResumeLargeCardMousePosition(e: MouseEvent) {
-        if (!resumeLargeCardElement) {
-            return;
-        }
-
-        const rect = resumeLargeCardElement.getBoundingClientRect();
-        resumeLargeCardMouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-        resumeLargeCardMouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-    }
-
-    // ─── Per-card tilt state for the recent-chats scroll ─────────────────
-    // Each card gets its own independent tilt instance so they tilt
-    // independently while the user hovers.
-    class RecentChatTiltState {
-        el = $state<HTMLButtonElement | null>(null);
-        hovering = $state(false);
-        mouseX = $state(0);
-        mouseY = $state(0);
-
-        get tiltTransform(): string {
-            if (!this.hovering) return '';
-            const rotateY = this.mouseX * RESUME_CARD_TILT_MAX_ANGLE;
-            const rotateX = -this.mouseY * RESUME_CARD_TILT_MAX_ANGLE;
-            return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
-        }
-
-        onMouseEnter(e: MouseEvent) { this.hovering = true; this.updatePosition(e); }
-        onMouseMove(e: MouseEvent) { if (!this.hovering || !this.el) return; this.updatePosition(e); }
-        onMouseLeave() { this.hovering = false; this.mouseX = 0; this.mouseY = 0; }
-
-        private updatePosition(e: MouseEvent) {
-            if (!this.el) return;
-            const rect = this.el.getBoundingClientRect();
-            this.mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-            this.mouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-        }
-    }
-
-    function reconcileRecentChatTiltStates(
-        existing: RecentChatTiltState[],
-        len: number,
-    ): RecentChatTiltState[] {
-        if (existing.length === len) return existing;
-        return Array.from({ length: len }, (_, index) => existing[index] ?? new RecentChatTiltState());
-    }
-
-    // Use $state + $effect instead of $derived so that RecentChatTiltState instances
-    // (which hold their own $state properties) are not created inside a derived context.
-    // Creating $state-bearing objects inside $derived is a Svelte 5 edge case that can
-    // produce a reactive cascade when the source array is rapidly cleared and repopulated,
-    // potentially causing all UI effects to stall without throwing an error.
-    let recentChatTiltStates = $state<RecentChatTiltState[]>([]);
-    $effect(() => {
-        const len = visibleRecentChats.length;
-        if (recentChatTiltStates.length !== len) {
-            recentChatTiltStates = reconcileRecentChatTiltStates(recentChatTiltStates, len);
-        }
-    });
-
-    // Separate tilt state array for non-authenticated users' intro+example chats carousel
-    let nonAuthChatTiltStates = $state<RecentChatTiltState[]>([]);
-    $effect(() => {
-        const len = nonAuthRecentChats.length;
-        if (nonAuthChatTiltStates.length !== len) {
-            nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, len);
-        }
-    });
+    /** Height of the in-flow top buttons row on the welcome screen; the centred welcome block keeps clear of it. */
+    let welcomeTopButtonsHeight = $state(0);
 
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
@@ -5369,10 +5437,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
       // A display-only first-message prefix fills the header until generated
       // encrypted title metadata arrives; it never becomes saved chat metadata.
       let provisionalChatTitle = $derived.by(() => {
-          const firstUserMessage = currentMessages.find(message => message.chat_id === currentChat?.chat_id && message.role === 'user');
-          return typeof firstUserMessage?.content === 'string'
-              ? formatDraftPreview(firstUserMessage.content).slice(0, 80)
-              : '';
+          void $mentionProjectNamesVersion; // re-derive once a mentioned Project's name is known
+          return firstMessageDisplayTitle(
+              currentMessages.filter(message => message.chat_id === currentChat?.chat_id), knownMentionProjectName);
+      });
+      $effect(() => {
+          const firstContent = currentMessages.find(message =>
+              message.chat_id === currentChat?.chat_id && message.role === 'user')?.content;
+          if (typeof firstContent === 'string') void resolveMentionProjectNames(firstContent, currentChat?.team_id);
       });
       let assistantSpeechOverlayHeight = $state(0);
       let autoSpeakResponse = $state(false);
@@ -5410,6 +5482,19 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             currentChat,
             currentChat?.chat_id ? hasLiveDraftComposerContent(currentChat.chat_id) : false,
         ),
+     );
+
+     // The composer's suggestion/search rail; while it shows, the start screen's
+     // suggestions below the row step aside so the same prompts are not listed twice.
+     let startScreenComposerRailVisible = $derived(
+        (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment
+     );
+
+     // Start-screen suggestions above the composer: only while the start row itself is shown
+     // (not in the guest "all examples" view, nor while keyboard or call hide the welcome).
+     let startScreenSuggestionsVisible = $derived(
+        showWelcome && startRowEntries.length > 0 && !hideWelcomeContent &&
+        !(guestAllExamplesVisible && !$authStore.isAuthenticated)
      );
 
      // Persistence assigns an identity to the existing composer; it must not
@@ -5981,13 +6066,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let guestInterestSelectorVisible = $state(false);
     let guestAllExamplesVisible = $state(false);
     let guestAllExamplesGridEl = $state<HTMLElement | null>(null);
-    let activeGuestSurface = $state<DailyInspirationSurface>('chats');
+    // Without the guest banner slides the signed-out Chats screen always shows chat examples.
+    const activeGuestSurface: DailyInspirationSurface = 'chats';
     let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
-    let guestLandingIntroResetToken = $state(0);
-    let lastGuestWorkspaceSlideId = $state<string | null>(null);
-    let guestReturnSlideId = $state<string | null>(null);
     let guestLandingIntroOverlayActive = $derived(
         !$authStore.isAuthenticated && guestLandingIntroPhase !== 'regular'
     );
@@ -5999,11 +6082,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         )
     );
     let guestInterestShuffleToken = $state(0);
-    let lastGuestInspirationShuffleId = $state('');
     let lastGuestPersonalizationKey = '';
-    let showGuestAllExamplesLink = $derived(
-        !$authStore.isAuthenticated && GUEST_EXAMPLE_SURFACES.has(activeGuestSurface)
-    );
     let activeGuestInputLinkKey = $derived(
         guestInputLinkIndex === 0 ? 'chat.welcome.guest_privacy_link' : 'chat.welcome.guest_apps_link'
     );
@@ -6101,26 +6180,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         guestInterestSelectorVisible = true;
     }
 
-    function handleVisibleInspirationChange(inspiration: DailyInspiration) {
-        if ($authStore.isAuthenticated) return;
-        lastGuestWorkspaceSlideId = inspiration.inspiration_id;
-        activeGuestSurface = inspiration.surface ?? 'chats';
-        const nextId = inspiration.inspiration_id;
-        if (!lastGuestInspirationShuffleId) {
-            lastGuestInspirationShuffleId = nextId;
-            return;
-        }
-        if (nextId === lastGuestInspirationShuffleId) return;
-        lastGuestInspirationShuffleId = nextId;
-        guestInterestShuffleToken += 1;
-    }
-
     function resetGuestLandingIntroState() {
-        lastGuestWorkspaceSlideId = null;
-        guestReturnSlideId = null;
         guestAllExamplesVisible = false;
         guestLandingIntroPhase = 'regular';
-        guestLandingIntroResetToken += 1;
     }
 
     $effect(() => {
@@ -7293,7 +7355,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 if (currentText !== liveInputText) {
                     liveInputText = currentText;
                     console.debug('[ActiveChat] Synced liveInputText after draft save:', { 
-                        text: currentText, 
                         length: currentText.length 
                     });
                 }
@@ -7874,6 +7935,19 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // Closing returns to the parent or workspace without starting a new input session.
     let closingChat = $state(false);
+    // Reverse lookup: the Plan assumption or Task this sub-chat works on.
+    let subChatWork = $state<SubChatWork | null>(null);
+    $effect(() => {
+        const chatId = currentChat?.chat_id;
+        const parentId = currentChat?.parent_id;
+        subChatWork = null;
+        if (!chatId || !parentId) return;
+        let cancelled = false;
+        loadSubChatWork(chatId, parentId)
+            .then((work) => { if (!cancelled) subChatWork = work; })
+            .catch((error) => console.error('[ActiveChat] Failed to resolve sub-chat work link:', error));
+        return () => { cancelled = true; };
+    });
     let chatNavigationPane = $state<HTMLDivElement | null>(null);
     // Workflow editor (WorkflowChatPane): closing it returns to the chat at the scroll position it had when the editor opened.
     const workflowPaneScroll = createChatScrollKeeper();
@@ -8104,12 +8178,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         olderMessageWindowLoading = false;
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
-            guestReturnSlideId = closingChat ? lastGuestWorkspaceSlideId : null;
-            if (!guestReturnSlideId) {
-                resetGuestLandingIntroState();
-            }
-            guestAllExamplesVisible = false;
-            guestLandingIntroPhase = 'regular';
+            resetGuestLandingIntroState();
         } else {
             guestLandingIntroPhase = 'regular';
         }
@@ -8393,25 +8462,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         try {
-            const { encryptWithChatKey } = await import('../services/cryptoService');
             const { createEmbedReferenceBlock } = await import('../components/enter_message/services/urlMetadataService');
             const { encode: toonEncode } = await import('@toon-format/toon');
             const { embedStore } = await import('../services/embedStore');
             const { generateUUID } = await import('../message_parsing/utils');
-            const { chatKeyManager } = await import('../services/encryption/ChatKeyManager');
+            const { inspirationFollowUpSuggestions, saveInspirationChat } = await import('../services/inspirationChatSave');
 
+            // Opening shows an in-memory preview only (TASK-3406): no chat key, no IndexedDB
+            // chat or message, no sync and no "opened" mark. The chat ID is kept, and the first
+            // send saves the chat through saveInspirationChat (pendingInspirationChat.ts).
             const chatId = crypto.randomUUID();
-            const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKeyLocked(chatId);
-
             const now = Math.floor(Date.now() / 1000);
             const nowMs = Date.now();
             const phrase = inspiration.phrase;
             // Use the concise title for the chat sidebar (falls back to phrase for
             // older inspirations that don't have a separate title field)
             const chatTitle = inspiration.title || phrase;
-
-            // Encrypt the chat title (short title for sidebar display)
-            const encryptedTitle = await encryptWithChatKey(chatTitle, chatKey);
 
             // Build the first assistant message content.
             // Use the rich assistant_response if available (generated by the LLM to explain
@@ -8425,11 +8491,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Track whether we reused a pre-stored inspiration embed (needed for
             // chat key wrapper creation after the chat and message are created)
             let reusedEmbedId: string | null = null;
-            // Captured embed data for cross-device sync — populated in the
-            // reusedEmbedId block below, consumed by sendSyncInspirationChat
-            // so other devices receive the embed + keys inline with the broadcast
-            // instead of racing against a Directus round-trip.
-            let inspirationEmbedForSync: import('../services/chatSyncServiceSenders').InspirationEmbedData | undefined;
             if (inspiration.video) {
                 const video = inspiration.video;
                 const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
@@ -8520,519 +8581,51 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 messageContent = `${firstMessageText}\n\n${wikiLink}`;
             }
 
-            const encryptedContent = await encryptWithChatKey(messageContent, chatKey);
-
-            // Encrypt category and icon for proper mate display
-            const encryptedCategory = await encryptWithChatKey(inspiration.category, chatKey);
-
-            // Build the Chat object (mirrors the shape used by reminder handler)
-            // IMPORTANT: both title_v and messages_v are set to 1 (not 0) because:
-            // - title_v: 1  → the chat already has a title at creation time. Setting 0 would
-            //   cause follow-up handling to regenerate the title from the user's follow-up text,
-            //   overwriting the original inspiration title.
-            // - messages_v: 1 → the inspiration assistant message is saved to IndexedDB immediately
-            //   below (chatDB.saveMessage). Setting 0 here misrepresents the message count and
-            //   prevents the backend's "request_chat_history" guard from triggering when the Redis
-            //   AI cache is empty (it checks messages_v >= 1 to know history exists somewhere).
-            //   Without history, the AI sees only the follow-up message and responds out of context.
-            // Both values match what sync_inspiration_chat already sends to the server:
-            // chatSyncServiceSenders.ts → sendSyncInspirationChatImpl: messages_v: 1, title_v: 1.
-            const newChat = {
+            const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+            const followUps = inspirationFollowUpSuggestions(inspiration);
+            const previewChat = {
                 chat_id: chatId,
-                title: chatTitle,        // Short title for sidebar display
-                encrypted_title: encryptedTitle,
+                title: chatTitle,
                 created_at: now,
                 updated_at: now,
                 messages_v: 1,
                 title_v: 1,
                 last_edited_overall_timestamp: now,
                 unread_count: 0,
-                encrypted_chat_key: encryptedChatKey,
-                encrypted_category: encryptedCategory,
                 category: inspiration.category,
-            };
-
-            await chatDB.updateChat(newChat as import('../types/chat').Chat);
-
-            // Build and save the first assistant message
-            const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
-            const assistantMessage = {
+                follow_up_request_suggestions: JSON.stringify(followUps),
+            } as Chat;
+            const previewMessage = {
                 message_id: messageId,
                 chat_id: chatId,
                 role: 'assistant' as const,
-                content: messageContent,    // Cleartext for local display
-                encrypted_content: encryptedContent,
-                encrypted_category: encryptedCategory,
+                content: messageContent,
                 category: inspiration.category,
                 created_at: now,
                 status: 'synced' as const,
-            };
+            } as ChatMessageModel;
 
-            await chatDB.saveMessage(assistantMessage);
-
-            console.info(`[ActiveChat] Created inspiration chat ${chatId} with message ${messageId}`);
-
-            // ── Add chat key wrapper + update hashed_chat_id in Directus ──
-            // If we reused a pre-stored inspiration embed, associate it with the
-            // newly created chat so the phased sync pipeline (which queries
-            // embed_keys by hashed_chat_id) can deliver the key to other devices.
-            // This is the same pattern used by normal embeds in handleSendEmbedDataImpl().
-            if (reusedEmbedId) {
-                try {
-                    const { computeSHA256 } = await import('../message_parsing/utils');
-                    const {
-                        generateEmbedKey,
-                        wrapEmbedKeyWithChatKey,
-                        wrapEmbedKeyWithMasterKey,
-                        encryptWithEmbedKey,
-                    } = await import('../services/cryptoService');
-                    const {
-                        sendStoreEmbedImpl,
-                    } = await import('../services/chatSyncServiceSenders');
-
-                    const profile = await userDB.getUserProfile();
-                    const currentUserId = profile?.user_id || '';
-                    const hashedChatId = await computeSHA256(chatId);
-                    const hashedEmbedId = await computeSHA256(reusedEmbedId);
-                    const hashedMessageId = await computeSHA256(messageId);
-                    const hashedUserId = await computeSHA256(currentUserId);
-
-                    // Retrieve the existing embed key from cache (set by persistInspirations).
-                    // If not in cache (e.g., page reload), first try to recover it from
-                    // IndexedDB via the master key wrapper that persistInspirations stored.
-                    // Only generate a fresh key (and re-encrypt the content) when BOTH the
-                    // memory cache AND IndexedDB are empty — e.g. after clearing browser data.
-                    //
-                    // Why this matters: if we generate a new key while the existing
-                    // encrypted_content in IndexedDB/Directus was written with the old key,
-                    // we write the new key into the cache before completing re-encryption.
-                    // Any embed render that fires in the window between setEmbedKeyInCache()
-                    // and sendStoreEmbedImpl() will try to decrypt old ciphertext with the
-                    // new key → AES-GCM auth tag mismatch → embed shows "Error" status.
-                    let embedKeyForWrap = embedStore.getEmbedKeyFromCache(reusedEmbedId);
-                    let needsReEncrypt = false;
-
-                    if (!embedKeyForWrap) {
-                        // Cache miss (e.g. tab reload wiped the in-memory embedKeyCache).
-                        // Try to unwrap the existing master key wrapper from IndexedDB.
-                        // getEmbedKey() checks IndexedDB and unwraps via the master key —
-                        // if this succeeds we can use the original key and skip re-encryption,
-                        // keeping the already-stored encrypted_content consistent.
-                        console.info(
-                            `[ActiveChat] Embed key not in cache for ${reusedEmbedId} — trying IndexedDB recovery`,
-                        );
-                        const recoveredKey = await embedStore.getEmbedKey(reusedEmbedId, undefined);
-                        if (recoveredKey) {
-                            embedKeyForWrap = recoveredKey;
-                            console.info(
-                                `[ActiveChat] ✅ Recovered embed key from IndexedDB for ${reusedEmbedId} — no re-encryption needed`,
-                            );
-                        } else {
-                            // IndexedDB also empty (e.g., browser data cleared or first-time
-                            // cross-device). Generate a fresh key and re-encrypt the content
-                            // so the new key wrapper and the stored ciphertext are in sync.
-                            console.info(
-                                `[ActiveChat] IndexedDB recovery failed for ${reusedEmbedId} — generating fresh key and re-encrypting`,
-                            );
-                            embedKeyForWrap = generateEmbedKey();
-                            needsReEncrypt = true;
-                        }
+            setPendingInspirationChat({
+                chatId,
+                inspirationId: inspiration.inspiration_id,
+                messages: [previewMessage],
+                materialize: async () => {
+                    const savedChat = await saveInspirationChat({
+                        inspiration, chatId, messageId, chatTitle, messageContent,
+                        reusedEmbedId, followUpSuggestions: followUps, now,
+                    });
+                    if (currentChat?.chat_id === chatId) {
+                        currentChat = { ...currentChat, ...savedChat, follow_up_request_suggestions: undefined };
                     }
-
-                    // Create a chat key wrapper (this is what was missing before)
-                    const wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKeyForWrap, chatKey);
-
-                    // Also create/refresh the master key wrapper
-                    const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKeyForWrap);
-
-                    // Cache the embed key for local decryption
-                    embedStore.setEmbedKeyInCache(reusedEmbedId, embedKeyForWrap, undefined);
-
-                    const embedKeyTimestamp = Math.floor(Date.now() / 1000);
-
-                    // Store BOTH key wrappers (master + chat) locally and on server
-                    const embedKeysForStorage: import('../services/embedStore').EmbedKeyEntry[] = [
-                        {
-                            hashed_embed_id: hashedEmbedId,
-                            key_type: 'master',
-                            hashed_chat_id: null,
-                            encrypted_embed_key: wrappedMasterKey,
-                            hashed_user_id: hashedUserId,
-                            created_at: embedKeyTimestamp,
-                        },
-                        {
-                            hashed_embed_id: hashedEmbedId,
-                            key_type: 'chat',
-                            hashed_chat_id: hashedChatId,
-                            encrypted_embed_key: wrappedChatKey,
-                            hashed_user_id: hashedUserId,
-                            created_at: embedKeyTimestamp,
-                        },
-                    ];
-                    await embedStore.storeEmbedKeys(embedKeysForStorage);
-
-                    const { chatSyncService: syncService } = await import('../services/chatSyncService');
-                    // Publish a complete encrypted head before its new chat wrapper.
-                    // The offline sender queues both until the canonical receipts arrive.
-                    const embedUpdatePayload: Record<string, unknown> = {
-                        embed_id: reusedEmbedId,
-                        status: 'finished',
-                        hashed_chat_id: hashedChatId,
-                        hashed_message_id: hashedMessageId,
-                        hashed_user_id: hashedUserId,
-                        is_private: false,
-                        is_shared: false,
-                        created_at: embedKeyTimestamp,
-                        updated_at: embedKeyTimestamp,
-                    };
-
-                    if (inspiration.video) {
-                        const video = inspiration.video;
-                        const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
-                        let durationFmt: string | null = null;
-                        if (video.duration_seconds != null) {
-                            const m = Math.floor(video.duration_seconds / 60);
-                            const s = video.duration_seconds % 60;
-                            durationFmt = `${m}:${s.toString().padStart(2, '0')}`;
-                        }
-                        const embedContentObj = {
-                            url: videoUrl,
-                            video_id: video.youtube_id,
-                            title: video.title || null,
-                            description: null,
-                            channel_name: video.channel_name || null,
-                            channel_id: null,
-                            channel_thumbnail: null,
-                            thumbnail: video.thumbnail_url || null,
-                            duration_seconds: video.duration_seconds ?? null,
-                            duration_formatted: durationFmt,
-                            view_count: video.view_count ?? null,
-                            like_count: null,
-                            published_at: video.published_at || null,
-                            fetched_at: new Date().toISOString(),
-                        };
-                        let toonStr: string;
-                        try {
-                            toonStr = (await import('@toon-format/toon')).encode(embedContentObj);
-                        } catch {
-                            toonStr = JSON.stringify(embedContentObj);
-                        }
-
-                        const encContent = await encryptWithEmbedKey(toonStr, embedKeyForWrap);
-                        const encType = await encryptWithEmbedKey('video', embedKeyForWrap);
-                        const encPreview = await encryptWithEmbedKey(
-                            video.title || 'YouTube Video', embedKeyForWrap,
-                        );
-                        if (!encContent || !encType) {
-                            throw new Error('Failed to encrypt reused inspiration embed before publishing its chat wrapper');
-                        }
-                        embedUpdatePayload.encrypted_content = encContent;
-                        embedUpdatePayload.encrypted_type = encType;
-                        if (encPreview) embedUpdatePayload.encrypted_text_preview = encPreview;
-                    }
-
-                    if (syncService) {
-                        await sendStoreEmbedImpl(
-                            syncService,
-                            embedUpdatePayload as unknown as import('../types/chat').StoreEmbedPayload,
-                            { keys: embedKeysForStorage.map((key) => ({ ...key })) },
-                        );
-                    }
-
-                    console.info(
-                        `[ActiveChat] ✅ Associated inspiration embed ${reusedEmbedId} with chat ${chatId} ` +
-                        `(added chat key wrapper + updated hashed_chat_id in Directus)` +
-                        (needsReEncrypt ? ' [re-encrypted with fresh key]' : ''),
-                    );
-
-                    // ── Capture embed data for cross-device sync ─────────────────
-                    // Build the encrypted embed payload so sendSyncInspirationChat
-                    // can include it in the broadcast. This lets the receiving
-                    // device store the embed + keys immediately — no Directus
-                    // round-trip required. Without this, a quick device switch
-                    // after opening an inspiration often fails because store_embed
-                    // hasn't reached Directus yet when the second device calls
-                    // request_embed.
-                    try {
-                        // Get or create the encrypted embed fields for the sync payload.
-                        // The canonical head was encrypted before its wrappers were queued.
-                        let encEmbedContent = embedUpdatePayload.encrypted_content as string | undefined;
-                        let encEmbedType = embedUpdatePayload.encrypted_type as string | undefined;
-                        let encEmbedPreview = embedUpdatePayload.encrypted_text_preview as string | undefined;
-
-                        if (!encEmbedContent && inspiration.video) {
-                            // Normal path (no re-encrypt needed): encrypt the embed content
-                            // using the original embed key so the receiving device can decrypt.
-                            const video = inspiration.video;
-                            const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
-                            let dFmt: string | null = null;
-                            if (video.duration_seconds != null) {
-                                const mn = Math.floor(video.duration_seconds / 60);
-                                const sc = video.duration_seconds % 60;
-                                dFmt = `${mn}:${sc.toString().padStart(2, '0')}`;
-                            }
-                            const embedObj = {
-                                url: videoUrl,
-                                video_id: video.youtube_id,
-                                title: video.title || null,
-                                description: null,
-                                channel_name: video.channel_name || null,
-                                channel_id: null,
-                                channel_thumbnail: null,
-                                thumbnail: video.thumbnail_url || null,
-                                duration_seconds: video.duration_seconds ?? null,
-                                duration_formatted: dFmt,
-                                view_count: video.view_count ?? null,
-                                like_count: null,
-                                published_at: video.published_at || null,
-                                fetched_at: new Date().toISOString(),
-                            };
-                            let tStr: string;
-                            try {
-                                tStr = (await import('@toon-format/toon')).encode(embedObj);
-                            } catch {
-                                tStr = JSON.stringify(embedObj);
-                            }
-
-                            encEmbedContent = await encryptWithEmbedKey(tStr, embedKeyForWrap) ?? undefined;
-                            encEmbedType = await encryptWithEmbedKey('video', embedKeyForWrap) ?? undefined;
-                            encEmbedPreview = await encryptWithEmbedKey(
-                                video.title || 'YouTube Video', embedKeyForWrap,
-                            ) ?? undefined;
-                        }
-
-                        if (encEmbedContent && encEmbedType) {
-                            inspirationEmbedForSync = {
-                                embed_id: reusedEmbedId,
-                                encrypted_content: encEmbedContent,
-                                encrypted_type: encEmbedType,
-                                encrypted_text_preview: encEmbedPreview || '',
-                                embed_keys: embedKeysForStorage,
-                            };
-                            console.info(
-                                `[ActiveChat] Prepared inspiration embed ${reusedEmbedId} for cross-device sync`,
-                            );
-                        }
-                    } catch (embedSyncErr) {
-                        // Non-fatal: second device falls back to request_embed
-                        console.warn(
-                            '[ActiveChat] Failed to prepare embed for cross-device sync (non-fatal):',
-                            embedSyncErr,
-                        );
-                    }
-                } catch (keyErr) {
-                    // Non-fatal: the embed is stored locally and works on this device.
-                    // Other devices can use the request_embed safety net to get the key.
-                    console.error(
-                        '[ActiveChat] Failed to create chat key wrapper for inspiration embed (non-fatal):',
-                        keyErr,
-                    );
-                }
-            }
-
-            // Mark the inspiration as opened — the carousel stays visible but the
-            // next unopened entry becomes the default. Do this before navigating
-            // so the banner updates immediately if the user goes back.
-            const { dailyInspirationStore: inspirationStore } = await import('../stores/dailyInspirationStore');
-            const { markInspirationOpenedInIndexedDB, markInspirationOpenedOnAPI } = await import('../services/dailyInspirationDB');
-
-            // Hashed chat ID used as the opened_chat_id reference
-            const openedChatId = chatId;
-
-            // Update the Svelte store immediately (optimistic update)
-            inspirationStore.markOpened(inspiration.inspiration_id, openedChatId);
-
-            // Persist to IndexedDB and API in the background (non-blocking, non-fatal)
-            markInspirationOpenedInIndexedDB(inspiration.inspiration_id, openedChatId).catch((err: unknown) => {
-                console.error('[ActiveChat] Failed to mark inspiration opened in IndexedDB:', err);
-            });
-            markInspirationOpenedOnAPI(
-                inspiration.inspiration_id,
-                openedChatId,
-                inspiration.video?.youtube_id,
-            ).catch((err: unknown) => {
-                console.error('[ActiveChat] Failed to mark inspiration opened on API:', err);
+                },
             });
 
-            // ── Follow-up suggestions ──────────────────────────────────────────
-            // Use LLM-generated follow-up suggestions stored on the inspiration object.
-            // These are generated at inspiration creation time (same LLM call as
-            // assistant_response), making them specific to the actual topic.
-            // Falls back to a humanised title if the inspiration predates this feature
-            // or if the LLM failed to generate suggestions.
-            let encryptedFollowUpSuggestions: string | null = null;
-            try {
-                const { encryptWithChatKey: encryptSuggestions } = await import('../services/cryptoService');
-
-                // Use LLM suggestions if available; otherwise fall back to a humanised title.
-                const llmSuggestions = inspiration.follow_up_suggestions;
-                const hasSuggestions = Array.isArray(llmSuggestions) && llmSuggestions.length > 0;
-                const topicLabel = inspiration.title
-                    ?? (inspiration.phrase ? inspiration.phrase.split('.')[0] : null)
-                    ?? inspiration.category.replace(/_/g, ' ');
-                const rawSuggestions: string[] = hasSuggestions
-                    ? llmSuggestions!
-                    : [
-                        `Tell me more about ${topicLabel}`,
-                        `What are the practical implications of this?`,
-                        `What should I explore next about ${topicLabel}?`,
-                    ];
-
-                if (!hasSuggestions) {
-                    console.debug(
-                        '[ActiveChat] No LLM follow-up suggestions on inspiration — using fallback for:',
-                        inspiration.inspiration_id,
-                    );
-                }
-
-                const encBlob = await encryptSuggestions(
-                    JSON.stringify(rawSuggestions),
-                    chatKey,
-                );
-                if (encBlob) {
-                    encryptedFollowUpSuggestions = encBlob;
-                    const chatWithSuggestions = {
-                        ...(newChat as import('../types/chat').Chat),
-                        encrypted_follow_up_request_suggestions: encBlob,
-                    };
-                    await chatDB.updateChat(chatWithSuggestions);
-                    // Make suggestions available in the UI immediately
-                    followUpSuggestions = rawSuggestions;
-                    console.debug(
-                        '[ActiveChat] Stored follow-up suggestions for inspiration chat:',
-                        rawSuggestions.length,
-                        hasSuggestions ? '(LLM-generated)' : '(fallback)',
-                    );
-                }
-            } catch (suggErr) {
-                // Non-fatal — suggestions are a nice-to-have
-                console.warn('[ActiveChat] Failed to store follow-up suggestions for inspiration chat:', suggErr);
-            }
-
-            // Navigate to the new chat (same pattern as handleResumeLastChat)
             phasedSyncState.markInitialChatLoaded();
             activeChatStore.setActiveChat(chatId);
-            await loadChat(newChat as import('../types/chat').Chat);
-
-            // Notify Chats.svelte sidebar so the new chat appears immediately.
-            // chatListCache.upsertChat inserts the chat at the top of the cached list,
-            // then localChatListChanged triggers Chats.svelte to re-render.
-            chatListCache.upsertChat(newChat as import('../types/chat').Chat);
-            window.dispatchEvent(new CustomEvent('localChatListChanged', {
-                bubbles: true,
-                composed: true,
-                detail: { reason: 'inspiration_chat_created', chatId },
-            }));
-            window.dispatchEvent(new CustomEvent('globalChatSelected', {
-                bubbles: true,
-                composed: true,
-                detail: { chatId },
-            }));
-
-            // ── Cross-device sync ────────────────────────────────────────────────
-            // The chat was created locally (IndexedDB only). Sync it to the server
-            // so that other devices can see it via phased sync or the broadcast.
-            // 1. Update last_opened on the server (resume card on other devices).
-            // 2. Send the encrypted chat + message for cross-device broadcast.
-            try {
-                // Notify server of the active chat (updates last_opened in Redis + Directus)
-                chatSyncService.sendSetActiveChat(chatId);
-
-                // Sync the full chat + first message for cross-device visibility.
-                // Include the inspiration embed data + keys so other devices can
-                // store and decrypt the embed immediately without a Directus round-trip.
-                if (encryptedChatKey) {
-                    await chatSyncService.sendSyncInspirationChat(
-                        chatId,
-                        messageId,
-                        messageContent,
-                        inspiration.category,
-                        encryptedTitle,
-                        encryptedCategory,
-                        encryptedContent,
-                        encryptedChatKey,
-                        now,
-                        encryptedFollowUpSuggestions ?? undefined,
-                        inspirationEmbedForSync,
-                    );
-                } else {
-                    console.warn('[ActiveChat] Could not encrypt chat key for inspiration chat sync — chat will sync on next phased sync');
-                }
-            } catch (syncErr) {
-                // Non-fatal — chat still works locally, will sync eventually
-                console.warn('[ActiveChat] Failed to sync inspiration chat to server:', syncErr);
-            }
-
+            await loadChat(previewChat);
         } catch (err) {
-            console.error('[ActiveChat] Error creating chat from inspiration:', err);
+            console.error('[ActiveChat] Error opening daily inspiration preview:', err);
         }
-    }
-
-    /**
-     * Handler for clicking the video embed area inside a Daily Inspiration banner.
-     *
-     * Opens the video directly in the VideoEmbedFullscreen viewer without first
-     * creating a chat. Works for both authenticated users (embed_id from persistInspirations)
-     * and unauthenticated users (synthetic tmp- embed key, falls back to inline decodedContent).
-     */
-    async function handleInspirationEmbedFullscreen(inspiration: DailyInspiration) {
-        if (!inspiration.video?.youtube_id) {
-            console.debug('[ActiveChat] Inspiration has no video, ignoring embed fullscreen request');
-            return;
-        }
-
-        const storedEmbedId = inspiration.embed_id;
-
-        // For unauthenticated users (or before persistInspirations has run), embed_id is null.
-        // In that case we use a synthetic temporary key based on the youtube_id so
-        // handleEmbedFullscreen can still open the video — it will fall back to the
-        // inline decodedContent we provide below (resolveEmbed returns null for tmp- keys,
-        // which is the intended fallback path).
-        const embedId = storedEmbedId
-            ? `embed:${storedEmbedId}`
-            : `embed:tmp-${inspiration.video.youtube_id}`;
-        const video = inspiration.video;
-        const videoId = video.youtube_id;
-        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-        // Format duration if available
-        let durationFormatted: string | undefined;
-        if (video.duration_seconds != null) {
-            const mins = Math.floor(video.duration_seconds / 60);
-            const secs = video.duration_seconds % 60;
-            durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId);
-        await handleEmbedFullscreen({
-            detail: {
-                embedId,
-                embedData: {
-                    embed_id: storedEmbedId,
-                    type: 'videos-video',
-                    status: 'finished',
-                },
-                // Pass decodedContent inline as a fallback — handleEmbedFullscreen will
-                // re-load from EmbedStore using the real embedId for up-to-date data.
-                decodedContent: {
-                    url: videoUrl,
-                    video_id: videoId,
-                    title: video.title ?? undefined,
-                    channel_name: video.channel_name ?? undefined,
-                    thumbnail: video.thumbnail_url ?? undefined,
-                    duration_seconds: video.duration_seconds ?? undefined,
-                    duration_formatted: durationFormatted,
-                    view_count: video.view_count ?? undefined,
-                    published_at: video.published_at ?? undefined,
-                },
-                embedType: 'videos-video',
-                attrs: {
-                    url: videoUrl,
-                    title: video.title ?? undefined,
-                    videoId,
-                },
-            },
-        } as CustomEvent);
     }
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
@@ -9675,7 +9268,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (!currentChat?.chat_id) return;
             
             // Skip scroll position updates for public chats (demo + legal - they're not stored in IndexedDB or server)
-            if (isPublicChat(currentChat.chat_id)) {
+            // and for an unsaved daily inspiration preview (TASK-3406).
+            if (isPublicChat(currentChat.chat_id) || isPendingInspirationChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Skipping scroll position save for public chat: ${currentChat.chat_id}`);
                 return;
             }
@@ -10032,6 +9626,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             void tick().then(() => requestAnimationFrame(() => { void markCurrentChatReadIfLatestReplySeen(); }));
         });
     });
+    // The unread signal, the render key and a scroll event are not the only moments the last
+    // line can become visible: a finished reply lays out and auto-scrolls to its end after
+    // those fired (instant replies, tablet and phone widths), with no further event. While the
+    // open chat is unread, re-check on a slow tick; the read gate still decides every time.
+    const UNREAD_RECHECK_INTERVAL_MS = 750;
+    $effect(() => {
+        if (currentChatUnreadCount <= 0) return;
+        const timer = setInterval(() => { void markCurrentChatReadIfLatestReplySeen(); }, UNREAD_RECHECK_INTERVAL_MS);
+        return () => clearInterval(timer);
+    });
     $effect(() => {
         const onVisible = () => { if (document.visibilityState === 'visible') void markCurrentChatReadIfLatestReplySeen(); };
         document.addEventListener('visibilitychange', onVisible);
@@ -10179,6 +9783,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
              return;
          }
          composerDismissalGeneration++;
+         // Leaving an unsent daily inspiration preview drops it: nothing was stored (TASK-3406).
+         if (!isPendingInspirationChat(chat.chat_id)) discardPendingInspirationChat();
          // End the previous typing session at navigation start, before any
          // async loading. Same-chat refreshes keep the user's focus/selection,
          // and a click during this load must never be undone on completion.
@@ -10506,7 +10112,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          if (chatForHeader) {
               if (isCurrentDraftOnlyChat) {
                    await applyPersistedDraftHeader(chatForHeader, 'loadChat', isCurrentLoadTarget);
-              } else if (isPublicChat(chatForHeader.chat_id)) {
+              } else if (isPublicChat(chatForHeader.chat_id) || isPendingInspirationChat(chatForHeader.chat_id)) {
                   // Public chats (demo/example/community): all metadata is cleartext
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
@@ -10689,8 +10295,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         let messageLoadFailed = false;
         let backgroundMessageWindowRepair: Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null> | null = null;
         if (currentChat?.chat_id) {
+            const pendingInspiration = getPendingInspirationChat(currentChat.chat_id);
+            if (pendingInspiration) {
+                // An opened daily inspiration not saved yet (TASK-3406): its message lives in memory.
+                // Yield once like the IndexedDB read of a saved chat does, so the ChatHistory keyed
+                // on this chat ID has remounted before it receives the message.
+                await tick();
+                newMessages = pendingInspiration.messages;
+                currentMessageWindowHasMoreBefore = false;
             // Check if this is a public chat (demo or example) - load messages from static bundle instead of IndexedDB
-            if (isPublicChat(currentChat.chat_id)) {
+            } else if (isPublicChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Loading public chat messages for: ${currentChat.chat_id}`);
                 currentCompressionCheckpoints = isExampleChat(currentChat.chat_id)
                     ? getExampleChatCompressionCheckpoints(currentChat.chat_id)
@@ -11761,6 +11375,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     function notifyBackendOfActiveChat() {
+        // An unsaved daily inspiration preview is unknown to the server (TASK-3406);
+        // saveInspirationChat sends set_active_chat once the first message saves it.
+        if (isPendingInspirationChat(currentChat?.chat_id)) return;
         // Notify backend about the active chat, but only if WebSocket is connected
         // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened
         // and cause the user to skip remaining signup steps
@@ -12325,7 +11942,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             if (currentText.trim().length > 0) {
                                 liveInputText = currentText;
                                 console.debug('[ActiveChat] Synced liveInputText after draft save event (editor has content):', { 
-                                    text: currentText, 
                                     length: currentText.length 
                                 });
                             } else if (liveInputText.trim().length === 0) {
@@ -14036,34 +13652,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     bind:clientWidth={chatSideWidth}
                     bind:clientHeight={chatSideHeight}
                     class:voice-call-strip-stuck={callControlsReplaceToolbar}
-                    style:--welcome-banner-height={`${welcomeBannerHeight}px`}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
+                    style:--welcome-top-buttons-reserve={showWelcome ? `${welcomeTopButtonsHeight}px` : undefined}
                 >
-                    <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
-                    <!-- Guests and authenticated users see ordinary Daily Inspiration. -->
-                    <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
-                    {#if showWelcome}
-                        <div
-                            class="daily-inspiration-area"
-                            class:guest-all-examples-hidden={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                            class:welcome-hiding={hideWelcomeContent}
-                            class:landing-intro-overlay-active={guestLandingIntroOverlayActive}
-                            inert={hideWelcomeContent || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
-                            data-testid="daily-inspiration-area"
-                            bind:clientHeight={welcomeBannerHeight}
-                        >
-                            {#key guestLandingIntroResetToken}
-                                <DailyInspirationBanner
-                                    onStartChat={handleStartChatFromInspiration}
-                                    onEmbedFullscreen={handleInspirationEmbedFullscreen}
-                                    onVisibleInspirationChange={handleVisibleInspirationChange}
-                                    containerWidth={effectiveChatWidth}
-                                    landingIntroResetToken={guestLandingIntroResetToken}
-                                    restoreGuestSlideId={guestReturnSlideId}
-                                />
-                            {/key}
-                        </div>
-                    {/if}
 
                   {#snippet timelineNavigation()}
                     {#if !showWelcome && timelineAvailable && timelineNarrow}
@@ -14249,6 +13840,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         class="top-buttons"
                         use:headerOverlayControls
                         data-testid="chat-top-actions"
+                        bind:offsetHeight={welcomeTopButtonsHeight}
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
@@ -14310,40 +13902,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                 <div class="guest-all-examples-view" data-testid="guest-all-examples-view" transition:fade={fadeParams}>
                                     <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid" bind:this={guestAllExamplesGridEl}>
                                         {#each guestAllExampleMetas as meta (meta.chat.chat_id)}
-                                            {@const category = meta.category || 'general_knowledge'}
-                                            {@const gradientColors = getCategoryGradientColors(category)}
-                                            {@const iconName = getValidIconName(meta.icon || '', category)}
-                                            {@const IconComponent = getLucideIcon(iconName)}
-                                            <button
-                                                type="button"
-                                                class="resume-chat-large-card"
-                                                data-testid="resume-chat-large-card"
-                                                data-chat-id={meta.chat.chat_id}
-                                                style={getResumeLargeCardStyle(gradientColors)}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
-                                            >
-                                                <div class="resume-large-orbs" aria-hidden="true">
-                                                    <div class="resume-orb resume-orb-1"></div>
-                                                    <div class="resume-orb resume-orb-2"></div>
-                                                    <div class="resume-orb resume-orb-3"></div>
-                                                </div>
-                                                <div class="resume-large-deco resume-large-deco-left">
-                                                    <IconComponent size={80} color="white" />
-                                                </div>
-                                                <div class="resume-large-deco resume-large-deco-right">
-                                                    <IconComponent size={80} color="white" />
-                                                </div>
-                                                <div class="resume-large-content">
-                                                    <span class="resume-chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-                                                    <div class="resume-large-icon">
-                                                        <IconComponent size={32} color="white" />
-                                                    </div>
-                                                    <span class="resume-large-title" data-testid="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
-                                                {#if meta.summary}
-                                                        <p class="resume-large-summary">{meta.summary}</p>
-                                                {/if}
-                                                </div>
-                                            </button>
+                                            <StartScreenChatCard
+                                                testId="resume-chat-large-card"
+                                                title={meta.title || $text('common.untitled_chat')}
+                                                summary={meta.summary}
+                                                category={meta.category}
+                                                icon={meta.icon}
+                                                chatId={meta.chat.chat_id}
+                                                badge={{ label: $text('chat.header.example_chat'), testId: 'example-chat-badge' }}
+                                                gestures={null}
+                                                onActivate={() => handleOpenRecentChat(meta.chat)}
+                                            />
                                         {/each}
                                     </div>
                                 </div>
@@ -14375,13 +13944,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     {/if}
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
                                     {#if $authStore.isAuthenticated}
-                                        <ActiveChatsLink />
-                                        {#if isContinueChatsLoading}
+                                        {#if $activeChatCount > 0}
+                                            <ActiveChatsHeading />
+                                        {:else if isContinueChatsLoading}
                                             <p class="decrypting-chats-text" transition:fade={fadeParams}>
                                                 {$text('chats.resume_last_chat.decrypting')}
                                             </p>
                                         {:else if hasContinueItems}
-                                            <p transition:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
+                                            <!-- Fades in only: when a chat becomes active the active-count title replaces it in place, without both lines showing at once. -->
+                                            <p in:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
                                         {:else}
                                             <p>
                                                 {#each welcomePromptParts as part, index}
@@ -14408,561 +13979,156 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             </div>
                         {/if}
 
-                            <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
-                            {#if hasContinueItems}
+                            <!-- Start row (TASK-1321), the same for guests and signed-in users: at most 10 large
+                                 cards (own or example chats with today's video/article inspirations interleaved),
+                                 then the browse actions as the last item. Below the row: an upcoming event entry.
+                                 The new-chat suggestions sit directly above the composer (issue AJV2Q). -->
+                            {#if startRowEntries.length > 0}
                                 <div
-                                    class="recent-chats-scroll-container"
-                                    class:large-continue-cards={isTallViewport}
+                                    class="recent-chats-scroll-container large-continue-cards start-row"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
-                                    <!-- Reminder/date-priority items outrank the normal last-opened and pinned chat order in this welcome carousel only. -->
-                                    {#each priorityContinueItems as item (item.kind === 'chat' ? `chat:${item.chat.chat_id}` : `embed:${item.embedId}`)}
-                                        {@const priorityCategory = item.category}
-                                        {@const priorityIconCategory = priorityCategory || 'general_knowledge'}
-                                        {@const priorityAppId = item.kind === 'embed' ? item.appId : null}
-                                        {@const priorityGradientColors = getContinueGradientColors(priorityCategory, priorityAppId)}
-                                        {@const priorityIconName = getValidIconName(item.icon || '', priorityIconCategory)}
-                                        {@const PriorityIconComponent = getLucideIcon(priorityIconName)}
-                                        {@const PriorityPillIcon = getLucideIcon(item.priority.reason.startsWith('reminder') ? 'bell' : 'clock')}
-                                        {@const priorityChat = item.kind === 'chat' ? item.chat : null}
-                                        {@const priorityImageBubbles = getPriorityChatImageBubbles(item)}
-                                        {#if item.kind === 'embed' && isTallViewport}
-                                            <SavedEmbedContinuePreview
-                                                appId={item.appId}
-                                                embedId={item.embedId}
-                                                title={item.title || $text('common.untitled_chat')}
-                                                itemValue={item.itemValue}
-                                                fallbackStyle={getResumeCardGradientStyle(priorityGradientColors)}
-                                                priorityLabel={item.priority.label}
-                                                onFallbackOpen={() => handleOpenPriorityEmbed(item)}
-                                            />
-                                        {:else if isTallViewport && priorityChat}
-                                            <button
-                                                class="resume-chat-large-card continue-priority-card"
-                                                data-testid="continue-priority-card"
-                                                data-priority-reason={item.priority.reason}
-                                                data-item-kind={item.kind}
-                                                data-chat-id={priorityChat.chat_id}
-                                                style={getResumeCardGradientStyle(priorityGradientColors)}
-                                                onclick={() => handleOpenRecentChat(priorityChat)}
-                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, priorityChat)}
-                                                ontouchstart={(e) => handleResumeCardTouchStart(e, priorityChat)}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                type="button"
-                                            >
-                                                <ContinueCardUnreadBadge chatId={priorityChat.chat_id} variant="large" />
-                                                <div class="continue-priority-pill" data-testid="continue-priority-pill">
-                                                    <PriorityPillIcon size={12} color="white" />
-                                                    <span>{item.priority.label}</span>
-                                                </div>
-                                                <div class="resume-large-orbs" aria-hidden="true">
-                                                    <div class="resume-orb resume-orb-1"></div>
-                                                    <div class="resume-orb resume-orb-2"></div>
-                                                    <div class="resume-orb resume-orb-3"></div>
-                                                </div>
-                                                 {#if PriorityIconComponent && !priorityImageBubbles}
-                                                     <div class="resume-large-deco resume-large-deco-left">
-                                                         <PriorityIconComponent size={80} color="white" />
-                                                     </div>
-                                                     <div class="resume-large-deco resume-large-deco-right">
-                                                         <PriorityIconComponent size={80} color="white" />
-                                                     </div>
-                                                 {/if}
-                                                 {#if priorityImageBubbles}
-                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
-                                                         {#each priorityImageBubbles.slice(0, 2) as bubble, index}
-                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
-                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
-                                                             </div>
-                                                         {/each}
-                                                     </div>
-                                                 {/if}
-                                                  <div class="resume-large-content">
-                                                     {#if priorityChat.is_shared_by_others}
-                                                         <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                     {/if}
-                                                     {#if PriorityIconComponent}
-                                                         <div class="resume-large-icon">
-                                                             <PriorityIconComponent size={32} color="white" />
-                                                         </div>
-                                                    {/if}
-                                                    <span class="resume-large-title" data-testid="resume-large-title">{item.title || $text('common.untitled_chat')}</span>
-                                                    {#if item.summary}
-                                                        <p class="resume-large-summary">{item.summary}</p>
-                                                    {/if}
-                                                </div>
-                                            </button>
-                                        {:else}
-                                            {@const ChevronRight = getLucideIcon('chevron-right')}
-                                            <button
-                                                class="resume-chat-card continue-priority-card"
-                                                data-testid="continue-priority-card"
-                                                data-priority-reason={item.priority.reason}
-                                                data-item-kind={item.kind}
-                                                data-chat-id={item.kind === 'chat' ? item.chat.chat_id : ''}
-                                                style={getResumeCardGradientStyle(priorityGradientColors)}
-                                                onclick={() => item.kind === 'chat' ? handleOpenRecentChat(item.chat) : handleOpenPriorityEmbed(item)}
-                                                oncontextmenu={(e) => { if (item.kind === 'chat') handleResumeCardContextMenu(e, item.chat); }}
-                                                ontouchstart={(e) => { if (item.kind === 'chat') handleResumeCardTouchStart(e, item.chat); }}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                type="button"
-                                            >
-                                                <ContinueCardUnreadBadge chatId={item.kind === 'chat' ? item.chat.chat_id : ''} variant="compact" />
-                                                <div class="resume-chat-compact-icon">
-                                                    <PriorityIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
-                                                </div>
-                                                <div class="resume-chat-content continue-priority-content">
-                                                    {#if item.kind === 'chat' && item.chat.is_shared_by_others}
-                                                        <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                    {/if}
-                                                    <span class="continue-priority-pill compact" data-testid="continue-priority-pill">{item.priority.label}</span>
-                                                    <span class="resume-chat-title" data-testid="resume-chat-title">{item.title || $text('common.untitled_chat')}</span>
-                                                </div>
-                                                <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
-                                                </div>
-                                            </button>
-                                        {/if}
-                                    {/each}
-
-                                    <!-- ── Primary resume card (most recent / last-opened) ── -->
-                                    {#if resumeChatData && hasVisibleResumeChat}
-                                        {#if isTallViewport && !resumeChatIsCreditsError}
-                                            {@const category = resumeChatCategory || 'general_knowledge'}
-                                            {@const gradientColors = getCategoryGradientColors(category)}
-                                            {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                            {@const IconComponent = getLucideIcon(iconName)}
-                                            <button
-                                                bind:this={resumeLargeCardElement}
-                                                class="resume-chat-large-card" data-testid="resume-chat-large-card"
-                                                class:hovering={isResumeLargeCardHovering}
-                                                style={getResumeLargeCardStyle(gradientColors, resumeLargeCardTiltTransform)}
-                                                data-chat-id={resumeChatData.chat_id}
-                                                onclick={handleResumeLastChat}
-                                                oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
-                                                ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                onmouseenter={handleResumeLargeCardMouseEnter}
-                                                onmousemove={handleResumeLargeCardMouseMove}
-                                                onmouseleave={handleResumeLargeCardMouseLeave}
-                                                type="button"
-                                            >
-                                                <ContinueCardUnreadBadge chatId={resumeChatData.chat_id} variant="large" />
-                                                {#if resumeChatData.pinned}
-                                                    {@const PinIcon = getLucideIcon('pin')}
-                                                    <div class="resume-card-pin-badge" data-testid="resume-card-pin">
-                                                        <PinIcon size={18} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-orbs" aria-hidden="true">
-                                                    <div class="resume-orb resume-orb-1"></div>
-                                                    <div class="resume-orb resume-orb-2"></div>
-                                                    <div class="resume-orb resume-orb-3"></div>
-                                                </div>
-                                                 {#if IconComponent && !resumeChatImageBubbles}
-                                                     <div class="resume-large-deco resume-large-deco-left">
-                                                         <IconComponent size={80} color="white" />
-                                                     </div>
-                                                     <div class="resume-large-deco resume-large-deco-right">
-                                                         <IconComponent size={80} color="white" />
-                                                     </div>
-                                                 {/if}
-                                                 {#if resumeChatImageBubbles}
-                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
-                                                         {#each resumeChatImageBubbles.slice(0, 2) as bubble, index}
-                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
-                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
-                                                             </div>
-                                                         {/each}
-                                                     </div>
-                                                 {/if}
-                                                 <div class="resume-large-content">
-                                                    {#if resumeChatData.is_shared_by_others}
-                                                        <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                    {/if}
-                                                    {#if IconComponent}
-                                                         <div class="resume-large-icon">
-                                                             <IconComponent size={32} color="white" />
-                                                         </div>
-                                                     {/if}
-                                                    <span class="resume-large-title" data-testid="resume-large-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
-                                                    {#if resumeChatSummary}
-                                                        <p class="resume-large-summary">{resumeChatSummary}</p>
-                                                    {/if}
-                                                </div>
-                                            </button>
-                                        {:else}
-                                            <!-- Compact card: short screens or credits-error state -->
-                                            {@const ChevronRight = getLucideIcon('chevron-right')}
-                                            {@const compactCategory = resumeChatCategory || 'general_knowledge'}
-                                            {@const compactGradientColors = getCategoryGradientColors(compactCategory)}
-                                            {@const compactIconName = getValidIconName(resumeChatIcon || '', compactCategory)}
-                                            {@const CompactIconComponent = getLucideIcon(compactIconName)}
-                                            <button
-                                                class="resume-chat-card" data-testid="resume-chat-card"
-                                                style={getResumeCardGradientStyle(compactGradientColors)}
-                                                data-chat-id={resumeChatData.chat_id}
-                                                onclick={handleResumeLastChat}
-                                                oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
-                                                ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                type="button"
-                                            >
-                                                <ContinueCardUnreadBadge chatId={resumeChatData.chat_id} variant="compact" />
-                                                {#if resumeChatData.pinned}
-                                                    {@const PinIconCompact = getLucideIcon('pin')}
-                                                    <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
-                                                        <PinIconCompact size={15} color="white" />
-                                                    </div>
-                                                {/if}
-                                                {#if resumeChatIsCreditsError}
-                                                    <div class="resume-chat-content resume-chat-credits-content">
-                                                        <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
-                                                        {#if resumeChatUserMessagePreview}
-                                                            <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
-                                                        {/if}
-                                                    </div>
-                                                {:else}
-                                                    <div class="resume-chat-compact-icon">
-                                                        <CompactIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
-                                                    </div>
-                                                    <div class="resume-chat-content">
-                                                        {#if resumeChatData.is_shared_by_others}
-                                                            <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                        {/if}
-                                                        <span class="resume-chat-title" data-testid="resume-chat-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
-                                                </div>
-                                            </button>
-                                        {/if}
-                                    {/if}
-
-                                    <!-- ── Additional recent chats (scrollable after primary card) ── -->
-                                    <!-- Dedup: skip any chat already shown as the resume card to prevent
-                                         duplicates when loadRecentChats and resumeChatData use different sources -->
-                                    {#each visibleRecentChats as meta, i (meta.chat.chat_id)}
-                                        {@const tilt = recentChatTiltStates[i]}
-                                        {@const isDraft = !!meta.draftPreview && !meta.title}
-                                        {@const category = meta.category || 'general_knowledge'}
-                                        {@const gradientColors = isDraft ? null : getCategoryGradientColors(category)}
-                                        {@const iconName = isDraft ? '' : getValidIconName(meta.icon || '', category)}
-                                        {@const IconComponent = isDraft ? null : getLucideIcon(iconName)}
-                                        {#if isDraft}
-                                            <!-- Draft-only card: matches sidebar draft-only-layout (label + preview) -->
-                                            <button
-                                                class="resume-chat-card resume-chat-draft-card" data-testid="resume-chat-draft-card"
-                                                data-chat-id={meta.chat.chat_id}
-                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
-                                                oncontextmenu={(e) => { if (!meta.event) handleResumeCardContextMenu(e, meta.chat); }}
-                                                ontouchstart={(e) => { if (!meta.event) handleResumeCardTouchStart(e, meta.chat); }}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                type="button"
-                                            >
-                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="compact" />
-                                                <div class="resume-chat-content resume-chat-draft-content">
-                                                    <span class="resume-chat-draft-label">{$text('enter_message.draft')}</span>
-                                                    <span class="resume-chat-draft-preview">{meta.draftPreview.length > 80 ? meta.draftPreview.slice(0, 80) + '…' : meta.draftPreview}</span>
-                                                </div>
-                                            </button>
-                                        {:else if isTallViewport}
-                                            {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
-                                            {@const cardStyle = tilt?.tiltTransform
-                                                ? `${bgStyle}; transform: ${tilt.tiltTransform}`
-                                                : bgStyle}
-                                            <button
-                                                bind:this={tilt.el}
-                                                class="resume-chat-large-card" data-testid="resume-chat-large-card"
-                                                class:hovering={tilt?.hovering}
-                                                type="button"
-                                                style={cardStyle}
-                                                data-chat-id={meta.chat.chat_id}
-                                                data-pinned={meta.chat.pinned ? 'true' : 'false'}
-                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
-                                                oncontextmenu={(e) => { if (!meta.event) handleResumeCardContextMenu(e, meta.chat); }}
-                                                ontouchstart={(e) => { if (!meta.event) handleResumeCardTouchStart(e, meta.chat); }}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                onmouseenter={(e) => tilt?.onMouseEnter(e)}
-                                                onmousemove={(e) => tilt?.onMouseMove(e)}
-                                                onmouseleave={() => tilt?.onMouseLeave()}
-                                            >
-                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="large" />
-                                                {#if meta.chat.pinned}
-                                                    {@const PinIcon = getLucideIcon('pin')}
-                                                    <div class="resume-card-pin-badge" data-testid="resume-card-pin">
-                                                        <PinIcon size={18} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-orbs" aria-hidden="true">
-                                                    <div class="resume-orb resume-orb-1"></div>
-                                                    <div class="resume-orb resume-orb-2"></div>
-                                                    <div class="resume-orb resume-orb-3"></div>
-                                                </div>
-                                                 {#if IconComponent && !meta.imageBubbles}
-                                                     <div class="resume-large-deco resume-large-deco-left">
-                                                         <IconComponent size={80} color="white" />
-                                                     </div>
-                                                     <div class="resume-large-deco resume-large-deco-right">
-                                                         <IconComponent size={80} color="white" />
-                                                     </div>
-                                                 {/if}
-                                                 {#if meta.imageBubbles}
-                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
-                                                         {#each meta.imageBubbles.slice(0, 2) as bubble, index}
-                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
-                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
-                                                             </div>
-                                                         {/each}
-                                                     </div>
-                                                 {/if}
-                                                 <div class="resume-large-content">
-                                                    {#if meta.chat.is_shared_by_others}
-                                                        <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                    {/if}
-                                                    {#if IconComponent}
-                                                        <div class="resume-large-icon">
-                                                            <IconComponent size={32} color="white" />
-                                                        </div>
-                                                    {/if}
-                                                    <span class="resume-large-title" data-testid="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
-                                                    {#if meta.summary}
-                                                        <p class="resume-large-summary">{meta.summary}</p>
-                                                    {/if}
-                                                </div>
-                                            </button>
-                                        {:else}
-                                            <!-- Compact card for short or narrow viewports -->
-                                            {@const ChevronRight = getLucideIcon('chevron-right')}
-                                            <button
-                                                class="resume-chat-card" data-testid="resume-chat-card"
-                                                style={getResumeCardGradientStyle(gradientColors)}
-                                                data-chat-id={meta.chat.chat_id}
-                                                data-pinned={meta.chat.pinned ? 'true' : 'false'}
-                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
-                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
-                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                type="button"
-                                            >
-                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="compact" />
-                                                {#if meta.chat.pinned}
-                                                    {@const PinIcon = getLucideIcon('pin')}
-                                                    <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
-                                                        <PinIcon size={15} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-chat-compact-icon">
-                                                    <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
-                                                </div>
-                                                <div class="resume-chat-content">
-                                                    {#if meta.chat.is_shared_by_others}
-                                                        <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                    {/if}
-                                                    <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
-                                                </div>
-                                                <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
-                                                </div>
-                                            </button>
-                                        {/if}
-                                    {/each}
-
-                                    <!-- "+N more" overflow button (auth) -->
-                                    {#if authRecentOverflowCount > 0}
-                                        <button
-                                            class="recent-chat-overflow"
-                                            class:compact={!isTallViewport}
-                                            type="button"
-                                            onclick={() => panelState.toggleChats()}
-                                        >
-                                            +{authRecentOverflowCount}
-                                        </button>
-                                    {/if}
-                                </div>
-                            <!-- Non-auth: scrollable list of example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others || meta.draftPreview)) && nonAuthRecentChats.length > 0}
-                                <div
-                                    class="recent-chats-scroll-container"
-                                    class:large-continue-cards={isTallViewport}
-                                    data-testid="recent-chats-scroll-container"
-                                    bind:this={recentChatsScrollEl}
-                                >
-                                    {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
-                                        {@const tilt = nonAuthChatTiltStates[i]}
-                                        {@const category = meta.category || 'general_knowledge'}
-                                        {@const gradientColors = getContinueGradientColors(category, meta.event ? 'events' : null)}
-                                        {@const iconName = getValidIconName(meta.icon || '', category)}
-                                        {@const IconComponent = getLucideIcon(iconName)}
-                                        {#if meta.draftPreview}
-                                            <button
-                                                class="resume-chat-card resume-chat-draft-card" data-testid="resume-chat-draft-card"
-                                                data-chat-id={meta.chat.chat_id}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
-                                                type="button"
-                                            >
-                                                <div class="resume-chat-content resume-chat-draft-content">
-                                                    <span class="resume-chat-draft-label">{$text('enter_message.draft')}</span>
-                                                    <span class="resume-chat-draft-preview">{meta.draftPreview.length > 80 ? meta.draftPreview.slice(0, 80) + '…' : meta.draftPreview}</span>
-                                                </div>
-                                            </button>
-                                        {:else if meta.event && isTallViewport}
-                                            <EventEmbedPreview
-                                                id={meta.event.embed_id}
-                                                event={meta.event}
-                                                isMobile={false}
-                                                onFullscreen={() => openOpenMatesEventEmbed(meta.event!)}
-                                            />
-                                        {:else if isTallViewport}
-                                            {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
-                                            {@const cardStyle = tilt?.tiltTransform
-                                                ? `${bgStyle}; transform: ${tilt.tiltTransform}`
-                                                : bgStyle}
-                                            <button
-                                                bind:this={tilt.el}
-                                                class="resume-chat-large-card" data-testid="resume-chat-large-card"
-                                                class:hovering={tilt?.hovering}
-                                                 type="button"
-                                                 style={cardStyle}
-                                                 data-chat-id={meta.chat.chat_id}
-                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
-                                                 onclick={() => handleOpenRecentChat(meta.chat)}
-                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
-                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                onmouseenter={(e) => tilt?.onMouseEnter(e)}
-                                                onmousemove={(e) => tilt?.onMouseMove(e)}
-                                                onmouseleave={() => tilt?.onMouseLeave()}
-                                            >
-                                                <div class="resume-large-orbs" aria-hidden="true">
-                                                    <div class="resume-orb resume-orb-1"></div>
-                                                    <div class="resume-orb resume-orb-2"></div>
-                                                    <div class="resume-orb resume-orb-3"></div>
-                                                </div>
-                                                 {#if IconComponent && !meta.imageBubbles}
-                                                     <div class="resume-large-deco resume-large-deco-left">
-                                                         <IconComponent size={80} color="white" />
-                                                     </div>
-                                                     <div class="resume-large-deco resume-large-deco-right">
-                                                         <IconComponent size={80} color="white" />
-                                                     </div>
-                                                 {/if}
-                                                 {#if meta.imageBubbles}
-                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
-                                                         {#each meta.imageBubbles.slice(0, 2) as bubble, index}
-                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
-                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
-                                                             </div>
-                                                         {/each}
-                                                     </div>
-                                                 {/if}
-                                                   <div class="resume-large-content">
-                                                      {#if isExampleChat(meta.chat.chat_id)}
-                                                          <span class="resume-chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-                                                      {:else if meta.chat.is_shared_by_others}
-                                                          <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                      {/if}
-                                                      {#if IconComponent}
-                                                          <div class="resume-large-icon">
-                                                             <IconComponent size={32} color="white" />
-                                                        </div>
-                                                    {/if}
-                                                    <span class="resume-large-title" data-testid="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
-                                                    {#if meta.summary}
-                                                        <p class="resume-large-summary">{meta.summary}</p>
-                                                    {/if}
-                                                </div>
-                                            </button>
-                                        {:else}
-                                            <!-- Compact card for short or narrow viewports -->
-                                            {@const ChevronRight = getLucideIcon('chevron-right')}
-                                            <button
-                                                 class="resume-chat-card" data-testid="resume-chat-card"
-                                                 style={getResumeCardGradientStyle(gradientColors)}
-                                                 data-chat-id={meta.chat.chat_id}
-                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
-                                                 onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
-                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
-                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
-                                                ontouchmove={handleResumeCardTouchMove}
-                                                ontouchend={handleResumeCardTouchEnd}
-                                                type="button"
-                                            >
-                                                <div class="resume-chat-compact-icon">
-                                                    <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
-                                                </div>
-                                                  <div class="resume-chat-content">
-                                                      {#if isExampleChat(meta.chat.chat_id)}
-                                                          <span class="resume-chat-kind-badge compact" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-                                                      {:else if meta.chat.is_shared_by_others}
-                                                          <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-                                                      {/if}
-                                                      <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
-                                                  </div>
-                                                <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
-                                                </div>
-                                            </button>
-                                        {/if}
-                                    {/each}
-                                </div>
-                                <div class="guest-example-link-row" data-testid="guest-example-link-row">
-                                    <button
-                                        type="button"
-                                        class="guest-interest-select-link"
-                                        data-testid="guest-interest-select-interests"
-                                        onclick={handleGuestInterestSelectInterests}
+                                    {#each startRowEntries as entry (getStartRowEntryKey(entry))}
+                                    <div
+                                        class="start-row-slot"
+                                        animate:startRowCardFlip={{ enabled: startRowMotionEnabled }}
+                                        in:startRowCardIn={{ enabled: startRowMotionEnabled }}
                                     >
-                                        <span class="guest-link-icon guest-link-icon-heart" aria-hidden="true"></span>
-                                        <span>{$text('chat.interests.select_interests')}</span>
-                                    </button>
-                                    {#if !$authStore.isAuthenticated && showGuestAllExamplesLink}
-                                        <span class="guest-example-link-divider" aria-hidden="true"></span>
-                                        <button
-                                            type="button"
-                                            class="guest-show-all-examples"
-                                            data-testid="guest-show-all-examples"
-                                            data-surface={activeGuestSurface}
-                                            onclick={handleShowAllGuestExamples}
-                                        >
-                                            <span class="guest-link-icon guest-link-icon-surface" aria-hidden="true"></span>
-                                            <span>{$text(activeGuestAllExamplesLinkKey)}</span>
-                                        </button>
-                                    {/if}
+                                        {#if entry.kind === 'inspiration'}
+                                            {@const inspiration = entry.item}
+                                            <div class="start-row-slot" use:trackInspirationView={inspiration.inspiration_id}>
+                                                <StartScreenChatCard
+                                                    testId="start-row-inspiration-card"
+                                                    title={inspiration.title || inspiration.phrase}
+                                                    summary={inspiration.title ? inspiration.phrase : null}
+                                                    category={inspiration.category}
+                                                    badge={{
+                                                        label: $text('daily_inspiration.label'),
+                                                        testId: 'start-row-inspiration-label',
+                                                        icon: inspiration.content_type === 'video' ? 'play' : 'book-open',
+                                                    }}
+                                                    dataAttributes={{
+                                                        'data-inspiration-id': inspiration.inspiration_id,
+                                                        'data-content-type': inspiration.content_type,
+                                                    }}
+                                                    gestures={null}
+                                                    onActivate={() => handleStartChatFromInspiration(inspiration)}
+                                                />
+                                            </div>
+                                        {:else if entry.item.type === 'active'}
+                                            {@const meta = entry.item.meta}
+                                            <StartScreenChatCard
+                                                testId="start-row-active-card"
+                                                title={meta.title || $text('common.untitled_chat')}
+                                                summary={meta.summary}
+                                                category={meta.category}
+                                                icon={meta.icon}
+                                                imageBubbles={meta.imageBubbles}
+                                                chatId={meta.chat.chat_id}
+                                                pinned={!!meta.chat.pinned}
+                                                badge={getSharedChatBadge(meta.chat)}
+                                                active={{ label: $text('chats.resume_last_chat.active_card_label'), testId: 'start-row-active-pill' }}
+                                                gestures={getStartCardGestures(meta.chat)}
+                                                onActivate={() => handleOpenRecentChat(meta.chat)}
+                                            />
+                                        {:else if entry.item.type === 'priority'}
+                                            {@const item = entry.item.item}
+                                            <StartScreenChatCard
+                                                testId="continue-priority-card"
+                                                title={item.title || $text('common.untitled_chat')}
+                                                summary={item.summary}
+                                                category={item.category}
+                                                icon={item.icon}
+                                                imageBubbles={item.imageBubbles}
+                                                chatId={item.chat.chat_id}
+                                                pinned={!!item.chat.pinned}
+                                                badge={getSharedChatBadge(item.chat)}
+                                                cornerLabel={{
+                                                    label: item.priority.label,
+                                                    testId: 'continue-priority-pill',
+                                                    icon: item.priority.reason.startsWith('reminder') ? 'bell' : 'clock',
+                                                }}
+                                                dataAttributes={{ 'data-priority-reason': item.priority.reason, 'data-item-kind': 'chat' }}
+                                                gestures={getStartCardGestures(item.chat)}
+                                                onActivate={() => handleOpenRecentChat(item.chat)}
+                                            />
+                                        {:else if entry.item.type === 'resume'}
+                                            {@const resumeChat = entry.item.chat}
+                                            <StartScreenChatCard
+                                                testId="resume-chat-large-card"
+                                                title={resumeChatTitle || $text('common.untitled_chat')}
+                                                summary={resumeChatSummary}
+                                                category={resumeChatCategory}
+                                                icon={resumeChatIcon}
+                                                imageBubbles={resumeChatImageBubbles}
+                                                chatId={resumeChat.chat_id}
+                                                pinned={!!resumeChat.pinned}
+                                                badge={getSharedChatBadge(resumeChat)}
+                                                preview={resumeChatIsCreditsError
+                                                    ? { label: $text('chat.credits_needed'), text: (resumeChatUserMessagePreview ?? '').slice(0, 120) || resumeChatTitle || $text('common.untitled_chat') }
+                                                    : null}
+                                                gestures={getStartCardGestures(resumeChat)}
+                                                onActivate={handleResumeLastChat}
+                                            />
+                                        {:else if entry.item.type === 'example'}
+                                            {@const meta = entry.item.meta}
+                                            <StartScreenChatCard
+                                                testId={meta.draftPreview ? 'resume-chat-draft-card' : 'resume-chat-large-card'}
+                                                title={meta.title || $text('common.untitled_chat')}
+                                                summary={meta.summary}
+                                                category={meta.draftPreview ? null : meta.category}
+                                                icon={meta.icon}
+                                                imageBubbles={meta.imageBubbles}
+                                                chatId={meta.chat.chat_id}
+                                                pinned={!!meta.chat.pinned}
+                                                badge={isExampleChat(meta.chat.chat_id)
+                                                    ? { label: $text('chat.header.example_chat'), testId: 'example-chat-badge' }
+                                                    : getSharedChatBadge(meta.chat)}
+                                                preview={meta.draftPreview
+                                                    ? { label: $text('enter_message.draft'), text: meta.draftPreview.slice(0, 120) }
+                                                    : null}
+                                                gestures={getStartCardGestures(meta.chat)}
+                                                onActivate={() => handleOpenRecentChat(meta.chat)}
+                                            />
+                                        {:else}
+                                            {@const meta = entry.item.meta}
+                                            {@const isDraft = !!meta.draftPreview && !meta.title}
+                                            <StartScreenChatCard
+                                                testId={isDraft ? 'resume-chat-draft-card' : 'resume-chat-large-card'}
+                                                title={meta.title || $text('common.untitled_chat')}
+                                                summary={meta.summary}
+                                                category={isDraft ? null : meta.category}
+                                                icon={meta.icon}
+                                                imageBubbles={meta.imageBubbles}
+                                                chatId={meta.chat.chat_id}
+                                                pinned={!!meta.chat.pinned}
+                                                badge={getSharedChatBadge(meta.chat)}
+                                                preview={isDraft && meta.draftPreview
+                                                    ? { label: $text('enter_message.draft'), text: meta.draftPreview.slice(0, 120) }
+                                                    : null}
+                                                gestures={getStartCardGestures(meta.chat)}
+                                                onActivate={() => handleOpenRecentChat(meta.chat)}
+                                            />
+                                        {/if}
+                                    </div>
+                                    {/each}
+
+                                    <StartScreenRowActions testId="start-row-actions" actions={startRowActions} />
                                 </div>
                             {/if}
-                            {#if $authStore.isAuthenticated && hasContinueItems}
-                                <div class="guest-example-link-row" data-testid="chat-browse-controls">
-                                    <button
-                                        type="button"
-                                        class="guest-show-all-examples"
-                                        data-testid="chat-show-all"
-                                        data-surface="chats"
-                                        onclick={handleShowAllChats}
-                                    >
-                                        <span class="guest-link-icon guest-link-icon-surface" aria-hidden="true"></span>
-                                        <span>{$text('chat.welcome.show_all_chats')}</span>
-                                    </button>
-                                    <span class="guest-example-link-divider" aria-hidden="true"></span>
-                                    <button
-                                        type="button"
-                                        class="guest-show-all-examples"
-                                        data-testid="chat-search"
-                                        onclick={handleSearchGuestExamples}
-                                    >
-                                        <GuestAllExamplesSearchIcon size={18} color="currentColor" />
-                                        <span>{$text('common.search')}</span>
-                                    </button>
+                            {#if startUpcomingEntry}
+                                {@const upcoming = startUpcomingEntry}
+                                <div class="start-upcoming-row">
+                                    <StartScreenUpcomingEntry
+                                        title={upcoming.title}
+                                        timeLabel={upcoming.timeLabel}
+                                        appId={upcoming.appId}
+                                        icon={upcoming.icon}
+                                        category={upcoming.category}
+                                        variant="pill"
+                                        onActivate={upcoming.onActivate}
+                                    />
                                 </div>
                             {/if}
                             {/if}
@@ -14972,10 +14138,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
 
                     {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
-                        <ActiveChatTaskPreview
-                            chatId={currentChat.chat_id}
-                            onOpenDetails={openChatDetailsSettings}
-                        />
                         <TaskProposalReview
                             chatId={currentChat.chat_id}
                             proposals={pendingTaskProposals}
@@ -15014,11 +14176,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         </VoiceCallBar>
                     {/snippet}
 
+                    {#if subChatWork}<SubChatWorkLink work={subChatWork} onBack={handleCloseChat} />{/if}
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}
                           bind:timelineOverlayOpen
                           {timelinePanelId}
+                          onE2bConsentAnswer={(choice, requestId, chatId) => {
+                            void import('../services/chatSyncServiceHandlersE2bConsent').then((module) =>
+                              module.answerE2bUploadConsent(chatSyncService, chatId, requestId, choice));
+                          }}
                           on:timelineStateChange={(event) => { timelineAvailable = event.detail.available; timelineNarrow = event.detail.narrow; }}
                           disablePointerEvents={showWelcome}
                           voiceCallBridge={showVoiceCallBarHere && !showWelcome
@@ -15184,7 +14351,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                          <!-- New-chat suggestions are tied to the active message input. The short
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
-                         {#if (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                         {#if startScreenComposerRailVisible}
                             <div class="suggestions-wrapper composer-suggestions"
                                 data-preserve-composer-focus="true"
                                 data-testid="chat-welcome-suggestions">
@@ -15196,6 +14363,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                    onFileSelect={handleFileSuggestionClick}
                                    onEmbedSelect={handleEmbedSuggestionClick}
                                />
+                            </div>
+                         {:else if startScreenSuggestionsVisible}
+                            <!-- Start-screen suggestions sit directly above the composer, not under the
+                                 start row (issue AJV2Q); they step aside while the composer rail is open. -->
+                            <div class="suggestions-wrapper start-screen-suggestions-slot">
+                                <StartScreenChatSuggestions
+                                    isAuthenticated={$authStore.isAuthenticated}
+                                    selectedInterestTagIds={guestInterestContinueConfirmed ? selectedGuestInterestTagIds : []}
+                                    reloadKey={`${$locale ?? 'en'}:${$phasedSyncState.initialSyncCompleted}:${carouselInvalidationCounter}`}
+                                    onSuggestionClick={handleSuggestionClick}
+                                />
                             </div>
                          {/if}
 
@@ -15357,8 +14535,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         {/if}
 
                         <!-- Cancel / Save draft pill: shown below the input when focused in a chat
-                             that has the new-chat button. Blurs the editor to restore compact mode. -->
-                        {#if messageInputFocused && !callTranscriptComposerActive && !$recordingState.showRecordAudioUI}
+                             that has the new-chat button. Blurs the editor to restore compact mode.
+                             Never during a call: the call bar is the only control set then. -->
+                        {#if messageInputFocused && !voiceCallOwnsAudio && !$recordingState.showRecordAudioUI}
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"
@@ -16098,13 +15277,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     .center-content {
         position: absolute;
-        /*
-         * Center vertically in the space below the daily inspiration banner (35vh).
-         * Formula: 50% of chat-side + half the banner height keeps the element
-         * ~40px below the mathematical midpoint of the remaining space on all
-         * viewport sizes, compensating for the variable 35vh banner height.
-         */
-        top: calc(50% + 17.5vh);
+        top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -16124,13 +15297,23 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         width: 100%;
     }
 
-    .chat-side.welcome-chat-side .center-content:not(.guest-welcome-content) {
-        top: var(--welcome-banner-height);
+    /* Start screen (TASK-1321): no banner for anyone. Greeting, row and suggestions are centred in
+       the pane; on a short pane the block scrolls instead of clipping its top (safe centre).
+       The equal block padding keeps the centre where it was but stops a tall block (short phone
+       screen) from sliding under the top buttons row (issue CCFK8). */
+    .chat-side.welcome-chat-side .center-content:not(.guest-all-examples-content) {
+        top: 0;
         bottom: 0;
         transform: translateX(-50%);
-        justify-content: center;
+        justify-content: safe center;
         overflow-y: auto;
         box-sizing: border-box;
+        padding-block: var(--welcome-top-buttons-reserve, 0px);
+    }
+
+    /* The row keeps its full large-card height; the pane scrolls instead of squeezing it. */
+    .chat-side.welcome-chat-side .center-content:not(.guest-all-examples-content) > * {
+        flex-shrink: 0;
     }
 
     .center-content.guest-welcome-content {
@@ -16140,17 +15323,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         max-width: 100cqw;
     }
 
-    .center-content.guest-interest-selector-active {
-        top: calc(50% + 17.5vh - var(--spacing-24));
-    }
-
     .center-content.guest-all-examples-content {
         top: calc(50% + 30px);
         height: calc(100% - 100px);
-    }
-
-    .daily-inspiration-area.guest-all-examples-hidden {
-        display: none;
     }
 
     .team-profile {
@@ -16175,7 +15350,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         font-weight: 600;
     }
 
-    .welcome-text p {
+    /* The active-count title replaces the subtitle and looks exactly like it. */
+    .welcome-text p,
+    .welcome-text :global(.active-chats-heading) {
         position: relative;
         z-index: 1;
         margin: 8px 0 0;
@@ -16197,87 +15374,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         width: 100%;
         flex-shrink: 0;
         pointer-events: auto;
-    }
-
-    .guest-example-link-row {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--spacing-3);
-        margin-top: var(--spacing-1);
-        pointer-events: auto;
-    }
-
-    .guest-interest-select-link,
-    .guest-show-all-examples {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--spacing-2);
-        border: none;
-        background: transparent;
-        padding: var(--spacing-1) 0 0;
-        font: inherit;
-        font-size: 0.92rem;
-        font-weight: 720;
-        cursor: pointer;
-        text-decoration: none;
-        box-shadow: none;
-        filter: none;
-    }
-
-    .guest-interest-select-link {
-        color: var(--color-grey-60);
-    }
-
-    .guest-show-all-examples {
-        color: var(--color-grey-60);
-    }
-
-    .guest-link-icon {
-        width: 14px;
-        height: 14px;
-        display: inline-block;
-        flex-shrink: 0;
-        background: currentColor;
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-    }
-
-    .guest-link-icon-heart {
-        -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg');
-        mask-image: url('@openmates/ui/static/icons/heart.svg');
-    }
-
-    .guest-link-icon-surface {
-        -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
-        mask-image: url('@openmates/ui/static/icons/chat.svg');
-    }
-
-    .guest-show-all-examples[data-surface='projects'] .guest-link-icon-surface {
-        -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
-        mask-image: url('@openmates/ui/static/icons/project.svg');
-    }
-
-    .guest-show-all-examples[data-surface='workflows'] .guest-link-icon-surface {
-        -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
-        mask-image: url('@openmates/ui/static/icons/workflow.svg');
-    }
-
-    .guest-example-link-divider {
-        width: 1px;
-        height: 16px;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--color-grey-60) 26%, transparent);
-    }
-
-    .guest-show-all-examples:hover,
-    .guest-interest-select-link:hover {
-        text-decoration: underline;
-        text-underline-offset: 3px;
     }
 
     .guest-all-examples-view {
@@ -16349,7 +15445,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         );
     }
 
-    .guest-all-examples-grid .resume-chat-large-card {
+    .guest-all-examples-grid :global(.resume-chat-large-card) {
         width: 300px;
         min-width: 300px;
     }
@@ -16417,7 +15513,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             gap: var(--spacing-4);
         }
 
-        .guest-all-examples-grid .resume-chat-large-card {
+        .guest-all-examples-grid :global(.resume-chat-large-card) {
             width: 300px;
             min-width: 300px;
             align-self: center;
@@ -16482,666 +15578,38 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         display: none;
     }
 
-    /* Make resume-chat-card a fixed-width flex item inside scroll container */
-    .recent-chats-scroll-container .resume-chat-card {
-        min-width: 300px;
-        max-width: 300px;
-        flex-shrink: 0;
-    }
-
-    /* Make resume-chat-large-card a fixed-width flex item inside scroll container */
-    .recent-chats-scroll-container .resume-chat-large-card {
-        flex-shrink: 0;
-    }
-
-    /* Real embed previews inside the centered welcome carousel keep their own layout alignment.
-       Only the custom chat resume cards should inherit the centered welcome-card typography. */
+    /* Real embed previews inside the welcome carousel keep their own layout alignment. */
     .recent-chats-scroll-container :global(.unified-embed-preview) {
         text-align: left;
     }
 
     .recent-chats-scroll-container.large-continue-cards {
-        /* Use the rendered card mode: tall, narrow panes still show compact pills. */
         padding: 17.5px 48px 17px calc(50% - 150px);
     }
 
-    /* "+N" overflow pill matching card height */
-    .recent-chat-overflow {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 56px;
-        min-width: 56px;
-        height: 200px;
-        margin-top: var(--spacing-8);
-        border-radius: var(--radius-8);
-        background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
-        border: 1.5px dashed var(--color-grey-40);
-        font-size: var(--font-size-small);
-        font-weight: 700;
-        color: var(--color-grey-60);
-        cursor: pointer;
-        flex-shrink: 0;
-        transition: background var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
-        pointer-events: auto;
-    }
-
-    .recent-chat-overflow.compact {
-        width: clamp(54px, 15vw, 66px);
-        min-width: clamp(54px, 15vw, 66px);
-        height: 44px;
-        border-radius: 18px;
-        padding: 0 10px;
-        font-size: var(--font-size-xs);
-        line-height: 1;
-    }
-
-    .recent-chat-overflow:hover {
-        background: var(--color-grey-30, rgba(0, 0, 0, 0.12));
-        color: var(--color-grey-80);
-        border-color: var(--color-grey-50);
-    }
-
-    /* Resume chat card - shown in center-content below welcome greeting */
-    .resume-chat-card {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-6);
-        width: 100%;
-        max-width: 400px;
-        min-height: 44px;
-        padding: var(--spacing-5) var(--spacing-8);
-        background-color: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: var(--radius-8);
-        cursor: pointer;
-        overflow: hidden;
-        box-shadow:
-            0 5px 16px rgba(0, 0, 0, 0.11),
-            0 1px 4px rgba(0, 0, 0, 0.08);
-        transition:
-            background-position 0.25s ease,
-            transform 0.15s ease-out,
-            box-shadow 0.2s ease-out,
-            border-color 0.2s ease;
-        background-size: 140% 140%;
-        background-position: 0% 50%;
-        text-align: left;
-        pointer-events: auto;
-    }
-
-    .resume-chat-card:hover {
-        background-color: transparent;
-        border-color: rgba(255, 255, 255, 0.24);
-        background-position: 100% 50%;
-        transform: translateY(-1px);
-        box-shadow:
-            0 7px 20px rgba(0, 0, 0, 0.13),
-            0 2px 6px rgba(0, 0, 0, 0.09);
-    }
-
-    .resume-chat-card:active {
-        background-color: transparent;
-        transform: scale(0.98);
-        box-shadow:
-            0 3px 9px rgba(0, 0, 0, 0.1),
-            0 1px 2px rgba(0, 0, 0, 0.07);
-        filter: none;
-    }
-
-    .resume-chat-card:focus {
-        outline: 2px solid rgba(255, 255, 255, 0.5);
-        outline-offset: 2px;
-    }
-
-    /* Draft-only card: matches sidebar draft-only-layout (label + preview, no gradient) */
-    .resume-chat-draft-card {
-        background: var(--color-grey-10);
-        border-color: var(--color-grey-10);
-    }
-
-    .resume-chat-draft-card:hover {
-        background: var(--color-grey-20);
-        border-color: var(--color-grey-25);
-    }
-
-    .resume-chat-draft-content {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-1);
-        flex: 1;
-        min-width: 0;
-    }
-
-    .resume-chat-draft-label {
-        font-size: var(--font-size-p);
-        color: var(--color-grey-60);
-        font-weight: 400;
-    }
-
-    .resume-chat-draft-preview {
-        font-size: var(--font-size-p);
-        font-weight: 500;
-        color: var(--color-font-primary);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* Pin badge — top-right corner of large and compact cards */
-    .resume-card-pin-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.22);
-        backdrop-filter: blur(4px);
-        z-index: var(--z-index-raised-2);
-    }
-
-    .resume-card-pin-badge.compact {
-        top: 50%;
-        right: 38px;
-        transform: translateY(-50%);
-        width: 26px;
-        height: 26px;
-    }
-
-    .resume-card-pin-badge :global(svg) {
-        transform: rotate(45deg);
-    }
-
-    .continue-priority-card {
-        border-color: rgba(255, 255, 255, 0.28);
-        box-shadow:
-            0 8px 22px rgba(255, 149, 0, 0.12),
-            0 5px 16px rgba(0, 0, 0, 0.11),
-            0 1px 4px rgba(0, 0, 0, 0.08);
-    }
-
-    .continue-priority-pill {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        z-index: var(--z-index-raised-4);
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        max-width: calc(100% - 24px);
-        padding: 5px 9px;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.28);
-        color: white;
-        font-size: var(--font-size-xxs);
-        font-weight: 700;
-        line-height: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-    }
-
-    .continue-priority-pill.compact {
-        position: static;
-        max-width: 100%;
-        width: fit-content;
-        margin-bottom: 2px;
-        padding: 3px 7px;
-        font-size: var(--font-size-tiny);
-    }
-
-    .continue-priority-content {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .resume-chat-compact-icon {
-        width: 18px;
-        min-width: 18px;
-        height: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        opacity: 0.96;
-    }
-
-    .resume-chat-compact-icon :global(svg) {
-        width: 18px;
-        height: 18px;
-    }
-
-    .resume-chat-content {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-align: left;
-    }
-
-    /* Credits-error variant of the resume card content — mirrors Chat.svelte draft-only-layout */
-    .resume-chat-credits-content {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .resume-chat-credits-label {
-        font-size: var(--font-size-small);
-        color: rgba(255, 255, 255, 0.78);
-    }
-
-    .resume-chat-credits-preview {
-        font-size: null;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.96);
-        text-align: left;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: block;
-        margin-top: var(--spacing-1);
-    }
-
-    .resume-chat-title {
-        font-size: null;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.96);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: block;
-        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
-    }
-
-    .resume-chat-kind-badge {
-        align-self: flex-start;
-        display: inline-flex;
-        align-items: center;
-        width: fit-content;
-        border-radius: var(--radius-full);
-        padding: 3px 7px;
-        background: rgba(255, 255, 255, 0.18);
-        color: rgba(255, 255, 255, 0.94);
-        font-size: 0.66rem;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: 0.01em;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
-        backdrop-filter: blur(10px);
-    }
-
-    .resume-chat-kind-badge.compact {
-        margin-bottom: 3px;
-    }
-
-    .resume-chat-arrow {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        opacity: 0.82;
-    }
-
-    /* ===========================================
-       Large gradient card — tall viewports (≥800px)
-       Matches the ChatEmbedPreview design used in the
-       for-everyone chat's linked-chat cards.
-       =========================================== */
-
-    .resume-chat-large-card {
-        position: relative;
-        /* Desktop dimensions match ChatEmbedPreview */
-        width: 300px;
-        min-width: 300px;
-        max-width: 300px;
-        height: 200px;
-        min-height: 200px;
-        max-height: 200px;
-        border-radius: 30px;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-touch-callout: none;
-        border: none;
-        padding: 0;
-        margin-right: 0;
-        min-width: 0;
-        filter: none;
-        background-color: transparent;
-        scale: 1;
-        /* Re-enable pointer events (parent center-content has pointer-events: none) */
-        pointer-events: auto;
-        /* Shadow matching ChatEmbedPreview */
-        box-shadow:
-            0 5px 16px rgba(0, 0, 0, 0.11),
-            0 1px 4px rgba(0, 0, 0, 0.08);
-        transition:
-            transform 0.15s ease-out,
-            box-shadow 0.2s ease-out;
-    }
-
-    /* Override global button hover/active rules from styles/buttons.css */
-    .resume-chat-large-card:hover,
-    .resume-chat-large-card:active,
-    .resume-chat-large-card.hovering {
-        background-color: transparent;
-        filter: none;
-        scale: 1;
-    }
-
-    .resume-chat-large-card.hovering {
-        box-shadow:
-            0 3px 9px rgba(0, 0, 0, 0.1),
-            0 1px 2px rgba(0, 0, 0, 0.07);
-    }
-
-    /* CSS fallback hover (non-JS scenarios) */
-    .resume-chat-large-card:hover:not(.hovering) {
-        transform: scale(0.98);
-        box-shadow:
-            0 3px 9px rgba(0, 0, 0, 0.1),
-            0 1px 2px rgba(0, 0, 0, 0.07);
-    }
-
-    .resume-chat-large-card:active {
-        transform: scale(0.96) !important;
-        transition: transform 0.05s ease-out;
-    }
-
-    .resume-chat-large-card:focus {
-        outline: 2px solid rgba(255, 255, 255, 0.5);
-        outline-offset: 2px;
-    }
-
-    /* Centered content overlay */
-    .resume-large-content {
-        position: relative;
-        z-index: var(--z-index-raised-3);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--spacing-2);
-        padding: var(--spacing-8) var(--spacing-12);
-        max-width: 260px;
-        width: 100%;
-        /* Ensure text is readable over the gradient orbs */
-        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    .resume-large-content .resume-chat-kind-badge {
-        align-self: center;
-    }
-
-    .resume-large-icon {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .resume-large-title {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        font-size: var(--font-size-p);
-        font-weight: 700;
-        /* Always white regardless of theme — sits on the branded gradient resume card. */
-        color: var(--color-font-button);
-        text-align: center;
-        line-height: 1.3;
-        max-width: 100%;
-    }
-
-    /* Summary line below the title — matches ChatEmbedPreview card-summary */
-    .resume-large-summary {
-        margin: 2px 0 0;
-        font-size: var(--font-size-xxs);
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.85);
-        line-height: 1.4;
-        text-align: center;
-        /* Clamp to 4 lines */
-        display: -webkit-box;
-        -webkit-line-clamp: 4;
-        line-clamp: 4;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    /* ── Living gradient orbs ──────────────────────────────────────────────────
-       Same technique as ChatHeader.svelte and DailyInspirationBanner.svelte.
-       The card is smaller (300×200px) so orbs are proportionally smaller too.
-       --orb-color-a / --orb-color-b are set by getResumeLargeCardStyle(). */
-
-    .resume-large-orbs {
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        pointer-events: none;
-        overflow: hidden;
-        border-radius: 30px; /* match card border-radius so orbs don't bleed */
-    }
-
-    .resume-orb {
-        position: absolute;
-        /* Orbs sized ~same as the card so they fill it generously */
-        width: 280px;
-        height: 240px;
-        background: radial-gradient(
-            ellipse at center,
-            var(--orb-color-b) 0%,
-            var(--orb-color-b) 40%,
-            transparent 85%
-        );
-        filter: blur(22px);
-        opacity: 0.35;
-        will-change: transform, border-radius;
-    }
-
-    .resume-orb-1 {
-        top: -60px;
-        left: -70px;
-        animation:
-            orbMorph1 11s ease-in-out infinite,
-            resumeOrbDrift1 19s ease-in-out infinite;
-    }
-
-    .resume-orb-2 {
-        bottom: -80px;
-        right: -80px;
-        width: 260px;
-        height: 220px;
-        animation:
-            orbMorph2 13s ease-in-out infinite,
-            resumeOrbDrift2 23s ease-in-out infinite;
-    }
-
-    .resume-orb-3 {
-        top: -10px;
-        left: 25%;
-        width: 200px;
-        height: 180px;
-        opacity: 0.38;
-        animation:
-            orbMorph3 17s ease-in-out infinite,
-            resumeOrbDrift3 29s ease-in-out infinite;
-    }
-
-    /* Orb morph uses shared orbMorph1/2/3 keyframes (animations.css).
-       Orb drift uses smaller resumeOrbDrift1/2/3 keyframes (animations.css). */
-    @media (prefers-reduced-motion: reduce) {
-        .resume-orb { animation: none !important; }
-    }
-
-    /* ── Large decorative icons at card corners ─────────────────────────────
-       Two-phase: decoEnter (one-shot) → decoFloat (16s circular orbit).
-       Smaller orbit radius than banners to suit the 300×200 card.
-       Right icon starts half a cycle ahead for opposing orbital phase.
-       All @keyframes in animations.css. */
-    .resume-large-deco {
-        position: absolute;
-        width: 80px;
-        height: 80px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: var(--z-index-raised);
-        pointer-events: none;
-        /* Smaller orbit radius for the compact card */
-        --float-rx: 7px;
-        --float-ry: 8px;
-        --deco-target-opacity: 0.3;
-        animation:
-            decoEnter 0.6s ease-out 0.1s both,
-            decoFloat 16s linear 0.7s infinite;
-    }
-
-    .resume-large-deco-left {
-        left: -10px;
-        bottom: -8px;
-        --deco-rotate: -15deg;
-    }
-
-    .resume-large-deco-right {
-        right: -10px;
-        bottom: -8px;
-        --deco-rotate: 15deg;
-        /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
-           Positive delay would freeze the icon for 8.7s then snap — use negative
-           to begin mid-orbit immediately with no wait or jump. */
-        animation-delay: 0.1s, -8s;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .resume-large-deco {
-            animation: decoEnter 0.6s ease-out 0.1s both !important;
+    /* Authenticated start row (TASK-1321): the first card stays centred (padding from .large-continue-cards). Phone cards are
+       min(280px, 76vw) wide (StartScreenChatCard), so the centring offset follows that width. */
+    @media (max-width: 480px) {
+        .recent-chats-scroll-container.start-row {
+            padding-left: calc(50% - min(140px, 38vw));
+            padding-right: var(--spacing-8);
         }
     }
 
-    /* Ensure Lucide SVGs inside deco elements render at the right size */
-    .resume-large-deco :global(svg) {
-        width: 80px !important;
-        height: 80px !important;
+    .start-row-slot {
+        display: flex;
+        flex-shrink: 0;
     }
 
-    .resume-card-image-bubbles {
-        position: absolute;
-        inset: 0;
-        z-index: var(--z-index-raised-2);
-        pointer-events: none;
-    }
-
-    .resume-card-image-bubble {
-        position: absolute;
-        width: 92px;
-        height: 92px;
-        border-radius: 999px;
-        overflow: hidden;
+    .start-upcoming-row {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        padding: 0 var(--spacing-8);
         box-sizing: border-box;
-        opacity: 0.52;
-        background:
-            radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.64), transparent 16%),
-            radial-gradient(circle at 70% 76%, rgba(0, 0, 0, 0.25), transparent 38%),
-            rgba(255, 255, 255, 0.12);
-        border: 2px solid rgba(255, 255, 255, 0.42);
-        box-shadow:
-            inset 10px 12px 22px rgba(255, 255, 255, 0.32),
-            inset -12px -16px 26px rgba(0, 0, 0, 0.28),
-            inset 0 0 0 5px rgba(255, 255, 255, 0.08),
-            0 14px 28px rgba(0, 0, 0, 0.24);
-        animation: resumeImageBubbleFloat 18s linear infinite;
+        pointer-events: auto;
     }
 
-    .resume-card-image-bubble::before,
-    .resume-card-image-bubble::after {
-        content: '';
-        position: absolute;
-        border-radius: 999px;
-        pointer-events: none;
-        z-index: 2;
-    }
-
-    .resume-card-image-bubble::before {
-        top: 10px;
-        left: 15px;
-        width: 32px;
-        height: 19px;
-        background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.12) 62%, transparent 72%);
-        filter: blur(1px);
-        transform: rotate(-30deg);
-    }
-
-    .resume-card-image-bubble::after {
-        inset: 0;
-        background:
-            radial-gradient(ellipse at 36% 18%, rgba(255, 255, 255, 0.4), transparent 19%),
-            radial-gradient(ellipse at 72% 84%, rgba(0, 0, 0, 0.26), transparent 36%),
-            linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 32%, rgba(255, 255, 255, 0.08) 64%, rgba(0, 0, 0, 0.24));
-        border: 1px solid rgba(255, 255, 255, 0.58);
-        box-shadow:
-            inset 0 0 20px rgba(255, 255, 255, 0.24),
-            inset 0 0 44px rgba(255, 255, 255, 0.08);
-    }
-
-    .resume-card-image-bubble img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        filter: saturate(1.1) contrast(1.06);
-        transform: scale(1.04);
-    }
-
-    .resume-card-image-bubble-left {
-        left: -18px;
-        bottom: -18px;
-        --resume-image-bubble-rotate: -14deg;
-    }
-
-    .resume-card-image-bubble-right {
-        right: -18px;
-        bottom: -18px;
-        --resume-image-bubble-rotate: 14deg;
-        animation-delay: -9s;
-    }
-
-    @keyframes resumeImageBubbleFloat {
-        0%, 100% {
-            transform: translate3d(0, -7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg));
-        }
-        25% {
-            transform: translate3d(6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) + 2deg));
-        }
-        50% {
-            transform: translate3d(0, 7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg));
-        }
-        75% {
-            transform: translate3d(-6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) - 2deg));
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .resume-card-image-bubble { animation: none !important; }
-    }
-
-    
     /* Read-only indicator for shared chats */
     .read-only-indicator {
         display: flex;
@@ -17185,6 +15653,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     .composer-suggestions { width: 100%; }
+    .start-screen-suggestions-slot {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: var(--spacing-4);
+    }
 
     .message-input-container {
         position: relative;
@@ -17395,10 +15869,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         pointer-events: none;
     }
 
-    .chat-side.welcome-chat-side .daily-inspiration-area:not(.welcome-hiding) {
-        pointer-events: auto;
-    }
-
     .active-chat-history-state {
         position: absolute;
         z-index: var(--z-index-raised-1);
@@ -17586,16 +16056,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             /* Global header controls sit above the chat on compact screens. */
             right: 10px;
         }
-        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh).
-           Include the welcome top-buttons row below it so the greeting centers in
-           the remaining space above the message input. */
-        .center-content {
-            top: calc(50% + 127px);
-        }
-
-        .center-content.guest-interest-selector-active {
-            top: calc(50% + 127px - var(--spacing-24));
-        }
     }
 
     /*
@@ -17620,37 +16080,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         flex-direction: row-reverse;
     }
 
-    /*
-     * Daily inspiration area wrapper.
-     * No padding — the banner spans edge-to-edge within the chat-side container.
-     * Horizontal padding is handled inside DailyInspirationBanner.svelte's .banner-inner.
-     */
-    .daily-inspiration-area {
-        --daily-inspiration-area-height: clamp(190px, 50.9383cqi, 420px);
-        flex: 0 0 var(--daily-inspiration-area-height);
-        width: 100%;
-        height: var(--daily-inspiration-area-height);
-        min-height: 250px;
-        max-height: 35dvh;
-        box-sizing: border-box;
-    }
-
-    .daily-inspiration-area.landing-intro-overlay-active {
-        --daily-inspiration-area-height: max(35vh, 240px);
-        min-height: 0;
-        max-height: none;
-    }
-
-    @media (max-width: 730px) {
-        .daily-inspiration-area {
-            min-height: 190px;
-        }
-
-        .daily-inspiration-area.landing-intro-overlay-active {
-            --daily-inspiration-area-height: 190px;
-        }
-    }
-
     /* Welcome content fade transition: on short viewports, the daily inspiration
        and welcome greeting fade out via CSS opacity when the message input is
        focused, instead of being removed from DOM.  This avoids ResizeObserver
@@ -17658,14 +16087,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
        visibility:hidden is delayed by 200ms so it kicks in AFTER opacity reaches
        0, preventing interaction with invisible content.  On fade-in (class
        removed), visibility:visible applies immediately via the base 0s delay. */
-    .daily-inspiration-area,
     .center-content,
     .guest-interest-tags-overlay,
     .top-buttons {
         transition: opacity 200ms ease, visibility 0s 0s;
     }
 
-    .daily-inspiration-area.welcome-hiding,
     .center-content.welcome-hiding,
     .guest-interest-tags-overlay.welcome-hiding,
     .top-buttons.welcome-hiding {
@@ -17678,6 +16105,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     .center-content.welcome-hiding *,
     .top-buttons.welcome-hiding * {
         pointer-events: none !important;
+    }
+
+    /* The start row sets visibility: visible for its own scroll layout; while the welcome
+       hides it must follow the welcome, after the same 200ms fade. */
+    .center-content.welcome-hiding .recent-chats-scroll-container {
+        visibility: hidden;
+        transition: visibility 0s 200ms;
     }
 
     /* Admin debug mode button: highlighted while debug mode is active. */

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.focus-modes
-version: 3
-status: draft
+version: 4
+status: approved
 title: Focus Modes — Shared Operation and Display
 summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical display
   for all focus modes.
@@ -155,7 +155,10 @@ assertions:
     is the default; linked product, design and technical Specifications are drafted only after the user agreed to a proposed
     split. No Plan, Task or implementation starts before the user approved the drafted Specification and its acceptance Checks;
     a request to move on is not approval, so the assistant asks plainly once. After approval the hand-off creates a Plan with
-    the Plans create skill and chat-linked Tasks so automatic continuation can work through them. While the focus is active,
+    the Plans create skill, carrying the Specification's open assumptions, and then works through sub-chats. One sub-chat per
+    open assumption checks it, and after the results the Plan's Tasks are created and each Task is implemented in its own
+    sub-chat. The main chat only coordinates - it summarises sub-chat results and asks the user's decisions - and does not
+    check assumptions or implement Tasks itself; automatic continuation works through the open Tasks. While the focus is active,
     the Plans specification, check and create skills and the Tasks create skill stay offered on every turn unless the user
     explicitly selected other skills.
   depends_on:
@@ -185,8 +188,9 @@ assertions:
     focus such as Write specification or the planner, or a Focus stored in that Project, is layered on top of the base
     when the user names it or when the request uniquely matches it, for example a request for a new feature matching Write
     specification or a request matching a Project Focus such as Add a new provider. Explicit naming activates at once;
-    a match uses the normal countdown proposal. Both instruction layers apply together. At most one focus is layered at
-    a time; activating another replaces the layered focus, never the base.
+    a match uses the normal countdown proposal. Both instruction layers apply together. At most two focus modes are active
+    at once, the Project base plus one specific focus on top. Activating another focus keeps the Project base, switches
+    the current specific focus off and layers the new one in its place.
   depends_on:
   - examples.project_layering
 - id: focus-modes.layer-end
@@ -238,10 +242,12 @@ assertions:
     Focus catalog of titles and summaries, including inactive Focuses. It may select existing IDs for full inspection or recommend
     a useful non-overlapping new Project Focus and expose Create directly. A new Project Focus is not recommended for a goal a
     built-in focus mode already serves (the assessment also receives the names and descriptions of the built-in focus modes);
-    a Project-specific style for such a goal belongs in a Project Memory. Improvement proposals for public/app Focuses or
+    a Project-specific style for such a goal belongs in a Project Memory. An explicit user request to create a Focus is a
+    reusable goal that a Memory never covers; the assistant does not save it as a Memory or Project file but points to the
+    Create Focus suggestion, and the assessment recommends Create unless a catalog Focus covers it. Improvement proposals for public/app Focuses or
     personal/global Focuses outside Projects are excluded. Catalog assessment performs no generative authoring. Where the
-    chat Recommendations card is shown, Project Focus Create/Update suggestions appear in it next to Memory and Workflow
-    recommendations instead of a separate "Suggested Project improvements" block; the started job's progress and Save step
+    chat Recommendations card is shown, Project Focus Create/Update suggestions appear in it next to Memory
+    recommendations (Workflow suggestions never appear in the open chat view) instead of a separate "Suggested Project improvements" block; the started job's progress and Save step
     stay in the chat history.
   depends_on:
   - examples.recommendation_catalog

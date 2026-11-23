@@ -11,6 +11,7 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import Icon from '../Icon.svelte';
   import ProcessingWheel from '../chats/ProcessingWheel.svelte';
+  import { aliasEnhancedPlaceholders } from '../../services/piiDisplayAliases';
 
   let {
     title,
@@ -62,7 +63,7 @@
     {#if badge}<span class="resume-chat-kind-badge">{badge}</span>{/if}
     <div class="resume-large-icon">{#if processing}<ProcessingWheel />{:else if appIconUrl}<img class="apps-large-glyph" data-testid="apps-card-glyph" src={appIconUrl} alt="" />{:else if appGlyph}<Icon name={appGlyph} size="32px" color="white" noMargin ariaHidden />{:else}<IconComponent size={32} color="white" />{/if}</div>
     <span class="resume-large-title">{title}</span>
-    {#if summary}<p class="resume-large-summary">{summary}</p>{/if}
+    {#if summary}<p class="resume-large-summary">{aliasEnhancedPlaceholders(summary)}</p>{/if}
   </div>
 {/snippet}
 
@@ -106,13 +107,15 @@
   .processing .resume-large-summary { color: var(--color-font-secondary); }
   .processing .resume-chat-kind-badge { color: var(--color-font-secondary); background: var(--color-grey-20); }
   .processing .resume-large-content { text-shadow: none; }
+  @media (max-width: 480px) { .workspace-continue-card:not(.fluid) { width: min(280px, 76vw); min-width: min(280px, 76vw); max-width: min(280px, 76vw); } }
   .workspace-continue-card.fluid { width: min(100%, 300px); min-width: 0; }
   .workspace-continue-card:active { transform: scale(0.96); transition: transform 0.05s ease-out; }
   .workspace-continue-card:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 2px; }
   .resume-large-content { position: relative; z-index: var(--z-index-raised-3); display: flex; flex-direction: column; align-items: center; gap: var(--spacing-2); width: 100%; max-width: 260px; padding: var(--spacing-8) var(--spacing-12); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
   .resume-chat-kind-badge { display: inline-flex; align-items: center; width: fit-content; padding: 3px 7px; border-radius: var(--radius-full); background: rgba(255, 255, 255, 0.18); color: rgba(255, 255, 255, 0.94); font-size: var(--workspace-card-badge-font-size, 0.66rem); font-weight: 700; line-height: 1; backdrop-filter: blur(10px); }
   .resume-large-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; }
-  .apps-large-glyph { width: 50%; height: 50%; object-fit: contain; filter: brightness(0) invert(1); }
+  /* App glyphs fill their box like the icons on every other workspace card (32px centre, 80px decoration). */
+  .apps-large-glyph { width: 100%; height: 100%; object-fit: contain; filter: brightness(0) invert(1); }
   .resume-large-title { display: -webkit-box; max-width: 100%; overflow: hidden; color: var(--color-font-button); font-size: var(--workspace-card-title-font-size, var(--font-size-p)); font-weight: 700; line-height: 1.3; text-align: center; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
   .resume-large-summary { display: -webkit-box; margin: 2px 0 0; overflow: hidden; color: rgba(255, 255, 255, 0.85); font-size: var(--workspace-card-summary-font-size, var(--font-size-xxs)); font-weight: 500; line-height: 1.4; text-align: center; -webkit-box-orient: vertical; -webkit-line-clamp: var(--workspace-card-summary-lines, 4); line-clamp: var(--workspace-card-summary-lines, 4); }
   .resume-large-orbs { position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: 30px; pointer-events: none; }

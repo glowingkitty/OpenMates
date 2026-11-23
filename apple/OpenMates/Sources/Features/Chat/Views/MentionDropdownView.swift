@@ -2,6 +2,9 @@
 // Mirrors the web app's enter_message/MentionDropdown.svelte trigger and insertion contract:
 // @ at the start of a word opens suggestions, selection inserts backend mention syntax.
 // Uses local native suggestions because the web source builds mention data client-side.
+// No auto-selection notice above the results: on iPhone, with the keyboard up, it took
+// all the height and hid the list (owner request, TASK-1410 item 5c). The dropdown
+// closes by deleting the "@" or picking a result.
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
@@ -15,7 +18,6 @@ import SwiftUI
 struct MentionDropdownView: View {
     let query: String
     let onSelect: (MentionItem) -> Void
-    let onDismiss: () -> Void
 
     private var filteredItems: [MentionItem] {
         let allItems = MentionItem.defaultItems
@@ -28,8 +30,6 @@ struct MentionDropdownView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(filteredItems) { item in
@@ -62,36 +62,6 @@ struct MentionDropdownView: View {
         .clipShape(RoundedRectangle(cornerRadius: .radius7))
         .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 4)
         .accessibilityIdentifier("mention-dropdown")
-    }
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: .spacing6) {
-            Text(LocalizationManager.shared.text("enter_message.mention_dropdown.header"))
-                .font(.omP)
-                .foregroundStyle(Color.fontTertiary)
-                .lineLimit(2)
-
-            Spacer()
-
-            Button(action: onDismiss) {
-                Icon("close", size: 16)
-                    .foregroundStyle(Color.fontTertiary)
-                    .frame(width: 32, height: 32)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
-            }
-            .buttonStyle(.plain)
-            .help(Text(AppStrings.close))
-            .accessibilityLabel(AppStrings.close)
-        }
-        .padding(.horizontal, .spacing8)
-        .padding(.top, .spacing8)
-        .padding(.bottom, .spacing6)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.grey20)
-                .frame(height: 1)
-        }
     }
 
     private func row(for item: MentionItem) -> some View {

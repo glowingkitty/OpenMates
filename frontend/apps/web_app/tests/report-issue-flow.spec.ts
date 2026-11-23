@@ -17,8 +17,9 @@
  *      - response.issue_id is set
  *      - response.screenshot_uploaded === true  ← proves synchronous S3 upload
  * 8. Verify the confirmation page appears with a report summary and returned issue ID
- * 9. Poll GET /v1/settings/issues/{id}/status until has_yaml_report === true
- *    (the YAML upload happens in a celery email task, usually within a few seconds)
+ * 9. Poll GET /v1/settings/issues/{id}/status?verify_yaml=true until has_yaml_report === true
+ *    and yaml_report_readable === true (the YAML upload happens in a celery email task;
+ *    verify_yaml makes the server read it back from S3 and decrypt it)
  * 10. Click "Submit another report" — verify form resets
  *
  * Bug history this test suite guards against:
@@ -30,6 +31,8 @@
  *   ephemeral_log_promotion celery task + worker-level cache singleton reused
  *   across event loops. This spec must assert both the screenshot path AND the
  *   YAML report path end-to-end so future regressions are caught immediately.
+ * - TASK-1164 (2026-11-21): reports looked unreadable to debug chats. A stored
+ *   key alone is not proof, so the spec also requires the YAML to read back.
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -256,6 +259,7 @@ test.describe('Report Issue Flow', () => {
 					issue_id: '00000000-0000-4000-8000-000000000404',
 					short_issue_id: 'ABCD4',
 					screenshot_uploaded: false,
+					screenshots_uploaded: 0,
 				}),
 			});
 		});
@@ -364,7 +368,7 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.short_issue_id).toMatch(/^[A-HJ-NP-Z2-9]{5}$/);
 	});
 
-	// contract-test: direct surface=gui.web assertions=issue-reporting.submission.confirmed-and-durable,issue-reporting.form.single-text-quick-actions,issue-reporting.automation.admin-dev-claude-chat,issue-reporting.logs.authenticated-capture,chat-share-settings.shared-link-open,settings-ui.composition.canonical-and-accessible,settings-ui.localization.visible-content-resolves
+	// contract-test: direct surface=gui.web assertions=issue-reporting.submission.confirmed-and-durable,issue-reporting.logs.debug-report-readable,issue-reporting.form.single-text-quick-actions,issue-reporting.automation.admin-dev-claude-chat,issue-reporting.logs.authenticated-capture,chat-share-settings.shared-link-open,settings-ui.composition.canonical-and-accessible,settings-ui.localization.visible-content-resolves
 	test('Report issue form submits successfully and shows confirmation', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('REPORT_ISSUE');
 		await installAnonymousUsageStatusStub(page);
@@ -479,17 +483,20 @@ test.describe('Report Issue Flow', () => {
 		// The "Image" quick action clicks this input; setInputFiles() works on
 		// the hidden input directly.
 		const screenshotFileInput = page.getByTestId('screenshot-file-input');
-		await screenshotFileInput.setInputFiles({
-			name: 'e2e-screenshot.png',
-			mimeType: 'image/png',
-			buffer: TINY_PNG_BUFFER,
-		});
-		logCheckpoint(`Attached ${TINY_PNG_BUFFER.length}-byte test PNG via screenshot-file-input.`);
+		await screenshotFileInput.setInputFiles(
+			['e2e-screenshot-1.png', 'e2e-screenshot-2.png'].map((name) => ({
+				name,
+				mimeType: 'image/png',
+				buffer: TINY_PNG_BUFFER,
+			}))
+		);
+		logCheckpoint(`Attached 2 x ${TINY_PNG_BUFFER.length}-byte test PNG via screenshot-file-input.`);
 
 		// Wait for the FileReader onload to populate screenshotDataUrl and
 		// render the preview. The preview uses data-testid="screenshot-preview".
 		const screenshotPreview = page.getByTestId('screenshot-preview');
-		await expect(screenshotPreview).toBeVisible({ timeout: 5000 });
+		await expect(screenshotPreview).toHaveCount(2, { timeout: 5000 });
+		await expect(page.getByTestId('screenshot-count')).toHaveText('2/5');
 		logCheckpoint('Screenshot preview rendered after attach.');
 		await takeStepScreenshot(page, '04b-screenshot-attached');
 
@@ -524,6 +531,7 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.success).toBe(true);
 		expect(responseBody?.issue_id).toBeTruthy();
 		expect(responseBody?.short_issue_id).toMatch(/^[A-HJ-NP-Z2-9]{5}$/);
+		expect(responseBody?.screenshots_uploaded).toBe(2);
 		expect(responseBody?.screenshot_uploaded).toBe(true);
 		const submittedPayload = apiResponse.request().postDataJSON?.();
 		expect(submittedPayload?.contact_email).toBe(TEST_EMAIL);
@@ -549,10 +557,18 @@ test.describe('Report Issue Flow', () => {
 		// Diagnostic persistence is mandatory even when an admin disables email.
 		const issueId: string = responseBody?.issue_id;
 		const shortIssueId: string = responseBody?.short_issue_id;
-		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${shortIssueId}/status`;
+		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${shortIssueId}/status?verify_yaml=true`;
 		logCheckpoint(`Polling status endpoint: ${statusUrl}`);
 		const statusDeadline = Date.now() + 90_000; // 90s — celery + S3 upload
-		let lastStatus: { id?: string; short_issue_id?: string; has_screenshot?: boolean; has_yaml_report?: boolean; processed?: boolean } | null = null;
+		let lastStatus: {
+			id?: string;
+			short_issue_id?: string;
+			has_screenshot?: boolean;
+			has_yaml_report?: boolean;
+			yaml_report_readable?: boolean | null;
+			yaml_report_unreadable_step?: string | null;
+			processed?: boolean;
+		} | null = null;
 		let lastStatusHttp = 0;
 		while (Date.now() < statusDeadline) {
 			const statusResp = await page.request.get(statusUrl);
@@ -564,6 +580,7 @@ test.describe('Report Issue Flow', () => {
 					if (
 						lastStatus?.has_screenshot &&
 						lastStatus?.has_yaml_report &&
+						lastStatus?.yaml_report_readable === true &&
 						(lastStatus?.processed || submittedPayload?.send_email_notification)
 					) {
 						break;
@@ -581,6 +598,10 @@ test.describe('Report Issue Flow', () => {
 		expect(lastStatus?.short_issue_id).toBe(shortIssueId);
 		expect(lastStatus?.has_screenshot, 'screenshot never persisted to S3/Directus').toBe(true);
 		expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
+		expect(
+			lastStatus?.yaml_report_readable,
+			`stored YAML debug report could not be read back and decrypted (step: ${lastStatus?.yaml_report_unreadable_step})`
+		).toBe(true);
 		// Reports that request an email notification (non-admin reporters) are marked
 		// processed only after the notification email is delivered. The isolated CI
 		// stack has no email provider, so diagnostics persistence (checked above) is
@@ -590,7 +611,7 @@ test.describe('Report Issue Flow', () => {
 		} else {
 			logCheckpoint('Email notification requested: processed flag depends on email delivery, not asserted here.');
 		}
-		logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
+		logCheckpoint('Screenshot + YAML report confirmed persisted, and the YAML reads back and decrypts.');
 
 		// ── Step 7: Verify confirmation page ───────────────────────────
 		const confirmation = page.getByTestId('report-issue-confirmation');

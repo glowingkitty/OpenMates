@@ -101,12 +101,15 @@ def test_routine_image_change_detected_and_unobtainable_registry_fails_closed() 
 
 # Spec coverage: security-monitoring.release-age.routine
 # contract-test: infrastructure
-def test_security_fix_trailer_uses_the_72_hour_rule() -> None:
-    lookup = FakeLookup({("lib", "2.1.0"): ago(days=4), ("lib", "2.1.1"): ago(hours=10)})
+def test_security_fix_trailer_keeps_7_days_unless_actively_exploited() -> None:
+    lookup = FakeLookup({("lib", "2.1.0"): ago(days=8), ("lib", "2.1.1"): ago(days=4)})
     entries = [("req.txt", ("PyPI", "lib", "2.1.0")), ("req.txt", ("PyPI", "lib", "2.1.1"))]
     violations, _ = routine.evaluate(entries, now=NOW, lookup=lookup, security_fix="GHSA-xxxx")
-    # A 4-day-old fix passes the 72h rule while the 10-hour-old one is still blocked.
+    # Owner decision 21 Nov: a security fix also waits 7 days; the 4-day-old version is blocked.
     assert len(violations) == 1 and "2.1.1" in violations[0]
+    exploited, _ = routine.evaluate(entries, now=NOW, lookup=lookup, security_fix="CVE-2026-1", actively_exploited=True)
+    # An actively exploited flaw (CISA KEV) may take the younger fixed version.
+    assert exploited == []
 
 
 # Spec coverage: security-monitoring.release-age.routine
@@ -121,9 +124,9 @@ def test_requirements_parser_reads_only_pinned_changes() -> None:
 # Spec coverage: security-monitoring.release-age.security-priority
 # contract-test: infrastructure
 def test_oldest_fixing_version_old_enough_applies_immediately() -> None:
-    lookup = FakeLookup({("zod", "4.6.6"): ago(days=5), ("zod", "4.7.1"): ago(days=1)})
-    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.7.1", "4.6.6"], urgent_reachable_exposed=False, now=NOW, lookup=lookup)
-    # 4.6.6 is the oldest fixing version on the current major line and is over 72 hours old.
+    lookup = FakeLookup({("zod", "4.6.6"): ago(days=8), ("zod", "4.7.1"): ago(days=1)})
+    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.7.1", "4.6.6"], actively_exploited=False, now=NOW, lookup=lookup)
+    # 4.6.6 is the oldest fixing version on the current major line and is over 7 days old.
     assert (decision.version, decision.mode) == ("4.6.6", "immediate")
 
 
@@ -134,7 +137,7 @@ def test_young_fix_with_new_postinstall_becomes_mitigation() -> None:
         {("zod", "4.6.6"): ago(hours=10)},
         meta={"4.6.6": clean_meta(install_scripts=["postinstall"]), "4.6.5": clean_meta()},
     )
-    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], urgent_reachable_exposed=True, now=NOW, lookup=lookup)
+    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], actively_exploited=True, now=NOW, lookup=lookup)
     # The new postinstall script fails the integrity checks, so no bump is applied.
     assert decision.mode == "mitigate" and any("postinstall" in r for r in decision.reasons)
 
@@ -143,10 +146,10 @@ def test_young_fix_with_new_postinstall_becomes_mitigation() -> None:
 # contract-test: infrastructure
 def test_young_fix_with_clean_integrity_and_urgent_exposure_is_emergency() -> None:
     lookup = FakeLookup({("zod", "4.6.6"): ago(hours=10)}, meta={"4.6.6": clean_meta(), "4.6.5": clean_meta()})
-    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], urgent_reachable_exposed=True, now=NOW, lookup=lookup)
+    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], actively_exploited=True, now=NOW, lookup=lookup)
     # All integrity checks pass for an urgent exposed issue, so the emergency bump is allowed.
     assert (decision.version, decision.mode) == ("4.6.6", "emergency")
-    calm = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], urgent_reachable_exposed=False, now=NOW, lookup=lookup)
+    calm = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], actively_exploited=False, now=NOW, lookup=lookup)
     # Without urgent reachable exposure the same young version is only mitigated.
     assert calm.mode == "mitigate"
 
@@ -155,7 +158,7 @@ def test_young_fix_with_clean_integrity_and_urgent_exposure_is_emergency() -> No
 # contract-test: infrastructure
 def test_unverifiable_integrity_fails_closed_to_mitigate() -> None:
     lookup = FakeLookup({("lib", "2.0.1"): ago(hours=5)}, meta={"2.0.1": {"publisher": None, "install_scripts": None, "dependencies": ["a"]}, "2.0.0": {"publisher": None, "install_scripts": None, "dependencies": ["a"]}}, flags=None, previous="2.0.0")
-    decision = age.select_fix_version("PyPI", "lib", "2.0.0", ["2.0.1"], urgent_reachable_exposed=True, now=NOW, lookup=lookup)
+    decision = age.select_fix_version("PyPI", "lib", "2.0.0", ["2.0.1"], actively_exploited=True, now=NOW, lookup=lookup)
     # Unknown publisher, install scripts and content diff all count as failures.
     assert decision.mode == "mitigate" and sum("unverifiable" in r for r in decision.reasons) == 3
 
@@ -167,7 +170,7 @@ def test_malicious_record_and_changed_publisher_block_emergency() -> None:
         {("zod", "4.6.6"): ago(hours=2)}, malicious=True,
         meta={"4.6.6": clean_meta(publisher="attacker"), "4.6.5": clean_meta()},
     )
-    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], urgent_reachable_exposed=True, now=NOW, lookup=lookup)
+    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.6"], actively_exploited=True, now=NOW, lookup=lookup)
     # A MAL- record and a publisher change are both reported and prevent the bump.
     assert decision.mode == "mitigate" and any("MAL-" in r for r in decision.reasons) and any("publisher changed" in r for r in decision.reasons)
 
@@ -178,7 +181,7 @@ def test_version_choice_prefers_current_major_line_and_handles_no_fix() -> None:
     # The lowest fix on the current major wins over a lower-numbered other-major fix being absent.
     assert age.choose_oldest_fix("4.6.2", ["5.0.1", "4.7.1", "4.6.6"]) == "4.6.6"
     assert age.choose_oldest_fix("4.6.2", ["5.0.1"]) == "5.0.1"
-    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.1"], urgent_reachable_exposed=True, now=NOW, lookup=FakeLookup({}))
+    decision = age.select_fix_version("npm", "zod", "4.6.2", ["4.6.1"], actively_exploited=True, now=NOW, lookup=FakeLookup({}))
     # A fix that is not above the current version leaves only mitigation.
     assert decision.version is None and decision.mode == "mitigate"
 

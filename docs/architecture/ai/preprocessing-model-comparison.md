@@ -43,7 +43,7 @@ claims:
 
 # Preprocessing Model Comparison Report
 
-> Benchmark comparison of Mistral models for preprocessing/postprocessing, concluding that Mistral Small is the optimal choice.
+> Historical benchmark of Mistral models for preprocessing/postprocessing (February 2026). Mistral Small was the best of that comparison, but Mistral models are no longer chosen automatically; see Current utility route.
 
 ## Why This Exists
 
@@ -90,10 +90,14 @@ The preprocessing and postprocessing stages run a lightweight LLM call on every 
 ## Current utility route
 
 Small 3.2 and Ministral 3 8B have been removed from the provider catalog.
-Utility calls now use `mistral/mistral-small-latest` (Small 4), with
-`openrouter/mistralai/mistral-small-2603` as its configured server fallback.
-Small 4 runs with `reasoning_effort: none` to preserve short utility responses.
-The historical results above do not establish Small 4 latency or quality.
+Since 21 Nov 2026 no Mistral model is chosen automatically for server-side
+processing (owner decision); Mistral models stay in the catalog for users to
+select themselves, with `allow_auto_select: false`. Utility calls use
+`google/gemini-3.5-flash-lite` (translations, workflow identity, docs lookup
+fallback) and `google/gemini-3.8-flash` (request-safety confirmation). When a
+Google utility model is unavailable, recovery tries `inception/mercury-3` before
+the alternate Vertex server (`backend/apps/ai/utils/utility_model_fallbacks.py`).
+The historical results above do not describe these models.
 
 ## Related Docs
 

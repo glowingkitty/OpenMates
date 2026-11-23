@@ -172,6 +172,8 @@ struct DailyInspirationData: Decodable, Sendable {
     let feature: DailyInspirationFeature?
     let contentType: String?
     let wiki: DailyInspirationWiki?
+    /// Surface the inspiration belongs to ("projects", ...); nil for Chats inspirations.
+    var surface: String? = nil
 
     init(
         inspirationId: String? = nil,
@@ -183,7 +185,8 @@ struct DailyInspirationData: Decodable, Sendable {
         startedChatId: String? = nil,
         feature: DailyInspirationFeature? = nil,
         contentType: String? = nil,
-        wiki: DailyInspirationWiki? = nil
+        wiki: DailyInspirationWiki? = nil,
+        surface: String? = nil
     ) {
         self.inspirationId = inspirationId
         self.text = text
@@ -195,6 +198,7 @@ struct DailyInspirationData: Decodable, Sendable {
         self.feature = feature
         self.contentType = contentType
         self.wiki = wiki
+        self.surface = surface
     }
 }
 
@@ -1272,7 +1276,8 @@ actor NativeDailyInspirationDecoder {
                 startedChatId: row["opened_chat_id"] as? String,
                 feature: try metadata("feature", row: row, as: DailyInspirationFeature.self),
                 contentType: row["content_type"] as? String,
-                wiki: try metadata("wiki", row: row, as: DailyInspirationWiki.self))
+                wiki: try metadata("wiki", row: row, as: DailyInspirationWiki.self),
+                surface: row["surface"] as? String)
         }
         let normalized = try JSONSerialization.data(withJSONObject: ["inspirations": rows], options: .sortedKeys)
         return Prepared(items: items, payload: normalized, personalized: true, retainedAt: retainedAt,

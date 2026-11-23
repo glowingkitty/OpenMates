@@ -65,6 +65,40 @@ async def test_scoped_decisions_run_the_real_router_and_restore_context(isolated
 
 
 @pytest.mark.asyncio
+async def test_benign_fixture_requests_pass_the_request_purpose_check(isolated):
+    """A benign call turn is never judged harmful (no strike, no suspension) in isolated CI."""
+    from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev
+    from backend.apps.ai.processing.request_purpose_policy import evaluate_request_purpose
+
+    @fixture.voice_preprocessing_scope
+    async def route(request_data):
+        return await decide_preprocessing_with_jev(
+            model_id="configured-decision-model", secrets_manager=None,
+            message_history=request_data.message_history, topic_areas=["general_misc: General"],
+            available_apps=["images", "web"], available_skills=["images-search", "web-search"],
+            available_focus_modes=[], available_settings_and_memories={}, recent_skill_activity=[],
+            conversation_summary=None, previous_category=None, is_first_message=True,
+        )
+
+    for text in (fixture.RAMEN_REQUEST, fixture.RICH_REQUEST, fixture.GERMAN_REQUEST):
+        decided = await route(request(text))
+        assert decided["request_purpose"]["harmful_purpose"] == "none"
+        assert decided["request_purpose"]["illegal_category"] == "none"
+        outcome = evaluate_request_purpose(decided["request_purpose"])
+        assert outcome.action == "allow" and not outcome.strike
+
+
+def test_unknown_choice_question_gets_its_neutral_answer(isolated):
+    token = fixture._voice_request.set(request(fixture.RAMEN_REQUEST))
+    try:
+        response = fixture.jev_response(model="configured", questions={"new_check": {
+            "type": "choice", "criteria": {"violation": "Bad", "none": "Anything else"}}})
+    finally:
+        fixture._voice_request.reset(token)
+    assert response.answers["new_check"].choice == "none"
+
+
+@pytest.mark.asyncio
 async def test_preprocessor_scope_restores_after_failure_and_early_task_inherits_scope(isolated):
     from backend.apps.ai.processing.early_chat_metadata import generate_early_chat_metadata
 

@@ -1,4 +1,5 @@
-<!-- Skill-use parent card for one invocation with zero or more generated children. -->
+<!-- Skill-use parent card for one invocation with zero or more generated children.
+     design.embroidery: shows the input graphic and the current step from the start (TASK-1610). -->
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
@@ -8,14 +9,15 @@
   import SvgEmbedImage from './code/SvgEmbedImage.svelte';
   import { imageGenerationAttribution } from './images/imageGenerationMetadata';
   import {
-    EMPTY_GENERATION_REQUEST, EMPTY_SVG_DRAFT, childDraftContent, hasDrawableSvg, mergeSvgDraft,
+    childDraftContent, hasDrawableSvg, mergeSvgDraft,
     readGenerationRequest, readSvgDraft, svgDraftStageLabelKey, type GenerationRequestInfo, type SvgDraftState,
   } from './images/svgDraft';
   import ImageModifyProgress from './images/ImageModifyProgress.svelte';
   import { EMPTY_IMAGE_MODIFY, isModifySkill, mergeImageModify, readImageModify, type ImageModifyState } from './images/imageDraft';
   import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
   import GeneratedMediaThumbnails from './GeneratedMediaThumbnails.svelte';
-  import { generatedMediaChildIds } from './generatedMediaGroup';
+  import { generatedMediaChildIds, generatedMediaSkillIcon } from './generatedMediaGroup';
+  import { embroideryStageLabelKey, isEmbroiderySkill, readEmbroideryStage, type EmbroideryProgressStage } from './design/embroideryProgress';
   import { pinnedEmbedsOf } from '../../services/rustCore/embeds/messageEmbedVersion';
   import VideoSourceThumbnail from './videos/VideoSourceThumbnail.svelte';
   import { readVideoProgress, videoChangeText, videoStageText, type VideoAudioKind, type VideoChange, type VideoProgress, type VideoProgressStage } from './videos/videoGenerateCard';
@@ -32,6 +34,8 @@
     error?: string;
     /** Current step of a running videos.generate request (deciding, writing, rendering, correcting, generating). */
     progressStage?: VideoProgressStage;
+    /** Current step of a running design.embroidery request. */
+    embroideryStage?: EmbroideryProgressStage;
     /** 1-based round of the current videos.generate step. */
     progressAttempt?: number;
     progressAudio?: VideoAudioKind[];
@@ -39,14 +43,21 @@
     change?: VideoChange;
     /** Embed id of the video being changed. */
     sourceEmbedId?: string;
+    /** Model the skill announced (short id); shown while the request runs. */
+    model?: string;
+    /** Embeds passed to the skill as input images; shown as a small thumbnail. */
+    inputEmbedIds?: string[];
+    /** Partial SVG source already received when the card mounts. */
+    svgDraft?: string;
+    draftStage?: SvgDraftState['stage'];
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
 
   let {
-    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage, progressAttempt, progressAudio, change, sourceEmbedId,
-    taskId, isMobile = false, onFullscreen,
+    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage, embroideryStage: embroideryStageProp, progressAttempt, progressAudio, change, sourceEmbedId,
+    model: modelProp, inputEmbedIds: inputEmbedIdsProp = [], svgDraft: svgDraftProp, draftStage: draftStageProp, taskId, isMobile = false, onFullscreen,
   }: Props = $props();
   // The card is mounted once; later status changes of the parent arrive as updates.
   let liveStatus = $state<Props['status'] | undefined>(undefined);
@@ -56,7 +67,7 @@
   let currentChildIds = $state<string[] | undefined>(undefined);
   let childPrompt = $state<string | undefined>(undefined);
   // Announced by the skill as soon as it starts: prompt, model and input images.
-  let request = $state<GenerationRequestInfo>(EMPTY_GENERATION_REQUEST);
+  let request = $state<GenerationRequestInfo>(untrack(() => ({ prompt: '', model: modelProp ?? '', inputEmbedIds: inputEmbedIdsProp })));
   const prompt = $derived(promptProp?.trim() || childPrompt || request.prompt || undefined);
   const skillName = $derived($text(`app_skills.${appId}.${skillId}`));
   // A change to an existing image pins that image's new version instead of listing a child.
@@ -76,10 +87,25 @@
   const videoChangeLabel = $derived(appId === 'videos' ? videoChangeText(videoProgress.change, translate) : undefined);
   const videoSourceId = $derived(appId === 'videos' ? videoProgress.sourceEmbedId : undefined);
 
+  // design.embroidery names its current step (reading, checking, adjusting, stitching, saving).
+  const isEmbroidery = $derived(isEmbroiderySkill(appId, skillId));
+  let embroideryStage = $state<EmbroideryProgressStage | undefined>(untrack(() => embroideryStageProp));
+  const embroideryStageKey = $derived(isEmbroidery ? embroideryStageLabelKey(embroideryStage) : undefined);
+
+  function readRequestFrame(frame: Record<string, unknown>) {
+    request = readGenerationRequest(frame, request);
+    if (isEmbroidery) embroideryStage = readEmbroideryStage(frame, embroideryStage);
+    svgDraftState = mergeSvgDraft(svgDraftState, readSvgDraft(frame));
+    if (appId === 'images' && isModifySkill(skillId)) modifyState = mergeImageModify(modifyState, readImageModify(frame));
+  }
+
   function handleUpdated(data: { decodedContent: Record<string, unknown> | null }) {
     const content = data.decodedContent;
     if (!content) return;
     if (appId === 'videos') videoProgress = readVideoProgress(content, videoProgress);
+    // A single request runs under the placeholder's own id, so its announced request
+    // and its drafts arrive here as updates of this card, not as child updates.
+    if (content.status === 'processing') readRequestFrame(content);
     if (content.status === 'processing' || content.status === 'finished' || content.status === 'error' || content.status === 'cancelled') {
       liveStatus = content.status;
     }
@@ -109,9 +135,10 @@
   // A vector graphic is drawn live: its drafts arrive as processing updates of
   // the child image embed while this parent card is the one on screen. Until a
   // draft has something to look at, the card shows the request instead.
-  let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
+  let svgDraftState = $state<SvgDraftState>(untrack(() => ({ draft: svgDraftProp ?? '', stage: draftStageProp, attempt: undefined })));
   const showSvgDraft = $derived(shownStatus === 'processing' && hasDrawableSvg(svgDraftState.draft));
-  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && (!!prompt || !!videoStageLabel || !!videoChangeLabel));
+  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && (!!prompt || !!videoStageLabel || !!videoChangeLabel
+    || (isEmbroidery && (!!embroideryStageKey || request.inputEmbedIds.length > 0))));
   const draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   const modelLabel = $derived(request.model ? imageGenerationAttribution(request.model) : undefined);
   const FADE_MS = 350;
@@ -123,17 +150,15 @@
     if (!toon) return;
     const decoded = await decodeToonContent(toon) as Record<string, unknown> | null;
     if (!decoded) return;
-    request = readGenerationRequest(decoded, request);
     if (appId === 'videos') videoProgress = readVideoProgress(decoded, videoProgress);
-    svgDraftState = mergeSvgDraft(svgDraftState, readSvgDraft(decoded));
-    modifyState = mergeImageModify(modifyState, readImageModify(decoded));
+    readRequestFrame(decoded);
   }
   chatSyncService.addEventListener('embedUpdated', handleChildDraft);
   onDestroy(() => chatSyncService.removeEventListener('embedUpdated', handleChildDraft));
 </script>
 
 <UnifiedEmbedPreview
-  {id} {appId} {skillId} skillIconName={appId === 'models3d' ? '3dmodels' : appId === 'design' ? 'embroidery' : appId}
+  {id} {appId} {skillId} skillIconName={generatedMediaSkillIcon(appId, skillId)}
   {status} {skillName} {taskId} {isMobile} {onFullscreen}
   onEmbedDataUpdated={handleUpdated}
   onStatusChanged={(next) => { liveStatus = next; }}
@@ -172,8 +197,9 @@
                 {#if videoChangeLabel}
                   <span class="request-change" data-testid="video-generate-request-change" data-change={videoProgress.change}>{videoChangeLabel}</span>
                 {/if}
-                <span class="request-model shimmer" data-testid="image-generate-request-model" data-video-stage={videoProgress.stage} data-video-audio-kinds={videoProgress.stage === 'audio' ? (videoProgress.audio ?? []).join(',') : undefined}>
+                <span class="request-model shimmer" data-testid="image-generate-request-model" data-video-stage={videoProgress.stage} data-embroidery-stage={embroideryStage} data-video-audio-kinds={videoProgress.stage === 'audio' ? (videoProgress.audio ?? []).join(',') : undefined}>
                   {draftStageLabelKey ? $text(draftStageLabelKey)
+                    : embroideryStageKey ? $text(embroideryStageKey)
                     : videoStageLabel ? videoStageLabel
                     : modelLabel ? `${$text('embeds.image_generate.generating_via')} ${modelLabel}` : skillName}
                 </span>
@@ -207,7 +233,7 @@
   .video-source { position: relative; overflow: hidden; border-radius: var(--radius-3); }
   .request-change { flex: 0 0 auto; font-size: var(--font-size-tiny); line-height: 1.3; color: var(--color-font-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .request-model { flex: 0 0 auto; font-size: var(--font-size-tiny); line-height: 1.3; font-weight: 600; }
-  .request-prompt { margin: 0; flex: 1 1 0; min-height: 0; font-size: var(--font-size-sm); line-height: 1.35; overflow: hidden; overflow-wrap: anywhere; }
+  .request-prompt { margin: 0; flex: 1 1 0; min-height: 0; font-size: var(--font-size-sm); line-height: 1.35; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; }
   /* Same moving highlight as the processing status text in BasicInfosBar. */
   .shimmer { background: linear-gradient(90deg, var(--color-grey-70) 0%, var(--color-grey-70) 40%, var(--color-grey-50) 50%, var(--color-grey-70) 60%, var(--color-grey-70) 100%); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; animation: request-shimmer 1.5s infinite linear; }
   @keyframes request-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

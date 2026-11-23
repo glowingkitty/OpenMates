@@ -845,6 +845,12 @@ private struct RecordingLiveTranscriptViewport: View {
 
 struct ComposerRecordingOverlay: View {
     static let recordingPanelHeight: CGFloat = 220
+    /// RecordAudio.svelte `.record-overlay.compact` min-height (composer recording bar).
+    static let compactPanelHeight: CGFloat = 48
+    private static let compactButtonSize: CGFloat = 40
+    private static let compactWaveformHeight: CGFloat = 20
+    private static let compactWaveformBarSpacing: CGFloat = 1
+    private static let compactStopIconSize: CGFloat = 16
     private static let minimumTouchTargetSize: CGFloat = 44
     private static let waveformTrackHeight: CGFloat = 64
     private static let waveformBarSpacing: CGFloat = 2
@@ -856,11 +862,137 @@ struct ComposerRecordingOverlay: View {
     var startedFromKeyboard = false
     var liveTranscript: String? = nil
     var isRealtimeConnecting = false
+    /// Slim single-row bar used by the chat and welcome composers (web `compact={true}`).
+    var compact = false
     let onStop: (URL) -> Void
     let onCancel: () -> Void
     var onFailure: () -> Void = {}
 
     var body: some View {
+        Group {
+            if compact {
+                compactLayout
+            } else {
+                fullLayout
+            }
+        }
+        .background(LinearGradient.recordingOverlay)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(alignment: .topLeading) {
+            Button(action: onCancel) {
+                Color.clear.frame(width: 1, height: 1)
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("record-overlay")
+    }
+
+    private func finishRecording() {
+        if let url = recorder.stopRecording() {
+            onStop(url)
+        } else {
+            onFailure()
+        }
+    }
+
+    /// Web `.record-overlay.compact`: [cancel 40] [transcript or waveform] [finish 40].
+    private var compactLayout: some View {
+        HStack(spacing: .spacing2) {
+            HStack(spacing: .spacing2) {
+                Button(action: onCancel) {
+                    Icon("close", size: 20)
+                        .foregroundStyle(Color.fontButton)
+                        .frame(width: Self.compactButtonSize, height: Self.compactButtonSize)
+                }
+                .buttonStyle(.plain)
+                .frame(minWidth: Self.minimumTouchTargetSize, minHeight: Self.minimumTouchTargetSize)
+                .contentShape(Rectangle())
+                .accessibilityLabel(AppStrings.cancelRecording)
+                .accessibilityIdentifier("record-cancel-button")
+            }
+            .frame(width: Self.compactButtonSize, alignment: .leading)
+
+            compactCenter
+                .frame(maxWidth: .infinity)
+
+            HStack(spacing: .spacing2) {
+                Button(action: finishRecording) {
+                    RoundedRectangle(cornerRadius: .radius1)
+                        .fill(Color.fontButton)
+                        .frame(width: Self.compactStopIconSize, height: Self.compactStopIconSize)
+                        .frame(width: Self.compactButtonSize, height: Self.compactButtonSize)
+                        .background(Color.fontButton.opacity(0.18))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .frame(minWidth: Self.minimumTouchTargetSize, minHeight: Self.minimumTouchTargetSize)
+                .contentShape(Rectangle())
+                .help(Text(startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.finishRecording))
+                .accessibilityLabel(AppStrings.finishRecording)
+                .accessibilityIdentifier("record-finish-button")
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("record-action-buttons")
+        }
+        .padding(.horizontal, .spacing4)
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.compactPanelHeight)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("record-controls")
+    }
+
+    @ViewBuilder
+    private var compactCenter: some View {
+        if recorder.error != nil || normalizedLiveTranscript != nil {
+            recordingHeading
+                .font(.omP.weight(.bold))
+                .foregroundStyle(Color.white)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("release-text")
+        } else {
+            compactWaveform
+        }
+    }
+
+    private var compactWaveform: some View {
+        GeometryReader { proxy in
+            let totalSpacing = Self.compactWaveformBarSpacing * CGFloat(VoiceRecorder.waveformSampleCount - 1)
+            let availableBarWidth = (proxy.size.width - totalSpacing) / CGFloat(VoiceRecorder.waveformSampleCount)
+            let barWidth = min(Self.waveformBarMaximumWidth, max(1, availableBarWidth))
+
+            HStack(spacing: Self.compactWaveformBarSpacing) {
+                ForEach(Array(recorder.waveformSamples.enumerated()), id: \.offset) { _, level in
+                    Capsule()
+                        .fill(Color.white)
+                        .frame(
+                            width: barWidth,
+                            height: max(
+                                Self.waveformBarMinimumHeight,
+                                Self.compactWaveformHeight * max(VoiceRecorder.waveformMinimumVisibleLevel, level)
+                            )
+                        )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(height: Self.compactWaveformHeight)
+        // Web mask: transparent to opaque over spacing-4 at the left edge.
+        .mask(
+            HStack(spacing: 0) {
+                LinearGradient(colors: [Color.clear, Color.black], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: .spacing4)
+                Color.black
+            }
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var fullLayout: some View {
         VStack(spacing: 0) {
             VStack(spacing: .spacing4) {
                 VStack(spacing: .spacing1) {
@@ -963,18 +1095,6 @@ struct ComposerRecordingOverlay: View {
         .padding(.bottom, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .frame(height: Self.recordingPanelHeight)
-        .background(LinearGradient.recordingOverlay)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(alignment: .topLeading) {
-            Button(action: onCancel) {
-                Color.clear.frame(width: 1, height: 1)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.cancelAction)
-            .accessibilityHidden(true)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("record-overlay")
     }
 
     private var recordingWaveform: some View {

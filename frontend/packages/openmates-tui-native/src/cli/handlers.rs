@@ -14,7 +14,7 @@ mod draft_clear_tests;
 #[cfg(test)]
 #[path = "saved_show_tests.rs"]
 mod saved_show_tests;
-const GLOBALS: &[&str] = &[
+pub(super) const GLOBALS: &[&str] = &[
     "json",
     "profile",
     "api-url",
@@ -1102,6 +1102,7 @@ async fn execute_context_with_inventory(
     if super::teams_message::supported(invocation) {
         return Box::pin(super::teams_message::execute(invocation, client, cancel)).await;
     }
+    if super::e2b_consent_cmd::supported(invocation) { return super::e2b_consent_cmd::execute(invocation, client).await; }
     if super::account::supported(invocation) {
         return Box::pin(super::account::execute(invocation, client)).await;
     }
@@ -1621,6 +1622,7 @@ async fn app_with_admission(invocation:&Invocation,client:&mut Client,
     admission:&openmates_sdk::client::DirectAppSkillAdmission,
     store:Option<(&crate::runtime_store::RuntimeStore,u64)>)->Result<CliOutput,CliError> {
     admission.check(client)?;
+    if super::code_run_cmd::is_code_run(invocation){return super::code_run_cmd::execute_session(invocation,client,admission).await;}
     let record = record(&invocation.path);
     let record = record
         .filter(|record| record.skill_schema.is_some())

@@ -1174,6 +1174,67 @@ test('activation rollback preserves epoch zero when its durable update fails', a
   assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 0);
 });
 
+test('activation retires epoch-zero output producers idle for a day, never a live one', async () => {
+  const now = new Date('2029-01-03T00:00:00Z');
+  const hoursAgo = (hours) => new Date(now.getTime() - hours * 60 * 60_000);
+  const producer = (id, state, registered, started = null) => ({
+    id, state, registered_at: registered, started_at: started,
+    expires_at: new Date(registered.getTime() + 7 * 24 * 60 * 60_000), invalidated_at: null,
+  });
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: true,
+      legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [],
+    }],
+    chat_recovery_legacy_output_producers: [
+      producer('stale-pending', 'PENDING', hoursAgo(25)),
+      producer('stale-running', 'RUNNING', hoursAgo(48), hoursAgo(30)),
+      producer('stale-running-unstamped', 'RUNNING', hoursAgo(26)),
+      producer('live-running', 'RUNNING', hoursAgo(30), hoursAgo(1)),
+      producer('finished', 'COMPLETED', hoursAgo(72), hoursAgo(71)),
+    ],
+    chat_recovery_legacy_batch_claims: [],
+  });
+  const states = () => Object.fromEntries(database.rows.chat_recovery_legacy_output_producers
+    .map((row) => [row.id, row.state]));
+  const activate = () => executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now);
+  // A producer that started an hour ago is still live: activation keeps waiting
+  // and its failed transaction leaves every row untouched.
+  await assert.rejects(activate(), (error) => error.code === 'legacy_output_producers_pending');
+  assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 0);
+  assert.equal(states()['live-running'], 'RUNNING');
+  database.rows.chat_recovery_legacy_output_producers
+    .find((row) => row.id === 'live-running').state = 'COMPLETED';
+  assert.equal((await activate()).protocol_epoch, 1);
+  assert.deepEqual(states(), {
+    'stale-pending': 'INVALIDATED', 'stale-running': 'INVALIDATED',
+    'stale-running-unstamped': 'INVALIDATED', 'live-running': 'COMPLETED', finished: 'COMPLETED',
+  });
+  assert.ok(database.rows.chat_recovery_legacy_output_producers
+    .filter((row) => row.state === 'INVALIDATED')
+    .every((row) => row.invalidated_at.getTime() === now.getTime()));
+});
+
+test('activation never retires an epoch-zero producer while sends are still open', async () => {
+  const now = new Date('2029-01-03T00:00:00Z');
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: false,
+      legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [],
+    }],
+    chat_recovery_legacy_output_producers: [{
+      id: 'stale-pending', state: 'PENDING', registered_at: new Date('2029-01-01T00:00:00Z'),
+      started_at: null, invalidated_at: null,
+    }],
+  });
+  await assert.rejects(executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now), (error) => error.code === 'sends_not_paused');
+  assert.equal(database.rows.chat_recovery_legacy_output_producers[0].state, 'PENDING');
+});
+
 test('available-job projection never discloses sealed payload or lease secrets', () => {
   const projected = testing.availableJobMetadata({
     id: '018f7777-7777-7777-8777-777777777777',
@@ -6218,4 +6279,51 @@ test('possibly exposed Ready or absent exposure proof always retains the bound c
     assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'FINISHED');
     await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion()), /empty_call_cleanup_not_eligible/);
   }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('get_finished_turn reports only finished, owned, undeleted turns and never writes', async () => {
+  const FINISHED_MESSAGE = 'user-message-finished';
+  const request = (extra = {}) => ({
+    protocol_version: 1, hashed_user_id: OWNER, chat_id: CHAT_ID, user_message_id: FINISHED_MESSAGE, ...extra,
+  });
+  const seedWith = (state, mutate = () => {}) => {
+    const seed = leasedSeed();
+    Object.assign(seed.chat_turn_preflights[0], {
+      state, user_message_id: FINISHED_MESSAGE, inference_task_id: TASK_ID,
+      prepared_at: new Date('2029-01-01T00:00:00Z'), deletion_invalidated_at: null,
+    });
+    seed.chats[0].messages_v = 4;
+    seed.chat_completion_recovery_jobs[0].state = 'TERMINAL';
+    mutate(seed);
+    return seed;
+  };
+  const terminal = await executeOperation(fakeDatabase(seedWith('TERMINAL')), 'get_finished_turn', request());
+  assert.deepEqual(terminal, {
+    finished: true, state: 'TERMINAL', preflight_id: PREFLIGHT_ID, turn_id: TURN_ID, inference_task_id: TASK_ID,
+    assistant_message_id: 'assistant-message-1', committed_messages_v: 4,
+    recovery_job: { job_id: JOB_ID, state: 'TERMINAL' },
+  });
+  const consumed = await executeOperation(fakeDatabase(seedWith('CONSUMED')), 'get_finished_turn', request());
+  assert.equal(consumed.finished, true);
+  assert.equal(consumed.state, 'CONSUMED');
+  for (const state of ['PREPARED', 'ENQUEUED', 'RUNNING', 'FAILED']) {
+    assert.deepEqual(await executeOperation(fakeDatabase(seedWith(state)), 'get_finished_turn', request()), { finished: false });
+  }
+  const foreign = await executeOperation(fakeDatabase(seedWith('TERMINAL')), 'get_finished_turn',
+    request({ hashed_user_id: 'e'.repeat(64) }));
+  assert.deepEqual(foreign, { finished: false });
+  const fenced = seedWith('TERMINAL', (seed) => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; });
+  assert.deepEqual(await executeOperation(fakeDatabase(fenced), 'get_finished_turn', request()), { finished: false });
+  const invalidated = seedWith('TERMINAL', (seed) => { seed.chat_turn_preflights[0].deletion_invalidated_at = new Date(); });
+  assert.deepEqual(await executeOperation(fakeDatabase(invalidated), 'get_finished_turn', request()), { finished: false });
+  const noJob = seedWith('TERMINAL', (seed) => { seed.chat_completion_recovery_jobs = []; });
+  const withoutJob = await executeOperation(fakeDatabase(noJob), 'get_finished_turn', request());
+  assert.equal(withoutJob.finished, true);
+  assert.equal(withoutJob.recovery_job, null);
+  assert.equal(withoutJob.assistant_message_id, null);
+  const otherChatOwner = seedWith('TERMINAL', (seed) => { seed.chats[0].hashed_user_id = 'e'.repeat(64); });
+  assert.equal((await executeOperation(fakeDatabase(otherChatOwner), 'get_finished_turn', request())).committed_messages_v, null);
+  await assert.rejects(executeOperation(fakeDatabase(seedWith('TERMINAL')), 'get_finished_turn', request({ extra: 1 })),
+    (error) => error instanceof ProtocolError && error.status === 400);
 });

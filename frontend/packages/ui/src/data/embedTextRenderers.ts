@@ -220,6 +220,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:web:search': renderWebSearch,
 	'app:projects:search': renderProjectReferences,
 	'app:projects:read': renderProjectReferences,
+	// Older chats' applied-change events: the files are the reply's code embeds.
+	'app:projects:change': () => '',
 	'app:web:read': renderWebRead,
 	'app:web:browse': renderBrowse,
 	'app:news:search': renderNewsSearch,

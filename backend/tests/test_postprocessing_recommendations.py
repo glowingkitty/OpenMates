@@ -41,7 +41,8 @@ def test_tool_schema_has_recommendations_and_no_quick_tip():
     for field in mod.RECOMMENDATION_FIELDS:
         prop = tool["properties"][field]
         assert field in tool["required"]
-        assert prop["minItems"] == 1 and prop["maxItems"] == 3
+        # Memories may be empty (no suggestion beats a pointless one); workflows always have 1-3.
+        assert prop["minItems"] == (0 if field == "memory_recommendations" else 1) and prop["maxItems"] == 3
         item = prop["items"]
         assert item["properties"]["action"]["enum"] == ["create", "update"]
         assert item["properties"]["title"]["maxLength"] == 80 and item["properties"]["summary"]["maxLength"] == 200
@@ -276,12 +277,14 @@ def test_context_lists_written_entries_and_allows_empty_list_only_for_that_kind(
     assert "Already saved" not in mod.build_recommendation_context(MEMORIES, {}, [])
     tool = copy.deepcopy(yaml.safe_load(INSTRUCTIONS.read_text())["postprocess_response_tool"]["function"]["parameters"])
     properties = tool["properties"]
-    assert properties["memory_recommendations"]["minItems"] == 1
+    assert properties["memory_recommendations"]["minItems"] == 0
     mod.relax_min_items_for_written(properties, [WRITTEN[1]])
     assert properties["memory_recommendations"]["minItems"] == 0
     assert properties["workflow_recommendations"]["minItems"] == 1
     mod.relax_min_items_for_written(properties, None)
     assert properties["workflow_recommendations"]["minItems"] == 1
+    mod.relax_min_items_for_written(properties, [WRITTEN[2]])
+    assert properties["workflow_recommendations"]["minItems"] == 0
 
 
 # contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor
@@ -297,3 +300,52 @@ def test_personal_catalog_of_a_restored_request_accepts_plain_dicts():
     assert [entry.id for entry in entries] == ["m1"]
     assert all(isinstance(entry, MemoryCatalogEntry) for entry in entries)
     assert request_personal_catalog(SimpleNamespace(memory_catalog=None)) == []
+
+
+def _instruction_text():
+    data = yaml.safe_load(INSTRUCTIONS.read_text())
+    return data["postprocess_response_tool"]["function"]["parameters"]["properties"]["memory_recommendations"]["description"]
+
+
+def _post_processor_prompt():
+    return yaml.safe_load(INSTRUCTIONS.read_text())["postprocess_response_tool"]["function"]["description"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.quality
+def test_memory_suggestion_instruction_states_the_no_pointless_memory_rules():
+    """The prompt and tool schema carry the owner's rules (22 Nov); real-model proof: real-inference-memory-suggestions.spec.ts."""
+    prompt = _post_processor_prompt()
+    schema = _instruction_text()
+    for needle in (
+        "ONLY when it will still help in later chats",
+        "NEVER save the single question or task itself",
+        "what does this say about the person that will help later",
+        "CLEAR SIGNAL",
+        "NOT an interest and NOT a memory",
+        "When in doubt, return an empty list",
+        "fact about the person",
+    ):
+        assert needle in prompt, needle
+    # Example chats: arithmetic and a one-off factual question yield nothing; stated plans/preferences yield a memory.
+    for needle in ("What is 17 plus 25?\" -> []", "How tall is Mount Everest?\" -> []",
+                   "Learning maths for an upcoming exam", "Lisbon next week", "Prefers short, concise answers"):
+        assert needle in prompt, needle
+    assert "The user asked a basic mathematical calculation" in prompt  # shown only as the bad example
+    assert "at least one of each" not in prompt
+    assert "EMPTY list" in schema and "never as a log of what they asked" in schema
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.quality
+def test_recommendation_context_allows_no_memory_and_forbids_logging_the_question():
+    context = mod.build_recommendation_context(MEMORIES, {})
+    assert "memory_recommendations may be empty" in context
+    assert "Never save the single question or task itself" in context
+    assert "when in doubt return no memory" in context
+    assert "each need 1 to 3 items" not in context
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.quality
+def test_an_empty_memory_list_with_workflows_yields_only_workflow_recommendations():
+    out = _build({"memory_recommendations": [], "workflow_recommendations": [
+        {"action": "create", "title": "Weekly digest", "summary": "Send a weekly digest."}]})
+    assert [item["kind"] for item in out] == ["workflow"]

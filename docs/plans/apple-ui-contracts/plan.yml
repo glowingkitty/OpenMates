@@ -43,7 +43,7 @@ context_discovery:
     - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
     - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
     - frontend/apps/web_app/tests/audio-recording.spec.ts
-    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
     - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
     - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
     - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
@@ -59,7 +59,7 @@ context_discovery:
     - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
     - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
     - frontend/apps/web_app/tests/audio-recording.spec.ts
-    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
     - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
     - apple/OpenMatesUITests/ChatFlowParityUITests.swift
 
@@ -437,7 +437,7 @@ rollout_plan:
   next_web_specs:
     - frontend/apps/web_app/tests/file-attachment-flow.spec.ts: promote sent-message embed preview and fullscreen image states after message-input contract stabilizes.
     - frontend/apps/web_app/tests/audio-recording.spec.ts: split short-tap hint, active recording overlay, cancel, and completion into separate reusable contract states.
-    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts: capture assistant image-view embed cards and fullscreen image viewer states.
+    - frontend/apps/web_app/tests/real-inference-image-model.spec.ts: capture assistant image-view embed cards and fullscreen image viewer states.
     - frontend/apps/web_app/tests/chat-flow.spec.ts: capture chat header, transcript, streaming indicator, and follow-up suggestion states.
   next_apple_tests:
     - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift: consume transcript/header/streaming contracts after live-dev chat flow remains stable for two green runs.

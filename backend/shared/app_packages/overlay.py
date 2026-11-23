@@ -70,10 +70,13 @@ def installed_provider_entry(provider: InstalledProvider) -> Dict[str, Any]:
 # It leads the hint: provider hints describe city-bound platforms, and the router
 # otherwise sends region-wide or worldwide discovery questions to general web search.
 WEB_SOURCE_HINTS: Dict[tuple, str] = {
-    ("events", "search"): "Prefer this over web search for any question about upcoming events or conferences, "
-                          "anywhere: in a city, a country, a region such as Europe, or worldwide. Results also "
-                          "come from public web pages; without a city give only a topic query.",
-    # Stage-one app routing reads only the first ~100 characters of the first sentence.
+    # Stage-one app routing reads only the first ~100 characters of the first sentence,
+    # so that sentence alone must say what the skill finds and that it beats web search.
+    ("events", "search"): "Find events and conferences and when and where they happen, anywhere; prefer this "
+                          "over web search. Use for upcoming events in a city, a country, a region such as "
+                          "Europe, or worldwide, for the largest or best-known conference on a topic, and for "
+                          "the dates of a named conference. Results also come from public web pages; without a "
+                          "city give only a topic query.",
     ("shopping", "search_products"): "Where to buy a product, its price, cheapest offer or best deal, also for "
                                      "a product in a photo. Select this, not only web or image search: "
                                      "identify brand and model from the photo, then search. Results come "

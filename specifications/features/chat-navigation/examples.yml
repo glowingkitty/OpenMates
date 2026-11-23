@@ -200,3 +200,30 @@ chat_menus:
   then: It lists Add to project, Create new project, Move to project, Open in new tab,
     Download, Copy, Hide, Pin, Mark unread and Delete next to Share and Settings; Delete
     asks for a second tap before deleting.
+sidebar_overlay:
+- id: phone-overlay-open-close
+  assertion_ids:
+  - chat-navigation.sidebar.overlay-motion
+  - chat-navigation.sidebar.close-at-menu-position
+  given: A phone-width viewport with the sidebar closed.
+  when: The user taps the menu button, then taps the same spot again.
+  then: The sidebar slides in from the left over the unmoved chat above a dim backdrop,
+    its close button sits exactly where the menu button was, and tapping that spot
+    or the backdrop slides it out again with the same easing.
+- id: desktop-width-transition
+  assertion_ids:
+  - chat-navigation.sidebar.width-transition
+  - chat-navigation.sidebar.close-at-menu-position
+  given: A desktop-width viewport with the sidebar closed.
+  when: The user opens the sidebar.
+  then: The sidebar grows in width while the chat area narrows with the same easing,
+    its close button sits exactly where the menu button was (search on the other
+    side, as on phones), and closing reverses it without a layout jump.
+- id: keyboard-and-focus
+  assertion_ids:
+  - chat-navigation.sidebar.keyboard-focus
+  given: The sidebar is closed and the menu button has focus.
+  when: The user activates the menu button, then presses Escape.
+  then: Focus moves into the sidebar, aria-expanded is true while it is open, and
+    after Escape the sidebar is closed with focus back on the menu button.
+

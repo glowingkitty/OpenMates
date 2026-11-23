@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@13
+specification: feature.ai-model-routing@14
 
 decision_routing:
   - id: routed-relevance-judge-uses-gemini

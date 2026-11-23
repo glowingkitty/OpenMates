@@ -33,6 +33,7 @@ from backend.apps.ai.processing.project_machine_location import (
     PROJECT_LOCATION_QUESTION_ID, classify_project_location, machine_hint,
 )
 from backend.apps.ai.processing.project_file_tools import declines_project_file_work
+from backend.apps.ai.processing.project_presentation import normalize_presentation
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_app_project_name
 from backend.core.api.app.services.project_create_request_service import (
     PROJECT_CREATE_CAPABILITY,
@@ -63,7 +64,9 @@ PROJECT_CREATION_QUESTION: dict[str, Any] = {
     },
 }
 
-NameProposer = Callable[[str], Awaitable[str]]
+# A proposer answers the Project name, or the whole naming proposal (name plus
+# the tile description, icon and category of the same tool call).
+NameProposer = Callable[[str], Awaitable[Any]]
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,9 @@ class ProjectCreateProposal:
     outcome: str = "create_project"
     location: str = PROJECT_LOCATION_CLOUD
     machine_hint: str = ""
+    description: str = ""
+    icon: str = ""
+    category: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -152,8 +158,8 @@ def early_decision_skip_reason(early_decisions: Any, *, harm_threshold: float,
     return None
 
 
-async def _default_name_proposer(text: str, secrets_manager: Any) -> str:
-    return (await run_app_project_name(text, secrets_manager)).proposal.name
+async def _default_name_proposer(text: str, secrets_manager: Any) -> Any:
+    return (await run_app_project_name(text, secrets_manager)).proposal
 
 
 async def decide_project_creation(
@@ -193,17 +199,22 @@ async def decide_project_creation(
         return None
     text = request_data.current_user_content or ""
     try:
-        name = await (name_proposer(text) if name_proposer else _default_name_proposer(text, secrets_manager))
+        named = await (name_proposer(text) if name_proposer else _default_name_proposer(text, secrets_manager))
     except (WorkspaceAskPlanningError, DecisionProviderError) as exc:
         logger.warning("%s Project name proposal unavailable (%s); no Project is created",
                        log_prefix, type(exc).__name__)
         return None
-    name = " ".join(str(name or "").split())[:120]
+    presentation = normalize_presentation(
+        {"description": getattr(named, "description", ""), "icon": getattr(named, "icon", ""),
+         "category": getattr(named, "category", "")})
+    name = " ".join(str(getattr(named, "name", named) or "").split())[:120]
     if not name:
         logger.warning("%s Project name proposal was empty; no Project is created", log_prefix)
         return None
     location = classify_project_location(response.answers.get(PROJECT_LOCATION_QUESTION_ID), text)
     return ProjectCreateProposal(
         kind=kind, subfolder=PROJECT_CREATE_KINDS[kind], proposed_name=name, confidence=round(confidence, 3),
-        location=location, machine_hint=machine_hint(text) if location == PROJECT_LOCATION_MACHINE else "")
+        location=location, machine_hint=machine_hint(text) if location == PROJECT_LOCATION_MACHINE else "",
+        description=presentation.description, icon=presentation.icon if presentation.icon != "folder" else "",
+        category=presentation.category)
 
