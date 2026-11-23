@@ -41,6 +41,7 @@ API_CONTAINER = "api"
 # Keep in sync with SCENARIOS in the spec (slug -> spoken question).
 SCENARIOS = {
     "capital": "What is the capital of France?",
+    "production-features": "What is the capital of France?",
     "black-hole": "How does a black hole work? Show me a video example.",
     "memory": "Which employer should I mention in my cover letter? Use my saved job application profile memory.",
     # Two consecutive spoken turns in one call: a short question, a pause long enough for the

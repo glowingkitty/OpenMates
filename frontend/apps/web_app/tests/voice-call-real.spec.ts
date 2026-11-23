@@ -18,6 +18,8 @@
  *  - a form started by a typed message continues by voice in the same chat: the spoken answer is
  *    filled through the same Browse session and the spoken reply asks one question (form scenario;
  *    the form link lives outside the repository in VOICE_CALL_FORM_PROMPT);
+ *  - with Projects switched off as on production, the spoken turn is still sent and answered
+ *    (production-features scenario, issue F74ES);
  *  - no error or warning notification appears, in particular not
  *    "canonical embed revision changed or is immutable".
  * Held out of isolated CI: real provider inference with the personal dev account.
@@ -56,6 +58,8 @@ interface Scenario {
   form?: boolean;
   /** An earlier spoken turn in the same call, answered before `question` is spoken. */
   firstTurn?: { heard: RegExp; answer: RegExp };
+  /** Runs with Projects switched off the way production answers (404 FEATURE_DISABLED). */
+  projectsDisabled?: boolean;
 }
 
 // The typed request with the form link (kept out of the repository; passed by the runner).
@@ -72,6 +76,10 @@ const MEMORY_NOTICE = '[data-testid="context-entry-event"][data-kind="memory"][d
 const SCENARIOS: Scenario[] = [
   { slug: 'capital', question: 'What is the capital of France?', heard: /capital of France/i,
     answer: /Paris/i, videos: false },
+  // F74ES: production has Projects switched off, so every Project route answers 404
+  // FEATURE_DISABLED. A spoken turn must still be sent and answered aloud.
+  { slug: 'production-features', question: 'What is the capital of France?', heard: /capital of France/i,
+    answer: /Paris/i, videos: false, projectsDisabled: true },
   { slug: 'black-hole', question: 'How does a black hole work? Show me a video example.', heard: /black hole/i,
     answer: /black hole|gravity|event horizon/i, videos: true },
   // The reported DGZVY failure: the call turn pauses for a Memory approval and the continuation
@@ -148,6 +156,23 @@ async function removeSavedMemory(page: Page, chatId: string, log: any, screensho
   }
   log('saved memory removed');
   await deleteActiveChat(page, log, screenshot, 'memory-save-chat-cleanup');
+}
+
+/** Answers like production, where Projects are switched off: the feature list says so and every
+ * Project route returns 404 FEATURE_DISABLED (backend_config.yml). Context routes also cover the
+ * shared Worker's requests, which is where the Rust core reads the chat's Project focus. */
+async function switchProjectsOff(page: Page, projectRequests: string[]): Promise<void> {
+  await page.context().route('**/v1/features/availability', async (route) => {
+    const response = await route.fetch();
+    if (!response.ok()) throw new Error(`Feature availability failed (${response.status()}).`);
+    const data = await response.json();
+    await route.fulfill({ response, json: { ...data,
+      disabled: [...new Set([...(data.disabled ?? []), 'platform:projects'])] } });
+  });
+  await page.context().route('**/v1/projects/**', (route) => {
+    projectRequests.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ status: 404, json: { detail: 'FEATURE_DISABLED' } });
+  });
 }
 
 /** In-page recorders: notifications, media playback and the unspoken-word highlight. */
@@ -247,6 +272,8 @@ for (const scenario of SCENARIOS) {
         }));
         page.on('request', (request) => { if (request.url().includes(ACK_ROOT)) clipDownloads.push(new URL(request.url()).pathname); });
         await page.addInitScript(installRecorders);
+        const projectRequests: string[] = [];
+        if (scenario.projectsDisabled) await switchProjectsOff(page, projectRequests);
 
         await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
         await loginToTestAccount(page, log, screenshot);
@@ -317,6 +344,12 @@ for (const scenario of SCENARIOS) {
             .toBeGreaterThan(repliesBeforeCall);
           const reply = page.getByTestId('message-assistant').last();
           await expect(reply).toContainText(scenario.answer, { timeout: 240_000 });
+          if (scenario.projectsDisabled) {
+            // The turn really met production's answer: the core asked for the Project focus and got 404.
+            log(`project requests answered FEATURE_DISABLED: ${projectRequests.join(', ')}`);
+            expect(projectRequests.some((url) => url.endsWith('/v1/projects/focus/current')),
+              'the spoken turn read the Project focus and was answered 404 FEATURE_DISABLED').toBe(true);
+          }
           if (scenario.videos) {
             const videos = page.locator('[data-testid="embed-preview"][data-app-id="videos"]');
             await expect(videos.first()).toBeVisible({ timeout: 180_000 });

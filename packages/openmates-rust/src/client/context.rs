@@ -297,15 +297,38 @@ impl Client {
             }
         }
     }
+    /// The chat's active Project focus, or `Value::Null` when it has none.
+    ///
+    /// A server with Projects switched off (`platform:projects` disabled, as on
+    /// production) answers this route with 404 `FEATURE_DISABLED`; with
+    /// Projects on, "no focus" is a 200 `{"focus": null}`. So on this one route
+    /// a 404 means the server offers no Project focus at all, which is the same
+    /// as having none: a voice or text turn must not fail on it (F74ES). Every
+    /// other failure keeps the ordinary mapping. Nothing here reads or changes
+    /// chat keys; the response carries no encrypted material.
+    ///
+    /// # Errors
+    /// Scope/generation fences as [`Client::context_request`]; `Protocol` for
+    /// a 200 response without `focus`; the transport's mapping for any other
+    /// non-success status.
     pub(super) async fn current_project_focus(&mut self, scope: &AsyncCryptoScope, chat: &str) -> Result<Value> {
-        let response = self
-            .context_request(
-                scope, Some(chat), Method::GET,
-                &format!("/v1/projects/focus/current?chat_id={}", segment(chat)),
-                None,
-            )
-            .await?;
-        response.get("focus").cloned().ok_or(Error::Protocol)
+        scope.check_chat(self, chat)?;
+        let path = format!("/v1/projects/focus/current?chat_id={}", segment(chat));
+        let mut status = None;
+        let result = self
+            .request_task_headers_observed(Method::GET, &path, None, None, None, None, &mut status)
+            .await;
+        match result {
+            Err(error @ (Error::Expired | Error::Forbidden | Error::Authentication | Error::Cancelled)) => Err(error),
+            Err(_) if status == Some(404) => {
+                scope.check_chat(self, chat)?;
+                Ok(Value::Null)
+            }
+            other => {
+                scope.check_chat(self, chat)?;
+                other?.get("focus").cloned().ok_or(Error::Protocol)
+            }
+        }
     }
 }
 // Same deterministic focus-path/filter/projection for borrowed and owned reads.
@@ -382,3 +405,6 @@ impl Drop for ContextValues { fn drop(&mut self) { self.wipe(); } }
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path="context_capability_tests.rs"]
 mod capability_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path="context_focus_disabled_tests.rs"]
+mod focus_disabled_tests;
