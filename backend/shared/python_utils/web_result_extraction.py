@@ -289,7 +289,9 @@ def _event_row(raw: Mapping[str, Any], page_url: str, page_text: str, flat_page:
     venue = {key: text for key, source in (("name", "venue_name"), ("city", "city"), ("country", "country"))
              if (text := _text(raw.get(source), MAX_TEXT_CHARS))}
     address = _text(raw.get("venue_address"), MAX_TEXT_CHARS)
-    if _written_on_page(address, flat_page):
+    # A map link can emphasize part of its visible address (for example, the city).
+    visible_page = flat_page.replace("**", "").replace("__", "")
+    if _written_on_page(address, visible_page):
         venue["address"] = address
     if venue:
         row["venue"] = venue

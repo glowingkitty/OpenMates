@@ -47,11 +47,11 @@ def test_event_needs_a_title_and_date_written_on_the_page():
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
 def test_web_event_preserves_only_a_street_address_stated_on_the_page():
-    text = EVENT_PAGE + "Venue entrance: 24 rue des Fleurs.\n"
+    text = EVENT_PAGE + "Venue entrance: [24 rue des Fleurs, **Lyon**](https://maps.example.org/venue).\n"
     event = {"title": "Libre Days", "date_start": "2027-01-14", "city": "Lyon"}
-    stated = rows(extraction.KIND_EVENT, [{**event, "venue_address": "24 rue des Fleurs"}], text)
+    stated = rows(extraction.KIND_EVENT, [{**event, "venue_address": "24 rue des Fleurs, Lyon"}], text)
     unstated = rows(extraction.KIND_EVENT, [{**event, "venue_address": "42 rue des Fleurs"}], text)
-    assert stated[0]["venue"] == {"city": "Lyon", "address": "24 rue des Fleurs"}
+    assert stated[0]["venue"] == {"city": "Lyon", "address": "24 rue des Fleurs, Lyon"}
     assert unstated[0]["venue"] == {"city": "Lyon"}
 
 
