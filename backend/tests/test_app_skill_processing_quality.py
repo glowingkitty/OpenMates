@@ -120,6 +120,28 @@ def test_event_semantic_deduplication_collapses_cross_provider_copies() -> None:
     ]
 
 
+# contract-test: direct surface=rest_api assertions=events-search.relevance.bounded-candidates
+def test_web_event_deduplication_keeps_the_more_complete_source_and_its_provenance() -> None:
+    listing = {
+        "provider_id": "web",
+        "title": "Libre Days",
+        "url": "https://list.example/libre",
+        "source_page_url": "https://list.example/upcoming",
+        "date_start": "2027-01-14",
+        "venue": {"city": "Lyon"},
+    }
+    official = {
+        **listing,
+        "url": "https://libre.example/2027",
+        "source_page_url": "https://libre.example/2027",
+        "image_url": "https://libre.example/venue.jpg",
+        "venue": {"city": "Lyon", "name": "Libre Hall", "address": "24 rue des Fleurs"},
+    }
+    other = {**listing, "title": "Open Source Weekend", "url": "https://list.example/weekend"}
+    assert SearchSkill._deduplicate_events([listing, other, official]) == [official, other]
+    assert SearchSkill._deduplicate_events([official, listing]) == [official]
+
+
 # contract-test: direct surface=rest_api assertions=events-search.results.actionable
 def test_event_quality_filter_ranks_free_and_cheap_before_expensive() -> None:
     events = [

@@ -120,6 +120,20 @@ test('the largest open source conference question is answered through the Events
 			await closeFullscreen(page, webOverlay);
 		} else {
 			log('Events found events: the Events search card lists them.');
+			// The announced edition has a published venue. Check the address in the
+			// actual result, where a city-only pin previously hid the missing venue.
+			const fosdem = answer.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="event"]')
+				.filter({ has: page.getByText(/^FOSDEM(?: 2027)?$/i) }).first();
+			if (await fosdem.count()) {
+				const event = await openFullscreen(page, fosdem);
+				const date = event.getByTestId('event-date-label');
+				if (await date.count() && /Jan(?:uary)?\s+30,?\s+2027/i.test(await date.innerText())) {
+					await expect(event.getByTestId('event-venue-card')).toContainText(/Roosevelt\s+50/i);
+					await expect(event.getByTestId('result-map')).toBeVisible();
+					await testInfo.attach('fosdem-venue-map', { body: await page.screenshot(), contentType: 'image/png' });
+				}
+				await closeFullscreen(page, event);
+			}
 		}
 
 		// A header image bubble opens fullscreen without "Embed not found".

@@ -46,6 +46,16 @@ def test_event_needs_a_title_and_date_written_on_the_page():
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
+def test_web_event_preserves_only_a_street_address_stated_on_the_page():
+    text = EVENT_PAGE + "Venue entrance: 24 rue des Fleurs.\n"
+    event = {"title": "Libre Days", "date_start": "2027-01-14", "city": "Lyon"}
+    stated = rows(extraction.KIND_EVENT, [{**event, "venue_address": "24 rue des Fleurs"}], text)
+    unstated = rows(extraction.KIND_EVENT, [{**event, "venue_address": "42 rue des Fleurs"}], text)
+    assert stated[0]["venue"] == {"city": "Lyon", "address": "24 rue des Fleurs"}
+    assert unstated[0]["venue"] == {"city": "Lyon"}
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
 def test_price_link_and_picture_are_kept_only_when_the_page_states_them():
     kept = rows(extraction.KIND_PRODUCT, [
         {"title": "Quiet Mask Pro", "price_text": "189,00 €", "price_amount": 189.0, "currency": "eur",
