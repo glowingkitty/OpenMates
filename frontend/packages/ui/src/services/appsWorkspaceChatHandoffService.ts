@@ -6,6 +6,7 @@ import { activeTeamContext } from '../stores/teamStore';
 // Root startup needs identity only; the full facade imports the chat sync graph.
 import { getAnonymousClientId } from './anonymousChatIdentity';
 import type { AppsRequestHandoff } from './appsWorkspaceRequestService';
+import { APPS_RESULT_CONTEXT_MARKER } from '../utils/appsResultContextDisplay';
 
 /** Bounded, payload-free lifecycle evidence for failed browser handoffs. */
 type AppsHandoffPhase = 'identity-fenced' | 'queued' | 'navigation-taken' | 'delivered' | 'delivery-stale'
@@ -127,7 +128,7 @@ export function appsRequestContextText(request: AppsRequestHandoff): string {
   if (request.embedReference) return request.text;
   // Complete context stays available for chat; credentials never enter prose.
   const context = request.context ? contextJson(request.context) : '';
-  return context ? `${request.text}\n\nResult context (data supplied by the user):\n${context}` : request.text;
+  return context ? `${request.text}${APPS_RESULT_CONTEXT_MARKER}${context}` : request.text;
 }
 
 /** Match WorkflowInputStartRequest.text's 20,000 character contract without
@@ -147,7 +148,7 @@ export function appsWorkflowInstruction(request: AppsRequestHandoff): string {
   // Put the original query/options before result summaries even if the caller's
   // object insertion order differs. This keeps the recurring search actionable.
   const context = contextJson({ skill_id, input, embed_id, chat_id, result: compact(result) });
-  const prefix = '\n\nResult context (data supplied by the user):\n';
+  const prefix = APPS_RESULT_CONTEXT_MARKER;
   const omitted = '\n[Additional result context omitted]';
   const budget = 20_000 - request.text.length - prefix.length;
   if (budget <= omitted.length) return request.text;

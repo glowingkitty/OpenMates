@@ -3,6 +3,7 @@
 // Handles both write_mode (editing) and read_mode (display) parsing
 
 import type { ParseMessageOptions } from "./types";
+import { flattenWriteModeBlocks } from "./writeModeBlocks";
 import { stripVoiceDeliveryCues } from "./voiceDeliveryCues";
 import { markdownToTipTap } from "./serializers";
 import { parseEmbedNodes } from "./embedParsing";
@@ -1208,7 +1209,7 @@ function parseMessageDocument(
       const withLinks = convertEmbedLinks(doc, opts.role, typeof opts.chatId === "string" ? opts.chatId : undefined);
       return convertSourceQuotes(withLinks);
     }
-    return stripWriteModeLinkMarks(doc);
+    return flattenWriteModeBlocks(stripWriteModeLinkMarks(doc));
   }
 
   // First, parse basic markdown structure using existing parser
@@ -1275,7 +1276,7 @@ function parseMessageDocument(
   }
 
   if (mode === "write") {
-    return stripWriteModeLinkMarks(unifiedDoc);
+    return flattenWriteModeBlocks(stripWriteModeLinkMarks(unifiedDoc));
   }
 
   return unifiedDoc;

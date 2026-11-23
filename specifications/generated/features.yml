@@ -799,7 +799,7 @@ features:
       - frontend/packages/ui/src/components/apps/__tests__/appsRequestComposerLifetime.test.ts
       - frontend/packages/ui/src/components/apps/__tests__/appsResultFullscreenLifetime.test.ts
       - frontend/packages/ui/src/components/apps/__tests__/appsResultPreviewGroup.test.ts
-      unit_test_files: 38
+      unit_test_files: 39
     apple:
       status: partial
       source: tests
@@ -3181,6 +3181,7 @@ features:
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
       - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
+      - frontend/apps/web_app/tests/chat-paste-long-list-send.spec.ts
       - frontend/apps/web_app/tests/chat-reload-followup-send.spec.ts
       - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
       - frontend/apps/web_app/tests/chat-saved-followup-admission.spec.ts
@@ -3292,7 +3293,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 159
+      unit_test_files: 160
     apple:
       status: failing
       source: tests

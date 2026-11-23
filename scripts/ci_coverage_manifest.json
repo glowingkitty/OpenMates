@@ -698,6 +698,7 @@
         "chat-followup-recovery-disabled.spec.ts",
         "chat-saved-followup-admission.spec.ts",
         "chat-reload-followup-send.spec.ts",
+        "chat-paste-long-list-send.spec.ts",
         "chat-finished-turn-resend.spec.ts",
         "chat-first-send-title-and-composer.spec.ts",
         "daily-inspiration-chat-flow.spec.ts",

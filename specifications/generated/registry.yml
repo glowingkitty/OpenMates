@@ -566,7 +566,7 @@ specifications:
     version: 5
     status: draft
     path: features/apps-workspace
-    fingerprint: 24aa42a65e51bd0064472443ab5f8f641cea099a538a51cb95fce0de31e6b101
+    fingerprint: 3ea511c80a554a9ff49ee4b9b56b21c5fff8fe01bf624e4d8eb6b9b928837cc8
     required_applies_to:
     - rest_api
     - cli
@@ -7697,7 +7697,7 @@ assertions:
     specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
-    fingerprint: b328a8d652a5de8dd86f3a2c2d74096c6714f3e03dbb1babe837808d932723d6
+    fingerprint: f27db81de9333f967018966f88d225ba5916927d66204a1992b5c97cfc7da045
     required_applies_to:
     - rest_api
     - cli

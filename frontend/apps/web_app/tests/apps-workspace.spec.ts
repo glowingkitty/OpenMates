@@ -9,6 +9,18 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl } = require('./helpers/cli-test-helpers');
 const { getE2EDebugUrl, getTestAccount, withMockMarker } = require('./signup-flow-helpers');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const followupBubbleProof = defineVideoProof({
+  id: 'apps-result-followup-chat-bubble',
+  title: 'Ask about an Apps result in chat: the message shows only your words',
+  surface: 'web',
+  devices: ['web-laptop'],
+  domain: 'app.dev.openmates.org',
+  transcript: [{ id: 'bubble', text: 'The follow-up opens a chat whose message shows only the question, while the assistant still gets the result data.', checkpoint: 'followup-bubble', devices: ['web-laptop'] }],
+  assertions: [{ id: 'apps.followup.bubble-user-words-only', checkpoint: 'followup-bubble', visual: 'The user message bubble shows the typed question with no raw result data or JSON.', devices: ['web-laptop'] }],
+  tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2500 },
+});
 
 type SkillFixture = {
   app_id: string;
@@ -1089,7 +1101,7 @@ test.describe('Apps workspace', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.execution.direct-shared-contract,apps.results.web-retained-graph,apps.library.embeds-account-paginated,apps.results.shared-fullscreen
-  test('Health public-insurance search sends native filters and retains populated appointment views', async ({ page }: { page: any }) => {
+  test('Health public-insurance search sends native filters and retains populated appointment views', async ({ page }: { page: any }, testInfo: any) => {
     await page.addInitScript(() => sessionStorage.setItem('openmates:send-prep-timing', '1'));
     test.setTimeout(120000);
     expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
@@ -1195,12 +1207,18 @@ test.describe('Apps workspace', () => {
     expect(followupContext?.result?.results?.[0]?.name).toBe(names[0]);
     const delivered = page.getByTestId('message-user').last();
     await expect(delivered).toContainText('Explain these saved appointments', { timeout: 30000 });
-    await expect(delivered).toContainText('Result context (data supplied by the user):');
-    // The complete saved result context exceeds the user-message collapse limit.
-    await delivered.getByRole('button', { name: 'Show full message', exact: true }).click();
-    await expect(delivered).toContainText(names[0]);
-    await expect(delivered).toContainText('dermatologist');
-    await expect(delivered).toContainText('public');
+    // The sent message still carries the complete result context for the
+    // assistant (asserted on the interpret request above), but the user's
+    // bubble shows only their own words, never the raw JSON (issue S6BEV).
+    const proof = createVideoProofRuntime(followupBubbleProof, { device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot() });
+    await proof.assert('apps.followup.bubble-user-words-only', async () => {
+      await expect(delivered).not.toContainText('Result context');
+      await expect(delivered).not.toContainText('"skill_id"');
+      await expect(delivered).not.toContainText(names[0]);
+      await expect(delivered.getByRole('button', { name: 'Show full message', exact: true })).toHaveCount(0);
+    });
+    await testInfo.attach('apps-followup-user-bubble', { body: await delivered.screenshot(), contentType: 'image/png' });
+    await proof.checkpoint('followup-bubble');
     const assistant = page.getByTestId('message-assistant').last();
     await expect(assistant).toContainText('The capital of Germany', { timeout: 60000 });
     await expect(assistant).toContainText('Berlin');
@@ -1208,6 +1226,7 @@ test.describe('Apps workspace', () => {
     // that the actual composer cleared after accepting the handoff.
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText('');
     expect(skillPosts).toBe(1);
+    await proof.attach();
   });
 
   // @privacy-promise: pii-placeholder-substitution

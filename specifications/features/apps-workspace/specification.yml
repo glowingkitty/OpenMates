@@ -209,6 +209,8 @@ assertions:
     chat processors. Required values must be grounded in the request or applicable previous input and validated
     against the authoritative skill schema; missing or invalid values hand off without direct execution. Follow-ups
     can modify the prior operation, start a new search, open chat with readable result context or create a workflow.
+    In that chat the result context travels with the sent message for the assistant, while the user's message bubble
+    shows only the user's own words, never the raw result data.
     Existing direct endpoints retain authorization, pricing and safety, and interpretation adds no customer surcharge
     or ordinary chat model override. Existing client PII settings apply before exposing request text, previous-input
     and result text, or relevance-candidate text to models. Replacement maps stay on the client; accepted native

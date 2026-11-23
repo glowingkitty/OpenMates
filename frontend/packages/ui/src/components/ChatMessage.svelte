@@ -7,6 +7,7 @@
   import MessageBookmarkButton from './MessageBookmarkButton.svelte';
   import { tooltip } from '../actions/tooltip';
   import { loadExpandedMessageMarkdown } from '../utils/chatMessageExpansion';
+  import { appsResultContextDisplayText } from '../utils/appsResultContextDisplay';
   import DemoMessageContent from './DemoMessageContent.svelte';
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
@@ -3268,7 +3269,7 @@
       if (markdown === null) return;
       const { parse_message } = await import('../message_parsing/parse_message');
       const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
-      const tiptapJson = parse_message(markdown, 'read', { unifiedParsingEnabled: true, role });
+      const tiptapJson = parse_message(appsResultContextDisplayText(markdown, role), 'read', { unifiedParsingEnabled: true, role });
       // Status publications may replace the row object; a different message or
       // edited document must not receive an older asynchronous expansion.
       if (original_message?.message_id !== source.message_id || original_message?.chat_id !== source.chat_id

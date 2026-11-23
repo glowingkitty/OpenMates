@@ -57,6 +57,7 @@ import { storageArchiveFetch } from "../config/api";
   import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
   import { voiceTranscriptDisplayText } from '../utils/voiceTranscriptDisplay';
+  import { appsResultContextDisplayText } from '../utils/appsResultContextDisplay';
   import type { PIIMapping } from '../types/chat';
   import { piiVisibilityStore } from '../stores/piiVisibilityStore';
   import { editMessageStore } from '../stores/editMessageStore';
@@ -361,7 +362,7 @@ import { storageArchiveFetch } from "../config/api";
     let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
-      let contentToProcess = voiceTranscriptDisplayText(normalizeRawChatErrorMessage(incomingMessage.content), incomingMessage.role);
+      let contentToProcess = appsResultContextDisplayText(voiceTranscriptDisplayText(normalizeRawChatErrorMessage(incomingMessage.content), incomingMessage.role), incomingMessage.role);
       
       // PII RESTORATION: Restore PII placeholders with original values before parsing
       // This applies to both user and assistant messages when mappings are available
@@ -406,7 +407,7 @@ import { storageArchiveFetch } from "../config/api";
     const shouldTruncate = incomingMessage.role === 'user' && 
                           incomingMessage.content && 
                           typeof incomingMessage.content === 'string' && 
-                          incomingMessage.content.length > 1000;
+                          appsResultContextDisplayText(incomingMessage.content, incomingMessage.role).length > 1000;
 
     return {
       id: incomingMessage.message_id,
