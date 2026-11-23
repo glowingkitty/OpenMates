@@ -15,6 +15,16 @@ PROJECT_ROOT=${OPENMATES_PROJECT_ROOT:-$(cd "$HOOK_DIR/../.." && pwd)}
 
 [ -z "$COMMAND" ] && exit 0
 
+# --- Public GitHub text (commits, PRs, issues, comments, releases) never carries chat or session links
+# (owner, 23 Nov): deterministic pattern check, scripts/public_link_guard.py. ---
+if echo "$COMMAND" | grep -qE '\bgh[[:space:]]+(pr|issue|release|api)\b|\bgit\b.*\b(commit|branch|switch|checkout|push)\b'; then
+  GUARD_CWD=$(jq -r '.tool_input.workdir // .cwd // empty' <<<"$INPUT")
+  if ! LINK_GUARD_OUTPUT=$(python3 "$PROJECT_ROOT/scripts/public_link_guard.py" bash "$COMMAND" "${GUARD_CWD:-$PWD}" 2>&1); then
+    printf '%s\n' "$LINK_GUARD_OUTPUT" >&2
+    exit 2
+  fi
+fi
+
 # --- Allow sessions.py deploy (the approved commit/push workflow) ---
 if echo "$COMMAND" | grep -qE 'sessions\.py\s+deploy'; then
   exit 0

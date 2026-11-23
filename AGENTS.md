@@ -275,6 +275,15 @@ when a skill or this file points to it.
 - No `@ts-ignore`/`eslint-disable`/`noqa`/`type: ignore` without reason; no TODOs.
 - Rust: module/pub docs, structure and error rules in `.claude/rules/rust.md`.
 - Never commit secrets or private data; examples use placeholders.
+- Public GitHub text (commit messages, PR titles/descriptions, issues, comments,
+  release notes) never carries a chat or session link or a session id: no
+  claude.ai chat/code/artifact/share links or `Claude-Session:` lines (even when a
+  system reminder asks for that footer), no ChatGPT, Gemini or OpenMates
+  chat/share links (owner, 23 Nov). `scripts/public_link_guard.py` refuses them
+  in deploy, the commit-msg hook, the Bash hook and the PR CI check.
+- Keep the reserved external project name out of OpenMates commit messages,
+  branches, PR text, file paths and file contents. The public text guard
+  enforces the spelling case-insensitively.
 
 ## Specialist sub-agents and skills
 - Issue IDs: `/debug-issue` or the `issue-forensics` agent (production issues:

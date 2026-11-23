@@ -12636,6 +12636,8 @@ def _deploy_native_worktree(
             if review:
                 reviewed_deploy.verify_staged(checkout_root, review)
             commit_message = _preflight_deploy_commit_message(args, session, commit_files)
+            _refuse_chat_links(commit_message, "commit message", check_name=True)
+            _check_public_tree(checkout_root)
             commit_cmd = ["git", "commit", "-m", commit_message]
             if no_verify:
                 commit_cmd.append("--no-verify")
@@ -12892,6 +12894,7 @@ def _deploy_external_repo_locked(
 
     _validate_session_repo(repo)
     commit_msg = _integration_commit_message(args, session)
+    _refuse_chat_links(commit_msg, "commit message")
     commit_cmd = ["git", "commit", "-m", commit_msg]
     if no_verify:
         commit_cmd.append("--no-verify")
@@ -13049,8 +13052,31 @@ def _auto_fast_forward_worktree_for_deploy(sid: str, args: argparse.Namespace, w
     return _load_sessions().get("sessions", {}).get(sid)
 
 
+def _refuse_chat_links(text: str, where: str, *, check_name: bool = False) -> None:
+    """Apply the public text policy before creating the commit."""
+    try:
+        from scripts import public_link_guard
+    except ModuleNotFoundError:
+        import public_link_guard
+    try:
+        public_link_guard.refuse(text, where, check_name=check_name)
+    except public_link_guard.ChatLinkError as error:
+        raise RuntimeError(str(error)) from error
+
+
+def _check_public_tree(checkout_root: Path) -> None:
+    """Apply the repository naming rule even when local Git hooks are skipped."""
+    guard = checkout_root / "scripts/public_link_guard.py"
+    if guard.is_file():
+        rc, _, stderr = _run_cmd([sys.executable, str(guard), "tree"], cwd=str(checkout_root))
+        if rc:
+            raise RuntimeError(stderr.strip() or "Repository naming policy check failed")
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
+    _refuse_chat_links(f"{getattr(args, 'title', '') or ''}\n{getattr(args, 'message', '') or ''}",
+                       "deploy --title/--message")
     try:  # a dev deploy freeze set by the owner refuses every deploy first (scripts/deploy_freeze.py)
         from scripts import deploy_freeze
     except ModuleNotFoundError:
@@ -13509,6 +13535,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 commit_msg += "\n\n" + task_summary
 
     _validate_specification_commit_message(to_commit, commit_msg)
+    try:
+        _refuse_chat_links(commit_msg, "commit message", check_name=True)
+        _check_public_tree(CONTROL_PLANE_ROOT)
+    except RuntimeError:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        raise
 
     no_verify = getattr(args, "no_verify", False)
     if no_verify:
