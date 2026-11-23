@@ -445,13 +445,26 @@ class SearchSkill(BaseSkill):
 
     @classmethod
     def _deduplicate_events(cls, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Keep one stable representative for each real-world event."""
+        """Keep one representative, preferring a more complete source for web duplicates."""
         unique: List[Dict[str, Any]] = []
         for event in events:
-            if any(cls._events_are_duplicates(existing, event) for existing in unique):
-                continue
-            unique.append(event)
+            for index, existing in enumerate(unique):
+                if not cls._events_are_duplicates(existing, event):
+                    continue
+                if (existing.get("provider_id") == event.get("provider_id") == WEB_PROVIDER_ID
+                        and cls._web_event_detail(event) > cls._web_event_detail(existing)):
+                    unique[index] = event
+                break
+            else:
+                unique.append(event)
         return unique
+
+
+    @staticmethod
+    def _web_event_detail(event: Dict[str, Any]) -> tuple[bool, bool, bool]:
+        """Rank sourced street addresses first, then named venues and images."""
+        venue = event.get("venue") or {}
+        return bool(venue.get("address")), bool(venue.get("name")), bool(event.get("image_url"))
 
 
     @staticmethod

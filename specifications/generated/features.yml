@@ -12634,15 +12634,16 @@ features:
       assertions:
         passing: 2
         failing: 2
-        not_run: 1
+        not_run: 2
         missing: 9
-        counted: 14
+        counted: 15
       failing_tests:
       - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts › event fullscreen forwards visible event fields
         while excluding raw and nested transport metadata
       - frontend/apps/web_app/tests/skill-events-search.spec.ts
       key_tests:
       - frontend/apps/web_app/tests/skill-events-search.spec.ts
+      - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts
       - frontend/apps/web_app/tests/components/event-reference-hydration.spec.ts

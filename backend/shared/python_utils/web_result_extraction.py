@@ -87,6 +87,7 @@ _EVENT_FIELDS: Dict[str, Any] = {
     "title": {"type": "string"},
     "date_start": {"type": "string", "description": "YYYY-MM-DD, or ISO 8601 date-time when a time is stated"},
     "date_end": _NULLABLE_TEXT, "city": _NULLABLE_TEXT, "country": _NULLABLE_TEXT, "venue_name": _NULLABLE_TEXT,
+    "venue_address": {**_NULLABLE_TEXT, "description": "The event venue street address copied from the page, else null"},
     "online": {"type": ["boolean", "null"]}, "organizer": _NULLABLE_TEXT, "description": _NULLABLE_TEXT,
     "fee_text": {**_NULLABLE_TEXT, "description": "Price or 'free' copied verbatim from the page, else null"},
     "url": {**_NULLABLE_TEXT, "description": "The event's own link copied verbatim from the page, else null"},
@@ -287,6 +288,9 @@ def _event_row(raw: Mapping[str, Any], page_url: str, page_text: str, flat_page:
         row["date_end"] = _text(raw.get("date_end"), 40)
     venue = {key: text for key, source in (("name", "venue_name"), ("city", "city"), ("country", "country"))
              if (text := _text(raw.get(source), MAX_TEXT_CHARS))}
+    address = _text(raw.get("venue_address"), MAX_TEXT_CHARS)
+    if _written_on_page(address, flat_page):
+        venue["address"] = address
     if venue:
         row["venue"] = venue
     if raw.get("online") is True:
