@@ -877,7 +877,10 @@ jobs:
         working-directory: subject/frontend/apps/web_app
         run: |
           version="$(npx playwright --version | awk '{print $NF}')"
-          echo "key=playwright-browsers-${RUNNER_OS}-${RUNNER_ARCH}-${PLAYWRIGHT_BROWSER_NAME}-${version}" >> "$GITHUB_OUTPUT"
+          # actions/cache stores paths relative to the workspace: GitHub-hosted and E2B runners
+          # have different homes, so a cache is only shared between runners with the same layout.
+          layout="$(printf '%s|%s' "$HOME" "$GITHUB_WORKSPACE" | sha256sum | cut -c1-12)"
+          echo "key=playwright-browsers-${RUNNER_ENVIRONMENT}-${layout}-${RUNNER_OS}-${RUNNER_ARCH}-${PLAYWRIGHT_BROWSER_NAME}-${version}" >> "$GITHUB_OUTPUT"
       - name: Restore Playwright browser cache
         id: pwcache
         if: steps.pwkey.outputs.key != ''
@@ -909,9 +912,8 @@ jobs:
             # browser-cache speedup: browser download only on a cache miss, OS
             # dependencies and recorder packages in one apt update + install.
             step_start=$SECONDS
-            if [[ "$BROWSER_CACHE_HIT" != 'true' ]]; then
-              npx playwright install "$PLAYWRIGHT_BROWSER_NAME"
-            fi
+            # Always run: a no-op when the restored browser is complete, a download when it is not.
+            npx playwright install "$PLAYWRIGHT_BROWSER_NAME"
             echo "Pre-test timing: browser download (cache hit: ${BROWSER_CACHE_HIT:-no}) $((SECONDS - step_start))s"
             step_start=$SECONDS
             playwright_packages="$(npx playwright install-deps --dry-run "$PLAYWRIGHT_BROWSER_NAME" 2>&1 | grep -o 'apt-get install[^"]*' | head -1 | sed 's/^apt-get install//' | tr ' ' '\n' | grep -E '^[a-z0-9][a-z0-9.+:-]*$' | tr '\n' ' ' || true)"
