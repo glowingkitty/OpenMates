@@ -1228,7 +1228,7 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
             plan.append((chat, Decision("stop", f"over the cap of {config['max_running']} running chats")))
     plan, flagged = guard_unfinished(plan, directory, now, pressure=bool(getattr(args, "pressure", False)),
                                      dry_run=args.dry_run)
-    failed, stopped = 0, set()
+    failed, stopped, archived = 0, set(), set()
     for chat, decision in plan:
         label = f"{chat.title or chat.name} ({chat.session_id[:8]}, pid {chat.pid})"
         if args.dry_run:
@@ -1249,12 +1249,14 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
                 registry[chat.session_id]["reported_done"] = True  # the connector archives it without approval
             if exited:
                 registry[chat.session_id]["archived_at"] = _utc(now)
+                archived.add(chat.session_id)
             if decision.reopen and claude_chat_waiters.UUID_RE.match(chat.session_id):
                 claude_chat_waiters.add(directory, chat.session_id, "timer", claude_chat_continue.REOPEN_MESSAGE,
                                         at=now + claude_chat_continue.REOPEN_MINUTES * 60)
     left = [chat for chat in live if chat.session_id not in stopped]
     if not args.dry_run:
         save_registry(directory, registry)
+        release_archived_bindings(directory, archived)
         protected: dict[str, set[str]] = {}
         for chat in left:
             if chat.pane_id:
@@ -1424,7 +1426,7 @@ def main(argv: list[str] | None = None) -> int:
             config[key] = value
 
     if args.command == "mark":
-        return mark(args.session, args.state)
+        return mark(args.session, args.state, args.claude_home)
     if args.command == "release":
         return release(args.claude_home, config, args.limit)
     if args.command == "status":
@@ -1470,7 +1472,19 @@ def drain_queue() -> bool:
     return result.returncode == 0
 
 
-def mark(session_id: str, state: str | None) -> int:
+def release_archived_bindings(directory: Path, chat_ids: set[str]) -> None:
+    """Free the former owner of each archived worktree for an explicit handoff."""
+    owners = {cid for cid in chat_ids if claude_chat_waiters.UUID_RE.fullmatch(cid)}
+    if not owners:
+        return
+    from sessions import release_archived_agent_bindings
+
+    released = release_archived_agent_bindings(owners)
+    if released:
+        log_event(directory, {"event": "archived_worktrees_released", "sessions": released})
+
+
+def mark(session_id: str, state: str | None, claude_home: Path | None = None) -> int:
     if not session_id or not state:
         raise SystemExit("mark needs --session and --state")
     directory = state_dir()
@@ -1484,6 +1498,11 @@ def mark(session_id: str, state: str | None) -> int:
         registry[session_id] = {"state": "archived", "archived_at": _utc(), "last_activity": _utc()}
     save_registry(directory, registry)
     log_event(directory, {"event": f"marked_{state}", "session_id": session_id})
+    if state == "archived" and claude_chat_waiters.UUID_RE.fullmatch(session_id):
+        # The broker marks after /exit. Retain a binding if a caller marks a live chat.
+        live = live_chats(claude_home or Path.home() / ".claude", load_config(), waiters={})
+        if all(chat.session_id != session_id for chat in live) and session_id not in codex_chats.live():
+            release_archived_bindings(directory, {session_id})
     return 0
 
 

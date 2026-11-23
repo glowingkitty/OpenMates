@@ -7610,6 +7610,23 @@ def bind_agent_task_session(
     return _mutate_sessions(bind)
 
 
+def release_archived_agent_bindings(chat_ids: set[str]) -> list[str]:
+    """Release stopped, archived owners on this host while preserving their worktrees."""
+    host = socket.gethostname()
+
+    def release(data: dict) -> list[str]:
+        released = []
+        for sid, record in data.get("sessions", {}).items():
+            if record.get("agent_host") != host or record.get("agent_task_id") not in chat_ids:
+                continue
+            record["agent_task_id"] = None
+            record["agent_host"] = None
+            released.append(sid)
+        return released
+
+    return _mutate_sessions(release)
+
+
 def _session_zellij_owner(agent_task: str | None) -> str | None:
     """A shared task host is not a task-owned terminal."""
     return None if agent_task else os.environ.get("ZELLIJ_SESSION_NAME")

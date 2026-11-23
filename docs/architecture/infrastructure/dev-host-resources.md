@@ -81,8 +81,8 @@ Cap: at most `max_running` (20) chat processes. Beyond that the longest-idle
 chats are suspended, those without an open question first.
 `claude_dispatch.launch_claude_chat` (also used by the connector's `start_chat`)
 asks `claude_idle_chats.py admit` first. When there is no room, the chat waits in
-`logs/claude-dispatch/pending/` and the caller gets `ChatQueued`. The per-minute
-`claude_dispatch.py issues` run starts queued chats oldest first.
+`logs/claude-dispatch/pending/` and the caller gets `ChatQueued`. The lifecycle
+timer runs `claude_dispatch.py drain` to start queued chats oldest first.
 
 Settings: `logs/claude-chat-lifecycle/config.json` (keys as in `DEFAULTS`).
 Output: `status.json` (counts and the done list), `stopped.json` (stopped chats

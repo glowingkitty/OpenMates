@@ -3,6 +3,7 @@
 import json
 import sys
 from pathlib import Path
+from subprocess import CompletedProcess
 
 import pytest
 
@@ -71,6 +72,27 @@ def test_mirror_writes_claude_records_and_usage_reads_rate_limits(home):
 # contract-test: tooling
 def test_usage_without_readings_says_so(home):
     assert codex_chats.usage()["known"] is False
+
+
+# contract-test: tooling
+def test_send_targets_the_running_chats_pane(monkeypatch):
+    monkeypatch.setattr(codex_chats, "live", lambda: {THREAD: {"pid": 123}})
+    env = {"OPENMATES_CHAT_ID": THREAD, "ZELLIJ_SESSION_NAME": "project", "ZELLIJ_PANE_ID": "7"}
+    monkeypatch.setattr(codex_chats, "_proc_env", lambda pid: dict(env))
+    calls = []
+
+    def run(*args):
+        calls.append(args)
+        return CompletedProcess(args, 0)
+
+    assert codex_chats.type_into(THREAD, "hello\nagain", zellij=run) == "ok"
+    assert calls == [
+        ("write-chars", "--pane-id", "terminal_7", "hello again"),
+        ("write", "--pane-id", "terminal_7", "13"),
+    ]
+    env["OPENMATES_CHAT_ID"] = "another-chat"
+    assert codex_chats.type_into(THREAD, "hello", zellij=run) == "its terminal pane could not be confirmed"
+    assert len(calls) == 2
 
 
 # contract-test: tooling

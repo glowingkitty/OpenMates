@@ -87,7 +87,10 @@ or exited, the dispatcher recreates it with a `remote-control` tab running the
 Before a tab opens, `launch_claude_chat` asks the chat lifecycle for room
 (`claude_idle_chats.py admit`, cap of running chat processes). When the cap is
 full, the chat waits in `logs/claude-dispatch/pending/` and the caller gets
-`ChatQueued`; the `issues` cron run starts queued chats oldest first. Details:
+`ChatQueued`. The lifecycle timer drains that queue oldest first when slots
+open. The cap counts both Claude and Codex chats. An owner can skip the cap
+with the connector's `start_chat` using `run="now"` or with
+`python3 scripts/force_chat.py start --title T --prompt P`. Details:
 [dev-host-resources.md](dev-host-resources.md).
 
 Prompts are built only from validated identifiers and server-defined labels.

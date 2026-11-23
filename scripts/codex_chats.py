@@ -37,6 +37,7 @@ import json
 import os
 import re
 import shlex
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -416,17 +417,21 @@ def type_into(chat_id: str, text: str, zellij=None) -> str:
     """
     import subprocess
 
-    record = load(chat_id) or {}
-    title = str(record.get("title") or "")
-    if chat_id not in live() or not title:
+    process = live().get(chat_id)
+    if not process:
         return "not running"
-    session = os.environ.get("CLAUDE_DISPATCH_ZELLIJ_SESSION", "claude")
+    env = _proc_env(process["pid"])
+    session, pane = env.get("ZELLIJ_SESSION_NAME", ""), env.get("ZELLIJ_PANE_ID", "")
+    if env.get("OPENMATES_CHAT_ID") != chat_id or not session or not pane.isdecimal():
+        return "its terminal pane could not be confirmed"
     run = zellij or (lambda *a: subprocess.run(["zellij", "--session", session, "action", *a],
                                                capture_output=True, text=True, timeout=30, check=False))
-    for args in (("go-to-tab-name", title), ("write-chars", " ".join(text.split("\n"))), ("write", "13")):
-        result = run(*args)
+    for action, value in (("write-chars", " ".join(text.split("\n"))), ("write", "13")):
+        if action == "write":
+            time.sleep(0.5)  # Let Codex finish interpreting the paste before submitting it.
+        result = run(action, "--pane-id", f"terminal_{pane}", value)
         if result.returncode:
-            return f"zellij {args[0]} failed: {(result.stderr or '').strip()[:160]}"
+            return f"zellij {action} failed: {(result.stderr or '').strip()[:160]}"
     return "ok"
 
 

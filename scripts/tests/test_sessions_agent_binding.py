@@ -131,6 +131,24 @@ def test_legacy_codex_fields_migrate_on_load(monkeypatch, tmp_path):
     assert sessions.session_for_agent_task(sessions._load_sessions(), TASK, host="host")[0] == "old"
 
 
+def test_archive_releases_only_the_local_former_owner(monkeypatch, tmp_path):
+    state_file = tmp_path / "sessions.json"
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", state_file)
+    monkeypatch.setattr(sessions.socket, "gethostname", lambda: "dev")
+    worktree = {"path": str(tmp_path / "parked"), "status": "active"}
+    records = {
+        "ab12": {"agent_task_id": TASK, "agent_host": "dev", "worktree": worktree, "modified_files": ["dirty.py"]},
+        "ab13": {"agent_task_id": TASK, "agent_host": "other", "modified_files": []},
+        "ab14": {"agent_task_id": OTHER, "agent_host": "dev", "modified_files": []},
+    }
+    state_file.write_text(json.dumps({"sessions": records}))
+    assert sessions.release_archived_agent_bindings({TASK}) == ["ab12"]
+    after = sessions._load_sessions()["sessions"]
+    assert after["ab12"] == {**records["ab12"], "agent_task_id": None, "agent_host": None}
+    assert after["ab13"] == records["ab13"]
+    assert after["ab14"] == records["ab14"]
+
+
 def test_legacy_codex_thread_env_still_resolves(monkeypatch):
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
     monkeypatch.setenv("CODEX_THREAD_ID", TASK)

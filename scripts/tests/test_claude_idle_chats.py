@@ -220,6 +220,20 @@ def test_mark_records_archived_and_resumed(tmp_path, monkeypatch):
     assert lc.load_registry(tmp_path) == {}
 
 
+def test_mark_archive_releases_only_a_stopped_chat(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
+    session_id = "e01f80fe-80b5-4d8a-8530-7b5365a507bc"
+    released = []
+    monkeypatch.setattr(lc, "release_archived_bindings", lambda _, owners: released.extend(owners))
+    monkeypatch.setattr(lc, "live_chats", lambda *args, **kwargs: [])
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {session_id: {"pid": 36}})
+    assert lc.mark(session_id, "archived", tmp_path) == 0
+    assert released == []
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {})
+    assert lc.mark(session_id, "archived", tmp_path) == 0
+    assert released == [session_id]
+
+
 def test_held_prompt_detection_reads_the_input_box():
     screen = "  some reply text\n────────\n❯ [Pasted text #4]\n────────\n  auto mode on\n"
     assert lc.input_line(screen) == "[Pasted text #4]"
