@@ -43,7 +43,7 @@ const JOB_TTL_MS = 7 * 24 * 60 * 60_000;
 const TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
 const LEGACY_RUNNING_TTL_MS = 15 * 60_000;
 const LEGACY_TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
-// An epoch-zero output producer idle this long is retired at epoch-1 activation.
+// An epoch-zero output producer or batch claim idle this long is retired at epoch-1 activation.
 const LEGACY_PRODUCER_STALE_MS = 24 * 60 * 60_000;
 const SERVER_TRIGGER_TASK_IDENTITY_PREFIX = 'server-trigger:';
 const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
@@ -1316,6 +1316,27 @@ async function retireStaleLegacyOutputProducers(trx, now) {
     .where('registered_at', '<=', cutoff).update(retired);
 }
 
+/**
+ * Retire epoch-zero batch claims that have not moved for a full day.
+ *
+ * Same rule as the output producers: a claim still PREPARED more than a day
+ * after it was created, or CLAIMED more than a day after it was claimed, belongs to a legacy turn that
+ * died before it reported both worker completion and persistence. Such a row
+ * would otherwise keep activation failing with legacy_batches_pending forever.
+ * It becomes INVALIDATED, which every legacy claim, start and asset path
+ * already refuses. Runs only inside the activation transaction.
+ */
+async function retireStaleLegacyBatchClaims(trx, now) {
+  const cutoff = new Date(now.getTime() - LEGACY_PRODUCER_STALE_MS);
+  const retired = { state: 'INVALIDATED', invalidated_at: now };
+  await trx(LEGACY_BATCH_CLAIMS).where({ state: 'PREPARED' })
+    .where('created_at', '<', cutoff).update(retired);
+  await trx(LEGACY_BATCH_CLAIMS).where({ state: 'CLAIMED' })
+    .where('claimed_at', '<', cutoff).update(retired);
+  await trx(LEGACY_BATCH_CLAIMS).where({ state: 'CLAIMED' }).whereNull('claimed_at')
+    .where('created_at', '<', cutoff).update(retired);
+}
+
 async function activateProtocolEpoch(database, raw, now) {
   const body = operationBody(raw, 'activate_protocol_epoch');
   const targetEpoch = integer(body.target_epoch, 'invalid_protocol_epoch');
@@ -1343,6 +1364,7 @@ async function activateProtocolEpoch(database, raw, now) {
       .whereIn('state', ['PENDING', 'RUNNING']).first()) {
       fail(409, 'legacy_output_producers_pending');
     }
+    await retireStaleLegacyBatchClaims(trx, now);
     if (await trx(LEGACY_BATCH_CLAIMS)
       .whereIn('state', ['PREPARED', 'CLAIMED']).first()) {
       fail(409, 'legacy_batches_pending');
