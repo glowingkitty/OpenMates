@@ -144,7 +144,9 @@ def test_archive_releases_only_the_local_former_owner(monkeypatch, tmp_path):
     state_file.write_text(json.dumps({"sessions": records}))
     assert sessions.release_archived_agent_bindings({TASK}) == ["ab12"]
     after = sessions._load_sessions()["sessions"]
-    assert after["ab12"] == {**records["ab12"], "agent_task_id": None, "agent_host": None}
+    assert after["ab12"] == {
+        **records["ab12"], "agent_task_id": None, "agent_host": None, "archived_agent_task_id": TASK,
+    }
     assert after["ab13"] == records["ab13"]
     assert after["ab14"] == records["ab14"]
 

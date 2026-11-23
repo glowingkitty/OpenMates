@@ -286,17 +286,19 @@ def hook(raw: str, path: Path | None = None) -> str:
         return ""
 
 
-def _find_session(chat_id: str) -> str:
-    """The sessions.py session id bound to this chat, or ''."""
-    try:
-        data = json.loads((canonical_root() / ".claude" / "sessions.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+def _find_session(chat_id: str, *, include_archived: bool = False) -> str:
+    """Find the direct binding, or an unambiguous archived source for host handovers."""
+    if not chat_id:
         return ""
-    for sid, info in (data.get("sessions") or {}).items():
-        if chat_id and info.get("agent_task_id") == chat_id:
+    records = _load(canonical_root() / ".claude" / "sessions.json").get("sessions") or {}
+    for sid, info in records.items():
+        if info.get("agent_task_id") == chat_id:
             return sid
+    if include_archived:
+        prior = [sid for sid, info in records.items() if info.get("archived_agent_task_id") == chat_id]
+        if len(prior) == 1:
+            return prior[0]
     return ""
-
 
 def _task_link(chat_id: str) -> str:
     import codex_chats
@@ -486,9 +488,11 @@ def resume_on_codex(chat_id: str, prompt: str, *, admitted: bool = False) -> str
         note = saved_handoff(_reply(activity)) if activity.returncode == 0 else ""
         if not note:
             return "Waiting for the source chat's handover note in its Task"
-        session_id = _find_session(chat_id)
+        session_id = _find_session(chat_id, include_archived=True)
         data = _load(root / ".claude" / "sessions.json")
         session = (data.get("sessions") or {}).get(session_id) or {}
+        if session.get("agent_task_id") not in (None, chat_id):
+            return "The preserved workspace already belongs to another chat"
         worktree = str((session.get("worktree") or {}).get("path") or "")
         continuation = build_prompt(note, session_id, worktree, task_id, chat_id)
         continuation += "\n\nThe following notification initiated the handover. Treat it as source context:\n" + prompt
@@ -521,19 +525,23 @@ def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
         print(f"Refused: the Task link has not been released: {released.stderr.strip()}", file=sys.stderr)
         return 2
 
-    def bind(expected, owner):
+    def detach_session(restore: bool = False) -> bool:
         import sessions
 
-        def change(state: dict) -> None:
+        def change(state: dict) -> bool:
             record = state["sessions"][session_id]
-            if record.get("agent_task_id") != expected:
+            expected = None if restore else chat_id
+            owner = record.get("agent_task_id")
+            if not restore and note_already_saved and owner is None and record.get("archived_agent_task_id") == chat_id:
+                return False
+            if owner != expected:
                 raise ValueError("The session binding changed during handoff.")
-            record["agent_task_id"] = owner
+            record["agent_task_id"] = chat_id if restore else None
+            return True
 
-        sessions._mutate_sessions(change)
+        return sessions._mutate_sessions(change)
 
-    if session_id:
-        bind(chat_id, None)
+    detached = bool(session_id) and detach_session()
     try:
         if codex:
             import claude_weekly_model
@@ -545,8 +553,8 @@ def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
     except claude_dispatch.ChatQueued as queued:
         where = str(queued)
     except (OSError, subprocess.SubprocessError, claude_dispatch.DispatchError):
-        if session_id:
-            bind(None, chat_id)
+        if detached:
+            detach_session(restore=True)
         raise
     mark_handed_off(chat_id, str(where), handed_off_file(root))
     archive_marker(root, chat_id, str(where), time.time())

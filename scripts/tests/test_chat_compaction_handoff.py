@@ -231,3 +231,29 @@ def test_waiter_can_name_one_of_several_linked_tasks(monkeypatch):
                         mock.Mock(returncode=0, stdout=json.dumps({"tasks": tasks})))
     assert not h._find_task(source)
     assert h._find_task(source, "Resume from Task 5ba50f79") == first
+
+
+def test_handover_can_locate_an_archived_workspace(tmp_path, monkeypatch):
+    folder = tmp_path / ".claude"
+    folder.mkdir()
+    record = {"agent_task_id": None, "archived_agent_task_id": "old-chat"}
+    (folder / "sessions.json").write_text(json.dumps({"sessions": {"ab12": record}}))
+    monkeypatch.setattr(h, "canonical_root", lambda: tmp_path)
+    assert h._find_session("old-chat") == ""
+    assert h._find_session("old-chat", include_archived=True) == "ab12"
+
+
+def test_archived_workspace_handover_leaves_binding_available_for_successor(tmp_path):
+    data = {"sessions": {"ab12": {"agent_task_id": None, "archived_agent_task_id": "old-chat"}}}
+    sessions = mock.Mock(_mutate_sessions=lambda change: change(data))
+    dispatch = mock.Mock()
+    dispatch.ChatQueued = type("ChatQueued", (Exception,), {})
+    dispatch.DispatchError = type("DispatchError", (Exception,), {})
+    dispatch.launch_claude_chat.return_value = "Codex tab"
+    release = mock.Mock(returncode=0, stdout='{"task":{"external_chat":null}}')
+    with mock.patch.object(h.subprocess, "run", return_value=release), \
+         mock.patch.dict(sys.modules, {"sessions": sessions, "claude_dispatch": dispatch}):
+        used = h.launch_successor(tmp_path, "old-chat", "ab12", "task-id", "Title", "Prompt", NOTE,
+                                  note_already_saved=True, codex=True)
+    assert used == 0 and data["sessions"]["ab12"]["agent_task_id"] is None
+    assert h.handed_off_file(tmp_path).is_file()

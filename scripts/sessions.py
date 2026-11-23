@@ -7619,6 +7619,7 @@ def release_archived_agent_bindings(chat_ids: set[str]) -> list[str]:
         for sid, record in data.get("sessions", {}).items():
             if record.get("agent_host") != host or record.get("agent_task_id") not in chat_ids:
                 continue
+            record["archived_agent_task_id"] = record["agent_task_id"]
             record["agent_task_id"] = None
             record["agent_host"] = None
             released.append(sid)
