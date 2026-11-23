@@ -170,7 +170,7 @@ def test_a_ci_job_that_ends_while_its_chat_is_closed_reopens_it(tmp_path):
     with sqlite3.connect(queue) as conn:
         conn.execute("CREATE TABLE jobs (id TEXT, owner TEXT, mode TEXT, state TEXT, created REAL, updated REAL)")
         conn.execute("INSERT INTO jobs VALUES ('b97b9ff6abcd', 'fe65', 'apple-ui', 'running', ?, ?)",
-                     (NOW - HOUR, NOW - HOUR))
+                     (NOW - 600, NOW - 600))
     src = sources(tmp_path, sessions={CHAT: ["fe65"]})
     first = cw.collect(src, NOW)
     assert [w.key for w in first[CHAT]] == ["ci:b97b9ff6abcd"] and not first[CHAT][0].ready
@@ -185,6 +185,34 @@ def test_a_ci_job_that_ends_while_its_chat_is_closed_reopens_it(tmp_path):
     assert rec.resumed and "ci_coordinator.py result b97b9ff6abcd" in rec.resumed[0][1]
     cw.remember(src.state, second, delivered)
     assert cw.collect(src, NOW + 600) == {}
+
+
+def test_a_ci_job_running_past_its_timeout_wakes_the_chat_once_and_still_delivers_the_result(tmp_path):
+    queue = tmp_path / "logs" / "ci-coordinator" / "queue.sqlite3"
+    queue.parent.mkdir(parents=True)
+    with sqlite3.connect(queue) as conn:
+        conn.execute("CREATE TABLE jobs (id TEXT, owner TEXT, mode TEXT, state TEXT, created REAL, updated REAL)")
+        conn.execute("INSERT INTO jobs VALUES ('c0ffee12abcd', 'fe65', 'e2e', 'running', ?, ?)", (NOW, NOW))
+    src = sources(tmp_path, sessions={CHAT: ["fe65"]})
+    assert [w.key for w in cw.collect(src, NOW + 29 * 60)[CHAT]] == ["ci:c0ffee12abcd"]  # under 2x a run
+    late = NOW + 31 * 60
+    found = cw.collect(src, late)
+    overdue = next(w for w in found[CHAT] if w.key == "ci-overdue:c0ffee12abcd")
+    assert overdue.ready and "not finished after 31 min" in overdue.ready_text and "(running)" in overdue.ready_text
+    assert cw.stalled_entries(found, {}, {}, late)  # housekeeping lists the chat as stalled on CI
+    rec = Recorder()
+    delivered, _ = rec.run(found, {CHAT: chat(last_activity=NOW)}, {}, src.state, now=late)
+    assert len(rec.typed) == 1 and "ci_coordinator.py status c0ffee12abcd" in rec.typed[0][1]
+    cw.remember(src.state, found, delivered)
+    again = cw.collect(src, late + 60)
+    rec.run(again, {CHAT: chat(last_activity=NOW)}, {}, src.state, now=late + 60)
+    assert len(rec.typed) == 1  # the overdue wake is sent once per job
+    cw.remember(src.state, again, set())
+    with sqlite3.connect(queue) as conn:
+        conn.execute("UPDATE jobs SET state='success', updated=?", (late + 120,))
+    done = cw.collect(src, late + 180)
+    rec.run(done, {CHAT: chat(last_activity=NOW)}, {}, src.state, now=late + 180)
+    assert len(rec.typed) == 2 and "finished: success" in rec.typed[1][1]
 
 
 def test_a_live_chat_that_already_saw_its_ci_result_is_not_woken_twice(tmp_path):

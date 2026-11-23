@@ -84,7 +84,9 @@ from typing import Callable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import disk_coordinator_state  # noqa: E402  (path set above; the units run python3 -I -S)
 
-TIMEOUT_MINUTES = {"disk": 360.0, "ci": 240.0, "handoff": 240.0, "background": 240.0, "timer": 0.0}
+# A CI run takes 12-15 min (Nov 2026): a CI waiter times out at about twice that, and the
+# chat is then woken once with the job's real state (ci_overdue) instead of staying silent.
+TIMEOUT_MINUTES = {"disk": 360.0, "ci": 30.0, "handoff": 240.0, "background": 240.0, "timer": 0.0}
 REGISTERED_KINDS = ("handoff", "background", "timer")
 USAGE_AVAILABLE_BELOW = 95.0  # weekly used percent; a usage-checked timer waits while usage is at or above it
 USAGE_RETRY_SECONDS = 3600.0
@@ -356,6 +358,7 @@ def collect(sources: Sources, now: float) -> dict[str, list[Waiter]]:
                                  "detail": entry["detail"].rsplit(" (", 1)[0] + f" ({state})",
                                  "ready_text": f"{entry['detail'].rsplit(' (', 1)[0]} finished: {state} "
                                                f"(`python3 scripts/ci_coordinator.py result {job_id}`)"}))
+    current += ci_overdue(current, now)
     # A ready CI waiter stays until it is delivered (kept in waiters.json by remember()).
     for entries in previous.values():
         for entry in entries:
@@ -367,10 +370,33 @@ def collect(sources: Sources, now: float) -> dict[str, list[Waiter]]:
     return by_chat
 
 
+def ci_overdue(current: list[Waiter], now: float) -> list[Waiter]:
+    """One ready `ci-overdue:<job>` waiter per CI job still queued or running past its timeout.
+
+    TASK-1338 (2026-11-23): chats waiting on CI went silent for 40-95 minutes. The job's own
+    `ci:<job>` waiter stays and still wakes the chat with the final result; this one wakes it
+    once when the run is overdue, with the state the CI queue reports now. Its distinct key
+    makes waiter_wakes.json deliver it only once per job.
+    """
+    overdue = []
+    for waiter in current:
+        if waiter.kind != "ci" or waiter.ready or not waiter.key.startswith("ci:") or now <= waiter.timeout_at:
+            continue
+        job_id, minutes = waiter.key[3:], int((now - waiter.since) // 60)
+        overdue.append(Waiter(
+            chat_id=waiter.chat_id, kind="ci", key=f"ci-overdue:{job_id}", detail=waiter.detail + " overdue",
+            since=waiter.since, timeout_at=waiter.timeout_at, ready=True, ready_at=waiter.timeout_at,
+            ready_text=(f"{waiter.detail} has not finished after {minutes} min (a run takes 12-15 min; "
+                        f"`python3 scripts/ci_coordinator.py status {job_id}`): check it and rerun, keep "
+                        "waiting with a fresh waiter, or report the blocker")))
+    return overdue
+
+
 def remember(state: Path, waiters: dict[str, list[Waiter]], delivered: set[str]) -> None:
     """Keep this cycle's waiters for the next one; delivered ready CI waiters are dropped."""
     _write_json(state / "waiters.json", {
-        chat: [asdict(w) for w in items if not (w.kind == "ci" and w.ready and w.key in delivered)]
+        chat: [asdict(w) for w in items if not (w.kind == "ci" and w.ready and w.key in delivered)
+               and not w.key.startswith("ci-overdue:")]  # recomputed from the live job every cycle
         for chat, items in waiters.items()})
 
 

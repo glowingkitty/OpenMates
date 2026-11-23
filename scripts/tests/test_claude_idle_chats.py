@@ -355,7 +355,7 @@ def test_stalled_pane_chat_is_woken_exactly_once_per_task_set(tmp_path, monkeypa
 
 def test_stalled_wake_clears_a_typed_input_line_first_and_logs_failures(tmp_path, monkeypatch):
     calls: list = []
-    screens = iter(["❯ half typed\n", "❯ \n"])
+    screens = iter(["❯ half typed\n", "❯ \n", "❯ \n"])
 
     def fake(session, *args):
         calls.append(args)
@@ -575,3 +575,71 @@ def test_tidy_never_closes_a_live_chats_pane_even_when_its_process_looks_gone(tm
         lc.close_dead_panes(["claude"], tmp_path, NOW + later, {"claude": set()}, fake, protected={"claude": {"2"}})
     assert ("claude", "close-tab", "0") in fake.closed  # pane 1: dead, alone in its tab
     assert not any(target in ("1", "terminal_2") for _, _, target in fake.closed)
+
+
+# --- wake-ups must be submitted, not only typed (TASK-1338, 2026-11-23) ---
+
+BOX = "────\n❯ {}\n────\n  ⏵⏵ auto mode on\n"
+
+
+def scripted_zellij(calls, screens):
+    """dump-screen returns the next screen of `screens` (the last one repeats)."""
+    queue = list(screens)
+
+    def fake(session, *args):
+        calls.append(args)
+        text = (queue.pop(0) if len(queue) > 1 else queue[0]) if args[0] == "dump-screen" else ""
+        return type("Result", (), {"returncode": 0, "stdout": text, "stderr": ""})()
+    return fake
+
+
+def test_wake_counts_only_a_submitted_prompt(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "state_dir", lambda: tmp_path)
+    # empty box before typing, text still shown after the first Enter, empty after the second
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [
+        BOX.format(""), BOX.format("[chat lifecycle] Background work of this"), BOX.format("")]))
+    assert lc.wake(chat(pane_id="7", zellij_session="claude"), "[chat lifecycle] Background work of this chat")
+    assert calls.count(("write", "--pane-id", "terminal_7", "13")) == 2
+
+
+def test_wake_left_in_the_box_is_logged_alerted_once_and_reports_failure(tmp_path, monkeypatch):
+    calls: list = []
+    posted: list = []
+    transcript = tmp_path / "chat.jsonl"
+    transcript.write_text("\n".join(json.dumps(entry) for entry in [
+        {"type": "assistant", "message": {"content": "waiting"}},
+        {"type": "system", "subtype": "informational", "content": "UserPromptSubmit operation blocked by hook:\n"
+         "[command hook 2]: python3: can't open file '/w/agent-1/scripts/chat_mailbox.py'\n\nOriginal prompt: x"},
+    ]) + "\n")
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "state_dir", lambda: tmp_path)
+    import chat_usage_watch
+    monkeypatch.setattr(chat_usage_watch, "send", lambda text: posted.append(text) or True)
+    stuck = chat(pane_id="7", zellij_session="claude", transcript=str(transcript), title="Live collab")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), BOX.format("[chat lifecycle] Back")]))
+    assert not lc.wake(stuck, "[chat lifecycle] Background work of this chat")
+    assert calls.count(("write", "--pane-id", "terminal_7", "13")) == lc.WAKE_SUBMIT_TRIES
+    events = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text().splitlines()]
+    assert events[-1]["event"] == "wake_unsent" and "chat_mailbox.py" in events[-1]["reason"]
+    assert len(posted) == 1 and "Live collab" in posted[0] and "can't open file" in posted[0]
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), BOX.format("[chat lifecycle] Back")]))
+    assert not lc.wake(stuck, "[chat lifecycle] Background work of this chat")
+    assert len(posted) == 1  # one alert per chat and hour
+
+
+def test_wake_ignores_a_suggestion_after_submit(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), BOX.format("run the tests again")]))
+    assert lc.wake(chat(pane_id="7", zellij_session="claude"), "[chat lifecycle] Background work of this chat")
+
+
+def test_block_reason_ignores_blocks_before_a_later_turn(tmp_path):
+    transcript = tmp_path / "chat.jsonl"
+    transcript.write_text("\n".join(json.dumps(entry) for entry in [
+        {"type": "system", "content": "UserPromptSubmit operation blocked by hook: old"},
+        {"type": "user", "message": {"content": "hi"}},
+    ]) + "\n")
+    assert lc.submit_block_reason(str(transcript)) == ""

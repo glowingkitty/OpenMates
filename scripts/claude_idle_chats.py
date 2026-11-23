@@ -811,8 +811,75 @@ def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: d
     return closed
 
 
+WAKE_SUBMIT_TRIES = 3  # Enter presses before a typed wake-up counts as unsent
+WAKE_SUBMIT_PAUSE = 0.4  # seconds; grows per try so a long paste can settle before Enter
+WAKE_ALERT_SECONDS = 3600.0  # one Discord alert per chat per hour for unsent wake-ups
+HOOK_BLOCK_MARK = "operation blocked by hook"
+_sleep = time.sleep  # tests replace it
+
+
+def _box_holds(screen: str, text: str) -> bool:
+    """Whether the prompt box still shows the start of `text` (an unsent prompt)."""
+    import claude_chat_inputs  # imports this module, so not at the top
+
+    shown, head = " ".join(claude_chat_inputs.input_text(screen).split()), " ".join(text.split())[:30]
+    if shown.startswith(claude_chat_inputs.PASTE_MARK):
+        return True  # long text is shown collapsed as "[Pasted text #1 ...]"
+    size = min(len(shown), len(head))
+    return size >= min(8, len(head)) > 0 and shown[:size] == head[:size]
+
+
+def submit_block_reason(transcript: str) -> str:
+    """The last 'prompt blocked by hook' notice in a transcript ('' when none is recent)."""
+    if not transcript:
+        return ""
+    try:
+        with open(transcript, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            handle.seek(max(0, handle.tell() - 200_000))
+            lines = handle.read().decode("utf-8", "replace").splitlines()[1:]
+    except OSError:
+        return ""
+    for line in reversed(lines[-200:]):
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if entry.get("type") in ("user", "assistant"):
+            return ""  # a turn ran after any block: not the reason
+        content = str(entry.get("content") or "")
+        if entry.get("type") == "system" and HOOK_BLOCK_MARK in content:
+            return content.split("Original prompt:")[0].strip()[:300]
+    return ""
+
+
+def alert_unsent(chat: Chat, reason: str, directory: Path, now: float, post=None) -> bool:
+    """One Discord alert per chat and hour: a wake-up stayed unsent in its box."""
+    marks = load_marks(directory, "unsent_alerts.json")
+    last = marks.get(chat.session_id)
+    if last and now - _iso(last) < WAKE_ALERT_SECONDS:
+        return False
+    import chat_usage_watch  # sibling script: owns the ops webhook lookup
+
+    label = chat.title or chat.name or chat.session_id[:8]
+    text = (f"Chat lifecycle: a wake-up for chat \"{label}\" ({chat.session_id[:8]}) stays unsent in its input box "
+            f"after {WAKE_SUBMIT_TRIES} Enter presses. " + (f"Cause: {reason}" if reason else "Cause unknown."))
+    sent = (post or chat_usage_watch.send)(text[:1900])
+    marks[chat.session_id] = _utc(now)
+    save_marks(directory, "unsent_alerts.json", marks)
+    return bool(sent)
+
+
 def wake(chat: Chat, text: str = "") -> bool:
-    """Type a wake prompt (default: its undelivered results) into the chat's pane; True when sent."""
+    """Type a wake prompt (default: its undelivered results) into the chat's pane; True when submitted.
+
+    Submitted means the box no longer shows the text after Enter. On 2026-11-23 wake-ups
+    sat in many boxes for over an hour while this returned True: every Enter was refused
+    by a UserPromptSubmit hook that could not find its script (.claude/hooks/run.sh). Enter
+    is now pressed up to WAKE_SUBMIT_TRIES times with growing pauses; text still shown
+    afterwards is logged (`wake_unsent`, with the hook's block notice when there is one),
+    alerted on Discord once an hour per chat, and returns False so the caller retries.
+    """
     pane = f"terminal_{chat.pane_id}"
     for _ in range(30):
         screen = zellij(chat.zellij_session, "dump-screen", "--pane-id", pane)
@@ -823,9 +890,23 @@ def wake(chat: Chat, text: str = "") -> bool:
         zellij(chat.zellij_session, "write", "--pane-id", pane, "21")  # Ctrl+U clears one input line
     else:
         return False
-    typed = zellij(chat.zellij_session, "write-chars", "--pane-id", pane,
-                   text or claude_chat_pending.wake_prompt(chat.undelivered))
-    return not typed.returncode and not zellij(chat.zellij_session, "write", "--pane-id", pane, "13").returncode
+    text = text or claude_chat_pending.wake_prompt(chat.undelivered)
+    if zellij(chat.zellij_session, "write-chars", "--pane-id", pane, text).returncode:
+        return False
+    for attempt in range(1, WAKE_SUBMIT_TRIES + 1):
+        _sleep(WAKE_SUBMIT_PAUSE * attempt)  # a long text arrives as a paste; Enter inside it is a newline
+        if zellij(chat.zellij_session, "write", "--pane-id", pane, "13").returncode:
+            return False
+        _sleep(WAKE_SUBMIT_PAUSE)
+        screen = zellij(chat.zellij_session, "dump-screen", "--pane-id", pane)
+        if screen.returncode or not _box_holds(screen.stdout, text):
+            return True  # submitted (or the pane closed, as after /exit)
+    reason = submit_block_reason(chat.transcript)
+    directory, now = state_dir(), time.time()
+    log_event(directory, {"event": "wake_unsent", "session_id": chat.session_id, "title": chat.title or chat.name,
+                          "reason": reason, "text": text[:200]})
+    alert_unsent(chat, reason, directory, now)
+    return False
 
 
 def _stalled_entry(session_id: str, title: str, kind: str, last_activity: float, reason: str, **extra) -> dict:
