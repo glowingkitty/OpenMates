@@ -51,7 +51,7 @@
 <style>
   .plan-embed { display: grid; align-content: start; justify-items: stretch; gap: var(--spacing-5); width: 100%; max-width: 420px; height: auto; min-height: 0; margin: 0; box-shadow: none; padding: var(--spacing-8); border: 1px solid var(--color-grey-20); border-radius: var(--radius-5, 24px); background: var(--color-grey-0); color: var(--color-font-primary); font: inherit; text-align: left; cursor: pointer; }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-5); }
-  .title { min-width: 0; overflow-wrap: anywhere; }
+  .title { min-width: 0; overflow-wrap: break-word; word-break: normal; }
   .goal { margin: 0; color: var(--color-font-secondary); display: -webkit-box; line-clamp: 2; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .progress { height: 6px; border-radius: 999px; background: var(--color-grey-20); overflow: hidden; }
   .bar { display: block; height: 100%; background: var(--color-button-primary); }

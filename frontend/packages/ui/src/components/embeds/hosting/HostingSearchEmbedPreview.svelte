@@ -81,7 +81,7 @@
 
 <style>
   .search-summary { display: flex; flex-direction: column; gap: var(--spacing-3); min-width: 0; padding-top: var(--spacing-5); }
-  .query { color: var(--color-font-primary); font-weight: 600; overflow-wrap: anywhere; line-height: 1.25; max-height: 3.75em; overflow: hidden; }
+  .query { color: var(--color-font-primary); font-weight: 600; overflow-wrap: break-word; word-break: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; line-height: 1.25; max-height: 3.75em; overflow: hidden; }
   .provider, .counts { color: var(--color-font-secondary); }
   p { margin: 0; font-size: var(--font-size-p); }
   .from { color: var(--color-font-primary); font-weight: 600; }

@@ -67,7 +67,7 @@
   .card-source { display: flex; align-items: center; gap: var(--spacing-2); font-size: var(--font-size-xxs); color: var(--color-font-secondary); min-width: 0; flex-shrink: 0; }
   .card-source img { width: 18px; height: 18px; object-fit: contain; flex: 0 0 auto; }
   .card-source span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  h3 { flex-shrink: 0; margin: 0; color: var(--color-font-primary); font-size: var(--font-size-h4); line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; text-overflow: ellipsis; }
+  h3 { flex-shrink: 0; margin: 0; color: var(--color-font-primary); font-size: var(--font-size-h4); line-height: 1.25; font-weight: 700; overflow-wrap: break-word; word-break: normal; hyphens: manual; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; text-overflow: ellipsis; }
   p { margin: 0; min-height: 0; font-size: var(--font-size-xs); line-height: 1.4; color: var(--color-font-secondary); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
   .has-media:not(.text-first) p { display: none; }
   .card-badge { position: absolute; top: 2px; left: 54px; z-index: 1; }

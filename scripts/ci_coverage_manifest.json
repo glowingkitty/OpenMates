@@ -575,6 +575,8 @@
         "components/nutrition-serving-macros.spec.ts",
         "public-example-activity-summary.spec.ts",
         "components/chat-message-openmates-identity.spec.ts",
+        "components/chat-message-bubble-tail.spec.ts",
+        "components/embed-card-title-wrap.spec.ts",
         "components/voice-call-header-actions.spec.ts",
         "components/voice-call-focused-draft.spec.ts",
         "landing-shopping-replacement.spec.ts",

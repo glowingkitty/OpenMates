@@ -54,7 +54,7 @@
 <style>
   .browse-preview { display: flex; flex-direction: column; gap: var(--spacing-3); height: 100%; min-width: 0; }
   img { width: 100%; min-height: 0; flex: 1; object-fit: contain; border-radius: var(--radius-3); background: var(--color-grey-100); }
-  .title { font-size: 1rem; font-weight: 600; color: var(--color-font-primary); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  .title { font-size: 1rem; font-weight: 600; color: var(--color-font-primary); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: break-word; word-break: normal; }
   button { align-self: flex-start; font: inherit; border: 0; background: var(--color-grey-20); color: var(--color-font-primary); border-radius: var(--radius-full); min-height: 36px; padding: var(--spacing-3) var(--spacing-6); cursor: pointer; }
   button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
   p { margin: 0; font-size: .875rem; color: var(--color-error); }

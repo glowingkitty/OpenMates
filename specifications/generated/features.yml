@@ -10080,8 +10080,10 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
+      - frontend/apps/web_app/tests/components/chat-message-bubble-tail.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-openmates-identity.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-voice-transcript-status.spec.ts
+      - frontend/apps/web_app/tests/components/embed-card-title-wrap.spec.ts
       - frontend/apps/web_app/tests/components/included-memory-pills.spec.ts
       - frontend/apps/web_app/tests/components/memory-request-call-countdown.spec.ts
       - frontend/apps/web_app/tests/components/skill-input-thumbnails.spec.ts

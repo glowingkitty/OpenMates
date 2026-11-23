@@ -4096,6 +4096,16 @@
     mask: none;
     clip-path: polygon(100% 0, 100% 100%, 0 50%);
   }
+  /* Stacked (mobile) layout: the avatar sits above the bubble, so the tail is an
+     upward triangle on the bubble's top edge, overlapping it by 3px to stay attached. */
+  .chat-message.assistant.mobile-stacked .mate-message-content.assistant-response-bubble::before {
+    transform: none;
+    inset-inline-start: 20px;
+    top: -10px;
+    width: 20px;
+    height: 13px;
+    clip-path: polygon(0 100%, 100% 100%, 50% 0);
+  }
   .assistant-response-active::after {
     content: '';
     position: absolute;
