@@ -1,6 +1,7 @@
 """Codex chat registry, launch command, transcript mirror and usage reading (TASK-4476)."""
 
 import json
+import os
 import sys
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -62,7 +63,8 @@ def test_mirror_writes_claude_records_and_usage_reads_rate_limits(home):
             "secondary": {"used_percent": 35.5, "window_minutes": 10080, "resets_at": 1764000000}}}},
     ])
     rows = [json.loads(line) for line in codex_chats.mirror(record["chat_id"]).read_text().splitlines()]
-    assert rows[0] == {"type": "custom-title", "customTitle": "Fix a typo", "sessionId": record["chat_id"]}
+    assert rows[0]["customTitle"] == "Fix a typo"
+    assert rows[0]["sessionId"] == record["chat_id"] and rows[0]["type"] == "custom-title"
     assert [r["type"] for r in rows[1:]] == ["user", "assistant", "assistant"]
     assert rows[2]["message"]["content"][0]["name"] == "Bash" and rows[3]["message"]["model"] == "codex:gpt-6.2-sol"
     usage = codex_chats.usage()
@@ -80,7 +82,7 @@ def test_mirror_keeps_app_server_images_on_the_user_message(home):
     record = codex_chats.new_record("Read screenshot", "gpt-6.2-sol", "medium", "/repo", False)
     record["thread_id"] = THREAD
     codex_chats.save(record)
-    _rollout(home, [
+    source = _rollout(home, [
         {"type": "response_item", "payload": {"type": "message", "role": "user", "content": [
             {"type": "input_text", "text": "<image name=[Image #1]>"},
             {"type": "input_image", "image_url": "data:image/png;base64,AA=="},
@@ -92,7 +94,13 @@ def test_mirror_keeps_app_server_images_on_the_user_message(home):
             {"type": "output_text", "text": "A screenshot."},
         ]}},
     ])
-    mirrored = codex_chats.mirror(record["chat_id"])
+    # The rollout timestamp matches, but the old format omitted the image.
+    mirrored = codex_chats.transcript_path(record["chat_id"])
+    mirrored.parent.mkdir(parents=True)
+    mirrored.write_text('{"type":"custom-title"}\n')
+    stamp = source.stat().st_mtime_ns
+    os.utime(mirrored, ns=(stamp, stamp))
+    assert codex_chats.mirror(record["chat_id"]) == mirrored
     rows = [json.loads(line) for line in mirrored.read_text().splitlines()]
     assert [row["type"] for row in rows] == ["custom-title", "user", "assistant"]
     assert rows[1]["uuid"]

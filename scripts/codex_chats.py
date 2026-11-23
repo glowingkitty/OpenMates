@@ -48,6 +48,7 @@ DEFAULT_MODEL = "gpt-6.2-sol"
 # Owner, 2026-11-23: Astra only when Marco names it, like Fable for Claude.
 EXPLICIT_ONLY_MODELS = ("gpt-6.2-astra",)
 MAX_EFFORT = "medium"
+MIRROR_VERSION = 2
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 ROLLOUT_ID_RE = re.compile(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.jsonl$")
 
@@ -306,7 +307,8 @@ def _message_blocks(content: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def to_claude_records(items: Iterator[dict[str, Any]], record: dict[str, Any]) -> list[dict[str, Any]]:
     """Codex session items as Claude Code transcript records (what the connector reads)."""
     chat_id, cwd, model = record["chat_id"], record.get("cwd", ""), f"codex:{record.get('model', DEFAULT_MODEL)}"
-    out: list[dict[str, Any]] = [{"type": "custom-title", "customTitle": record.get("title", ""), "sessionId": chat_id}]
+    out: list[dict[str, Any]] = [{"type": "custom-title", "customTitle": record.get("title", ""),
+                                 "sessionId": chat_id, "openmatesMirrorVersion": MIRROR_VERSION}]
     previous_message: tuple[str, str, str, int] | None = None
     for index, item in enumerate(items):
         stamp, payload = item.get("timestamp"), item.get("payload") or {}
@@ -372,6 +374,17 @@ def transcript_path(chat_id: str) -> Path:
     return state_dir() / "transcripts" / f"{chat_id}.jsonl"
 
 
+def _mirror_is_current(target: Path, source_mtime_ns: int) -> bool:
+    try:
+        if target.stat().st_mtime_ns != source_mtime_ns:
+            return False
+        with target.open(encoding="utf-8") as handle:
+            header = json.loads(handle.readline())
+        return isinstance(header, dict) and header.get("openmatesMirrorVersion") == MIRROR_VERSION
+    except (OSError, ValueError):
+        return False
+
+
 def mirror(chat_id: str) -> Path | None:
     """Rewrite the chat's Claude-format transcript when its Codex session file changed."""
     record = load(chat_id)
@@ -387,7 +400,8 @@ def mirror(chat_id: str) -> Path | None:
             rows = to_claude_records(iter(()), record) + ([first] if record.get("prompt") else [])
             target.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
         return target
-    if target.exists() and target.stat().st_mtime >= source.stat().st_mtime:
+    source_mtime = source.stat().st_mtime_ns
+    if _mirror_is_current(target, source_mtime):
         return target
     rows = to_claude_records(_rollout_lines(source), record)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -397,6 +411,7 @@ def mirror(chat_id: str) -> Path | None:
             for row in rows:
                 handle.write(json.dumps(row) + "\n")
             handle.close()
+            os.utime(tmp, ns=(source_mtime, source_mtime))
             tmp.replace(target)
         finally:
             tmp.unlink(missing_ok=True)
