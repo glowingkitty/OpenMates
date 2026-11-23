@@ -16633,30 +16633,30 @@ assertions:
     direct_tests:
     - &id2075
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2326
+      line: 2391
       name: active Team member can seal, lease, and persist an AI response in a chat
         created by another member
       surface: rest_api
     - &id2076
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2398
+      line: 2463
       name: Team recovery never leases sealed payload after membership removal or
         role downgrade
       surface: rest_api
     - &id2077
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2432
+      line: 2497
       name: removing a Team member revokes existing sealed-job replay, renewal, and
         terminal persistence
       surface: rest_api
     - &id2078
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2468
+      line: 2533
       name: a Personal chat never lends a recovery job to a different user
       surface: rest_api
     - &id2084
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3115
+      line: 3180
       name: embed and diff recovery acknowledge only after canonical encrypted rows
         exist
       surface: rest_api
@@ -17227,304 +17227,304 @@ assertions:
       surface: rest_api
     - &id2079
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2726
+      line: 2791
       name: account deletion preserves the sole pending Team output and fences later
         publication
       surface: rest_api
     - &id2080
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2776
+      line: 2841
       name: account deletion refuses active legacy Team job or unpublished preflight
       surface: rest_api
     - &id2081
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2800
+      line: 2865
       name: same-chat typed discovery authorizes each row once and rechecks the next
         request
       surface: rest_api
     - &id2082
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2825
+      line: 2890
       name: distinct-target typed discovery separately authorizes owned and foreign
         target chats
       surface: rest_api
     - &id2083
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2849
+      line: 2914
       name: distinct-target typed discovery retains independent Team role and workspace
         admission
       surface: rest_api
     - &id2085
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3171
+      line: 3236
       name: owner output status proves an acknowledged embed still has canonical encrypted
         bytes
       surface: rest_api
     - &id2086
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3261
+      line: 3326
       name: selected storage metadata rejects malformed unbounded or duplicate descriptors
         in single and batch saves
       surface: rest_api
     - &id2087
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3282
+      line: 3347
       name: selected storage metadata has strict retry equality including legacy null
         and explicit clear
       surface: rest_api
     - &id2088
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3311
+      line: 3376
       name: selected storage metadata accepts exact bounds and participates in atomic
         batch rollback
       surface: rest_api
     - &id2089
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3324
+      line: 3389
       name: selected storage metadata is immutable across external writer preparation
         and finalization
       surface: rest_api
     - &id2090
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3341
+      line: 3406
       name: canonical head reuse promotes selected dependencies before ACK without
         exposing server metadata
       surface: rest_api
     - &id2091
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3363
+      line: 3428
       name: legacy null selected metadata preserves canonical dependencies while explicit
         empty clears them
       surface: rest_api
     - &id2092
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3375
+      line: 3440
       name: selected dependency promotion fails closed on owner chat subject version
         digest and wrapper mismatches
       surface: rest_api
     - &id2093
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3402
+      line: 3467
       name: historical version ACK retains selected dependencies without replacing
         advanced head or expiring them
       surface: rest_api
     - &id2094
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3420
+      line: 3485
       name: selected dependencies and ACK commit atomically and retry after a failed
         ACK write
       surface: rest_api
     - &id2095
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4401
+      line: 4466
       name: genuinely claimed ordinary and batch legacy outputs durably register exact
         selected references
       surface: rest_api
     - &id2096
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4421
+      line: 4486
       name: legacy selected references reject claim state actor owner chat dispatch
         and task substitutions
       surface: rest_api
     - &id2097
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4454
+      line: 4519
       name: legacy asset metadata preserves immutable versions and rejects conflicting
         references or provenance
       surface: rest_api
     - &id2098
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4470
+      line: 4535
       name: legacy child asset metadata binds the actual orchestration root turn and
         prompt
       surface: rest_api
     - &id2099
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4488
+      line: 4553
       name: legacy asset lookup rejects wrong identity ambiguous claims and malformed
         stored manifests
       surface: rest_api
     - &id2100
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4508
+      line: 4573
       name: legacy asset ledger bounds entry count and total bytes and rolls back
         failed writes
       surface: rest_api
     - &id2101
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4533
+      line: 4598
       name: legacy selected references survive durable completion lifecycle expiry
         and protocol cutover
       surface: rest_api
     - &id2102
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4577
+      line: 4642
       name: asset deletion inspection requires exact bounded selectors and personal
         deletion authority
       surface: rest_api
     - &id2103
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4597
+      line: 4662
       name: asset release removes only exact deleted slots and preserves unrelated
         claim entries
       surface: rest_api
     - &id2104
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4620
+      line: 4685
       name: asset release retains any surviving head historical version or key wrapper
         across owners
       surface: rest_api
     - &id2105
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4639
+      line: 4704
       name: asset release rejects stale snapshots forged provenance and lost deletion
         authority
       surface: rest_api
     - &id2106
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4670
+      line: 4735
       name: account asset inspection preserves live Team targets and unrelated children
         in the same claim
       surface: rest_api
     - &id2107
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4696
+      line: 4761
       name: asset release rollback restores both legacy and sealed references after
         a partial transaction failure
       surface: rest_api
     - &id2108
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4712
+      line: 4777
       name: asset release validates bounded exact manifests and preserves account
         claim embed lock order
       surface: rest_api
     - &id2109
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4733
+      line: 4798
       name: concurrent fenced registration cannot replace released slots or remove
         unrelated metadata
       surface: rest_api
     - &id2110
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4775
+      line: 4840
       name: asset inspection pages more than 128 cross-claim and sealed slots and
         releases each bounded batch
       surface: rest_api
     - &id2111
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4805
+      line: 4870
       name: asset cursor resumes within a claim when the entry count fills the previous
         page
       surface: rest_api
     - &id2112
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4823
+      line: 4888
       name: asset cursor resumes an exact claim entry when the byte budget fills before
         128 slots
       surface: rest_api
     - &id2113
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4846
+      line: 4911
       name: asset pagination advances through retained candidates and rejects malformed
         cursor shapes
       surface: rest_api
     - &id2114
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4886
+      line: 4951
       name: exact message deletion releases only its assets in a live chat and retries
         after the row is gone
       surface: rest_api
     - &id2115
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4923
+      line: 4988
       name: message fences reject stale legacy new and replayed sealed references
         while another message remains writable
       surface: rest_api
     - &id2116
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4950
+      line: 5015
       name: message deletion fences reject foreign owner chat and Team target substitutions
       surface: rest_api
     - &id2117
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4964
+      line: 5029
       name: owned message deletion can fence pending references without a hot message
         and cannot revive them
       surface: rest_api
     - &id2118
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4976
+      line: 5041
       name: message fencing preserves PREPARING writer leases and exact release waits
         for the existing settle grace
       surface: rest_api
     - &id2119
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5009
+      line: 5074
       name: selected storage message identity is required and immutable for save and
         replay probes
       surface: rest_api
     - &id2120
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5029
+      line: 5094
       name: registered producer replay cannot borrow selected assets from another
         message header
       surface: rest_api
     - &id2121
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5046
+      line: 5111
       name: message asset inventory requires one exact target and does not let malformed
         filters widen scope
       surface: rest_api
     - &id2122
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5524
+      line: 5589
       name: sealed output batches commit and probe in requested order with one transaction
         each
       surface: rest_api
     - &id2123
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5543
+      line: 5608
       name: sealed output batch retries retain first randomized seal and reject changed
         content atomically
       surface: rest_api
     - &id2124
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5562
+      line: 5627
       name: second sealed output failure rolls back the complete batch
       surface: rest_api
     - &id2125
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5580
+      line: 5645
       name: output batches reject mixed identity, duplicate records and malformed
         protocol before transactions
       surface: rest_api
     - &id2126
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5611
+      line: 5676
       name: output batches enforce total UTF8 bytes and inline storage while accepting
         32 entries
       surface: rest_api
     - &id2127
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5635
+      line: 5700
       name: output batches retain account, deletion, preflight and current chat authority
         fences
       surface: rest_api
     - &id2128
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5664
+      line: 5729
       name: producer batch preserves child identity, first seal and permanent deletion
         fence on retries
       surface: rest_api
     - &id2129
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5700
+      line: 5765
       name: randomized sealed retries recheck existing root and target authority before
         returning first seal
       surface: rest_api
     - &id2130
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5738
+      line: 5803
       name: randomized sealed retries reject revoked Team membership before returning
         stored ciphertext
       surface: rest_api
@@ -74535,216 +74535,216 @@ assertions:
     supporting_tests:
     - &id9275
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3261
+      line: 3326
       name: selected storage metadata rejects malformed unbounded or duplicate descriptors
         in single and batch saves
       surface: rest_api
     - &id9276
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3282
+      line: 3347
       name: selected storage metadata has strict retry equality including legacy null
         and explicit clear
       surface: rest_api
     - &id9277
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3311
+      line: 3376
       name: selected storage metadata accepts exact bounds and participates in atomic
         batch rollback
       surface: rest_api
     - &id9278
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3324
+      line: 3389
       name: selected storage metadata is immutable across external writer preparation
         and finalization
       surface: rest_api
     - &id9279
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3341
+      line: 3406
       name: canonical head reuse promotes selected dependencies before ACK without
         exposing server metadata
       surface: rest_api
     - &id9280
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3363
+      line: 3428
       name: legacy null selected metadata preserves canonical dependencies while explicit
         empty clears them
       surface: rest_api
     - &id9281
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3375
+      line: 3440
       name: selected dependency promotion fails closed on owner chat subject version
         digest and wrapper mismatches
       surface: rest_api
     - &id9282
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3402
+      line: 3467
       name: historical version ACK retains selected dependencies without replacing
         advanced head or expiring them
       surface: rest_api
     - &id9283
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3420
+      line: 3485
       name: selected dependencies and ACK commit atomically and retry after a failed
         ACK write
       surface: rest_api
     - &id9284
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4401
+      line: 4466
       name: genuinely claimed ordinary and batch legacy outputs durably register exact
         selected references
       surface: rest_api
     - &id9285
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4421
+      line: 4486
       name: legacy selected references reject claim state actor owner chat dispatch
         and task substitutions
       surface: rest_api
     - &id9286
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4454
+      line: 4519
       name: legacy asset metadata preserves immutable versions and rejects conflicting
         references or provenance
       surface: rest_api
     - &id9287
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4470
+      line: 4535
       name: legacy child asset metadata binds the actual orchestration root turn and
         prompt
       surface: rest_api
     - &id9288
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4488
+      line: 4553
       name: legacy asset lookup rejects wrong identity ambiguous claims and malformed
         stored manifests
       surface: rest_api
     - &id9289
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4508
+      line: 4573
       name: legacy asset ledger bounds entry count and total bytes and rolls back
         failed writes
       surface: rest_api
     - &id9290
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4533
+      line: 4598
       name: legacy selected references survive durable completion lifecycle expiry
         and protocol cutover
       surface: rest_api
     - &id9291
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4577
+      line: 4642
       name: asset deletion inspection requires exact bounded selectors and personal
         deletion authority
       surface: rest_api
     - &id9292
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4597
+      line: 4662
       name: asset release removes only exact deleted slots and preserves unrelated
         claim entries
       surface: rest_api
     - &id9293
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4620
+      line: 4685
       name: asset release retains any surviving head historical version or key wrapper
         across owners
       surface: rest_api
     - &id9294
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4639
+      line: 4704
       name: asset release rejects stale snapshots forged provenance and lost deletion
         authority
       surface: rest_api
     - &id9295
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4670
+      line: 4735
       name: account asset inspection preserves live Team targets and unrelated children
         in the same claim
       surface: rest_api
     - &id9296
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4696
+      line: 4761
       name: asset release rollback restores both legacy and sealed references after
         a partial transaction failure
       surface: rest_api
     - &id9297
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4712
+      line: 4777
       name: asset release validates bounded exact manifests and preserves account
         claim embed lock order
       surface: rest_api
     - &id9298
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4733
+      line: 4798
       name: concurrent fenced registration cannot replace released slots or remove
         unrelated metadata
       surface: rest_api
     - &id9299
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4775
+      line: 4840
       name: asset inspection pages more than 128 cross-claim and sealed slots and
         releases each bounded batch
       surface: rest_api
     - &id9300
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4805
+      line: 4870
       name: asset cursor resumes within a claim when the entry count fills the previous
         page
       surface: rest_api
     - &id9301
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4823
+      line: 4888
       name: asset cursor resumes an exact claim entry when the byte budget fills before
         128 slots
       surface: rest_api
     - &id9302
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4846
+      line: 4911
       name: asset pagination advances through retained candidates and rejects malformed
         cursor shapes
       surface: rest_api
     - &id9303
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4886
+      line: 4951
       name: exact message deletion releases only its assets in a live chat and retries
         after the row is gone
       surface: rest_api
     - &id9304
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4923
+      line: 4988
       name: message fences reject stale legacy new and replayed sealed references
         while another message remains writable
       surface: rest_api
     - &id9305
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4950
+      line: 5015
       name: message deletion fences reject foreign owner chat and Team target substitutions
       surface: rest_api
     - &id9306
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4964
+      line: 5029
       name: owned message deletion can fence pending references without a hot message
         and cannot revive them
       surface: rest_api
     - &id9307
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 4976
+      line: 5041
       name: message fencing preserves PREPARING writer leases and exact release waits
         for the existing settle grace
       surface: rest_api
     - &id9308
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5009
+      line: 5074
       name: selected storage message identity is required and immutable for save and
         replay probes
       surface: rest_api
     - &id9309
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5029
+      line: 5094
       name: registered producer replay cannot borrow selected assets from another
         message header
       surface: rest_api
     - &id9310
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5046
+      line: 5111
       name: message asset inventory requires one exact target and does not let malformed
         filters widen scope
       surface: rest_api
@@ -99684,13 +99684,13 @@ assertions:
       surface: gui.apple
     - &id12448
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5400
+      line: 5465
       name: routing proof advances across server-bound follower prepare and durable
         queue marker
       surface: rest_api
     - &id12449
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5416
+      line: 5481
       name: routing proof catches up after unhinted follower marker but never credits
         unrelated version change
       surface: rest_api
@@ -100224,7 +100224,7 @@ assertions:
       surface: gui.apple
     - &id12538
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5484
+      line: 5549
       name: queued revision advances only an unchanged active routing proof
       surface: rest_api
     - &id12550
@@ -102375,13 +102375,13 @@ assertions:
     direct_tests:
     - &id12813
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1990
+      line: 2055
       name: first Personal admission shares only the protocol gate and retains owner
         and chat locks
       surface: rest_api
     - &id12814
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2006
+      line: 2071
       name: shared protocol probe leaves missing or repairable state for exclusive
         fallback
       surface: rest_api
@@ -103611,58 +103611,58 @@ assertions:
       surface: gui.apple
     - &id13126
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1626
+      line: 1691
       name: direct-chat preflight permits active participants including viewers, never
         a Team owner outsider
       surface: rest_api
     - &id13134
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1990
+      line: 2055
       name: first Personal admission shares only the protocol gate and retains owner
         and chat locks
       surface: rest_api
     - &id13135
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2006
+      line: 2071
       name: shared protocol probe leaves missing or repairable state for exclusive
         fallback
       surface: rest_api
     - &id13136
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2026
+      line: 2091
       name: atomic first Personal admission commits one message, preflight and held
         outbox and replays exactly
       surface: rest_api
     - &id13137
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2074
+      line: 2139
       name: atomic first Personal outbox failure rolls back chat, message and preflight
       surface: rest_api
     - &id13138
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2085
+      line: 2150
       name: atomic first Personal admission fails closed for key, version, pause,
         owner, device, deletion and account
       surface: rest_api
     - &id13139
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2111
+      line: 2176
       name: atomic first Personal incomplete locked projection rolls back before fallback
       surface: rest_api
     - &id13140
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2208
+      line: 2273
       name: first Personal projection rejects owner, direct, deletion, epoch and pause
         races
       surface: rest_api
     - &id13141
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2277
+      line: 2342
       name: first Personal wrong wrapped key leaves no outbox or enqueue transition
       surface: rest_api
     - &id13142
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2468
+      line: 2533
       name: a Personal chat never lends a recovery job to a different user
       surface: rest_api
     - &id13165
@@ -105677,180 +105677,180 @@ assertions:
       surface: gui.web
     - &id13124
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1566
+      line: 1631
       name: prepare_preflight atomically writes chat, user message, and preflight
       surface: rest_api
     - &id13125
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1582
+      line: 1647
       name: prepare_preflight creates team chat wrapper for new team chats
       surface: rest_api
     - &id13127
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1693
+      line: 1758
       name: prepare_preflight rolls back team chat when team wrapper insert fails
       surface: rest_api
     - &id13128
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1811
+      line: 1876
       name: prepare_preflight rolls back all writes when the final preflight insert
         fails
       surface: rest_api
     - &id13129
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1825
+      line: 1890
       name: prepare_preflight accepts matching metadata for an existing empty draft
         shell
       surface: rest_api
     - &id13130
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1852
+      line: 1917
       name: prepare_preflight completes a key-only empty shell but rejects conflicting
         encrypted metadata
       surface: rest_api
     - &id13131
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1886
+      line: 1951
       name: prepare_preflight completes a voice-call shell whose only message is the
         call-started lifecycle message
       surface: rest_api
     - &id13132
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1904
+      line: 1969
       name: prepare_preflight rejects metadata for an existing non-empty chat
       surface: rest_api
     - &id13133
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1931
+      line: 1996
       name: prepare_preflight is idempotent for an exact duplicate and rejects immutable
         key changes
       surface: rest_api
     - &id13143
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2878
+      line: 2943
       name: discovery cursor advances past a full page of revoked Team outputs
       surface: rest_api
     - &id13144
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5444
+      line: 5509
       name: atomic admission initializes proof from canonical ciphertext only on new
         schema
       surface: rest_api
     - &id13145
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5785
+      line: 5850
       name: generated child metadata uses the root recovery key after completion and
         commits bounded metadata once
       surface: rest_api
     - &id13146
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5823
+      line: 5888
       name: child metadata cannot borrow another owner root parent task or key identity
       surface: rest_api
     - &id13147
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5890
+      line: 5955
       name: personal draft registration creates only a key shell and concurrent retries
         preserve established metadata
       surface: rest_api
     - &id13148
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5915
+      line: 5980
       name: personal draft registration rejects foreign scope, key substitution and
         malformed requests without mutation
       surface: rest_api
     - &id13149
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5934
+      line: 5999
       name: personal draft registration respects durable account and chat deletion
         fences, including missing rows
       surface: rest_api
     - &id13150
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5945
+      line: 6010
       name: personal draft registration insertion crash rolls back and retry succeeds
       surface: rest_api
     - &id13151
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5953
+      line: 6018
       name: personal draft registration and deletion serialize without resurrecting
         the chat
       surface: rest_api
     - &id13152
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5970
+      line: 6035
       name: personal draft registration and account deletion serialize on the account
         fence
       surface: rest_api
     - &id13153
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6048
+      line: 6113
       name: only genuinely new voice shells arm cleanup; pre-bootstrap draft touches
         permanently exclude them
       surface: rest_api
     - &id13154
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6068
+      line: 6133
       name: call admission and finalization are durable; live calls and any issued
         turn cannot be cleaned
       surface: rest_api
     - &id13155
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6083
+      line: 6148
       name: conditional cleanup fences only exact lifecycle rows at the unchanged
         version and is retryable
       surface: rest_api
     - &id13156
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6108
+      line: 6173
       name: conditional cleanup retains unknown messages, drafts, embeds, recovery
         work and authored metadata
       surface: rest_api
     - &id13157
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6139
+      line: 6204
       name: draft admission and cleanup choose one outcome under the shared durable
         deletion lock
       surface: rest_api
     - &id13158
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6154
+      line: 6219
       name: first ordinary-message admission and cleanup serialize without deleting
         an admitted turn
       surface: rest_api
     - &id13159
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6171
+      line: 6236
       name: a subsequent tokenless call permanently disqualifies an earlier finished-call
         candidate
       surface: rest_api
     - &id13160
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6188
+      line: 6253
       name: hash-only Project admissions exclude pre-bootstrap shells and cannot write
         after conditional fencing
       surface: rest_api
     - &id13161
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6202
+      line: 6267
       name: a known legacy connection permanently excludes current candidates before
         initial sync
       surface: rest_api
     - &id13162
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6217
+      line: 6282
       name: lifecycle commits are durable and idempotent; late duplicate persistence
         cannot recreate a fenced chat
       surface: rest_api
     - &id13163
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6239
+      line: 6304
       name: server-proven failure before Ready permits null-ID cleanup and remains
         subject to content and legacy exclusions
       surface: rest_api
     - &id13164
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6269
+      line: 6334
       name: possibly exposed Ready or absent exposure proof always retains the bound
         call identity
       surface: rest_api
@@ -110146,59 +110146,59 @@ assertions:
       surface: gui.apple
     - &id13905
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1711
+      line: 1776
       name: ordinary Team relay proof binds preflight, sender, team, message, and
         ciphertext
       surface: rest_api
     - &id13906
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1747
+      line: 1812
       name: lost ordinary Team ACK replays one committed turn and rejects changed
         ciphertext
       surface: rest_api
     - &id13913
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2026
+      line: 2091
       name: atomic first Personal admission commits one message, preflight and held
         outbox and replays exactly
       surface: rest_api
     - &id13915
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2074
+      line: 2139
       name: atomic first Personal outbox failure rolls back chat, message and preflight
       surface: rest_api
     - &id13916
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2085
+      line: 2150
       name: atomic first Personal admission fails closed for key, version, pause,
         owner, device, deletion and account
       surface: rest_api
     - &id13917
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2111
+      line: 2176
       name: atomic first Personal incomplete locked projection rolls back before fallback
       surface: rest_api
     - &id13919
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2155
+      line: 2220
       name: atomic retry of a prepared row uses Python UUIDv5-compatible task, billing
         and outbox identities
       surface: rest_api
     - &id13920
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2180
+      line: 2245
       name: first Personal enqueue returns an authorized locked projection for exact
         duplicate
       surface: rest_api
     - &id13921
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2208
+      line: 2273
       name: first Personal projection rejects owner, direct, deletion, epoch and pause
         races
       surface: rest_api
     - &id13924
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2277
+      line: 2342
       name: first Personal wrong wrapped key leaves no outbox or enqueue transition
       surface: rest_api
     - &id13927
@@ -110712,75 +110712,75 @@ assertions:
       surface: gui.apple
     - &id13904
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1566
+      line: 1631
       name: prepare_preflight atomically writes chat, user message, and preflight
       surface: rest_api
     - &id13907
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1811
+      line: 1876
       name: prepare_preflight rolls back all writes when the final preflight insert
         fails
       surface: rest_api
     - &id13908
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1825
+      line: 1890
       name: prepare_preflight accepts matching metadata for an existing empty draft
         shell
       surface: rest_api
     - &id13909
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1852
+      line: 1917
       name: prepare_preflight completes a key-only empty shell but rejects conflicting
         encrypted metadata
       surface: rest_api
     - &id13910
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1886
+      line: 1951
       name: prepare_preflight completes a voice-call shell whose only message is the
         call-started lifecycle message
       surface: rest_api
     - &id13911
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1904
+      line: 1969
       name: prepare_preflight rejects metadata for an existing non-empty chat
       surface: rest_api
     - &id13912
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1931
+      line: 1996
       name: prepare_preflight is idempotent for an exact duplicate and rejects immutable
         key changes
       surface: rest_api
     - &id13914
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2062
+      line: 2127
       name: unreleased atomic HELD outbox expires to FAILED instead of remaining enqueued
         forever
       surface: rest_api
     - &id13918
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2131
+      line: 2196
       name: atomic first Personal epoch zero and unsupported Team mode leave no message
         or outbox
       surface: rest_api
     - &id13922
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2236
+      line: 2301
       name: stale first Personal version omits projection for fresh-read fallback
       surface: rest_api
     - &id13923
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2253
+      line: 2318
       name: first Personal projection omits malformed or mismatched locked metadata
       surface: rest_api
     - &id13925
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5890
+      line: 5955
       name: personal draft registration creates only a key shell and concurrent retries
         preserve established metadata
       surface: rest_api
     - &id13926
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6285
+      line: 6350
       name: get_finished_turn reports only finished, owned, undeleted turns and never
         writes
       surface: rest_api
@@ -112579,31 +112579,31 @@ assertions:
       surface: gui.apple
     - &id14162
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2800
+      line: 2865
       name: same-chat typed discovery authorizes each row once and rechecks the next
         request
       surface: rest_api
     - &id14163
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2825
+      line: 2890
       name: distinct-target typed discovery separately authorizes owned and foreign
         target chats
       surface: rest_api
     - &id14164
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 3171
+      line: 3236
       name: owner output status proves an acknowledged embed still has canonical encrypted
         bytes
       surface: rest_api
     - &id14165
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5986
+      line: 6051
       name: discovery exposes an owner live lease as pending without making it claimable
         or leaking its secrets
       surface: rest_api
     - &id14166
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 6016
+      line: 6081
       name: discovery names the device that started each turn so the API can keep
         it the persister
       surface: rest_api
@@ -113899,7 +113899,7 @@ assertions:
     supporting_tests:
     - &id14364
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5986
+      line: 6051
       name: discovery exposes an owner live lease as pending without making it claimable
         or leaking its secrets
       surface: rest_api
@@ -115157,19 +115157,19 @@ assertions:
       surface: gui.apple
     - &id14536
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5804
+      line: 5869
       name: delayed child metadata cannot replace an owner edit or a later accepted
         child turn
       surface: rest_api
     - &id14537
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5844
+      line: 5909
       name: child bootstrap and missed-typing rename at allocated v1 retain existing
         fields while recovering missing summary
       surface: rest_api
     - &id14538
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5871
+      line: 5936
       name: genuine next-turn authoritative base permits replacing an existing AI
         summary
       surface: rest_api
@@ -115816,30 +115816,30 @@ assertions:
       surface: gui.apple
     - &id14588
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5785
+      line: 5850
       name: generated child metadata uses the root recovery key after completion and
         commits bounded metadata once
       surface: rest_api
     - &id14589
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5804
+      line: 5869
       name: delayed child metadata cannot replace an owner edit or a later accepted
         child turn
       surface: rest_api
     - &id14590
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5823
+      line: 5888
       name: child metadata cannot borrow another owner root parent task or key identity
       surface: rest_api
     - &id14591
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5844
+      line: 5909
       name: child bootstrap and missed-typing rename at allocated v1 retain existing
         fields while recovering missing summary
       surface: rest_api
     - &id14592
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 5871
+      line: 5936
       name: genuine next-turn authoritative base permits replacing an existing AI
         summary
       surface: rest_api
@@ -188527,19 +188527,19 @@ assertions:
     direct_tests:
     - &id23838
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1711
+      line: 1776
       name: ordinary Team relay proof binds preflight, sender, team, message, and
         ciphertext
       surface: rest_api
     - &id23839
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1747
+      line: 1812
       name: lost ordinary Team ACK replays one committed turn and rejects changed
         ciphertext
       surface: rest_api
     - &id23840
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1773
+      line: 1838
       name: failed Team preflight cannot authorize a relay
       surface: rest_api
     - &id23842
@@ -188832,7 +188832,7 @@ assertions:
     supporting_tests:
     - &id23841
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1795
+      line: 1860
       name: paused sends cannot commit an ordinary Team preflight
       surface: rest_api
     - &id23847
@@ -189981,19 +189981,19 @@ assertions:
     direct_tests:
     - &id24031
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2326
+      line: 2391
       name: active Team member can seal, lease, and persist an AI response in a chat
         created by another member
       surface: rest_api
     - &id24032
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2398
+      line: 2463
       name: Team recovery never leases sealed payload after membership removal or
         role downgrade
       surface: rest_api
     - &id24033
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2432
+      line: 2497
       name: removing a Team member revokes existing sealed-job replay, renewal, and
         terminal persistence
       surface: rest_api
@@ -190098,34 +190098,34 @@ assertions:
     supporting_tests:
     - &id24029
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1582
+      line: 1647
       name: prepare_preflight creates team chat wrapper for new team chats
       surface: rest_api
     - &id24030
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1693
+      line: 1758
       name: prepare_preflight rolls back team chat when team wrapper insert fails
       surface: rest_api
     - &id24034
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2726
+      line: 2791
       name: account deletion preserves the sole pending Team output and fences later
         publication
       surface: rest_api
     - &id24035
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2776
+      line: 2841
       name: account deletion refuses active legacy Team job or unpublished preflight
       surface: rest_api
     - &id24036
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2849
+      line: 2914
       name: distinct-target typed discovery retains independent Team role and workspace
         admission
       surface: rest_api
     - &id24037
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 2878
+      line: 2943
       name: discovery cursor advances past a full page of revoked Team outputs
       surface: rest_api
     - &id24038
@@ -191272,7 +191272,7 @@ assertions:
     direct_tests:
     - &id24189
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 1626
+      line: 1691
       name: direct-chat preflight permits active participants including viewers, never
         a Team owner outsider
       surface: rest_api
