@@ -6635,7 +6635,6 @@
             "client.Client.retry_chat",
             "client.Client.revise_queued_message",
             "client.Client.rewind_chat",
-            "client.Client.run_code_with_status",
             "client.Client.run_prepared_saved_send",
             "client.Client.save_draft",
             "client.Client.save_draft_record",
