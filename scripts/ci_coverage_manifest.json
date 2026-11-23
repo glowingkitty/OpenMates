@@ -1369,7 +1369,10 @@
         "real-inference-spec-authoring-focus.spec.ts",
         "real-inference-spec-sub-chats.spec.ts",
         "real-inference-sub-chats.spec.ts",
-        "real-inference-wellbeing-helpline.spec.ts"
+        "real-inference-wellbeing-helpline.spec.ts",
+        "real-inference-live-assistant-doc.spec.ts",
+        "real-inference-live-assistant-sheet.spec.ts",
+        "real-inference-live-assistant-code.spec.ts"
       ]
     },
     "proof_audio_capture_component": {
