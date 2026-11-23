@@ -32,19 +32,23 @@ Effort cap (owner, 2026-11-22): no chat runs above `medium`. `cap_effort` lowers
 queued starts. A resumed chat (waiter, WIP wake-up, connector reopen) keeps its
 original effort from its transcript (`chat_effort`), capped at `medium`.
 
-Engine routing (owner, 2026-11-23, replaces the Sonnet switch of 2026-11-22):
-`claude_weekly_model.route()` picks engine and model for every new chat started through
-`launch_claude_chat` or the connector. While more than 30% of the weekly Claude usage is
-left, new chats keep their default (Opus for complex, Sonnet for simple work). From 70%
-used until the weekly reset they start on Codex (`gpt-6.2-sol`), except security and
-encryption work (`CLAUDE_ONLY_RE` on title and prompt), which always stays on Claude. A
-model the owner named always wins (Fable, `gpt-6.2-astra`, any named model). When Codex
-is not ready (`codex_setup.py check` fails, e.g. not logged in) a routed chat starts on
-Sonnet and the launch log says why. Running and resumed chats keep their engine and model.
-The usage guard service (`scripts/claude_usage_guard.py`) records each reading in
-`scripts/claude_weekly_model.py` (state `~/.cache/openmates/usage-guard/weekly-model.json`)
-and sends one short push to the owner when the switch starts and one when it
-ends at the reset; `python3 scripts/claude_weekly_model.py status` shows it.
+Engine routing uses the weekly Claude reading from `scripts/claude_usage_guard.py`
+and the owner’s explicit model choice. With more than 30% left, the host keeps Opus
+for complex work and Sonnet for simple work. At 30% or less, new chats default to
+`gpt-6.2-sol`. Security and encryption stay on Claude above 10% remaining. A model
+the owner names always wins.
+
+Below 10% remaining, active Claude work writes its handover on the Task at the
+next turn boundary. The lifecycle suppresses Claude wake-ups and sends stopped
+work with a saved handover to a fresh Codex chat. It keeps the workspace and Task
+and archives the source chat. A stopped chat without a saved handover waits.
+The live voice call is exempt. The host can designate one already-running job
+to finish in the current weekly window. That designation expires at reset.
+
+Codex work waits when Codex is unavailable. When a rate-limit window reaches
+zero, the dispatcher sends a single short capacity notice and resumes queue
+draining after capacity returns. The usage guard stores its reading in
+`~/.cache/openmates/usage-guard/weekly-model.json`.
 
 Codex chats (`scripts/codex_chats.py`): `gpt-6.2-sol` by default, `gpt-6.2-astra` only
 when named, effort fixed at `medium`, opened as a tab of the `claude` zellij session with

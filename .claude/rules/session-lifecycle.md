@@ -62,6 +62,12 @@ paths:
   activity write and releases the Task link before dispatching a successor. The successor
   claims the Task and adopts the preserved worktree. The lifecycle archives the source
   chat once idle, without a Discord push for the transfer.
+- Below 10% weekly Claude usage remaining, automatic wake-up transfers a stopped
+  Claude chat only when its linked Task already contains a handover. Active Claude
+  work prepares its handover at the next turn boundary. Record work done, open
+  work and decisions, branch/worktree, proofs, and the next step. Codex picks up
+  the Task and workspace. The source chat is archived. Preserve the live voice
+  call and owner model choices. Codex exhaustion queues work until capacity returns.
 - Shared dev runtime mutations: `sessions.py docker restart --session <id>
   --service <name>` with its resource leases; not a substitute CI runner.
 - OpenMates Tasks owns status; no local task ledgers. `sessions.py end` is

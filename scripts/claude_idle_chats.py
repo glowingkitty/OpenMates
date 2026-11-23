@@ -111,7 +111,7 @@ import sqlite3
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -121,6 +121,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_chat_continue  # noqa: E402  (path set above)
 import claude_chat_pending  # noqa: E402  (path set above)
 import claude_chat_waiters  # noqa: E402  (path set above)
+import claude_weekly_model  # noqa: E402  (path set above)
 import codex_chats  # noqa: E402  (path set above)
 import worktree_wip  # noqa: E402  (path set above)
 
@@ -212,6 +213,7 @@ class Chat:
     transcript: str = ""  # path of its main transcript
     protected: bool = False
     process_start: str = ""
+    reserve_exemption: str = ""
 
 
 @dataclass
@@ -422,7 +424,7 @@ def _environ(pid: int) -> dict[str, str]:
     except OSError:
         return {}
     pairs = (item.decode("utf-8", "replace").partition("=") for item in raw.split(b"\0") if b"=" in item)
-    return {key: value for key, _, value in pairs if key.startswith("ZELLIJ")}
+    return {key: value for key, _, value in pairs if key.startswith("ZELLIJ") or key == claude_weekly_model.RESERVE_EXEMPT_ENV}
 
 
 def _children(pid: int) -> list[str]:
@@ -530,13 +532,27 @@ def classify(args: list[str], zellij_env: dict[str, str], sessions: list[str], k
 UNREADABLE = "unreadable"
 
 
+def codex_handoff_waiter(waiter) -> bool:
+    return waiter.kind == "handoff" and "codex" in waiter.detail.casefold()
+
+
 def gather_waiters(now: float) -> dict[str, list]:
     """chat id -> its waiters; {UNREADABLE: [...]} when a source cannot be read."""
     root = canonical_root()
     sources = claude_chat_waiters.Sources(root=root, state=state_dir(),
                                           sessions=claude_chat_pending.session_ids_by_chat(root))
     try:
-        return claude_chat_waiters.collect(sources, now)
+        waiters = claude_chat_waiters.collect(sources, now)
+        for chat_id in load_marks(sources.state, "handed_off.json"):
+            waiters.pop(chat_id, None)
+        if claude_weekly_model.reserve_active():
+            for chat_id, items in waiters.items():
+                waiters[chat_id] = [
+                    replace(waiter, ready=True, ready_at=now, ready_text=waiter.detail)
+                    if not waiter.ready and codex_handoff_waiter(waiter)
+                    else waiter for waiter in items
+                ]
+        return waiters
     except (RuntimeError, sqlite3.Error) as error:  # never stop blindly: every chat counts as waiting
         print(f"claude_idle_chats: {error}; every chat is kept this cycle", file=sys.stderr)
         return {UNREADABLE: [claude_chat_waiters.Waiter("", "background", "unreadable", str(error)[:120],
@@ -576,6 +592,7 @@ def live_chats(claude_home: Path, config: dict, waiters: dict[str, list] | None 
             zellij_session=zellij_env.get("ZELLIJ_SESSION_NAME", "") if kind == "pane" else "",
             pane_id=zellij_env.get("ZELLIJ_PANE_ID", "") if kind == "pane" else "",
             protected=session_id in config.get("protected_chat_ids", []), process_start=process_start,
+            reserve_exemption=zellij_env.get(claude_weekly_model.RESERVE_EXEMPT_ENV, ""),
             model=_flag(args, "--model"), undelivered=pending.undelivered, refusal_kept=pending.refusal_kept,
             refusal_at=pending.refusal_at, waiters=waiters.get(session_id) or waiters.get(UNREADABLE) or [],
         )
@@ -941,7 +958,8 @@ def wake(chat: Chat, text: str = "") -> bool:
     afterwards is logged (`wake_unsent`, with the hook's block notice when there is one),
     alerted on Discord once an hour per chat, and returns False so the caller retries.
     """
-    if chat.kind != "pane" or not chat.pane_id or chat.protected or waiting_on_billing(chat):
+    if (chat.kind != "pane" or not chat.pane_id or chat.protected or waiting_on_billing(chat)
+            or claude_weekly_model.needs_handoff(chat.session_id, exemption=chat.reserve_exemption)):
         return False
     if chat.process_start and chat.process_start != _proc_start(chat.pid):
         return False
@@ -1167,6 +1185,10 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     live = sorted(live_chats(args.claude_home, config, waiters), key=lambda item: item.last_activity)
     registry = load_registry(directory)
     refresh_registry(registry, live, now, config)
+    live_ids = {chat.session_id for chat in live}
+    for chat_id in load_marks(directory, "handed_off.json"):
+        if chat_id not in live_ids and registry.get(chat_id, {}).get("state") != "archived":
+            registry.setdefault(chat_id, {}).update(state="archived", archived_at=_utc(now), last_activity=_utc(now))
     if args.command != "list" and not args.dry_run:
         for chat in live:
             close_setup_offer(chat, directory)  # declined; the next cycle sees its real state
@@ -1288,6 +1310,8 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
     import claude_dispatch  # noqa: E402  (sibling script; imports nothing from here)
 
     resumed: list[str] = []
+    archived: list[str] = []
+    reserve = claude_weekly_model.reserve_active()
 
     def reopen(chat_id: str, text: str) -> str:
         try:
@@ -1295,7 +1319,10 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
         except (claude_dispatch.DispatchError, subprocess.SubprocessError, OSError) as error:
             return f"resume failed: {error}"[:200]
         if outcome == "ok":
-            resumed.append(chat_id)
+            if reserve and chat_id in load_marks(directory, "handed_off.json"):
+                archived.append(chat_id)
+            else:
+                resumed.append(chat_id)
         return outcome
 
     free = int(config["max_running"]) - len(left) - int(config["free_slots"])
@@ -1305,9 +1332,13 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
     delivered, failures = claude_chat_waiters.deliver(
         active_waiters, {chat.session_id: chat for chat in left}, registry, directory, now, type_into=wake,
         resume=reopen, room=max(0, min(int(config["wake_batch"]), free)),
-        log=lambda event: log_event(directory, event), asks=asks, priority=task_priorities())
+        log=lambda event: log_event(directory, event), asks=asks, priority=task_priorities(),
+        resume_archived=lambda chat_id, ready: (
+            reserve and not codex_chats.is_codex_chat(chat_id) and any(codex_handoff_waiter(w) for w in ready)))
     claude_chat_waiters.remember(directory, waiters, delivered)
-    if resumed:  # resume_chat marked them resumed on disk; keep this cycle's copy in step
+    for chat_id in archived:
+        registry.setdefault(chat_id, {}).update(state="archived", archived_at=_utc(now), last_activity=_utc(now))
+    if resumed or archived:  # keep this cycle's copy in step with the dispatch outcome
         for chat_id in resumed:
             registry.pop(chat_id, None)
         save_registry(directory, registry)
@@ -1340,6 +1371,8 @@ def release(claude_home: Path, config: dict, limit: int) -> int:
     released = lost = 0
     done = load_marks(directory, "released.json")
     for chat in held_prompts(live_chats(claude_home, config)):
+        if claude_weekly_model.needs_handoff(chat.session_id, exemption=chat.reserve_exemption):
+            continue
         if released >= limit:
             break
         label = f"{chat.title or chat.name} ({chat.session_id[:8]})"

@@ -37,6 +37,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import time
 import sys
@@ -54,7 +55,7 @@ TOKEN_NOTICE_UNITS = 100_000_000
 CONTEXT_WINDOW_FRACTION = 0.8
 CLAUDE_CONTEXT_TOKENS = 180_000
 NOTE_TEMPLATE = ("## Done\n...\n## Not done\n...\n## Next step\n...\n## Open decisions\n... (or: none)\n"
-                 "## References\ncommits, files, sessions.py session, CI/deploy job ids")
+                 "## References\nbranch, worktree and session, relevant commits and files, CI/deploy results, proof references")
 
 
 def canonical_root(repo_root: Path = SCRIPT_ROOT) -> Path:
@@ -178,6 +179,20 @@ def claude_context(path: Path) -> int:
     return 0
 
 
+RESERVE_REASON = "Claude has less than 10% weekly usage left. Keep this handover-only and continue in Codex."
+
+
+def reserve_handoff_note(payload: dict, handed_path: Path) -> str:
+    import claude_weekly_model
+
+    chat_id = payload.get("session_id")
+    if (chat_id and not payload.get("codex_thread_id") and chat_id not in _load(handed_path)
+            and claude_weekly_model.needs_handoff(
+                chat_id, exemption=os.environ.get(claude_weekly_model.RESERVE_EXEMPT_ENV, ""))):
+        return handoff_now(RESERVE_REASON)
+    return ""
+
+
 def hook_prompt(raw: str, **paths) -> str:
     """UserPromptSubmit body: the hand-off-now note for a due chat, else ''. Never raises."""
     try:
@@ -187,6 +202,8 @@ def hook_prompt(raw: str, **paths) -> str:
         chat_id = str(payload.get("session_id") or "")
         if not chat_id:
             return ""
+        if note := reserve_handoff_note(payload, paths.get("handed_path") or handed_off_file()):
+            return note
         thread = payload.get("codex_thread_id")
         if thread and "codex_path" not in paths:
             import codex_chats
@@ -214,6 +231,8 @@ def hook_stop(raw: str) -> str:
         import ci_triage_gate
 
         root = canonical_root()
+        if note := reserve_handoff_note(payload, handed_off_file(root)):
+            return json.dumps({"decision": "block", "reason": note})
         brake = ci_triage_gate.active_brake(root, chat_id)
         if brake:
             if ci_triage_gate.already_asked(root, chat_id, brake):
@@ -260,6 +279,8 @@ def hook(raw: str, path: Path | None = None) -> str:
             return ""
         if payload.get("codex_thread_id"):
             return hook_prompt(raw)
+        if note := reserve_handoff_note(payload, handed_off_file()):
+            return note
         return policy_note(bump_count(chat_id, path or state_file()))
     except (OSError, ValueError, TypeError):
         return ""
@@ -287,20 +308,33 @@ def _task_link(chat_id: str) -> str:
     return f"claude:{chat_id}"
 
 
-def _find_task(chat_id: str) -> str:
-    """Full id of this chat's open Task: the one in progress, else its only open one, else ''."""
-    result = subprocess.run(["openmates", "tasks", "list", "--external-chat", _task_link(chat_id), "--json"],
-                            capture_output=True, text=True, timeout=60, check=False)
-    try:
-        parsed = json.loads(result.stdout)
-    except ValueError:
+def _tasks_cli() -> str:
+    return shutil.which("openmates") or str(Path.home() / ".npm-global" / "bin" / "openmates")
+
+
+def _find_task(chat_id: str, hint: str = "") -> str:
+    """Choose a matching Task mentioned by the waiter, or the only active candidate."""
+    link = _task_link(chat_id)
+    result = subprocess.run([_tasks_cli(), "tasks", "list", "--external-chat", link, "--json"],
+                            capture_output=True, text=True, timeout=20, check=False)
+    if result.returncode:
         return ""
-    items = parsed if isinstance(parsed, list) else (parsed.get("tasks") or parsed.get("items") or [])
-    items = [t for t in items if isinstance(t, dict)]
-    open_items = [t for t in items if t.get("status") not in ("done", "cancelled")]
-    running = [t for t in open_items if t.get("status") == "in_progress"]
-    pick = running if len(running) == 1 else open_items if len(open_items) == 1 else []
-    return str(pick[0].get("task_id") or pick[0].get("id") or "") if pick else ""
+    provider, external_id = link.split(":", 1)
+    parsed = _reply(result)
+    tasks = [task for task in parsed.get("tasks", []) if isinstance(task, dict)
+             and task.get("task_id") and task.get("status") not in ("done", "cancelled")
+             and (task.get("external_chat") or {}).get("provider") == provider
+             and (task.get("external_chat") or {}).get("id") == external_id]
+    words = set(re.findall(r"[\w-]+", hint.casefold()))
+    mentioned = [task for task in tasks if {task["task_id"].casefold(), task["task_id"][:8].casefold(),
+                                            str(task.get("short_id") or "").casefold()} & words]
+    running = [task for task in tasks if task.get("status") == "in_progress"]
+    for choices in (mentioned, running, tasks):
+        if len(choices) == 1:
+            return choices[0]["task_id"]
+        if choices is mentioned and len(mentioned) > 1:
+            return ""
+    return ""
 
 
 def archive_marker(root: Path, chat_id: str, successor: str, now: float) -> Path:
@@ -315,7 +349,7 @@ def archive_marker(root: Path, chat_id: str, successor: str, now: float) -> Path
 def build_prompt(summary: str, session_id: str, worktree: str, task_id: str, old_chat: str) -> str:
     """First prompt of the fresh chat: adopt the session, then continue from the summary."""
     steps = [
-        f"You continue the work of chat {old_chat[:8]}, which handed off after repeated compaction "
+        f"You continue the work of chat {old_chat[:8]}, which handed off its work "
         "(owner decision, 23 Nov). Its handoff note below is also in the Task's activity.",
         f"Workspace: {worktree or 'canonical checkout'}; sessions.py session: {session_id or 'none'}; "
         f"Task: {task_id or 'none'}.",
@@ -330,6 +364,8 @@ def build_prompt(summary: str, session_id: str, worktree: str, task_id: str, old
         steps.append(f"Link this chat to Task {task_id} using its engine's external chat ID. "
                      "For Claude use `claude:$CLAUDE_CODE_SESSION_ID`. For Codex use "
                      "`codex:$CODEX_THREAD_ID`.")
+    steps.append("Use the handoff as context. Verify the current state and carry forward pending decisions "
+                 "and approval requirements from the source chat.")
     steps.append("Handoff note from the old chat:\n\n" + summary.strip())
     return "\n\n".join(steps)
 
@@ -393,19 +429,92 @@ def _reply(result: subprocess.CompletedProcess) -> dict:
     return reply if isinstance(reply, dict) else {}
 
 
-def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
-                     title: str, prompt: str, summary: str) -> int:
+def saved_handoff(result: dict) -> str:
+    """Find a full source-authored handover in Task activity, including older pause notes."""
+    for entry in result.get("entries") or []:
+        note = str(entry.get("message") or "").strip()
+        if not re.match(r"^hando(?:ff|ver)\b", note, re.I) or len(note) > ACTIVITY_MAX_CHARS:
+            continue
+        if not missing_sections(note):
+            return note
+        lines = note.splitlines()
+        headings = {"done": "Done", "not done": "Not done", "next": "Next step", "open": "Open decisions"}
+        normalized = [f"## References\n{lines[0]}"]
+        for line in lines[1:]:
+            match = re.match(r"^(done|not done|next|open)(?: on dev)?:\s*(.*)$", line, re.I)
+            if match:
+                normalized.append(f"## {headings[match[1].lower()]}\n{match[2]}")
+            else:
+                normalized.append(line)
+        note = "\n".join(normalized)
+        if not missing_sections(note):
+            return note
+    return ""
+
+
+def resume_on_codex(chat_id: str, prompt: str, *, admitted: bool = False) -> str:
+    """Host resume path for stopped Claude chats. Only transfer a verified linked Task with a saved note."""
     import claude_dispatch
 
-    delivery = hashlib.sha256(f"handoff:{chat_id}:{task_id}:{summary}".encode()).hexdigest()
-    note = subprocess.run(["openmates", "tasks", "activity", "add", task_id, "--message",
-                           f"Handoff note of chat {chat_id[:8]}:\n\n{summary}", "--delivery-id", delivery, "--json"],
-                          capture_output=True, text=True, timeout=60, check=False)
-    if note.returncode or not _reply(note).get("entry"):
-        print(f"Refused: could not write the Task handoff note: {note.stderr.strip()}", file=sys.stderr)
-        return 2
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", chat_id):
+        return "Invalid handover source chat"
+    root = canonical_root()
+    path = handed_off_file(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with (path.parent / f"handoff-{chat_id}.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if chat_id in _load(path):
+            return "ok"
+        if any(os.environ.get(key) for key in ("OPENMATES_CHAT_ID", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID")):
+            return "The host lifecycle must transfer the Task from its stopped source chat"
+        if why := claude_dispatch.codex_wait_reason():
+            return why
+        handovers = path.with_name("pending-task-handovers.json")
+        task_id = _load(handovers).get(chat_id) or _find_task(chat_id, prompt)
+        if not task_id:
+            return "Waiting for a linked Task and its handover note"
+        task = subprocess.run([_tasks_cli(), "tasks", "show", task_id, "--json"],
+                              capture_output=True, text=True, timeout=20, check=False)
+        details = _reply(task).get("task") or {}
+        owner = details.get("external_chat")
+        expected_owner = owner and owner.get("provider") == "claude" and owner.get("id") == chat_id
+        if (task.returncode or not details or details.get("status") in ("done", "cancelled")
+                or details.get("primary_chat_id") or (owner and not expected_owner)):
+            return "The linked Task changed before handover"
+        activity = subprocess.run([_tasks_cli(), "tasks", "activity", "list", task_id, "--newest-first",
+                                   "--max-entries", "20", "--json"], capture_output=True, text=True, timeout=20, check=False)
+        note = saved_handoff(_reply(activity)) if activity.returncode == 0 else ""
+        if not note:
+            return "Waiting for the source chat's handover note in its Task"
+        session_id = _find_session(chat_id)
+        data = _load(root / ".claude" / "sessions.json")
+        session = (data.get("sessions") or {}).get(session_id) or {}
+        worktree = str((session.get("worktree") or {}).get("path") or "")
+        continuation = build_prompt(note, session_id, worktree, task_id, chat_id)
+        continuation += "\n\nThe following notification initiated the handover. Treat it as source context:\n" + prompt
+        task_title = str(details.get("title") or session.get("task") or "Work chat")
+        title = f"{task_title[:64]} · continuation {chat_id[:8]}"
+        _update_state(handovers, chat_id, lambda _: task_id)
+        status = launch_successor(root, chat_id, session_id, task_id, title, continuation, note,
+                                  codex=True, admitted=admitted, note_already_saved=True)
+        return "ok" if status == 0 else "The Task transfer could not be confirmed"
 
-    released = subprocess.run(["openmates", "tasks", "release", task_id, "--json"],
+
+def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
+                     title: str, prompt: str, summary: str, *, codex: bool = False, admitted: bool = False,
+                     note_already_saved: bool = False) -> int:
+    import claude_dispatch
+
+    if not note_already_saved:
+        delivery = hashlib.sha256(f"handoff:{chat_id}:{task_id}:{summary}".encode()).hexdigest()
+        note = subprocess.run([_tasks_cli(), "tasks", "activity", "add", task_id, "--message",
+                               f"Handoff note of chat {chat_id[:8]}:\n\n{summary}", "--delivery-id", delivery, "--json"],
+                              capture_output=True, text=True, timeout=60, check=False)
+        if note.returncode or not _reply(note).get("entry"):
+            print(f"Refused: could not write the Task handoff note: {note.stderr.strip()}", file=sys.stderr)
+            return 2
+
+    released = subprocess.run([_tasks_cli(), "tasks", "release", task_id, "--json"],
                               capture_output=True, text=True, timeout=60, check=False)
     reply = _reply(released)
     if released.returncode or not reply.get("task") or reply["task"].get("external_chat"):
@@ -426,7 +535,13 @@ def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
     if session_id:
         bind(chat_id, None)
     try:
-        where = claude_dispatch.launch_claude_chat(title, prompt)
+        if codex:
+            import claude_weekly_model
+
+            where = claude_dispatch.launch_claude_chat(title, prompt, model=claude_weekly_model.CODEX_MODEL,
+                                                        admitted=admitted)
+        else:
+            where = claude_dispatch.launch_claude_chat(title, prompt)
     except claude_dispatch.ChatQueued as queued:
         where = str(queued)
     except (OSError, subprocess.SubprocessError, claude_dispatch.DispatchError):

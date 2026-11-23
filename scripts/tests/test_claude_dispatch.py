@@ -20,6 +20,7 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch, "LAUNCH_LOG", tmp_path / "launches.jsonl")
     monkeypatch.setattr(dispatch, "PENDING_DIR", tmp_path / "pending")
     monkeypatch.setattr(dispatch, "admit_new_chat", lambda: None)  # room for a new chat
+    monkeypatch.setattr(dispatch.codex_chats, "exhausted_windows", lambda: [])
     monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path / "usage-guard"))  # weekly switch off
     (tmp_path / "queue").mkdir()
     return tmp_path
@@ -509,13 +510,15 @@ def test_new_chats_go_to_codex_while_weekly_usage_is_high(tmp_path, monkeypatch)
 
 
 # contract-test: tooling
-def test_codex_not_ready_falls_back_to_sonnet_and_says_so(tmp_path, monkeypatch):
+def test_codex_not_ready_queues_without_falling_back(tmp_path, monkeypatch):
     calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
     _weekly_switch_on(monkeypatch, tmp_path)
     monkeypatch.setattr(dispatch, "codex_not_ready", lambda: "Codex is not logged in")
-    where = dispatch.launch_claude_chat("title", "Rename the settings button")
-    chat = calls[-1][calls[-1].index("--") + 1:]
-    assert chat[chat.index("--model") + 1] == "claude-sonnet-5-5" and "Codex not ready" in where
+    with pytest.raises(dispatch.ChatQueued, match="Codex is not logged in"):
+        dispatch.launch_claude_chat("title", "Rename the settings button")
+    queued = json.loads(next(dispatch.PENDING_DIR.glob("*.json")).read_text())
+    assert queued["engine"] == "codex"
+    assert not any("new-tab" in call for call in calls)
 
 
 # contract-test: tooling
@@ -554,7 +557,7 @@ def test_force_start_skips_the_slot_check_and_queued_chats_drain_when_room(isola
     monkeypatch.setattr(dispatch, "admit_new_chat", full)
     opened = []
     monkeypatch.setattr(dispatch, "_open_chat_tab", lambda *a, **k: opened.append(a[0]) or "claude/tab")
-    monkeypatch.setattr(dispatch.claude_weekly_model, "route", lambda model, *_: ("claude", model))
+    monkeypatch.setattr(dispatch.claude_weekly_model, "route", lambda model, *_, **kw: ("claude", model))
     with pytest.raises(dispatch.ChatQueued):
         dispatch.launch_claude_chat("Normal start", "work", explicit_model=True)
     assert opened == []
@@ -571,3 +574,46 @@ def test_force_start_skips_the_slot_check_and_queued_chats_drain_when_room(isola
     assert dispatch.main(["drain"]) == 0
     assert opened == ["Emergency start", "Normal start", "Automatic drain"]
     assert dispatch.start_pending() == []  # nothing left to drain
+
+
+# contract-test: tooling
+def test_reserve_wakes_claude_through_handover_instead_of_relaunching(tmp_path, monkeypatch):
+    import chat_compaction_handoff as runtime_handoff
+
+    _weekly_switch_on(monkeypatch, tmp_path)
+    dispatch.claude_weekly_model.update(93, datetime.now(timezone.utc) + timedelta(days=2))
+    cid = "0b6c7f1e-1111-4222-8333-944455556667"
+    handed = []
+    monkeypatch.setattr(runtime_handoff, "resume_on_codex",
+                        lambda chat, prompt, *, admitted: handed.append((chat, prompt, admitted)) or "ok")
+    monkeypatch.setattr(dispatch, "_zellij", lambda *args: pytest.fail("Claude was relaunched"))
+    assert dispatch.resume_chat(cid, "CI finished", admitted=True) == "ok"
+    assert handed == [(cid, "CI finished", True)]
+    with pytest.raises(dispatch.DispatchError, match="Task handover"):
+        dispatch._chat_command("--resume", cid)
+
+
+# contract-test: tooling
+def test_exhausted_codex_queues_even_for_force_and_alerts_once(monkeypatch):
+    monkeypatch.setattr(dispatch.codex_chats, "exhausted_windows", lambda: ["weekly:next"])
+    sent = []
+    monkeypatch.setattr(dispatch.claude_weekly_model, "push", lambda message: sent.append(message) or "")
+    monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *args: pytest.fail("Codex started without capacity"))
+    monkeypatch.setattr(dispatch, "_open_chat_tab", lambda *args: pytest.fail("fell back to Claude"))
+    for title in ("Fix tests", "Review changes"):
+        with pytest.raises(dispatch.ChatQueued, match="no usage left"):
+            dispatch.launch_claude_chat(title, "work", model="gpt-6.2-sol", force=True)
+    assert len(sent) == 1
+    assert len(list(dispatch.PENDING_DIR.glob("*.json"))) == 2
+
+
+# contract-test: tooling
+def test_queued_claude_work_is_re_routed_under_reserve(tmp_path, monkeypatch):
+    dispatch.queue_launch("Security patch", "Work", "claude-opus-5-5", "medium", False, "full")
+    _weekly_switch_on(monkeypatch, tmp_path)
+    dispatch.claude_weekly_model.update(93, datetime.now(timezone.utc) + timedelta(days=2))
+    monkeypatch.setattr(dispatch, "codex_not_ready", lambda: "")
+    seen = []
+    monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *args: seen.append(args) or "codex")
+    assert dispatch.start_pending()[0]["status"] == "launched"
+    assert seen[0][2] == "gpt-6.2-sol"

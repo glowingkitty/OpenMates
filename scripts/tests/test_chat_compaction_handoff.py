@@ -7,8 +7,15 @@ import sys
 from pathlib import Path
 from unittest import mock
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import chat_compaction_handoff as h  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_host_usage_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path / "usage-guard"))
 
 
 NOTE = """## Done
@@ -186,3 +193,41 @@ def test_claude_oversized_context_blocks_the_first_stop(tmp_path):
         blocked = json.loads(h.hook_stop(json.dumps(payload)))
         assert blocked["decision"] == "block" and "180,000 tokens" in blocked["reason"]
         assert not h.hook_stop(json.dumps({**payload, "stop_hook_active": True}))
+
+def test_paused_note_is_reused_for_reserve_handover(tmp_path, monkeypatch):
+    source = "0b6c7f1e-1111-4222-8333-944455556667"
+    for key in ("OPENMATES_CHAT_ID", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(h, "canonical_root", lambda: tmp_path)
+    monkeypatch.setattr(h, "_find_task", lambda chat, hint: "task-id")
+    replies = [
+        mock.Mock(returncode=0, stdout=json.dumps({"task": {
+            "external_chat": {"provider": "claude", "id": source}, "status": "todo",
+        }})),
+        mock.Mock(returncode=0, stdout=json.dumps({"entries": [{"message": "Handoff note\n" + NOTE}]})),
+    ]
+    with mock.patch.object(h.subprocess, "run", side_effect=replies), \
+         mock.patch.dict(sys.modules, {"claude_dispatch": mock.Mock(codex_wait_reason=lambda: "")}), \
+         mock.patch.object(h, "launch_successor", return_value=0) as launch:
+        assert h.resume_on_codex(source, "CI finished", admitted=True) == "ok"
+    assert launch.call_args.kwargs == {"codex": True, "admitted": True, "note_already_saved": True}
+    assert "CI finished" in launch.call_args.args[5]
+
+
+def test_saved_note_requires_sections_before_transfer():
+    assert h.saved_handoff({"entries": [{"message": "Handoff note\nJust try again."}]}) == ""
+    old = "\n".join(("HANDOFF for a fresh Codex chat, dev commit abc123.",
+                     "DONE on dev: Recipe preview", "NOT DONE: Video", "NEXT: Run proof", "OPEN: none"))
+    assert h.missing_sections(h.saved_handoff({"entries": [{"message": old}]})) == []
+
+
+def test_waiter_can_name_one_of_several_linked_tasks(monkeypatch):
+    source = "0b6c7f1e-1111-4222-8333-944455556667"
+    first = "5ba50f79-a8cb-4f8b-b6d1-000000000000"
+    second = "3c85715e-a812-4f8b-b6d1-000000000000"
+    tasks = [{"task_id": key, "status": "todo", "external_chat": {"provider": "claude", "id": source}}
+             for key in (first, second)]
+    monkeypatch.setattr(h.subprocess, "run", lambda *args, **kwargs:
+                        mock.Mock(returncode=0, stdout=json.dumps({"tasks": tasks})))
+    assert not h._find_task(source)
+    assert h._find_task(source, "Resume from Task 5ba50f79") == first

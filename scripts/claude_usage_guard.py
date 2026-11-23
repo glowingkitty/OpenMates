@@ -504,10 +504,14 @@ def main(argv: list[str] | None = None) -> int:
 
     def check_all() -> None:
         if not args.dry_run:
-            # New chats start on Sonnet from 70% weekly usage until the reset (claude_weekly_model).
+            # Record the same reading the dispatch and handoff hooks use.
             change = claude_weekly_model.update(*fetch_weekly_usage())
             if change:
                 log(f"weekly model switch {change}")
+        if claude_weekly_model.reserve_active():
+            # The Stop hook gives active chats the handover. The headless relay would consume
+            # more Claude usage and could wake one of the chats being handed over.
+            return
         # Reserve first: it is the more urgent message; each tier fires once per window.
         for tier in (RESERVE_TIER, PACE_TIER, WRAPUP_TIER):
             if tier in rules:

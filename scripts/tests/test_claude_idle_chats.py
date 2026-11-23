@@ -22,6 +22,11 @@ CONFIG = dict(lc.DEFAULTS)
 MCP = ["npm exec @remotion/mcp@latest", "node /opt/bin/figma-developer-mcp --stdio"]
 
 
+@pytest.fixture(autouse=True)
+def no_host_usage_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path / "usage-guard"))
+
+
 def chat(**overrides) -> lc.Chat:
     values = dict(pid=1, session_id="chat-a", name="openmates-aa", status="idle", kind="pane",
                   last_activity=NOW - 2 * HOUR, children=list(MCP), last_speaker="assistant",
@@ -694,3 +699,20 @@ def test_billing_wait_survives_worker_restarts_and_does_not_age_into_done():
     blocked.last_speaker = "user"
     lc.refresh_registry(registry, [blocked], now, dict(lc.DEFAULTS))
     assert blocked.session_id not in registry
+
+def test_reserve_never_types_a_wake_into_claude(monkeypatch):
+    monkeypatch.setattr(lc.claude_weekly_model, "needs_handoff", lambda _, **kw: True)
+    monkeypatch.setattr(lc, "zellij", lambda *args: pytest.fail("Claude received a wake"))
+    assert not lc.wake(chat(pane_id="7", zellij_session="claude"), "Continue")
+
+
+def test_reap_main_reaches_lifecycle(tmp_path, monkeypatch):
+    calls = []
+
+    def run(args, config):
+        calls.append((args.command, args.dry_run))
+        return [], 0
+
+    monkeypatch.setattr(lc, "run_cycle", run)
+    assert lc.main(["reap", "--dry-run", "--claude-home", str(tmp_path)]) == 0
+    assert calls == [("reap", True)]

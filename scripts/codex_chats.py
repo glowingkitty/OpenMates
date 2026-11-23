@@ -480,6 +480,21 @@ def usage(newest: int = 20) -> dict[str, Any]:
     return result
 
 
+def exhausted_windows(reading: dict | None = None, now: datetime | None = None) -> list[str]:
+    """Unreset Codex rate-limit windows that report no capacity."""
+    reading = usage() if reading is None else reading
+    now = now or datetime.now(timezone.utc)
+    exhausted = []
+    for window in ("five_hour", "weekly"):
+        limit = reading.get(window) or {}
+        if float(limit.get("used_percent", 0)) < 100:
+            continue
+        reset = limit.get("resets_at")
+        if not reset or now < datetime.fromisoformat(reset):
+            exhausted.append(f"{window}:{reset or reading.get('observed_at', 'unknown')}")
+    return exhausted
+
+
 def describe(record: dict[str, Any]) -> str:
     """One-line shell form of a chat's start command (for logs; never contains secrets)."""
     return shlex.join(codex_args(record, "<prompt>"))

@@ -528,7 +528,8 @@ PERMANENT_WAKE_FAILURES = ("no transcript on this host", "its folder is gone")
 
 def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, dict], state: Path, now: float, *,
             type_into, resume, room: int, log, asks=lambda chat: False,
-            priority: dict[str, int] | None = None) -> tuple[set[str], list[dict]]:
+            priority: dict[str, int] | None = None,
+            resume_archived=lambda chat_id, ready: False) -> tuple[set[str], list[dict]]:
     """Wake every chat with ready waiters once. `live` maps chat id -> lifecycle Chat.
 
     type_into(chat, text) -> bool types into a live pane chat; resume(chat_id, text) -> 'ok'
@@ -575,7 +576,7 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
                                      "waits_on": [w.label(now) for w in ready]})
                 continue  # busy or asking: a later cycle wakes it
             outcome = "ok" if type_into(chat, text) else "typing into its pane failed"
-        elif (registry.get(chat_id) or {}).get("state") == "archived":
+        elif (registry.get(chat_id) or {}).get("state") == "archived" and not resume_archived(chat_id, ready):
             delivered |= {w.key for w in ready}
             continue
         elif room <= 0:

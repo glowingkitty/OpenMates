@@ -95,3 +95,22 @@ def test_explicit_choices_always_win():
     weekly.update(10.0, RESETS + timedelta(days=7), RESETS + timedelta(minutes=1), notify)
     assert weekly.route("gpt-6.2-sol", explicit_model=True, text="x", now=RESETS + timedelta(minutes=2)) \
         == ("codex", "gpt-6.2-sol"), "Codex when named even with plenty of Claude usage"
+
+
+# contract-test: tooling
+def test_reserve_threshold_preserves_named_models_and_voice():
+    _, notify = _pushes()
+    weekly.update(89.9, RESETS, NOW, notify)
+    assert not weekly.reserve_active(NOW)
+    assert weekly.route("claude-opus-5-5", text="Review encryption", now=NOW)[0] == "claude"
+    weekly.update(90, RESETS, NOW, notify)
+    assert not weekly.reserve_active(NOW)
+    assert weekly.route("claude-opus-5-5", text="Review encryption", now=NOW)[0] == "codex"
+    weekly.update(90.1, RESETS, NOW, notify)
+    assert weekly.reserve_active(NOW)
+    assert weekly.needs_handoff("paused", NOW)
+    assert weekly.route("claude-opus-5-5", True, "Review encryption", NOW)[0] == "claude"
+    assert weekly.route("claude-opus-5-5", now=NOW, live_voice=True)[0] == "claude"
+    assert not weekly.needs_handoff("voice", NOW, exemption="live-voice")
+    assert not weekly.needs_handoff("named", NOW, exemption="owner-model")
+    assert not weekly.reserve_active(RESETS)

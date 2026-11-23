@@ -89,3 +89,15 @@ def test_reap_stops_only_done_or_asking_idle_chats(home, monkeypatch):
                                signal_fn=lambda pid, sig: killed.append(pid))
     assert sorted(e["chat_id"] for e in stopped) == sorted([ids["done"], ids["asks"]]) and len(killed) == 2
     assert codex_chats.reap(lambda cid, _at: markers.get(cid, {}), 3, set(), now=1050.0, act=False) == []
+
+
+# contract-test: tooling
+def test_exhausted_codex_windows_end_when_the_limit_resets():
+    from datetime import datetime, timezone
+
+    reading = {"five_hour": {"used_percent": 100, "resets_at": "2026-11-23T18:00:00+00:00"},
+               "weekly": {"used_percent": 80, "resets_at": "2026-11-30T18:00:00+00:00"}}
+    before = datetime(2026, 11, 23, 17, tzinfo=timezone.utc)
+    after = datetime(2026, 11, 23, 19, tzinfo=timezone.utc)
+    assert codex_chats.exhausted_windows(reading, before) == ["five_hour:2026-11-23T18:00:00+00:00"]
+    assert codex_chats.exhausted_windows(reading, after) == []
