@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-19'
-generated_at: '2026-11-20T00:20:47+00:00'
+generated_at: '2026-11-23T00:47:29+00:00'
 range:
   since: '2026-11-19T00:00:00+00:00'
   until: '2026-11-20T00:00:00+00:00'
@@ -137,13 +137,6 @@ feature_availability:
     override: disabled
     parent_id: null
     source: platform
-  - id: platform:workflows
-    kind: platform
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: null
-    source: platform
   - id: skill:design:get_design
     kind: skill
     default_enabled: true
@@ -151,13 +144,6 @@ feature_availability:
     override: disabled
     parent_id: app:design
     source: backend/apps/design/app.yml
-  - id: skill:events:search
-    kind: skill
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:events
-    source: backend/apps/events/app.yml
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
@@ -676,21 +662,22 @@ sources:
     - scripts/tests/test_agent_question.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on advancing notification infrastructure, specifically AI-generated summaries and device-sealed
-    content. Additional work addressed internal chat lifecycle management and agent status reporting via Discord.
+  overview: OpenMates focused on the development of a unified notification system and improvements to internal chat lifecycle
+    management. Key advancements include work on device-sealed push notifications and automated status reporting for agent
+    activities.
   released_changes: []
   bug_fixes: []
   unreleased_progress:
-  - text: OpenMates is developing enhanced notification features, including AI-generated summary headlines for push and email,
-      refined wording for notification types, and device-sealed chat titles.
+  - text: Development is underway for a unified notification system featuring device-sealed push notifications that include
+      chat titles and AI-generated summary headlines.
     evidence:
       commits:
-      - dffc6f295c
-      - 99205e3475
       - 7d73e0a534
+      - 99205e3475
+      - dffc6f295c
     release_status: dev_only
-  - text: Internal chat lifecycle updates include new logic for queued chat starts, auto-start rules for idle chats, and Discord-based
-      status pushes for agent events.
+  - text: Internal chat lifecycle logic was updated to support queued starts and automated status updates for agent tasks
+      via Discord.
     evidence:
       commits:
       - 51c07b257b
@@ -698,48 +685,34 @@ llm_summary:
       - ddcf5b89d7
     release_status: dev_only
   internal_progress:
-  - text: A benchmarking suite was established to evaluate the performance and accuracy of AI-generated notification summary
-      models.
-    evidence:
-      commits:
-      - dffc6f295c
-      - 99205e3475
-    release_status: dev_only
-  - text: Development scripts were added to provide live proofs for notification headlines and device-sealed push delivery.
+  - text: New benchmarking scripts and live proofs were implemented to validate notification headline generation and push
+      delivery.
     evidence:
       commits:
       - 1454f74ca1
+      - dffc6f295c
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: AI-driven notification summaries and device-sealed chat titles.
+    - text: Unified notification system enhancements and device-sealed push notifications.
       evidence:
         commits:
         - dffc6f295c
         - 99205e3475
         - 7d73e0a534
-      reason: These notification infrastructure improvements are currently in development and not yet merged to the main branch.
-    - text: Chat lifecycle management and agent status reporting.
-      evidence:
-        commits:
-        - 51c07b257b
-        - 14da1cd123
-        - ddcf5b89d7
-      reason: These changes involve internal chat management logic and developer-facing Discord notifications.
-    rationale: All changes from this period are classified as dev_only and are not yet present in the main branch, making
-      them ineligible for public communication.
+      reason: These features are currently in development and have not been merged to the main branch.
+    rationale: No user-facing changes were released to the main branch during this period. All work remains in development.
   social_video_recommendations:
-  - idea: Demonstrate how AI summarizes long chat threads into concise, readable notification headlines.
+  - idea: A preview of the upcoming unified notification system, highlighting how device-sealed push notifications protect
+      chat privacy while providing useful context.
     priority: medium
-    reason: This provides a clear visual benefit for users managing multiple conversations, though it is currently in the
-      development phase.
+    reason: The work on notification summaries and sealed push content provides a concrete privacy and utility story.
     evidence:
       commits:
       - 99205e3475
       - 7d73e0a534
   quality_notes:
-  - The introduction of a notification summary benchmark indicates a focus on the quality and reliability of AI-generated
-    user content.
-  - The use of device-sealed titles suggests a technical focus on maintaining content context within push notifications.
+  - Notification summary quality is being tracked via new benchmarking tools.
+  - Push notification security is being enhanced through device-sealed content delivery.
   validation_warnings: []

@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-18'
-generated_at: '2026-11-19T00:20:47+00:00'
+generated_at: '2026-11-23T00:46:44+00:00'
 range:
   since: '2026-11-18T00:00:00+00:00'
   until: '2026-11-19T00:00:00+00:00'
@@ -137,13 +137,6 @@ feature_availability:
     override: disabled
     parent_id: null
     source: platform
-  - id: platform:workflows
-    kind: platform
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: null
-    source: platform
   - id: skill:design:get_design
     kind: skill
     default_enabled: true
@@ -151,13 +144,6 @@ feature_availability:
     override: disabled
     parent_id: app:design
     source: backend/apps/design/app.yml
-  - id: skill:events:search
-    kind: skill
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:events
-    source: backend/apps/events/app.yml
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
@@ -957,69 +943,83 @@ sources:
     - specifications/generated/registry.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates refined the web application's handling of message drafts and voice call history while advancing unreleased
-    features for CV tailoring and automated chat resumption.
+  overview: OpenMates focused on web interface refinements and voice call continuity today. Key updates include a more compact
+    draft view in the composer and improved tracking for voice sessions. Significant unreleased work progressed on job application
+    tools and internal deployment infrastructure.
   released_changes:
-  - text: Inactive composer drafts with embeds are now minimized to a summary line to save space in the UI.
+  - text: OpenMates added a minimized summary view for inactive composer drafts that include embeds like images or sheets.
     evidence:
       commits:
       - f84b247977
     release_status: released_main
-  - text: Improved the visibility of drafted Specification cards when they appear within assistant activity groups.
+  - text: The project improved the display of assistant activity groups to ensure drafted specifications are not hidden when
+      grouped with other skill calls.
     evidence:
       commits:
       - cabf98a987
     release_status: released_main
-  - text: Voice call chats now correctly trigger the 'last opened' status, ensuring they appear in the 'Continue where you
-      left off' list.
+  bug_fixes:
+  - text: Resolved an issue where voice call chats would not appear in the 'Continue where you left off' section after a turn.
     evidence:
       commits:
       - f7750f2211
     release_status: released_main
-  bug_fixes: []
+  - text: Fixed the visibility of drafted Specification cards when they are grouped with other skill calls in the web interface.
+    evidence:
+      commits:
+      - cabf98a987
+    release_status: released_main
+  - text: Corrected the behavior of inactive composer drafts containing embeds, which now minimize to a summary line (e.g.,
+      [Image] or [Sheet]) instead of remaining expanded.
+    evidence:
+      commits:
+      - f84b247977
+    release_status: released_main
   unreleased_progress:
-  - text: Development continues on a CV creation focus mode that manages a master CV and tailors it using style notes.
+  - text: Development continued on the Jobs focus mode, including a structured master CV system that allows for tailored resumes
+      and style note reuse.
     evidence:
       commits:
       - 500950c3a7
     release_status: dev_only
-  - text: Issue reporting is being updated to preserve full text for long reports and enforce a two-minute cap on dictated
-      audio.
+  - text: Work is underway to improve issue reporting, specifically ensuring dictated text is preserved at the 2-minute cap
+      and long reports are not truncated.
     evidence:
       commits:
       - af9daf3288
     release_status: dev_only
-  - text: A new chat lifecycle waiter is in development to wake chats at specific times or following weekly usage resets.
+  - text: New chat lifecycle waiters are being tested to wake chats based on specific times or weekly usage resets.
     evidence:
       commits:
       - 23a923eb31
       - a70d43b924
     release_status: dev_only
-  - text: Improvements to the Plans application, including card visibility in answers, remain unreleased while the feature
-      is disabled.
+  - text: While the Plans feature remains disabled, updates were made to keep Specification and Plan cards visible within
+      assistant answers.
     evidence:
       commits:
       - c5a3aeb41a
     release_status: released_main
   internal_progress:
-  - text: The project updated deployment scripts to promote the web app based on deployment IDs and backend health checks.
+  - text: Refined the production web app promotion scripts to use deployment IDs for aliasing and improved error reporting
+      for failed candidates.
     evidence:
       commits:
       - 7f4c1e7a72
       - dd4da047d8
       - 6f3d9bae32
     release_status: dev_only
-  - text: CI workflows now require per-project Vercel status checks before proceeding with a release.
+  - text: Updated CI release gates to require per-project Vercel deployment statuses.
     evidence:
       commits:
       - 8dd52001fe
     release_status: dev_only
-  - text: New feature gates were added to the release configuration for orchestration and Figma integrations.
+  - text: Updated release configurations to gate orchestration, slides templates, and Figma-related features.
     evidence:
       commits:
       - 9db620d1ab
     release_status: released_main
-  - text: Documentation was updated regarding PR naming conventions and release override procedures for daily meetings.
+  - text: Updated internal documentation regarding pull request naming conventions and daily meeting briefing procedures.
     evidence:
       commits:
       - 8e7fb4fa55
@@ -1027,57 +1027,58 @@ llm_summary:
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: The web interface now minimizes inactive composer drafts containing embeds into a single summary line, such as
-        '[Image]' or '[Sheet]'.
+    - text: The web composer now automatically minimizes inactive drafts containing images or sheets into a clean summary
+        line.
       evidence:
         commits:
         - f84b247977
-      reason: This is a user-facing UI improvement released to the main branch.
-    - text: Drafted Specification cards now remain visible when grouped with other assistant skill calls.
-      evidence:
-        commits:
-        - cabf98a987
-      reason: This is a user-facing bug fix released to the main branch that improves assistant interaction visibility.
-    - text: Voice call interactions now correctly update the 'last opened' chat state, allowing users to resume these conversations
-        via the 'Continue where you left off' section.
+      reason: This is a polished UI improvement for the web app that affects all users with active drafts.
+    - text: Voice calls now correctly update the 'last opened' status, ensuring you can pick up exactly where you left off
+        from the home screen.
       evidence:
         commits:
         - f7750f2211
-      reason: This is a user-facing fix released to the main branch that improves the 'Continue where you left off' experience.
+      reason: Improves the reliability of the voice call experience and cross-session continuity.
+    - text: Assistant activity grouping has been refined to ensure drafted specifications remain visible when multiple skills
+        are active.
+      evidence:
+        commits:
+        - cabf98a987
+      reason: Ensures critical assistant activity information remains visible during complex interactions.
     exclude:
-    - text: Visibility improvements for drafted Specification and Plan cards in assistant answers.
+    - text: Visibility improvements for drafted Specification and Plan cards.
       evidence:
         commits:
         - c5a3aeb41a
-      reason: The related feature 'app:plans' is currently disabled in the feature availability configuration.
-    - text: New CV tailoring focus mode for the Jobs application.
+      reason: The Plans feature is currently disabled in the production environment.
+    - text: New master CV tailoring and style note reuse in Jobs focus mode.
       evidence:
         commits:
         - 500950c3a7
-      reason: This feature is currently in dev_only status and not reachable from the main branch.
-    - text: Dictation quota and long report handling for issue reporting.
+      reason: The Jobs focus mode updates are currently in development and not yet released to main.
+    - text: Dictation quota and text retention fixes for issue reporting.
       evidence:
         commits:
         - af9daf3288
-      reason: This bug fix is currently in dev_only status and not reachable from the main branch.
-    rationale: The selected items are user-facing improvements and fixes that have been released to the main branch and are
-      ready for public communication. Items related to disabled features like Plans or dev-only work are excluded.
+      reason: Issue reporting improvements are currently dev-only.
+    rationale: The newsletter focuses on released refinements to the web composer and voice call continuity, while excluding
+      features gated by disabled flags or still in the development branch.
   social_video_recommendations:
-  - idea: Demonstrate voice call continuity by showing a call ending and then immediately appearing at the top of the 'Continue
-      where you left off' section.
+  - idea: A short clip showing a user switching between multiple chats and seeing the composer drafts neatly minimize into
+      '[Image]' or '[Sheet]' tags.
     priority: medium
-    reason: Provides a concrete product story about seamless conversation resumption.
-    evidence:
-      commits:
-      - f7750f2211
-  - idea: Show a 'before and after' of the composer with multiple drafts, highlighting how the new summary lines clean up
-      the interface.
-    priority: low
-    reason: Visual UI refinement that is easy to demonstrate.
+    reason: Visual UI polish that demonstrates the app's ability to handle complex user states cleanly.
     evidence:
       commits:
       - f84b247977
+  - idea: Demonstrate starting a voice call, ending it, and then immediately seeing that chat at the top of the 'Continue
+      where you left off' list.
+    priority: low
+    reason: Shows functional reliability and continuity in the mobile-friendly voice experience.
+    evidence:
+      commits:
+      - f7750f2211
   quality_notes:
-  - Several user-facing fixes for the web app were successfully merged to main, while larger feature work for Jobs and Chat
-    Lifecycle remains in development branches.
+  - The web app UI is becoming more resilient to complex states, such as multiple active skill calls and large drafts.
+  - Internal deployment scripts were hardened to ensure backend health before promoting frontend changes.
   validation_warnings: []

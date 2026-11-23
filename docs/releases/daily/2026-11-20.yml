@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-20'
-generated_at: '2026-11-21T00:20:53+00:00'
+generated_at: '2026-11-23T00:47:43+00:00'
 range:
   since: '2026-11-20T00:00:00+00:00'
   until: '2026-11-21T00:00:00+00:00'
@@ -137,13 +137,6 @@ feature_availability:
     override: disabled
     parent_id: null
     source: platform
-  - id: platform:workflows
-    kind: platform
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: null
-    source: platform
   - id: skill:design:get_design
     kind: skill
     default_enabled: true
@@ -151,13 +144,6 @@ feature_availability:
     override: disabled
     parent_id: app:design
     source: backend/apps/design/app.yml
-  - id: skill:events:search
-    kind: skill
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:events
-    source: backend/apps/events/app.yml
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
@@ -424,8 +410,8 @@ sections:
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -873,8 +859,8 @@ sections:
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
@@ -985,8 +971,8 @@ sections:
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
@@ -1955,8 +1941,8 @@ unreleased_progress:
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
@@ -2025,8 +2011,8 @@ unreleased_progress:
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
@@ -2124,8 +2110,8 @@ unreleased_progress:
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -2496,8 +2482,8 @@ unreleased_progress:
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
@@ -2621,8 +2607,8 @@ marketing_candidates:
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
@@ -2680,8 +2666,8 @@ marketing_candidates:
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
@@ -2756,8 +2742,8 @@ marketing_candidates:
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -4114,19 +4100,19 @@ sources:
     related_feature_ids:
     - app:jobs
 llm_summary:
-  overview: OpenMates focused on building a robust AI test user framework for automated quality assurance, migrating Project
-    management capabilities to the Rust core, and refining AI routing for specialized skills. Significant work was also done
-    on voice call pause detection and start-screen layout improvements.
+  overview: OpenMates focused on expanding internal testing automation and refining the foundational logic for voice interactions,
+    AI model routing, and project management. Significant work was completed on the 'AI Test Users' framework to simulate
+    real-world usage and issue reporting.
   released_changes: []
   bug_fixes:
-  - text: Voice call reliability was improved by ensuring the first call after signup connects and retrying rejected spoken
-      turns.
+  - text: Resolved issues in voice calls where the first call after signup failed to connect and ensured project-draft calls
+      correctly receive chat keys.
     evidence:
       commits:
       - 288c3228c3
     release_status: dev_only
-  - text: AI routing and skill selection were refined to ensure specialized skills (like event search) are prioritized before
-      web search fallbacks, and conference-related queries now search all available event sources.
+  - text: Improved AI model routing to ensure specialized skills (like event search) fall back to web search when results
+      are empty, and expanded conference search to cover all event sources.
     evidence:
       commits:
       - e048f1bf29
@@ -4137,42 +4123,22 @@ llm_summary:
       - 3001cbffd7
       - 57771836ac
     release_status: dev_only
-  - text: Focus mode logic was updated to prevent automatic activation from expiring during long AI turns and to improve the
-      transition between layered focus views.
-    evidence:
-      commits:
-      - 60ee4d0450
-      - 2d000adf7b
-      - b4891237b3
-      - 6c6fe8dc66
-      - f55445c430
-    release_status: dev_only
-  - text: Chat synchronization was improved by ensuring unread counters clear correctly across mobile and tablet devices once
-      a reply is seen.
+  - text: Fixed unread message counter logic to clear only after the last line of a reply is viewed and to stay in sync with
+      server counts.
     evidence:
       commits:
       - 01a87e47cd
-      - a570dadb84
     release_status: dev_only
-  - text: Safety features were strengthened by ensuring account suspensions sign out the user across all active sessions and
-      improving the rendering of helpline cards.
-    evidence:
-      commits:
-      - 9451baa998
-    release_status: dev_only
-  - text: The standalone landing page now correctly displays the actionable event embed animation.
+  - text: Corrected UI rendering for helpline cards and restored event embed animations on the standalone website.
     evidence:
       commits:
       - 326202e513
-    release_status: dev_only
-  - text: Job search hints were corrected to remove outdated geographic availability restrictions.
-    evidence:
-      commits:
+      - 9451baa998
       - ddec657a10
     release_status: dev_only
   unreleased_progress:
-  - text: OpenMates is developing an AI test user framework that simulates real web signups, records session videos, and generates
-      multi-screenshot issue reports to Discord.
+  - text: Developed an automated testing framework using AI personas that can perform real web signups, record session videos,
+      and generate multi-screenshot issue reports.
     evidence:
       commits:
       - 0bbe50d656
@@ -4180,113 +4146,84 @@ llm_summary:
       - 3640b2b502
       - dd5e8e345b
       - 1583ed7799
-      - 160d6fbad4
       - 3e72dfa32a
       - 60a87dded4
     release_status: dev_only
-  - text: The project is integrating Project creation and hosted file jobs into the Rust core, including WebCrypto-based key
-      management for assistant-inferred projects.
+  - text: Progressed the migration of Project management to the Rust core, including assistant-inferred project creation and
+      secure key wrapping via WebCrypto.
     evidence:
       commits:
-      - 36d9376faf
       - 7740d60a9e
+      - 36d9376faf
       - a87828e8a2
       - e8f9f6fc33
     release_status: dev_only
-  - text: A new start screen layout is in development, featuring large-card rows for daily inspirations and localized content
-      suggestions.
+  - text: Refined Focus Mode behaviors, including automatic activation persistence during long AI turns and layered focus
+      routing for specification writing.
     evidence:
       commits:
-      - cd63b6de83
+      - 60ee4d0450
+      - 2d000adf7b
+      - b4891237b3
+      - 6c6fe8dc66
+      - f55445c430
+      - d82122ad1b
     release_status: dev_only
-  - text: Voice call pause detection is being refined with new 'pause verdicts' to more accurately determine when a spoken
-      turn has concluded.
+  - text: Implemented pause detection logic for voice calls to more accurately determine when a user has finished speaking.
     evidence:
       commits:
       - 0e4e862ef0
     release_status: dev_only
-  - text: The Life Compass focus mode is being updated to provide country-specific crisis line information only when relevant
-      to the user's context.
+  - text: Designed a new start screen experience featuring large-card rows for daily inspirations and upcoming event entries.
     evidence:
       commits:
-      - d82122ad1b
+      - cd63b6de83
     release_status: dev_only
   internal_progress:
-  - text: CI infrastructure was updated with new fixtures for gifted signup flows, safety check bypasses for testing, and
-      improved Playwright retry logic.
-    evidence:
-      commits:
-      - 07a8268edf
-      - f301843c2e
-      - 674853ba22
-      - 32933c1dd2
-      - 97824e9a25
-      - 090f01cf10
-      - 778d090aae
-      - 2bba3194d3
-      - eb359d19db
-      - b40a31394e
-    release_status: dev_only
-  - text: Internal tooling now supports deployment locks during active tests, Discord notifications for developer chat status,
-      and improved management of idle chat sessions.
+  - text: Implemented a deployment and restart lock to prevent infrastructure changes while automated tests are running on
+      the development environment.
     evidence:
       commits:
       - 12a46ae5d9
-      - f1fc1d891c
+    release_status: dev_only
+  - text: Added short Discord notifications for internal agent chats to improve visibility without cutting off lock-screen
+      previews.
+    evidence:
+      commits:
       - f2865bd7a7
-      - 8ab30514b3
-      - 0356744685
+    release_status: dev_only
+  - text: Optimized internal chat lifecycle management by archiving completed sessions and cleaning up inactive terminal panes.
+    evidence:
+      commits:
+      - f461b16fff
       - 56463e7e5d
       - a8a3a99aac
-      - f461b16fff
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: AI Test User Persona Framework
-      evidence:
-        commits:
-        - 0bbe50d656
-        - 011e2dbe6e
-        - 3640b2b502
-        - dd5e8e345b
-        - 1583ed7799
-        - 160d6fbad4
-        - 3e72dfa32a
-        - 60a87dded4
-      reason: Internal testing infrastructure work is not user-facing.
-    - text: Daily Inspirations Start Screen
+    - text: New start screen layout with daily inspirations.
       evidence:
         commits:
         - cd63b6de83
-      reason: Related to disabled platform:workflows feature.
-    - text: Rust Core Project Integration
+      reason: Feature is currently in dev_only status and not reachable from the main branch.
+    - text: Hosted Project file jobs via Rust core.
       evidence:
         commits:
         - 36d9376faf
-        - 7740d60a9e
-        - a87828e8a2
-        - e8f9f6fc33
-      reason: Related to disabled platform:projects feature.
-    rationale: All changes from this period are currently in dev_only status and have not been merged to main or marked ready
-      for public communication.
+      reason: Feature is currently in dev_only status and depends on the disabled platform:projects feature.
+    rationale: No items from this period are currently released to the main branch or marked as ready for public communication.
+      All user-facing changes are in development.
   social_video_recommendations:
-  - idea: A technical deep-dive into how OpenMates uses 'pause verdicts' to decide when a user has finished speaking in a
-      voice call, improving natural turn-taking.
+  - idea: A technical deep-dive or 'behind the scenes' look at how OpenMates uses pause detection to decide when an AI should
+      respond during a voice call.
     priority: medium
-    reason: Concrete technical improvement to the voice experience that is easy to demonstrate visually/audibly.
+    reason: This provides a concrete product story about improving the natural feel of voice interactions.
     evidence:
       commits:
       - 0e4e862ef0
-  - idea: A showcase of the new 'Daily Inspirations' start screen, featuring large-card rows and localized content filters.
-    priority: low
-    reason: Visual UI update, though currently unreleased due to workflow dependencies.
-    evidence:
-      commits:
-      - cd63b6de83
   quality_notes:
-  - The heavy investment in 'AI Test Users' (8 commits) indicates a shift toward automated, persona-based E2E testing to validate
-    complex agentic workflows.
-  - Migration of Project and file job logic to the Rust core continues, aiming for better performance and cross-platform consistency.
-  - AI routing is becoming more granular, with explicit handling for specialized skills versus general web search fallbacks.
+  - Extensive testing of the signup and issue reporting flows was conducted using automated persona sessions.
+  - Foundational Rust core migration for project management continues with a focus on secure key handling and hosted file
+    jobs.
   validation_warnings: []

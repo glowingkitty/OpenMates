@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-21'
-generated_at: '2026-11-22T00:20:50+00:00'
+generated_at: '2026-11-23T00:48:06+00:00'
 range:
   since: '2026-11-21T00:00:00+00:00'
   until: '2026-11-22T00:00:00+00:00'
@@ -137,13 +137,6 @@ feature_availability:
     override: disabled
     parent_id: null
     source: platform
-  - id: platform:workflows
-    kind: platform
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: null
-    source: platform
   - id: skill:design:get_design
     kind: skill
     default_enabled: true
@@ -151,13 +144,6 @@ feature_availability:
     override: disabled
     parent_id: app:design
     source: backend/apps/design/app.yml
-  - id: skill:events:search
-    kind: skill
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:events
-    source: backend/apps/events/app.yml
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
@@ -515,8 +501,8 @@ sections:
     related_features:
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -1924,8 +1910,8 @@ sections:
       source: backend/apps/code/app.yml
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -3037,8 +3023,8 @@ sections:
       source: platform
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -3913,8 +3899,8 @@ unreleased_progress:
       source: backend/apps/code/app.yml
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -3985,8 +3971,8 @@ unreleased_progress:
     related_features:
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -4575,8 +4561,8 @@ unreleased_progress:
       source: platform
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -4853,8 +4839,8 @@ unreleased_progress:
       source: backend/apps/code/app.yml
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -5130,8 +5116,8 @@ marketing_candidates:
       source: backend/apps/code/app.yml
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -5178,8 +5164,8 @@ marketing_candidates:
     related_features:
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -5646,8 +5632,8 @@ marketing_candidates:
       source: platform
     - id: platform:workflows
       kind: platform
-      default_enabled: false
-      effective_enabled: false
+      default_enabled: true
+      effective_enabled: true
       override: null
       parent_id: null
       source: platform
@@ -8213,114 +8199,169 @@ sources:
     - scripts/tests/test_claude_idle_chats.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on expanding voice call capabilities, including screen sharing and improved turn handling, while
-    refining the start screen experience across web and Apple platforms. Significant privacy and security updates were also
-    introduced, including a new consent gate for cloud-based code execution and isolated CI testing environments.
+  overview: OpenMates focused on a major overhaul of the voice call experience, unified the start screen interface across
+    workspaces, and advanced the development of the unreleased Projects and Apple platform applications. Significant work
+    was also dedicated to CI isolation and security auditing.
   released_changes: []
-  bug_fixes: []
+  bug_fixes:
+  - text: Voice call stability improved by filtering assistant speech echoes, handling retried turns without server errors,
+      and preventing short echoes from being processed as user messages.
+    evidence:
+      commits:
+      - 7e35e82849
+      - 51a7bd2a4d
+      - 74d445cc46
+    release_status: dev_only
+  - text: Notification logic now groups identical alerts with a multiplier, displays chat titles instead of placeholders,
+      and ensures Project result notices are not replayed on tab refresh.
+    evidence:
+      commits:
+      - 9c9467bd4a
+      - 814ffbfb4d
+      - 98d0d6d60b
+      - 4ff10e8e9d
+      - 0d2e8c213d
+    release_status: dev_only
+  - text: AI model routing now avoids automatic Mistral selection in favor of Gemini or Mercury, and fixes were applied to
+      prevent AI errors during tool calls or when handling withheld diagrams.
+    evidence:
+      commits:
+      - 899ff0a382
+      - 1f6c561737
+      - 7f533bf892
+      - 994183515f
+    release_status: dev_only
+  - text: Chat interface refinements ensure 'Untitled' titles are never shown and that Project chat turns maintain a persistent
+      stop button.
+    evidence:
+      commits:
+      - 7c06b4de12
+      - d0fcc37e9c
+    release_status: dev_only
+  - text: Embed layout fixes prevent large previews from overlapping suggestions and ensure video embeds fill mobile screen
+      widths correctly.
+    evidence:
+      commits:
+      - 43634a6ab1
+      - c201b31c42
+      - acdfe47d72
+    release_status: dev_only
   unreleased_progress:
-  - text: Voice call capabilities were expanded to include desktop screen sharing, summarization of pasted text, and spoken
-      memory requests. The system now also handles callers on hold by merging speech into a single turn.
+  - text: Voice calls now support desktop screen sharing, 'on hold' waiting logic, spoken memory requests with timeouts, and
+      summarized text pasting.
     evidence:
       commits:
       - 215c24f000
-      - 78bd2c137a
-      - b3e9045fdd
-      - 792b2a7f6d
-      - b19912cffc
     release_status: dev_only
-  - text: Start screens were refined with unified layouts across all five workspaces on web and Apple platforms, featuring
-      inspiration cards and improved suggestion placement.
+  - text: Start screens were redesigned to unify Chats, Apps, and Workflows with inspiration cards, improved suggestion placement,
+      and centered grid layouts.
     evidence:
-      commits:
-      - 13a060b771
-      - eda802f789
-      - 09cb86031a
-      - dfa1a92ff6
-      - 01ebc921cf
+      commits: []
     release_status: dev_only
-  - text: A new privacy gate requires one-time user consent before any code or project files are uploaded to E2B sandboxes
-      for execution.
+  - text: The Projects workspace (unreleased) added encrypted tile descriptions, category gradients, and refined file job
+      handling for cloud commands.
     evidence:
-      commits:
-      - 26e771f689
-      - 05cee35e33
+      commits: []
     release_status: dev_only
-  - text: In-app notifications now display summary headlines and mate images, with identical alerts merging into single cards
-      to reduce clutter.
+  - text: Apple platform development (unreleased) achieved start-screen parity with web, introduced MetricKit diagnostics,
+      and improved sidebar filtering performance.
     evidence:
-      commits:
-      - 814ffbfb4d
-      - 98d0d6d60b
-      - 9c9467bd4a
-      - 4ff10e8e9d
+      commits: []
     release_status: dev_only
-  - text: The unreleased Projects workspace received updates for encrypted tile descriptions, category gradients, and refined
-      file tool logic for agentic coding.
+  - text: A one-time E2B upload consent gate was added for code execution and Project file transfers.
     evidence:
-      commits:
-      - 8a460cc265
-      - c7894a81c2
-      - a019b4d354
-      - c11b5b7276
+      commits: []
+    release_status: dev_only
+  - text: Sidebar and settings overlays now feature eased animations and improved mobile positioning.
+    evidence:
+      commits: []
     release_status: dev_only
   internal_progress:
-  - text: Security monitoring was enhanced with daily status emails, automated image scans, and dependency audits for every
-      graph.
-    evidence:
-      commits:
-      - 1f6c1ca5d4
-      - 37ad542615
-    release_status: dev_only
-  - text: CI infrastructure now runs real-inference tests in isolated stacks using dev-only keys, removing previous test locks.
+  - text: CI infrastructure now runs real-inference tests in isolated stacks with dedicated dev keys and provides speech worker
+      fixtures for all voice call specifications.
     evidence:
       commits:
       - a1bbfa325c
       - 5bf4c885a1
+      - dd0cb13605
     release_status: dev_only
-  - text: Tooling updates now require visual proof, such as screenshots or videos, for UI changes pushed to Discord.
+  - text: Security monitoring expanded with daily vulnerability emails, automated image scans, and updates to Node.js versions
+      across Directus and worker images.
+    evidence:
+      commits:
+      - 1f6c1ca5d4
+      - 37ad542615
+      - e8ff7bceff
+    release_status: dev_only
+  - text: Development tooling now supports attaching screenshots and videos to Discord pushes and ensures working chats are
+      woken rather than closed.
     evidence:
       commits:
       - 570fb9a5e1
+      - fd4f660caa
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Desktop screen sharing for voice calls.
+    - text: Voice call enhancements including screen sharing and waiting logic.
       evidence:
         commits:
         - 215c24f000
-      reason: Feature is currently in development and not available on the main release branch.
-    - text: One-time E2B upload consent gate.
-      evidence:
-        commits:
-        - 26e771f689
-      reason: Privacy gate is currently in development and not available on the main release branch.
-    - text: Unified start screen layouts across all workspaces.
+        - 792b2a7f6d
+        - b3e9045fdd
+        - 78bd2c137a
+        - b19912cffc
+      reason: Feature is currently dev_only and not present in the main release branch.
+    - text: Unified start screen redesign across all workspaces.
       evidence:
         commits:
         - 13a060b771
+        - dfa1a92ff6
+        - 01ebc921cf
+      reason: Feature is currently dev_only and relates to unreleased platform workspaces.
+    - text: Project workspace UI updates and file job refinements.
+      evidence:
+        commits:
+        - 8a460cc265
+        - e806f1a0a6
+        - e1cb4da3a3
+      reason: Projects are listed as a disabled/unreleased feature.
+    - text: Apple platform parity updates and diagnostics.
+      evidence:
+        commits:
         - eda802f789
-      reason: UI updates are currently in development and not available on the main release branch.
-    rationale: All changes from this period are marked as development-only and are not yet present on the main release branch
-      or approved for public communication.
+        - 09cb86031a
+        - 82ea70c243
+        - 3f96d33db4
+        - f1f6e91b2e
+      reason: Apple platforms (iOS/macOS) are listed as disabled/unreleased.
+    rationale: All features and fixes authored during this period are currently marked as dev_only and have not yet reached
+      the main release branch for public communication.
   social_video_recommendations:
-  - idea: Demonstrate screen sharing during a desktop web voice call.
-    priority: high
-    reason: This is a high-utility feature with clear visual impact for collaborative workflows.
+  - idea: Demonstrate screen sharing within a desktop web voice call.
+    priority: High
+    reason: Provides a clear visual story of expanding collaboration capabilities.
     evidence:
       commits:
       - 215c24f000
-  - idea: Showcase the unified start screen experience across the five different workspaces.
-    priority: medium
-    reason: Highlights the project's progress toward platform parity and a consistent user experience.
+  - idea: Showcase the new unified start screen layout with inspiration cards and active chat fade-ins.
+    priority: Medium
+    reason: Highlights the visual evolution and consistency of the workspace interface.
     evidence:
       commits:
       - 13a060b771
-      - eda802f789
   quality_notes:
-  - Admins now receive comprehensive diagnostics from Apple devices, including frame stalls and MetricKit scalars, to monitor
-    stability (82ea70c243).
-  - Model selection logic was updated to prioritize Gemini or Mercury over Mistral for automatic routing (899ff0a382).
-  - Voice call reliability was improved by recognizing and dropping echoes from prerecorded assistant clips (7e35e82849).
-  validation_warnings: []
+  - High volume of bug fixes (45) relative to new features (18) indicates a focus on stability.
+  - Extensive E2E and real-inference testing was added for voice and project workflows.
+  - Performance budgets and interaction monitoring were introduced for Apple platform development.
+  validation_warnings:
+  - 'unreleased_progress item lacks known commit evidence: Start screens were redesigned to unify Chats, Apps, and Workflows
+    with inspiration cards, improved suggestion placement,'
+  - 'unreleased_progress item lacks known commit evidence: The Projects workspace (unreleased) added encrypted tile descriptions,
+    category gradients, and refined file job handling'
+  - 'unreleased_progress item lacks known commit evidence: Apple platform development (unreleased) achieved start-screen parity
+    with web, introduced MetricKit diagnostics, and imp'
+  - 'unreleased_progress item lacks known commit evidence: A one-time E2B upload consent gate was added for code execution
+    and Project file transfers.'
+  - 'unreleased_progress item lacks known commit evidence: Sidebar and settings overlays now feature eased animations and
+    improved mobile positioning.'
