@@ -238,7 +238,14 @@ async function selectPassingTestResult(page: Page): Promise<Locator | null> {
 }
 
 async function openProject(page: Page): Promise<void> {
-  await page.getByTestId('projects-nav-link').click();
+  const desktopLink = page.getByTestId('projects-nav-link').filter({ visible: true });
+  const mobileSwitcher = page.getByTestId('workspace-mobile-select').filter({ visible: true });
+  await expect(desktopLink.or(mobileSwitcher)).toBeVisible({ timeout: 60_000 });
+  if (await mobileSwitcher.isVisible()) {
+    await mobileSwitcher.selectOption('/#projects');
+  } else {
+    await desktopLink.click();
+  }
   await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 60_000 });
   const card = page.getByTestId('project-landing-card').filter({ hasText: projectName }).first();
   await expect(card, `the Project "${projectName}" created by this run`).toBeVisible({ timeout: 60_000 });
