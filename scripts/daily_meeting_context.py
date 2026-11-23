@@ -4,10 +4,10 @@
 Run by the `daily-meeting-and-orchestration` skill at the start of each meeting:
   python3 scripts/daily_meeting_context.py collect
 writes logs/daily-meetings/YYYY-MM-DD-context.json (gitignored, private) with
-Claude chats since the previous meeting, git activity incl. the marketing repo,
+Agent chats since the previous meeting, git activity incl. the marketing repo,
 the work-type mix, OpenMates Tasks changes, nightly test status, and the Apple
-Reminders overview (via scripts/mac_reminders.py). Task records carry no
-timestamps, so "changed since the last meeting" diffs a saved status snapshot.
+Reminders overview (via scripts/mac_reminders.py). "Changed since the last
+meeting" diffs a saved Task status snapshot.
 Docs: docs/contributing/guides/daily-meeting.md
 """
 
@@ -92,6 +92,7 @@ def _text_blocks(content) -> list[str]:
 
 def summarize_transcript(path: Path, since: datetime) -> dict | None:
     prompts, replies, steered, title, first, last, branch, tools = [], [], [], "", None, None, "", set()
+    active_days = set()
     try:
         lines = path.read_text(errors="replace").splitlines()
     except OSError:
@@ -116,6 +117,7 @@ def summarize_transcript(path: Path, since: datetime) -> dict | None:
         texts = [t for t in _text_blocks((row.get("message") or {}).get("content")) if t.strip()]
         if not texts:
             continue
+        active_days.add(ts.astimezone(TZ).date().isoformat())
         origin = row.get("turnOrigin", (row.get("origin") or {}).get("kind"))
         if kind == "user" and origin == "human":
             body = "\n".join(texts)
@@ -142,13 +144,18 @@ def summarize_transcript(path: Path, since: datetime) -> dict | None:
         "steered_by_other_sessions": steered[:3],
         "user_prompts": prompts[:6] + ([f"(+{len(prompts) - 6} more prompts)"] if len(prompts) > 6 else []),
         "final_reply": clean(replies[-1], 1500) if replies else "",
+        "active_days": sorted(active_days),
         "_sort": last.isoformat(),
     }
 
 
 def claude_chats(since: datetime, base: Path = TRANSCRIPTS) -> list[dict]:
     chats = []
-    for path in sorted(base.glob("*/*.jsonl")):
+    paths = set(base.glob("*/*.jsonl"))
+    if base == TRANSCRIPTS:
+        from codex_chats import transcripts
+        paths.update(transcripts().values())
+    for path in sorted(paths):
         try:
             if datetime.fromtimestamp(path.stat().st_mtime, timezone.utc) < since:
                 continue
@@ -179,6 +186,7 @@ def git_summary(root: Path, since: datetime, gaps: list[str]) -> dict:
     for line in log.splitlines():
         sha, when, subject = (line.split("\x1f") + ["", ""])[:3]
         commits.append({"sha": sha, "when": parse_ts(when).astimezone(TZ).strftime("%a %H:%M"),
+                        "day": parse_ts(when).astimezone(TZ).date().isoformat(),
                         "subject": clean(subject, 160)})
     return {
         "commits_on_dev": commits,
@@ -208,6 +216,7 @@ def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | N
     if not data.get("complete", True):
         gaps.append("OpenMates Tasks list reported an incomplete page")
     return [{
+        "updated_at": t.get("updated_at"),
         "id": t.get("short_id"), "title": clean(t.get("title", ""), 160), "status": t.get("status"),
         "priority": t.get("priority_level") or "none",
         "blocked": t.get("blocked_reason_code") or "", "due": t.get("due_at") or "",
@@ -258,6 +267,10 @@ def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
     changes = [{"id": t["id"], "title": t["title"], "from": old.get(t["id"], "new"), "to": t["status"]}
                for t in tasks if old.get(t["id"]) != t["status"]] if previous else []
     done_now = [c for c in changes if c["to"] == "done"]
+    updated = {t["id"]: t.get("updated_at") for t in by_status.get("done", [])}
+    for item in done_now:
+        if stamp := updated.get(item["id"]):
+            item["updated_at"] = stamp
     return {
         "counts": {k: len(v) for k, v in by_status.items()},
         "done_since_last_meeting": done_now,
@@ -631,7 +644,8 @@ def main(argv: list[str] | None = None) -> int:
     now = datetime.now(timezone.utc)
     day = now.astimezone(TZ).date().isoformat()
     state = load_state(out)
-    since = parse_ts(args.since) or window_start(state, now)
+    yesterday = now.astimezone(TZ).date() - timedelta(days=1)
+    since = parse_ts(args.since) or min(window_start(state, now), datetime.combine(yesterday, datetime.min.time(), TZ))
     evidence, tasks = collect(root, now, since, out)
     path = out / f"{day}-context.json"
     path.write_text(json.dumps(evidence, indent=1, ensure_ascii=False))

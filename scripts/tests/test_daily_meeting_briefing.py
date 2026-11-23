@@ -56,11 +56,11 @@ def test_meeting_script_asks_exactly_one_question_at_a_time():
     assert "at most 3 questions" not in briefing.MEETING_SCRIPT
 
 
-def test_scheduled_run_only_proceeds_on_weekdays_from_1130_berlin():
+def test_scheduled_run_only_proceeds_on_weekdays_from_0830_berlin():
     from datetime import datetime
     berlin = briefing.TZ
-    assert briefing.in_scheduled_slot(datetime(2026, 11, 11, 11, 30, tzinfo=berlin))
-    assert briefing.in_scheduled_slot(datetime(2026, 7, 1, 11, 31, tzinfo=berlin))  # summer time
-    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 10, 30, tzinfo=berlin))
-    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 12, 30, tzinfo=berlin))
-    assert not briefing.in_scheduled_slot(datetime(2026, 11, 14, 11, 30, tzinfo=berlin))  # Saturday
+    assert briefing.in_scheduled_slot(datetime(2026, 11, 11, 8, 30, tzinfo=berlin))
+    assert briefing.in_scheduled_slot(datetime(2026, 7, 1, 8, 31, tzinfo=berlin))  # summer time
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 8, 29, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 9, 30, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 14, 8, 30, tzinfo=berlin))  # Saturday
