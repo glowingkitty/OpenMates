@@ -39874,7 +39874,7 @@ assertions:
       surface: gui.apple
     - &id5075
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 438
+      line: 451
       name: 'laptop: a new chat in the Project writes a Specification with Checks
         and a Plan'
       surface: gui.web
@@ -40346,7 +40346,7 @@ assertions:
     direct_tests:
     - &id5096
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 286
+      line: 297
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web
@@ -40422,7 +40422,7 @@ assertions:
       surface: rest_api
     - &id5127
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 286
+      line: 297
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web
@@ -162511,18 +162511,18 @@ assertions:
       surface: rest_api
     - &id20608
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 286
+      line: 297
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web
     - &id20609
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 422
+      line: 434
       name: 'phone: the Project files and Timeline'
       surface: gui.web
     - &id20610
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 438
+      line: 451
       name: 'laptop: a new chat in the Project writes a Specification with Checks
         and a Plan'
       surface: gui.web
@@ -164182,7 +164182,7 @@ assertions:
       surface: rest_api
     - &id20787
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 286
+      line: 297
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web

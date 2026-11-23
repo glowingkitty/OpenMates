@@ -169,6 +169,16 @@ async function deleteOwnedData(page: Page): Promise<string[]> {
   return failures;
 }
 
+/**
+ * Dev gets new web builds while this long flow runs; the "software update" notice then covers
+ * nav links (run on cdfee91: the Projects link click timed out under it). Close it whenever it
+ * blocks an action; the notice is not part of what this proof checks.
+ */
+async function closeUpdateNoticeWhenInTheWay(page: Page): Promise<void> {
+  const notice = page.getByTestId('notification').and(page.locator('.notification-software-update'));
+  await page.addLocatorHandler(notice, async (shown) => { await shown.getByTestId('notification-dismiss').click(); });
+}
+
 function lastAssistant(page: Page): Locator {
   return page.getByTestId('message-assistant').last();
 }
@@ -274,6 +284,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     try {
       const page = await context.newPage();
+      await closeUpdateNoticeWhenInTheWay(page);
       await loginToTestAccount(page);
       const failures = await deleteOwnedData(page);
       expect(failures, 'chats and Project of this run that could not be deleted').toEqual([]);
@@ -294,6 +305,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     });
     watchStorage(page, testInfo);
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
+    await closeUpdateNoticeWhenInTheWay(page);
     await loginToTestAccount(page);
     await allowE2bUpload(page);
     await startNewChat(page);
@@ -427,6 +439,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
       device: 'web-phone', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
     });
     expect(projectName, 'the laptop test created a Project').not.toBe('');
+    await closeUpdateNoticeWhenInTheWay(page);
     await loginToTestAccount(page);
     await allowE2bUpload(page);
     await showProjectViews(page, testInfo, 'phone', proof);
@@ -445,6 +458,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
       checkpoints: SPEC_PLAN_CHECKPOINTS,
     });
     watchStorage(page, testInfo);
+    await closeUpdateNoticeWhenInTheWay(page);
     await loginToTestAccount(page);
     await allowE2bUpload(page);
     await openProject(page);
