@@ -34,3 +34,15 @@ def test_host_config_must_switch_hooks_on_and_trust_the_checkout(tmp_path):
                                            cwd=REPO, capture_output=True, text=True).stdout.strip()).parent
     (tmp_path / "config.toml").write_text(f'[features]\nhooks = true\n\n[projects."{root}"]\ntrust_level = "trusted"\n')
     assert codex_setup.config_problems(REPO, tmp_path) == []
+
+
+# contract-test: tooling
+def test_stale_agents_md_only_warns_and_never_refuses_a_start(tmp_path, capsys):
+    """Owner, 23 Nov: a CLAUDE.md change on dev must never block Codex starts; deploy regenerates AGENTS.md."""
+    for rel in ("CLAUDE.md", "AGENTS.md", ".codex/hooks.json", "scripts/agents_md.py"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text((REPO / rel).read_text())
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / "CLAUDE.md").write_text((REPO / "CLAUDE.md").read_text() + "\n- A new rule.\n")
+    assert codex_setup.problems(tmp_path, tmp_path, cli=False) == []
+    assert "AGENTS.md drifted" in capsys.readouterr().err

@@ -3159,6 +3159,33 @@ def _regenerate_rust_migration_artifacts(checkout_root: Path, files: list[str]) 
     return sorted(line.strip() for line in stdout.splitlines() if line.strip())
 
 
+AGENTS_MD = "AGENTS.md"
+
+
+def _regenerate_agents_md(checkout_root: Path) -> list[str]:
+    """Rebuild and stage AGENTS.md (Codex instructions) from CLAUDE.md, rules and skills.
+
+    Runs on every deploy, so a CLAUDE.md, rule or skill change, or a drift another
+    deploy left on dev, never reaches dev without its AGENTS.md (owner, 23 Nov: a stale
+    AGENTS.md must never block Codex chats). Returns ["AGENTS.md"] when it differs from HEAD.
+    """
+    script = checkout_root / "scripts" / "agents_md.py"
+    if not script.exists():
+        return []
+    rc, stdout, stderr = _run_cmd([sys.executable, str(script), "generate", "--repo", str(checkout_root)],
+                                  cwd=str(checkout_root), timeout=60)
+    if rc != 0:
+        raise RuntimeError(f"AGENTS.md generation failed: {stderr or stdout}")
+    rc, _stdout, stderr = _run_cmd(["git", "add", "--", AGENTS_MD], cwd=str(checkout_root))
+    if rc != 0:
+        raise RuntimeError(f"Could not stage regenerated AGENTS.md: {stderr}")
+    rc, stdout, stderr = _run_cmd(["git", "diff", "--cached", "--name-only", "HEAD", "--", AGENTS_MD],
+                                  cwd=str(checkout_root))
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect regenerated AGENTS.md: {stderr}")
+    return [AGENTS_MD] if stdout.strip() else []
+
+
 def _numstat_deletions(
     checkout_root: Path,
     base_ref: str,
@@ -3368,6 +3395,7 @@ def _apply_worktree_diff_to_checkout(
                 )
         _regenerate_specification_artifacts(checkout_root, specification_generated_files)
         _regenerate_rust_migration_artifacts(checkout_root, files)
+        _regenerate_agents_md(checkout_root)
         _enforce_no_integration_deletion_amplification(
             source_metadata,
             patch_files,
@@ -3459,6 +3487,7 @@ def _apply_worktree_diff_to_checkout(
 
     _regenerate_specification_artifacts(checkout_root, specification_generated_files)
     _regenerate_rust_migration_artifacts(checkout_root, files)
+    _regenerate_agents_md(checkout_root)
     _enforce_no_integration_deletion_amplification(
         source_metadata,
         patch_files,
@@ -12532,8 +12561,10 @@ def _deploy_native_worktree(
                 checkout_root=checkout_root,
             )
             generated_rust_migration_files = _regenerate_rust_migration_artifacts(checkout_root, to_commit)
+            generated_agents_files = _regenerate_agents_md(checkout_root)
             commit_files = sorted(
-                set(to_commit).union(generated_specification_files, generated_rust_migration_files)
+                set(to_commit).union(generated_specification_files, generated_rust_migration_files,
+                                     generated_agents_files)
             )
             _run_deploy_gates(
                 commit_files,

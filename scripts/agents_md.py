@@ -7,7 +7,10 @@ Single source of truth: CLAUDE.md, .claude/rules/*.md and
 Commands:
   generate  write AGENTS.md at the repo root
   check     exit 1 with a short diff summary when AGENTS.md differs from the
-            generated output or the output exceeds Codex's 32 KiB limit
+            generated output or the output exceeds the host's 64 KiB
+            project_doc_max_bytes (warns above Codex's default 32 KiB)
+
+sessions.py deploy regenerates AGENTS.md on every deploy, so it never drifts on dev.
 """
 
 from __future__ import annotations
@@ -20,7 +23,8 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
-MAX_BYTES = 32768
+MAX_BYTES = 65536  # the dev host's ~/.codex/config.toml project_doc_max_bytes (connector-managed)
+DEFAULT_CODEX_BYTES = 32768  # Codex's own default; above it only hosts with the larger setting read it all
 
 HEADER = (
     "<!-- Generated from CLAUDE.md, .claude/rules and .claude/skills by "
@@ -101,6 +105,9 @@ def cmd_generate(repo: Path) -> int:
     (repo / "AGENTS.md").write_text(text, encoding="utf-8")
     size = len(text.encode("utf-8"))
     print(f"AGENTS.md written ({size} bytes)")
+    if size > DEFAULT_CODEX_BYTES:
+        print(f"note: above Codex's default {DEFAULT_CODEX_BYTES} bytes; the dev host reads up to {MAX_BYTES}",
+              file=sys.stderr)
     if size > MAX_BYTES:
         print(f"WARNING: exceeds {MAX_BYTES} bytes", file=sys.stderr)
         return 1

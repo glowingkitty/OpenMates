@@ -53,14 +53,16 @@ links work unchanged. They share the running-chat cap (`claude_idle_chats admit`
 stopped by the lifecycle after their ✅/❓ push like Claude chats (`codex_chats.reap`), and
 are mirrored as Claude-format transcripts (`~/.openmates/codex-chats/transcripts/`) for
 list_chats, chat_detail and the briefing. They obey the same rules: `AGENTS.md` is
-generated from `CLAUDE.md`, rules and skills (`scripts/agents_md.py`; CI
+generated from `CLAUDE.md`, rules and skills (`scripts/agents_md.py`; `sessions.py deploy`
+regenerates it in every deploy, so a rule change never leaves it stale on dev; CI
 `agents-md-sync.yml` fails on drift), and the fixed `.codex/hooks.json` sends every Codex
 hook event to `scripts/codex_hook_adapter.py`, which runs the matching hooks of
 `.claude/settings.json` (apply_patch is split into one Edit/Write payload per file) plus
 two built-in guards (sub-agents keep model and medium effort; the Codex hooks and config
 cannot be changed or switched off from a chat). Git hooks, the deploy freeze and the push
 rules in `agent_question.py` are engine-independent already. `codex_setup.py check`
-must pass before a Codex chat starts.
+must pass before a Codex chat starts; a stale `AGENTS.md` only warns there, it never
+refuses a start (owner, 23 Nov).
 
 Fable (`claude-fable-5-2`) is never a default: `launch_claude_chat` refuses it
 unless the caller relays an explicit user request (`explicit_model=True`), also

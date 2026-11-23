@@ -6,8 +6,8 @@ Codex chats obey the same rule set as Claude chats: AGENTS.md is generated from 
 scripts/codex_hook_adapter.py, which runs the hooks of .claude/settings.json. The host-wide
 Codex config (hooks switched on, project trust, model and effort defaults) is managed by
 the dev host outside this repository. claude_dispatch runs `check` before it starts a
-Codex chat and refuses the start when anything is off, so a Codex chat never runs with
-stale instructions or without its guards.
+Codex chat and refuses the start when a guard is missing, so a Codex chat never runs without
+its guards. A stale AGENTS.md only warns (owner, 23 Nov): sessions.py deploy regenerates it.
 
 Commands:
   check [--no-cli]   Exit 1 with the reasons when AGENTS.md drifted, .codex/hooks.json is not
@@ -85,8 +85,9 @@ def problems(repo: Path, home: Path, cli: bool = True) -> list[str]:
     found = hooks_problems(repo)
     agents = subprocess.run([sys.executable, str(repo / "scripts" / "agents_md.py"), "check", "--repo", str(repo)],
                             capture_output=True, text=True, check=False)
-    if agents.returncode != 0:
-        found.append("AGENTS.md drifted from CLAUDE.md: run python3 scripts/agents_md.py generate")
+    if agents.returncode != 0:  # owner, 23 Nov: drift warns, never refuses a start (deploy regenerates it)
+        print("warning: AGENTS.md drifted from CLAUDE.md (the next deploy regenerates it; "
+              "now: python3 scripts/agents_md.py generate)", file=sys.stderr)
     if cli:
         found += config_problems(repo, home) + cli_problems()
     return found

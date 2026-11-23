@@ -412,3 +412,25 @@ def test_only_files_are_tracked_automatically_and_other_session_stays_advisory(m
     # Unrelated dirty files are not tracked: only the --only selection is.
     assert "unrelated.py" not in modified
     assert sessions._auto_track_only_files("abcd", {}, "default", ["x.py"], ["old.py"], {}) == ["old.py"]
+
+
+def test_deploy_regenerates_a_stale_agents_md(tmp_path):
+    """Owner, 23 Nov: AGENTS.md is regenerated in every deploy, so a CLAUDE.md change never leaves it stale."""
+    sessions = load_sessions_module()
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    (repo / ".claude").mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    git(repo, "config", "user.email", "tests@openmates.invalid")
+    git(repo, "config", "user.name", "OpenMates Tests")
+    (repo / "scripts" / "agents_md.py").write_text((SESSIONS_PATH.parent / "agents_md.py").read_text())
+    (repo / "CLAUDE.md").write_text("# Rules\n- one\n")
+    (repo / "AGENTS.md").write_text("stale\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "fixture")
+    assert sessions._regenerate_agents_md(repo) == ["AGENTS.md"]
+    assert "- one" in (repo / "AGENTS.md").read_text()
+    git(repo, "commit", "-qm", "regenerated")
+    assert sessions._regenerate_agents_md(repo) == []
+    (repo / "scripts" / "agents_md.py").unlink()
+    assert sessions._regenerate_agents_md(repo) == []
