@@ -64,6 +64,7 @@ describe('sendPrep handlers', () => {
 		send_prep_routing_restrictions: () => JSON.stringify({ ok: false }),
 		send_prep_order_offline: (input) => JSON.stringify({ ready: [JSON.parse(input).rows.length - 1], retained: 0 }),
 		send_prep_offline_receipt: () => { throw 'protocol'; },
+		send_prep_turn_outcome: (input) => JSON.stringify({ outcome: JSON.parse(input).kind === 'error' ? 'rejected' : 'none' }),
 	};
 	// contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
 	it('forwards JSON text and maps binding rejection to protocol', async () => {
@@ -74,6 +75,7 @@ describe('sendPrep handlers', () => {
 		expect(order).toEqual({ ready: [1], retained: 0 });
 		expect(await handlers.deferredDeleteReplay({ editorOnChat: false, editorUnsaved: false, localExists: true, hasDraft: false, hasPreview: false, draftVersion: null }, undefined as never)).toEqual({ eligible: true });
 		expect(await handlers.routingRestrictions({}, undefined as never)).toEqual({ ok: false });
+		expect(await handlers.turnOutcome({ kind: 'error', payload: { retryable: false }, chatId: 'c', messageId: 'm', turnId: 't' }, undefined as never)).toEqual({ outcome: 'rejected' });
 		await expect(Promise.resolve().then(() => handlers.offlineReceipt({ changeIds: [], terminalConflictDeleteIds: [], successfulIds: [], counts: null }, undefined as never)))
 			.rejects.toMatchObject({ code: 'protocol' });
 		await expect(Promise.resolve().then(() => handlers.orderOffline('x' as never, undefined as never))).rejects.toMatchObject({ code: 'protocol' });

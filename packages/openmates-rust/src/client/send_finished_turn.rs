@@ -15,7 +15,7 @@ use super::*;
 /// null/absent is the normal case for old resends). Anything else yields the
 /// outer `None`, so ordinary confirmations and other turns' frames never
 /// short-circuit a send.
-pub(in crate::client) fn finished_assistant_id<'a>(
+pub(crate) fn finished_assistant_id<'a>(
     kind: &str,
     p: &'a Value,
     chat: &str,

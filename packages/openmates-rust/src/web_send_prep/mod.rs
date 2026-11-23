@@ -10,6 +10,7 @@ pub mod deferred_delete;
 pub mod outbox_order;
 pub mod outbox_receipt;
 pub mod routing_restrictions;
+pub mod turn_outcome;
 
 #[cfg(test)]
 mod tests;

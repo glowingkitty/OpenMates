@@ -3380,6 +3380,24 @@ export async function sendNewMessageImpl(
 					Number(preflightPayload.expected_messages_v) + 1,
 				);
 				holdAdmissionUntil?.(admissionCompleted);
+				if (RUST_SEND_PREP_BUILD) {
+					// A turn the server already answered or refused for good must leave
+					// the reconnect retry, or every reload resends it (Task 361c8696).
+					const retainedTurnId = turnId;
+					const { watchRetainedTurnOutcome } = await import("./rustCore/send/rustTurnOutcomeWatch");
+					watchRetainedTurnOutcome({
+						chatId: message.chat_id, messageId: message.message_id, turnId: retainedTurnId,
+						settled: admissionCompleted, events: webSocketService,
+						end: async (outcome) => {
+							await Promise.all([
+								clearPendingMessageJournal(message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD),
+								clearPendingMessageJournal(message.chat_id, message.message_id, contextPhaseJournalField("routing")),
+								clearPendingMessageJournal(message.chat_id, message.message_id, contextPhaseJournalField("details")),
+							]);
+							await updateMessageStatusForSendRetry(serviceInstance, message, outcome === "finished" ? "synced" : "failed");
+						},
+					});
+				}
 				if (usesPersonalRecovery) {
 					// The versioned confirmation commits this user row at expected+1: a
 					// follow-up may be admitted at once and waits server-side as Queued

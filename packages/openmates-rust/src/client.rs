@@ -182,6 +182,8 @@ mod search;
 mod send;
 /// Opt-in send diagnostic hook for JSON decode failures (see `refusal_trace`).
 pub(crate) use send::refusal_trace::note_caller as note_protocol_caller;
+/// Pure "this resent turn already completed" match, shared with the web outbox decision.
+pub(crate) use send::finished_turn::finished_assistant_id as finished_turn_assistant_id;
 // Composer attachments and caller PII mappings of a turn (native shells).
 mod send_attachments;
 mod send_observations;

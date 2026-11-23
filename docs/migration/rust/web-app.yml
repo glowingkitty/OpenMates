@@ -280,8 +280,8 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts
   what_moved: Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single
     WASM binding. It holds no account state, so it is a pre-bind namespace.
-  typescript_fallback: none declared (4 files)
-  unit_tests: [sendPrepOutboxVectors.test.ts]
+  typescript_fallback: none declared (5 files)
+  unit_tests: [rustTurnOutcomeWatch.test.ts, sendPrepOutboxVectors.test.ts]
   e2e_specs: []
   vectors: []
   open_gaps: [Curated entry added by the ws lane so the status generator runs; the sendPrep lane owns the details.]

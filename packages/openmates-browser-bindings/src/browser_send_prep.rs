@@ -30,3 +30,9 @@ pub fn send_prep_routing_restrictions(input: &str) -> Result<String, JsValue> {
 pub fn send_prep_deferred_delete(input: &str) -> Result<String, JsValue> {
     js(web_send_prep::deferred_delete::deferred_delete_replay_json(input))
 }
+
+/// Whether a server frame ends a retained user turn (`finished`, `rejected` or `none`).
+#[wasm_bindgen]
+pub fn send_prep_turn_outcome(input: &str) -> Result<String, JsValue> {
+    js(web_send_prep::turn_outcome::turn_outbox_outcome_json(input))
+}
