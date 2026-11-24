@@ -78427,7 +78427,7 @@ assertions:
       surface: rest_api
     - &id9772
       path: backend/tests/test_voice_realtime_turn.py
-      line: 627
+      line: 641
       name: test_first_audio_waits_for_claim_and_runs_concurrently_with_check
       surface: rest_api
     - &id9773
@@ -79564,12 +79564,12 @@ assertions:
       surface: rest_api
     - &id9911
       path: backend/tests/test_voice_realtime_turn.py
-      line: 627
+      line: 641
       name: test_first_audio_waits_for_claim_and_runs_concurrently_with_check
       surface: rest_api
     - &id9912
       path: backend/tests/test_voice_realtime_turn.py
-      line: 652
+      line: 666
       name: test_rejected_claim_emits_no_audio
       surface: rest_api
     tests:
@@ -79941,7 +79941,7 @@ assertions:
       surface: rest_api
     - &id9965
       path: backend/tests/test_voice_realtime_turn.py
-      line: 663
+      line: 677
       name: test_credit_gate_fails_closed_per_clause
       surface: rest_api
     tests:
@@ -200900,7 +200900,7 @@ assertions:
       surface: gui.web
     - &id25382
       path: backend/tests/test_voice_realtime_turn.py
-      line: 663
+      line: 677
       name: test_credit_gate_fails_closed_per_clause
       surface: rest_api
     - &id25383

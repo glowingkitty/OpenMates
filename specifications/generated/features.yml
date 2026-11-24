@@ -10185,9 +10185,9 @@ features:
       assertions:
         passing: 33
         failing: 6
-        not_run: 10
+        not_run: 11
         missing: 11
-        counted: 60
+        counted: 61
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10204,6 +10204,7 @@ features:
       key_tests:
       - frontend/apps/web_app/tests/voice-call.spec.ts
       - frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts
+      - frontend/apps/web_app/tests/voice-call-real.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts

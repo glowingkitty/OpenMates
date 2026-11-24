@@ -1,0 +1,22 @@
+schema_version: 2
+profile: concise
+id: signed-in-voice-playback
+title: Restore spoken app announcements and replies in signed-in voice calls
+status: implementing
+goal: >-
+  Marco, 23 Nov 2026 (V839G): reproduce a call that uses app skills on dev and
+  production with throwaway test accounts, restore the spoken app announcement,
+  completed-skill recap, and reply, and cover the flow in the post-update voice
+  check. Keep client-side encryption intact and prepare a scoped hotfix for review.
+scope:
+  - Keep speech approval required and allow a bounded safety check to finish.
+  - Exercise a skill-using signed-in call with recorded playback.
+contracts:
+  - assistant-speech.safety.provider-after-approval
+  - assistant-speech.playback.live-call-streaming
+  - video-call.audio.spoken-rich-response
+verification:
+  required:
+    - Isolated regressions prove a slow approval preserves ordered speech and a deadline still stops delivery.
+    - Real signed-in research call proves tool use and reply playback with sound on dev.
+    - Record the production reproduction and verify the fix after the owner merges the hotfix.

@@ -24,8 +24,9 @@ MAX_TURN_SECONDS = 600
 MAX_PENDING_SPANS = 64
 AUTHORITY_INTERVAL_SECONDS = 0.5
 PUBLISH_TIMEOUT_SECONDS = 1.0
-# A semantic check slower than this counts as NOT approved (fail closed).
-SAFETY_TIMEOUT_SECONDS = 1.5
+# Checks run ahead of their audio spans. Give the classifier time to return its
+# verdict under load while keeping unchecked or unavailable speech fail-closed.
+SAFETY_TIMEOUT_SECONDS = 5.0
 AUDIO_CHUNK_BYTES = 32 * 1024
 MAX_WORD_STARTS_PER_EVENT = 512
 # mp3_44100_128 is constant-bitrate: 16 bytes per millisecond.
