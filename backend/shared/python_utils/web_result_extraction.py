@@ -390,6 +390,39 @@ def validated_rows(kind: str, items: Sequence[Any], *, page_url: str, page_title
     return rows
 
 
+_DATED_LISTING = re.compile(
+    r'\[([^\]]{4,55})\]\(https?://[^\s)]+\s+"Add to calendar"\)\s*'
+    r'(?:[\w -]{1,30}\n\s*)?##\s+\[([^\]\n]{2,200})\]\((https?://[^\s)]+)\)\s*'
+    r'###\s+\[([^\]\n]+)\]\([^)]+\)[^\n]*?\bin \[([^\]\n]+)\]\([^)]+\), \[([^\]\n]+)\]',
+    re.IGNORECASE,
+)
+_LISTING_DATES = re.compile(
+    r"(\w{3}) (\d{1,2})(?:\s*[-–]\s*(?:(\w{3}) )?(\d{1,2}))?\s+(\d{2}|\d{4})", re.IGNORECASE,
+)
+
+
+def _listed_event_facts(page_text: str) -> List[Dict[str, Any]]:
+    """Read explicitly labelled calendar dates and titles from structured listing text."""
+    items: List[Dict[str, Any]] = []
+    for label, title, url, topic, city, country in _DATED_LISTING.findall(page_text):
+        date_parts = _LISTING_DATES.fullmatch(" ".join(label.split()))
+        if not date_parts:
+            continue
+        month, day, end_month, end_day, year = date_parts.groups()
+        year = f"20{year}" if len(year) == 2 else year
+        try:
+            start = datetime.strptime(f"{month} {day} {year}", "%b %d %Y").date()
+            end = datetime.strptime(f"{end_month or month} {end_day} {year}", "%b %d %Y").date() if end_day else None
+        except ValueError:
+            continue
+        if end and end < start:
+            continue
+        items.append({"title": title, "url": url, "date_start": start.isoformat(),
+                      "date_end": end.isoformat() if end else None, "city": city, "country": country,
+                      "source_topic": _text(topic, MAX_TEXT_CHARS)})
+    return items[:MAX_ITEMS_PER_PAGE]
+
+
 def search_query(kind: str, request: Mapping[str, Any], today: date) -> str:
     """The web search query for one request item."""
     parts = [str(request.get("query") or "").strip()]
@@ -601,6 +634,17 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
         outcome.input_tokens += tokens_in
         outcome.output_tokens += tokens_out
         rows = validated_rows(kind, items, page_url=url, page_title=title, page_text=text)
+        if kind == KIND_EVENT and not event_detail:
+            known = {row["url"]: row for row in rows}
+            # Carry the site's topic tag as ranking evidence. It is neither a description nor
+            # a substitute for the relevance check in events.search.
+            for item in _listed_event_facts(text):
+                matching = known.get(item["url"])
+                if matching:
+                    matching["source_topic"] = item["source_topic"]
+                    continue
+                listed = validated_rows(kind, [item], page_url=url, page_title=title, page_text=text)
+                rows.extend({**row, "source_topic": item["source_topic"]} for row in listed)
         if kind == KIND_EVENT and len(rows) == 1:
             _event_page_cover(rows[0], page)
         return rows

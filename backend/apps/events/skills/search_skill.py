@@ -977,7 +977,8 @@ class SearchSkill(BaseSkill):
             if event is None or (not past_events and last_day < today):
                 continue
             kept.append({**event, **{key: row[key] for key in
-                                     ("provider", "provider_id", "source_page_url", "source_page_title")}})
+                                     ("provider", "provider_id", "source_page_url", "source_page_title")},
+                         **({"source_topic": row["source_topic"]} if row.get("source_topic") else {})})
         outcome.results = kept
         if progress is not None:
             await progress.source_done(len(kept))
@@ -995,8 +996,21 @@ class SearchSkill(BaseSkill):
             page = event.get("source_page_url")
             if page:
                 page_counts[page] = page_counts.get(page, 0) + 1
-        candidates = sorted(enumerate(events), key=lambda item: page_counts.get(item[1].get("source_page_url"), 0),
-                            reverse=True)
+        programmes = [event for event in events if "week" in self._title_tokens(event)]
+
+        def priority(item: tuple[int, Dict[str, Any]]) -> tuple[bool, bool, int]:
+            _, event = item
+            start = str(event.get("date_start", ""))[:10]
+            end = str(event.get("date_end") or start)[:10]
+            city = self._dedup_text((event.get("venue") or {}).get("city"))
+            shares_programme = bool(city) and any(
+                str(programme.get("date_start", ""))[:10] < start < str(programme.get("date_end") or "")[:10]
+                and city == self._dedup_text((programme.get("venue") or {}).get("city"))
+                for programme in programmes
+            )
+            return shares_programme and end > start, shares_programme, page_counts.get(event.get("source_page_url"), 0)
+
+        candidates = sorted(enumerate(events), key=priority, reverse=True)
         anchor: Optional[Dict[str, Any]] = None
         web_price = prices.get("web")
         detail_budget = raw_web_credits({
@@ -1076,7 +1090,7 @@ class SearchSkill(BaseSkill):
         criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         topic = f"Events about {query}" if query and (not conference or query.casefold() != conference.casefold()) else None
         count = max(1, min(req.get("count") or _DEFAULT_COUNT, 50))
-        target = relevance_candidate_target(count) if criteria else count
+        target = relevance_candidate_target(count) if criteria or run_web else count
         events: List[Dict[str, Any]] = []
         total = 0
         dispatched: List[str] = []
@@ -1144,7 +1158,7 @@ class SearchSkill(BaseSkill):
             ranking = await rank_search_candidates(
                 candidates=results, candidate_projections=[{
                     key: event.get(key) for key in ("title", "description", "date_start", "date_end",
-                        "event_type", "venue", "organizer", "provider", "fee", "constraint_matches", "url")
+                        "event_type", "venue", "organizer", "provider", "fee", "constraint_matches", "url", "source_topic")
                 } for event in results], relevance_criteria=criteria or topic,
                 search_parameters={"query": query, "conference": conference, "providers": dispatched,
                                    "location": req.get("location"), "start_date": req.get("start_date"),
@@ -1155,7 +1169,7 @@ class SearchSkill(BaseSkill):
             if ranking.applied and len(ranking.scores) == len(results):
                 results = [event for event, score in zip(results, ranking.scores)
                            if score >= _MIN_EVENT_RELEVANCE_SCORE]
-                if not criteria:
+                if not criteria and not run_web:
                     retained = {id(event) for event in results}
                     results = [event for event in original_order if id(event) in retained]
         results = results[:count]

@@ -375,3 +375,25 @@ def test_named_event_detail_prioritizes_its_homepage_over_similar_titles():
     assert extraction._named_event_pages([directory, nearby, named], previews, "libre week") == [
         named, directory, nearby,
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_structured_listing_recovers_missed_events_from_visible_dates():
+    page = """Upcoming events in 2027.
+
+[Jan 25 - Feb 1
+27](https://directory.example/ical/libre-week "Add to calendar")
+
+oss
+
+## [Libre Week](https://directory.example/libre-week)
+
+### [Open Source](https://directory.example/oss) conference in [Lyon](https://directory.example/lyon), [France](https://directory.example/fr)
+"""
+    rows = extraction.validated_rows(
+        extraction.KIND_EVENT, extraction._listed_event_facts(page), page_url="https://directory.example/oss",
+        page_title="Events", page_text=page,
+    )
+    assert [(row["title"], row["date_start"], row["date_end"], row["venue"]) for row in rows] == [
+        ("Libre Week", "2027-01-25", "2027-02-01", {"city": "Lyon", "country": "France"}),
+    ]

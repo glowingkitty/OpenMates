@@ -230,6 +230,8 @@ async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkey
         "provider": "libre.example", "provider_id": "web",
     }
     different_edition = {**official, "date_start": "2099-01-31", "venue": {**venue, "address": "16 rue Victor Hugo"}}
+    separate = {**listing, "title": "Earlier conference", "url": "https://directory.example/earlier",
+                "date_start": "2099-01-23", "date_end": "2099-01-24", "venue": {"city": "Paris"}}
     programme = {**listing, "title": "Libre Week", "url": "https://directory.example/libre-week",
                  "date_start": "2099-01-26", "date_end": "2099-02-01"}
     programme_source = {**programme, "url": "https://libre-week.example/", "provider_id": "web",
@@ -245,7 +247,7 @@ async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkey
         side_effect=lambda **kwargs: SimpleNamespace(candidates=kwargs["candidates"], applied=False)))
     discovery_usage = {**WEB_USAGE, "input_tokens": 10000, "output_tokens": 1200} if surrounding_programme else WEB_USAGE
     web = AsyncMock(side_effect=[
-        InstalledProviderOutcome("web", results=[listing, programme] if surrounding_programme else [], usage=discovery_usage),
+        InstalledProviderOutcome("web", results=[separate, listing, programme] if surrounding_programme else [], usage=discovery_usage),
         InstalledProviderOutcome("web", results=[different_edition, official], usage={
             **WEB_USAGE, "input_tokens": 3700, "output_tokens": 400,
         }),
@@ -257,19 +259,20 @@ async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkey
     response = await skill.execute(SearchRequest(requests=[{"query": "open source conferences"}]),
                                    secrets_manager=object())
     group, = response.results
-    saved, *rest = group["results"]
+    saved = next(event for event in group["results"] if event["title"] == listing["title"])
     assert saved["venue"] == venue and saved["description"] == official["description"]
     assert saved["source_page_url"] == official["source_page_url"]
     assert web.await_args_list[1].kwargs["event_detail"]
     assert web.await_args_list[1].args[1]["query"] == listing["title"]
     if surrounding_programme:
-        assert rest[0]["description"] == programme_source["description"]
+        week = next(event for event in group["results"] if event["title"] == programme["title"])
+        assert week["description"] == programme_source["description"]
         assert web.await_args_list[2].args[1]["query"] == programme["title"]
         assert group["usage"]["web_search_requests"] == 3
         assert group["usage"]["input_tokens"] == 14700
         assert [call.kwargs["page_limit"] for call in web.await_args_list] == [3, 1, 1]
     else:
-        assert not rest
+        assert len(group["results"]) == 1
         assert group["usage"]["web_search_requests"] == 2
         assert group["usage"]["input_tokens"] == 28568
         assert [call.kwargs["page_limit"] for call in web.await_args_list] == [3, 1]
