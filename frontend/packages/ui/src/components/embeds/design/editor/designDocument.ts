@@ -1,4 +1,5 @@
-// Preview-only document values. Array order is back to front.
+// figma-visual-proof: not-required. This module defines the renderer's typed model.
+// Array order is back to front.
 export type DesignFont = 'Sans' | 'Serif' | 'Mono';
 
 export interface Box {
@@ -39,6 +40,8 @@ export interface DesignDocument {
 
 // Stress fixtures can exceed the provisional cap to measure the headroom.
 export const PREVIEW_LAYER_CAP = 250;
+export const DESIGN_PAGE_CAP = 16;
+export const DEFAULT_LAYER_COLOR = '#17294b';
 export const MIN_LAYER_SIZE = 8;
 export const designFonts: Record<DesignFont, string> = {
   Sans: 'Arial, sans-serif',

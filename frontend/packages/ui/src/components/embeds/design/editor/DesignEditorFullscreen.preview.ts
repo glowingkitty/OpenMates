@@ -23,6 +23,7 @@ export default fixture(flyer);
 
 export const variants = {
   'flyer-edit': fixture(flyer, 'edit'),
+  'saved-edit': { ...fixture(flyer), revision: { version: 1, save: async () => {} } },
   collage: fixture(collage),
   'social-post': fixture(social),
   'app-mockup': fixture(mockup),

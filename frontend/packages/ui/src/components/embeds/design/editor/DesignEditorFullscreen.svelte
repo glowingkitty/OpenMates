@@ -1,6 +1,6 @@
 <!-- figma-visual-proof: not-required. Original OpenMates preview with browser proof. -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import UnifiedEmbedFullscreen from '../../UnifiedEmbedFullscreen.svelte';
   import EmbedIconButton from '../../shared/EmbedIconButton.svelte';
   import EmbedZoomControls from '../../shared/EmbedZoomControls.svelte';
@@ -8,19 +8,26 @@
   import DesignLayers from './DesignLayers.svelte';
   import DesignProperties from './DesignProperties.svelte';
   import DesignPageThumbnail from './DesignPageThumbnail.svelte';
-  import { PREVIEW_LAYER_CAP, type DesignDocument, type DesignLayer } from './designDocument';
+  import { DEFAULT_LAYER_COLOR, DESIGN_PAGE_CAP, PREVIEW_LAYER_CAP, type DesignDocument, type DesignLayer } from './designDocument';
 
   interface Props {
     document: DesignDocument;
     readOnly?: boolean;
     readImage?: (id: string) => Promise<ImageBitmap | null>;
     initialMode?: 'view' | 'edit';
+    revision?: { version: number; save: (baseVersion: number, document: DesignDocument) => Promise<void> };
+    versionNumber?: number;
+    versionHistory?: Snippet;
     onClose: () => void;
   }
 
-  let { document: initialDocument, initialMode = 'view', readOnly = false, readImage, onClose }: Props = $props();
+  let { document: initialDocument, initialMode = 'view', readOnly = false, readImage, revision, versionNumber, versionHistory, onClose }: Props = $props();
   let document = $state.raw(untrack(() => initialDocument));
   let editing = $state(untrack(() => !readOnly && initialMode === 'edit'));
+  let editingVersion = $state<number>();
+  let editStart = $state.raw<DesignDocument>();
+  let saving = $state(false);
+  let saveError = $state('');
   let pageIndex = $state(0);
   let selectedId = $state<string | null>(null);
   let mobilePanel = $state<'layers' | 'properties' | null>(null);
@@ -32,12 +39,12 @@
   let canvas: DesignCanvas | undefined = $state();
   let properties: DesignProperties | undefined = $state();
   let root: HTMLElement;
-  let idCounter = 0;
 
   interface Revision {
-    pageIndex: number;
-    before: DesignLayer[];
-    after: DesignLayer[];
+    pageBefore: number;
+    pageAfter: number;
+    before: DesignDocument;
+    after: DesignDocument;
     selectionBefore: string | null;
     selectionAfter: string | null;
   }
@@ -45,21 +52,39 @@
   const activePage = $derived(document.pages[pageIndex]);
   const selected = $derived(activePage.layers.find((layer) => layer.id === selectedId) ?? null);
   const canPaste = $derived(copied !== null && activePage.layers.length < PREVIEW_LAYER_CAP);
+  const canAddLayer = $derived(revision && activePage.layers.length < PREVIEW_LAYER_CAP);
 
-  function setPageLayers(index: number, layers: DesignLayer[]) {
-    document = { ...document, pages: document.pages.map((page, i) => i === index ? { ...page, layers } : page) };
-  }
+  $effect(() => {
+    const latest = initialDocument;
+    if (readOnly && editing) {
+      editing = false;
+      history = { past: [], future: [] };
+      select(null);
+    }
+    if (!editing && (revision || readOnly)) {
+      document = latest;
+      pageIndex = Math.min(untrack(() => pageIndex), latest.pages.length - 1);
+    }
+  });
 
   function select(id: string | null) {
     selectedId = id;
     if (id === null && mobilePanel === 'properties') mobilePanel = null;
   }
 
-  function commit(layers: DesignLayer[], nextSelection = selectedId) {
-    const revision = { pageIndex, before: activePage.layers, after: layers, selectionBefore: selectedId, selectionAfter: nextSelection };
-    setPageLayers(pageIndex, layers);
-    history = { past: [...history.past.slice(-59), revision], future: [] };
+  function commitDocument(next: DesignDocument, nextPage: number, nextSelection: string | null) {
+    if (saving || readOnly) return;
+    const change = { pageBefore: pageIndex, pageAfter: nextPage, before: document, after: next,
+      selectionBefore: selectedId, selectionAfter: nextSelection };
+    document = next;
+    pageIndex = nextPage;
+    history = { past: [...history.past.slice(-59), change], future: [] };
     select(nextSelection);
+  }
+
+  function commit(layers: DesignLayer[], nextSelection = selectedId) {
+    const pages = document.pages.map((page, i) => i === pageIndex ? { ...page, layers } : page);
+    commitDocument({ ...document, pages }, pageIndex, nextSelection);
   }
 
   function changeLayer(layer: DesignLayer) {
@@ -78,19 +103,21 @@
   }
 
   function undo() {
+    if (saving) return;
     const revision = history.past.at(-1);
     if (!revision) return;
-    setPageLayers(revision.pageIndex, revision.before);
-    pageIndex = revision.pageIndex;
+    document = revision.before;
+    pageIndex = revision.pageBefore;
     select(revision.selectionBefore);
     history = { past: history.past.slice(0, -1), future: [...history.future, revision] };
   }
 
   function redo() {
+    if (saving) return;
     const revision = history.future.at(-1);
     if (!revision) return;
-    setPageLayers(revision.pageIndex, revision.after);
-    pageIndex = revision.pageIndex;
+    document = revision.after;
+    pageIndex = revision.pageAfter;
     select(revision.selectionAfter);
     history = { past: [...history.past, revision], future: history.future.slice(0, -1) };
   }
@@ -103,20 +130,79 @@
 
   function paste() {
     if (!copied || !canPaste) return;
-    const clone = { ...copied, id: `copy-${++idCounter}`, name: `${copied.name} copy`,
+    const clone = { ...copied, id: crypto.randomUUID(),
       x: Math.max(0, Math.min(activePage.width - 24, copied.x + 16)),
       y: Math.max(0, Math.min(activePage.height - 24, copied.y + 16)), locked: false, hidden: false };
     commit([...activePage.layers, clone], clone.id);
     clipboardOpen = false;
   }
 
-  function toggleMode() {
-    editing = !editing;
+  function addLayer(kind: 'text' | 'shape') {
+    if (!canAddLayer) return;
+    const base = {
+      id: crypto.randomUUID(), x: activePage.width / 10, y: activePage.height / 10,
+      width: Math.max(1, Math.min(240, activePage.width * 0.8)),
+      height: Math.max(1, Math.min(72, activePage.height * 0.8)),
+      rotation: 0, color: DEFAULT_LAYER_COLOR
+    };
+    const layer: DesignLayer = kind === 'text'
+      ? { ...base, kind, name: 'Text', text: 'Your text', font: 'Sans', fontSize: 24, weight: 500 }
+      : { ...base, kind, name: 'Rectangle', shape: 'rectangle' };
+    commit([...activePage.layers, layer], layer.id);
+    clipboardOpen = false;
+  }
+
+  function deleteLayer() {
+    if (selected && !selected.locked) commit(activePage.layers.filter((layer) => layer.id !== selectedId), null);
+    clipboardOpen = false;
+  }
+
+  function addPage() {
+    if (document.pages.length >= DESIGN_PAGE_CAP) return;
+    const blank = { ...activePage, id: crypto.randomUUID(), name: `Page ${document.pages.length + 1}`, layers: [] };
+    const pages = [...document.pages, blank];
+    commitDocument({ ...document, pages }, pages.length - 1, null);
+    pagesOpen = false;
+  }
+
+  function deletePage() {
+    if (document.pages.length <= 1) return;
+    const pages = document.pages.filter((page) => page.id !== activePage.id);
+    commitDocument({ ...document, pages }, Math.min(pageIndex, pages.length - 1), null);
+    pagesOpen = false;
+  }
+
+  async function toggleMode() {
+    if (readOnly || saving) return;
+    saveError = '';
     if (!editing) {
-      select(null);
-      mobilePanel = null;
-      clipboardOpen = false;
+      editingVersion = revision?.version;
+      editStart = document;
+      history = { past: [], future: [] };
+      editing = true;
+      return;
     }
+    if (revision && editingVersion !== undefined && document !== editStart) {
+      saving = true;
+      try {
+        await revision.save(editingVersion, document);
+      } catch (error) {
+        const code = (error as { code?: string } | null)?.code;
+        saveError = code === 'embed_version_conflict'
+          ? 'A newer version was saved. Reopen the design before applying your changes.'
+          : code === 'design_scene_invalid'
+            ? 'This edit exceeds the supported design limits.'
+            : 'The design could not be saved. Your edits are still open.';
+        return;
+      } finally {
+        saving = false;
+      }
+    }
+    editing = false;
+    editStart = undefined;
+    select(null);
+    mobilePanel = null;
+    clipboardOpen = false;
   }
 
   function openPage(index: number) {
@@ -176,8 +262,8 @@
 
 <UnifiedEmbedFullscreen appId="design" {onClose} showShare={false} closeOnChatSelection={false}
   testId="design-fullscreen" contentLayout="app-home"
-  onEdit={readOnly ? undefined : toggleMode} editActive={editing} editToggleOnly editPlacement="close" editTestId="design-mode" reportInMore
-  editLabel={editing ? 'View design' : 'Edit design'} escapeScope={{ consume: escape }}>
+  onEdit={readOnly ? undefined : toggleMode} editActive={editing} editBusy={saving} editToggleOnly={!revision} editPlacement="close" editTestId="design-mode" reportInMore
+  editLabel={editing ? revision ? 'Save design' : 'View design' : 'Edit design'} escapeScope={{ consume: escape }}>
   {#snippet embedHeaderContent()}
     <header class="design-header">
       <div class="design-identity">
@@ -186,7 +272,7 @@
           <h1>{document.title}</h1>
           <div class="dimensions">
             {activePage.width} × {activePage.height}
-            {#if editing}<span> · Preview edits</span>{/if}
+            {#if editing && !revision}<span> · Preview edits</span>{/if}
           </div>
         </div>
       </div>
@@ -195,7 +281,10 @@
 
   {#snippet content()}
     <div class="workspace" class:editing bind:this={root} data-testid="design-workspace" data-mode={editing ? 'edit' : 'view'}
-      data-selection={selectedId} data-layers={activePage.layers.length}>
+      data-selection={selectedId} data-layers={activePage.layers.length} data-version={versionNumber}>
+      {#if saveError}
+        <p class="save-error" role="alert" data-testid="design-save-error">{saveError}</p>
+      {/if}
       {#if editing}
         <div class="layers panel-slot" class:open={mobilePanel === 'layers'}>
           <DesignLayers layers={activePage.layers} {selectedId} onSelect={select} onChange={changeLayer}
@@ -209,7 +298,7 @@
             onSelect={select} onCommit={changeLayer} onDoubleClick={editText} {readImage} />
         {/key}
 
-        {#if document.pages.length > 1}
+        {#if document.pages.length > 1 || editing && revision}
           <div class="pages">
             <button type="button" class="page-toggle" aria-expanded={pagesOpen} aria-controls="design-pages"
               data-testid="design-page-chooser" onclick={() => pagesOpen = !pagesOpen}>
@@ -223,6 +312,10 @@
                     {page.name}
                   </button>
                 {/each}
+                {#if editing && revision}
+                  <button type="button" data-testid="design-add-page" disabled={document.pages.length >= DESIGN_PAGE_CAP} onclick={addPage}>Add page</button>
+                  <button type="button" data-testid="design-delete-page" disabled={document.pages.length <= 1} onclick={deletePage}>Remove page</button>
+                {/if}
               </div>
             {/if}
           </div>
@@ -240,12 +333,17 @@
             <EmbedIconButton icon="back" label="Undo" testId="design-undo" disabled={!history.past.length} onclick={undo} />
             <EmbedIconButton icon="back" flip label="Redo" testId="design-redo" disabled={!history.future.length} onclick={redo} />
             <div class="clipboard" data-testid="design-clipboard-controls">
-              <EmbedIconButton icon="more" label="Clipboard" testId="design-clipboard-toggle" expanded={clipboardOpen} controls="design-clipboard" disabled={!selected && !canPaste}
+              <EmbedIconButton icon="more" label={revision ? 'Layer actions' : 'Clipboard'} testId="design-clipboard-toggle" expanded={clipboardOpen} controls="design-clipboard" disabled={!revision && !selected && !canPaste}
                 onclick={() => clipboardOpen = !clipboardOpen} />
               {#if clipboardOpen}
                 <div class="clipboard-menu" id="design-clipboard">
                   <button type="button" data-testid="design-copy-layer" onclick={copy} disabled={!selected}>Copy layer</button>
                   <button type="button" data-testid="design-paste-layer" onclick={paste} disabled={!canPaste}>Paste layer</button>
+                  {#if revision}
+                    <button type="button" data-testid="design-add-text" onclick={() => addLayer('text')} disabled={!canAddLayer}>Add text</button>
+                    <button type="button" data-testid="design-add-rectangle" onclick={() => addLayer('shape')} disabled={!canAddLayer}>Add rectangle</button>
+                    <button type="button" data-testid="design-delete-layer" onclick={deleteLayer} disabled={!selected || selected.locked}>Remove layer</button>
+                  {/if}
                   {#if copied && !canPaste}<span>Layer cap reached ({PREVIEW_LAYER_CAP})</span>{/if}
                 </div>
               {/if}
@@ -267,6 +365,7 @@
         </div>
       {/if}
     </div>
+    {#if !editing && versionHistory}{@render versionHistory()}{/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
 
@@ -292,10 +391,16 @@
     mask: var(--icon-url-design) center / contain no-repeat;
   }
   h1 {
-    margin: 0; font-size: 1.05rem; line-height: 1.35;
+    margin: 0; font-size: var(--font-size-h4); line-height: 1.35;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .dimensions { font-size: .75rem; color: var(--color-font-tertiary); white-space: nowrap; }
+  .dimensions { font-size: var(--font-size-xxs); color: var(--color-font-tertiary); white-space: nowrap; }
+  .save-error {
+    position: absolute; z-index: 2; inset: 0 0 auto; width: max-content; max-width: calc(100% - 24px);
+    margin: var(--spacing-6) auto; padding: var(--spacing-4) var(--spacing-6);
+    border-radius: var(--radius-3); background: var(--color-grey-0);
+    box-shadow: var(--shadow-md); color: var(--color-font-primary); text-align: center;
+  }
   .workspace {
     flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr);
     position: relative; isolation: isolate; color: var(--color-font-primary);
@@ -313,13 +418,13 @@
   .tools {
     position: absolute; left: 50%; bottom: 15px; transform: translateX(-50%);
     display: flex; align-items: center; gap: 5px; z-index: 3;
-    padding: 5px 7px; border-radius: 999px; white-space: nowrap;
+    padding: 5px 7px; border-radius: var(--radius-full); white-space: nowrap;
     background: var(--color-grey-0); box-shadow: var(--shadow-lg);
   }
   .tools :global(.embed-icon-button) { width: 38px; height: 38px; padding: 8px; }
   .divider { width: 1px; height: 24px; margin-inline: 3px; background: var(--color-grey-25); }
   .zoom :global(.doc-zoom-bar) { position: static; margin: 0; padding: 0; }
-  .zoom :global(.doc-zoom-bar-inner) { background: transparent; border-radius: 0; box-shadow: none; padding: 0; gap: 2px; }
+  .zoom :global(.doc-zoom-bar-inner) { background: transparent; box-shadow: none; padding: 0; gap: 2px; }
   .zoom :global(button) { margin: 0; filter: none; }
   .zoom :global(.doc-zoom-btn) { min-width: 0; }
   .zoom :global(.doc-zoom-level) { min-width: 42px; padding-inline: 6px; }
@@ -330,13 +435,17 @@
     border: 1px solid var(--color-grey-25); box-shadow: var(--shadow-lg);
   }
   .page-toggle {
-    padding: 8px 12px; min-width: 0; min-height: 42px; margin: 0; filter: none; border-radius: 999px; font: inherit; font-size: .8rem; cursor: pointer;
+    padding: 8px 12px; min-width: 0; min-height: 42px; margin: 0; filter: none;
+    border-radius: var(--radius-full); font: inherit; font-size: var(--font-size-xs); cursor: pointer;
   }
   .page-toggle span { color: var(--color-font-tertiary); margin-left: 6px; }
-  .page-menu { display: flex; gap: 4px; margin-top: 5px; padding: 5px; border-radius: var(--radius-3); }
+  .page-menu {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; padding: 5px; border-radius: var(--radius-3);
+    max-width: calc(100cqw - 28px); max-height: min(55vh, 300px); overflow: auto;
+  }
   .page-menu button {
     min-width: 67px; height: auto; margin: 0; filter: none; border: 0; display: grid; justify-items: center; gap: 5px; padding: 6px;
-    background: var(--color-grey-10); color: inherit; border-radius: var(--radius-3); font-size: .75rem; cursor: pointer;
+    background: var(--color-grey-10); color: inherit; border-radius: var(--radius-3); font-size: var(--font-size-xxs); cursor: pointer;
   }
   .page-menu button[aria-current='page'] { background: color-mix(in srgb, var(--color-primary-start) 18%, var(--color-grey-0)); }
   .clipboard { position: relative; }
@@ -346,19 +455,19 @@
   }
   .clipboard-menu button {
     border: 0; border-radius: var(--radius-3); background: var(--color-grey-0); color: inherit;
-    margin: 0; filter: none; padding: 9px; font: inherit; font-size: .8rem; cursor: pointer;
+    margin: 0; filter: none; padding: 9px; font: inherit; font-size: var(--font-size-xs); cursor: pointer;
   }
   .clipboard-menu button:hover { background: var(--color-grey-20); }
   .clipboard-menu button:disabled { opacity: .45; cursor: default; }
-  .clipboard-menu span { font-size: .7rem; padding: 6px; }
+  .clipboard-menu span { font-size: var(--font-size-tiny); padding: 6px; }
 
   @container fullscreen (max-width: 740px) {
     .design-header { height: 65px; padding-left: 66px; padding-right: 106px; }
     .design-identity { gap: 8px; }
     .design-icon { width: 34px; height: 34px; }
     .design-icon::before { width: 20px; height: 20px; }
-    h1 { font-size: .91rem; }
-    .dimensions { font-size: .7rem; }
+    h1 { font-size: var(--font-size-small); }
+    .dimensions { font-size: var(--font-size-tiny); }
     .workspace.editing { grid-template-columns: minmax(0, 1fr); }
     .mobile-tools { display: flex; gap: 3px; }
     .tools { gap: 3px; bottom: 10px; padding: 4px; }

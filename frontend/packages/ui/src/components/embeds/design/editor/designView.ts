@@ -11,16 +11,20 @@ type SavedDesign = Omit<DesignDocument, 'pages'> & {
   pages: (Omit<DesignDocument['pages'][number], 'layers'> & { layers: SavedDesignLayer[] })[];
 };
 
-export async function readDesignView(content: Record<string, unknown>, raw?: unknown): Promise<DesignDocument | null> {
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== '1') return null;
+export async function validateDesignScene(input: string): Promise<boolean> {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== '1') return false;
   const epoch = getWorkspaceCacheEpoch();
   await whenSharedRustCore({ timeoutMs: 10_000 });
   const core = rustEmbedData();
-  if (!core) return null;
+  if (!core || getWorkspaceCacheEpoch() !== epoch) return false;
+  return await core.validateDesignScene(input) && getWorkspaceCacheEpoch() === epoch;
+}
+
+export async function readDesignView(content: Record<string, unknown>, raw?: unknown): Promise<DesignDocument | null> {
   // Use the original decrypted text if the shell supplies it. Some presentation
   // hosts already decode embed content and supply the scene object directly.
   const input = typeof raw === 'string' ? raw : JSON.stringify(content);
-  if (!await core.validateDesignScene(input) || getWorkspaceCacheEpoch() !== epoch) return null;
+  if (!await validateDesignScene(input)) return null;
   const scene: SavedDesign = JSON.parse(input);
   return {
     title: scene.title,
@@ -31,4 +35,20 @@ export async function readDesignView(content: Record<string, unknown>, raw?: unk
         : layer)
     }))
   };
+}
+
+/** Serialize the renderer model as the canonical scene. Local preview URLs never enter it. */
+export function serializeDesign(document: DesignDocument): string {
+  return JSON.stringify({
+    schemaVersion: 1,
+    title: document.title,
+    pages: document.pages.map((page) => ({
+      ...page,
+      layers: page.layers.map((layer) => {
+        if (layer.kind !== 'image') return layer;
+        const { src: _src, ...saved } = layer;
+        return saved;
+      })
+    }))
+  });
 }

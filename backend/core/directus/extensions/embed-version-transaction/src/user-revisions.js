@@ -377,6 +377,10 @@ export async function lookupEnhanceResult(trx, {
 
 function typeAllowed(embed, scopeKind, projectNative) {
   const pair = `${embed.app_id}/${embed.skill_id}`;
+  // Design assets can share the document stamp; edit only a personal chat root.
+  if (pair === 'design/document') {
+    return scopeKind === 'chat' && embed.hashed_team_id == null && embed.parent_embed_id == null;
+  }
   if (USER_EDITABLE_TYPES.has(pair)) return true;
   return scopeKind === 'project' && (projectNative || PROJECT_EDITABLE_TYPES.has(pair));
 }

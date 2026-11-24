@@ -1,0 +1,18 @@
+schema_version: 1
+specification: feature.design-editor-edit@1
+edit:
+  - id: change-a-flyer
+    assertion_ids: [design-editor.edit.typed-layers, design-editor.edit.revision]
+    given: A saved flyer has an editable headline and a photograph.
+    when: Its owner changes the headline, moves and resizes the photograph, and undoes the resize before saving.
+    then: The changed headline and position survive reload, the photograph retains its earlier size, and the original design is in history.
+  - id: concurrent-saves
+    assertion_ids: [design-editor.edit.revision]
+    given: Two editor windows start from the same saved version.
+    when: The first saves and the second tries to save from its earlier version.
+    then: The second save is refused and the first window's version remains current.
+  - id: read-only
+    assertion_ids: [design-editor.edit.revision]
+    given: A viewer opens a Design in a read-only context.
+    when: The viewer opens the fullscreen.
+    then: The viewer can navigate its pages and has no editing controls.

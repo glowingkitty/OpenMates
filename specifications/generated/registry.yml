@@ -783,6 +783,13 @@ specifications:
     fingerprint: a9b814fb48dfe4fc11a0600086986a1f85e56b6993922fa3d31fe45757a343c5
     required_applies_to:
     - gui.web
+  feature.design-editor-edit:
+    version: 1
+    status: draft
+    path: features/design-editor-edit
+    fingerprint: 1ae092c3725c8f9bc6ad18f8721f670700edd8468795474c7bf48e4352f74227
+    required_applies_to:
+    - gui.web
   feature.doc-editor:
     version: 1
     status: draft
@@ -10692,6 +10699,20 @@ assertions:
     specification_id: feature.design-editor
     type: security
     fingerprint: 3ed06377d9a3047234a75c315132736936d761078e1360a7520fa960266d4ab7
+    required_applies_to:
+    - gui.web
+  design-editor.edit.typed-layers:
+    specification: feature.design-editor-edit@1
+    specification_id: feature.design-editor-edit
+    type: behavior
+    fingerprint: 2eb15599016cd24ac5aab39720c33524b51a01ce3318f0f0fa485085e424e091
+    required_applies_to:
+    - gui.web
+  design-editor.edit.revision:
+    specification: feature.design-editor-edit@1
+    specification_id: feature.design-editor-edit
+    type: security
+    fingerprint: c91b2008492d925e3ad84908aa5360988276ac293ab62fd29cb0f9347773ddc8
     required_applies_to:
     - gui.web
   doc-editor.edit.rich-text:

@@ -314,6 +314,17 @@ test('types outside the allowlist are refused', async () => {
     403, 'embed_access_denied');
 });
 
+// contract-test: supporting surface=gui.web assertions=design-editor.edit.revision
+test('an owned client-side encrypted Design root can be revised, but its asset cannot', async () => {
+  const design = { app_id: 'design', skill_id: 'document' };
+  const db = fakeDatabase(seed({ embed: design }));
+  const result = await commitUserEmbedRevision(db, body());
+  assert.equal(result.current_revision, 2);
+  assert.equal(db.rows.embeds[0].encrypted_content, 'cipher-v2');
+  const child = fakeDatabase(seed({ embed: { ...design, parent_embed_id: DIAGRAM_ID } }));
+  await rejectsWith(commitUserEmbedRevision(child, body()), 403, 'embed_type_not_editable');
+});
+
 // contract-test: direct surface=rest_api assertions=projects.items.create-documents,projects.files.user-edit-direct
 test('a code file is editable in its Project but not in a chat', async () => {
   const rows = seed({ embed: { app_id: 'code', skill_id: 'code' } });
