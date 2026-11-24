@@ -6,6 +6,7 @@
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+//          frontend/packages/ui/src/components/settings/ReportIssueComposer.svelte
 // TS:      frontend/packages/ui/src/services/issueReportSubmission.ts
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -83,9 +84,14 @@ private extension ReportIssuePrefill.Origin {
 
 struct ReportIssueView: View {
     @State private var title = ""
-    @State private var userFlow = ""
-    @State private var expectedBehaviour = ""
-    @State private var actualBehaviour = ""
+    @EnvironmentObject private var authManager: AuthManager
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var recorder = VoiceRecorder()
+    @State private var dictationSession: AudioRecordingRealtimeSession?
+    @State private var dictationTask: Task<Void, Never>?
+    @State private var dictationDeadline: Task<Void, Never>?
+    @State private var dictationQuota: ReportIssueDictationQuota?
+    @State private var contactEmail = ""
     @State private var issueType: IssueReportPayloadBuilder.IssueType = .bugReport
     @State private var screenshotItems: [PhotosPickerItem] = []
     @State private var screenshotAttachments: [ReportIssueScreenshotAttachment] = []
@@ -138,6 +144,17 @@ struct ReportIssueView: View {
             seedUITestReportIssueLogsIfNeeded()
             #endif
         }
+        .task(id: authManager.currentUser?.id) {
+            await refreshDictationQuota()
+        }
+        .onDisappear(perform: cancelDictation)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { cancelDictation() }
+        }
+        .onChange(of: authManager.currentUser?.id) { _, _ in
+            cancelDictation()
+            dictationQuota = nil
+        }
         .onChange(of: screenshotItems) { _, newItems in
             loadScreenshots(newItems)
         }
@@ -175,53 +192,63 @@ struct ReportIssueView: View {
     }
 
     private var formView: some View {
-        VStack(alignment: .leading, spacing: .spacing8) {
-            OMSettingsSection(AppStrings.settingsReportIssue, icon: "report_issue") {
+        VStack(alignment: .leading, spacing: .spacing5) {
+            Text(AppStrings.reportIssueDescription)
+                .font(.omP)
+                .foregroundStyle(Color.fontSecondary)
+
+            submitButton
+
+            OMSettingsSection(AppStrings.localized("settings.report_issue.issue_text_label"), icon: "chat") {
                 VStack(alignment: .leading, spacing: .spacing5) {
                     ReportIssueTextArea(
-                        title: AppStrings.reportIssueTitleLabel,
-                        placeholder: AppStrings.reportIssueTitlePlaceholder,
+                        placeholder: AppStrings.localized("settings.report_issue.issue_text_placeholder"),
                         text: $title,
-                        minHeight: 92,
                         accessibilityIdentifier: "report-issue-title"
                     )
+                    .disabled(isSubmitting || dictationSession != nil)
 
-                    if let titleValidationError {
+                    if let titleValidationError, !title.isEmpty {
                         Text(titleValidationError)
                             .font(.omXs)
                             .foregroundStyle(Color.error)
                             .accessibilityIdentifier("report-issue-title-error")
                     }
 
-                    ReportIssueTextArea(
-                        title: AppStrings.reportIssueUserFlowLabel,
-                        placeholder: AppStrings.reportIssueUserFlowPlaceholder,
-                        hint: AppStrings.reportIssueUserFlowHint,
-                        text: $userFlow,
-                        accessibilityIdentifier: "report-issue-user-flow"
-                    )
-
-                    ReportIssueTextArea(
-                        title: AppStrings.reportIssueExpectedLabel,
-                        placeholder: AppStrings.reportIssueExpectedPlaceholder,
-                        hint: AppStrings.reportIssueExpectedHint,
-                        text: $expectedBehaviour,
-                        accessibilityIdentifier: "report-issue-expected"
-                    )
-
-                    ReportIssueTextArea(
-                        title: AppStrings.reportIssueActualLabel,
-                        placeholder: AppStrings.reportIssueActualPlaceholder,
-                        hint: AppStrings.reportIssueActualHint,
-                        text: $actualBehaviour,
-                        accessibilityIdentifier: "report-issue-actual"
-                    )
+                    HStack(spacing: .spacing3) {
+                        if authManager.currentUser != nil,
+                           screenshotAttachments.count < IssueReportScreenshotBundle.maximumAttachments {
+                            PhotosPicker(selection: $screenshotItems,
+                                maxSelectionCount: IssueReportScreenshotBundle.maximumAttachments - screenshotAttachments.count,
+                                matching: .images) {
+                                Icon("image", size: 18)
+                            }
+                            .buttonStyle(OMSecondaryButtonStyle())
+                            .accessibilityLabel(AppStrings.reportIssueScreenshotUploadButton)
+                            .accessibilityIdentifier("report-issue-attach-screenshot")
+                            .help(Text(AppStrings.reportIssueScreenshotUploadButton))
+                            .disabled(isSubmitting)
+                        }
+                        dictationControls
+                    }
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.vertical, .spacing4)
             }
 
-            screenshotSection
+            if !screenshotAttachments.isEmpty || screenshotError != nil {
+                screenshotSection
+            }
+
+            if authManager.currentUser == nil {
+                OMSettingsSection(AppStrings.localized("settings.report_issue.email_label"), icon: "email") {
+                    TextField(AppStrings.localized("settings.report_issue.email_placeholder"), text: $contactEmail)
+                        .textFieldStyle(.plain)
+                        .padding(.spacing5)
+                        .accessibilityIdentifier("report-issue-contact-email")
+                        .disabled(isSubmitting)
+                }
+            }
 
             diagnosticsSection
 
@@ -232,23 +259,132 @@ struct ReportIssueView: View {
                     .padding(.horizontal, .spacing5)
                     .accessibilityIdentifier("report-issue-error")
             }
+        }
+    }
 
-            Button {
-                submitReport()
-            } label: {
-                if isSubmitting {
-                    ProgressView()
-                        .help(Text(AppStrings.reportIssueSubmitting))
-                        .accessibilityLabel(AppStrings.reportIssueSubmitting)
-                } else {
-                    Text(AppStrings.reportIssueSubmitButton)
-                }
+    private var submitButton: some View {
+        Button(action: submitReport) {
+            Text(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton)
+        }
+        .buttonStyle(OMPrimaryButtonStyle())
+        .disabled(!isValid || isSubmitting || dictationTask != nil || dictationSession != nil)
+        .accessibilityIdentifier("report-issue-submit")
+    }
+
+    @ViewBuilder
+    private var dictationControls: some View {
+        if recorder.isRecording {
+            Button(action: finishDictation) {
+                Text(AppStrings.localized("enter_message.record_audio.finish"))
             }
-            .buttonStyle(OMPrimaryButtonStyle())
-            .disabled(!isValid || isSubmitting)
-            .help(Text(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton))
-            .accessibilityLabel(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton)
-            .accessibilityIdentifier("report-issue-submit")
+            .buttonStyle(OMSecondaryButtonStyle())
+            .accessibilityIdentifier("report-issue-finish-dictation")
+            Button(action: cancelDictation) {
+                Text(AppStrings.localized("enter_message.record_audio.cancel"))
+            }
+            .buttonStyle(OMSecondaryButtonStyle())
+            .accessibilityIdentifier("report-issue-cancel-dictation")
+        } else {
+            let label = AppStrings.localized(dictationQuota?.available == false
+                ? "settings.report_issue.dictation_unavailable_today" : "settings.report_issue.record_voice")
+            Button(action: startDictation) {
+                if dictationTask != nil { ProgressView() }
+                else { Icon("recordaudio", size: 18) }
+            }
+            .buttonStyle(OMSecondaryButtonStyle())
+            .disabled(isSubmitting || dictationTask != nil || dictationQuota?.available == false)
+            .help(Text(label))
+            .accessibilityLabel(label)
+            .accessibilityIdentifier("report-issue-record-voice")
+        }
+    }
+
+    private func refreshDictationQuota() async {
+        guard let accountID = authManager.currentUser?.id else { return }
+        do {
+            let quota: ReportIssueDictationQuota = try await APIClient.shared.request(
+                .get, path: "/v1/apps/audio/report-issue-dictation-quota",
+                serverProfile: ServerProfile.current(), expectedAccountID: accountID,
+                expectedScope: OfflineStore.shared.scopeGeneration)
+            guard !Task.isCancelled, authManager.currentUser?.id == accountID else { return }
+            dictationQuota = quota
+        } catch {
+            NativeDiagnostics.failure("dictation_quota_failed", category: "report_issue", level: .warning, error: error)
+        }
+    }
+
+    private func startDictation() {
+        guard dictationTask == nil, dictationSession == nil, dictationQuota?.available != false else { return }
+        error = nil
+        dictationTask = Task { @MainActor in
+            defer { if !Task.isCancelled { dictationTask = nil } }
+            let allowed = await recorder.requestPermission()
+            guard !Task.isCancelled else { return }
+            guard allowed else {
+                error = AppStrings.microphoneBlocked
+                return
+            }
+            let session = AudioRecordingRealtimeSession(isTranscriptionOff: { false })
+            dictationSession = session
+            session.begin(authManager: authManager, chatID: nil, purpose: .reportIssue) { [weak session] _, _ in
+                if session?.failure != nil { finishDictation() }
+            }
+            recorder.setPCMHandler { [weak session] samples, sampleRate in
+                session?.append(samples: samples, sampleRate: sampleRate)
+            }
+            recorder.startRecording()
+            guard recorder.isRecording else {
+                cancelDictation()
+                error = AppStrings.localized("settings.report_issue.dictation_failed")
+                return
+            }
+            let seconds = dictationQuota?.recordingSeconds ?? 120
+            dictationDeadline = Task { @MainActor in
+                do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
+                finishDictation()
+            }
+        }
+    }
+
+    private func finishDictation() {
+        guard let session = dictationSession, recorder.isRecording else { return }
+        dictationDeadline?.cancel()
+        dictationDeadline = nil
+        if let file = recorder.stopRecording() {
+            do { try FileManager.default.removeItem(at: file) }
+            catch { NativeDiagnostics.failure("dictation_file_cleanup_failed", category: "report_issue", level: .warning, error: error) }
+        }
+        recorder.setPCMHandler(nil)
+        session.finish()
+        dictationTask = Task { @MainActor in
+            let result = await session.awaitResult()
+            guard !Task.isCancelled else { return }
+            dictationSession = nil
+            let transcript = result?.transcript.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if session.failure == .reportDictationDailyLimit {
+                dictationQuota = .init(available: false, remainingSeconds: 0, maxRecordingSeconds: 120)
+                error = AppStrings.localized("settings.report_issue.dictation_unavailable_today")
+            } else if transcript.isEmpty {
+                error = AppStrings.localized("settings.report_issue.dictation_failed")
+            } else {
+                title = [title.trimmingCharacters(in: .whitespacesAndNewlines), transcript]
+                    .filter { !$0.isEmpty }.joined(separator: "\n")
+            }
+            await refreshDictationQuota()
+            if !Task.isCancelled { dictationTask = nil }
+        }
+    }
+
+    private func cancelDictation() {
+        dictationTask?.cancel()
+        dictationTask = nil
+        dictationDeadline?.cancel()
+        dictationDeadline = nil
+        if recorder.isRecording { recorder.cancelRecording() }
+        recorder.setPCMHandler(nil)
+        if let session = dictationSession {
+            dictationSession = nil
+            Task { await session.cancel() }
         }
     }
 
@@ -310,21 +446,6 @@ struct ReportIssueView: View {
                     }
                 }
 
-                if screenshotAttachments.count < IssueReportScreenshotBundle.maximumAttachments {
-                    PhotosPicker(
-                        selection: $screenshotItems,
-                        maxSelectionCount: IssueReportScreenshotBundle.maximumAttachments - screenshotAttachments.count,
-                        matching: .images
-                    ) {
-                        HStack(spacing: .spacing3) {
-                            Icon("image", size: 18)
-                            Text(AppStrings.reportIssueScreenshotUploadButton)
-                        }
-                    }
-                    .buttonStyle(OMSecondaryButtonStyle())
-                    .accessibilityIdentifier("report-issue-attach-screenshot")
-                }
-
                 if let screenshotError {
                     Text(screenshotError)
                         .font(.omXs)
@@ -338,33 +459,31 @@ struct ReportIssueView: View {
     }
 
     private func submittedView(reference: String) -> some View {
-        OMSettingsSection(AppStrings.reportIssueSuccess, icon: "check") {
-            VStack(alignment: .center, spacing: .spacing5) {
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient.primary)
-                        .frame(width: 64, height: 64)
-                    Icon("check", size: 34)
-                        .foregroundStyle(Color.white)
-                }
-                .accessibilityHidden(true)
-
-                Text(AppStrings.reportIssueSuccess)
-                    .font(.omH3)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .multilineTextAlignment(.center)
-
-                Text("\(AppStrings.reportIssueIssueIdLabel): \(reference)")
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontSecondary)
-                    .textSelection(.enabled)
-                    .accessibilityIdentifier("report-issue-reference")
+        VStack(alignment: .center, spacing: .spacing5) {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient.primary)
+                    .frame(width: 64, height: 64)
+                Icon("check", size: 34)
+                    .foregroundStyle(Color.white)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, .spacing5)
-            .padding(.vertical, .spacing8)
+            .accessibilityHidden(true)
+
+            Text(AppStrings.reportIssueSuccess)
+                .font(.omH3)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+                .multilineTextAlignment(.center)
+
+            Text("\(AppStrings.reportIssueIssueIdLabel) \(reference)")
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+                .textSelection(.enabled)
+                .accessibilityIdentifier("report-issue-reference")
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing8)
         .onAppear {
             AccessibilityAnnouncement.announce(AppStrings.reportIssueSuccess)
         }
@@ -426,7 +545,15 @@ struct ReportIssueView: View {
     }
 
     private func submitReport() {
-        guard isValid else { return }
+        guard isValid, !isSubmitting else { return }
+        let report = title
+        let type = issueType
+        let attachments = screenshotAttachments.map(\.data)
+        let includeDiagnostics = includeDiagnostics
+        let accountID = authManager.currentUser?.id
+        let profile = ServerProfile.current()
+        let scope = OfflineStore.shared.scopeGeneration
+        let email = accountID == nil ? contactEmail.trimmingCharacters(in: .whitespacesAndNewlines) : ""
         isSubmitting = true
         error = nil
         NativeDiagnostics.info("Submitting native issue report", category: "report_issue")
@@ -439,30 +566,39 @@ struct ReportIssueView: View {
             ]
         )
 
-        Task {
+        // A tap owns this operation even if the form or keyboard disappears.
+        // Snapshot all inputs and keep the existing core account/scope fences.
+        Task { @MainActor in
+            defer { isSubmitting = false }
             do {
-                let screenshotData = try IssueReportScreenshotBundle.makePNG(
-                    from: screenshotAttachments.map(\.data)
-                )
+                let screenshotData = try IssueReportScreenshotBundle.makePNG(from: attachments)
                 let context = NativeIssueContextProvider.shared.context(includeDiagnostics: includeDiagnostics)
-                let payload = IssueReportPayloadBuilder.makePayload(
-                    title: title,
-                    issueType: issueType,
-                    userFlow: userFlow,
-                    expectedBehaviour: expectedBehaviour,
-                    actualBehaviour: actualBehaviour,
+                var payload = IssueReportPayloadBuilder.makePayload(
+                    title: report,
+                    issueType: type,
+                    userFlow: "",
+                    expectedBehaviour: "",
+                    actualBehaviour: "",
                     screenshotData: screenshotData,
                     consoleLogs: context.consoleLogs,
                     runtimeDebugState: context.runtimeDebugState,
                     actionHistory: context.actionHistory
                 )
+                if !email.isEmpty { payload["contact_email"] = email }
+                if authManager.currentUser?.isAdmin == true { payload["send_email_notification"] = false }
                 let payloadData = try JSONSerialization.data(withJSONObject: payload)
+                guard authManager.currentUser?.id == accountID, ServerProfile.current() == profile,
+                      OfflineStore.shared.scopeGeneration == scope else { throw CancellationError() }
 
                 let response: IssueReportResponse = try await APIClient.shared.request(
                     .post,
                     path: "/v1/settings/issues",
-                    body: JSONRawBody(data: payloadData)
+                    serverProfile: profile,
+                    body: JSONRawBody(data: payloadData),
+                    expectedAccountID: accountID,
+                    expectedScope: accountID == nil ? nil : scope
                 )
+                guard response.success else { throw APIError.invalidResponse }
 
                 let reference = response.shortIssueId ?? response.issueId ?? ""
                 submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
@@ -471,9 +607,16 @@ struct ReportIssueView: View {
                     category: "report_issue",
                     flags: ["diagnostics_included": includeDiagnostics]
                 )
-                if includeDiagnostics, let issueId = response.issueId {
+                #if DEBUG
+                let canUploadLogs = accountID != nil || ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success")
+                #else
+                let canUploadLogs = accountID != nil
+                #endif
+                if canUploadLogs && includeDiagnostics, let issueId = response.issueId {
                     await NativeLogForwarder.shared.flushForIssueReport()
-                    await sendIssueLogs(issueId: issueId)
+                    guard authManager.currentUser?.id == accountID, ServerProfile.current() == profile,
+                          OfflineStore.shared.scopeGeneration == scope else { return }
+                    await sendIssueLogs(issueId: issueId, accountID: accountID, profile: profile, scope: scope)
                 }
             } catch {
                 if error is IssueReportScreenshotBundleError {
@@ -486,15 +629,15 @@ struct ReportIssueView: View {
                         level: .error,
                         error: error
                     )
-                    self.error = error.localizedDescription
-                    AccessibilityAnnouncement.announce(error.localizedDescription)
+                    let message = error is CancellationError ? AppStrings.reportIssueError : error.localizedDescription
+                    self.error = message
+                    AccessibilityAnnouncement.announce(message)
                 }
             }
-            isSubmitting = false
         }
     }
 
-    private func sendIssueLogs(issueId: String) async {
+    private func sendIssueLogs(issueId: String, accountID: String?, profile: ServerProfile, scope: UUID) async {
         let payload = NativeClientLogCollector.shared.issueLogPayload(
             issueId: issueId,
             pageURL: "apple://settings/report_issue"
@@ -519,7 +662,10 @@ struct ReportIssueView: View {
             let _: Data = try await APIClient.shared.request(
                 .post,
                 path: "/v1/settings/issue-logs",
-                body: JSONRawBody(data: payloadData)
+                serverProfile: profile,
+                body: JSONRawBody(data: payloadData),
+                expectedAccountID: accountID,
+                expectedScope: accountID == nil ? nil : scope
             )
         } catch {
             NativeDiagnostics.failure(
@@ -641,20 +787,21 @@ enum IssueReportScreenshotBundle {
     }
 }
 
+private struct ReportIssueDictationQuota: Decodable {
+    let available: Bool
+    let remainingSeconds: Int
+    let maxRecordingSeconds: Int
+
+    var recordingSeconds: Int { max(1, min(remainingSeconds, maxRecordingSeconds)) }
+}
+
 private struct ReportIssueTextArea: View {
-    let title: String
     let placeholder: String
-    var hint: String?
     @Binding var text: String
-    var minHeight: CGFloat = 120
     let accessibilityIdentifier: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
-            Text(title)
-                .font(.omSmall.weight(.semibold))
-                .foregroundStyle(Color.fontPrimary)
-
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $text)
                     .font(.omP)
@@ -662,13 +809,14 @@ private struct ReportIssueTextArea: View {
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, .spacing5)
                     .padding(.vertical, .spacing4)
-                    .frame(minHeight: minHeight)
+                    .frame(height: 148)
                     .background(Color.grey0)
                     .clipShape(RoundedRectangle(cornerRadius: .radius5))
                     .overlay(
                         RoundedRectangle(cornerRadius: .radius5)
                             .stroke(Color.grey30, lineWidth: 1)
                     )
+                    .accessibilityLabel(AppStrings.localized("settings.report_issue.issue_text_label"))
                     .accessibilityIdentifier(accessibilityIdentifier)
 
                 if text.isEmpty {
@@ -682,11 +830,7 @@ private struct ReportIssueTextArea: View {
                 }
             }
 
-            if let hint {
-                Text(hint)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-            }
+
         }
     }
 }

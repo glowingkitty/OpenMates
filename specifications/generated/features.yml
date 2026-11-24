@@ -5595,10 +5595,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 5
+        passing: 6
         failing: 0
         not_run: 2
-        missing: 4
+        missing: 3
         counted: 11
       key_tests: []
       e2e_tests:

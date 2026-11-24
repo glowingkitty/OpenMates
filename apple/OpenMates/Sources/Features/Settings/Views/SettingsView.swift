@@ -664,17 +664,6 @@ struct SettingsView: View {
         GeometryReader { scrollFrame in
             ScrollView {
                 VStack(spacing: 0) {
-                    GeometryReader { contentFrame in
-                        Color.clear.preference(
-                            key: SettingsHomeScrollOffsetPreferenceKey.self,
-                            value: max(
-                                0,
-                                scrollFrame.frame(in: .global).minY - contentFrame.frame(in: .global).minY
-                            )
-                        )
-                    }
-                    .frame(height: 0)
-
                     // Menu items — web: flat list, NO container/section wrapper
                     // Each item sits directly on grey-20 background
                     // Rendered web rows: 44px icon + 4px vertical padding = 52px.
@@ -758,10 +747,12 @@ struct SettingsView: View {
                     settingsFooter
                 }
             }
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                min(60, max(0, geometry.contentOffset.y + geometry.contentInsets.top))
+            } action: { _, offset in
+                homeScrollTop = offset
+            }
             .accessibilityIdentifier("settings-menu")
-        }
-        .onPreferenceChange(SettingsHomeScrollOffsetPreferenceKey.self) { offset in
-            homeScrollTop = offset
         }
         .scrollContentBackground(.hidden)
         .background(Color.grey20) // web: .settings-menu background-color: var(--color-grey-20)
@@ -1549,14 +1540,6 @@ private enum AccountSettingsUITestFixture {
 
 private enum SettingsNavigationDirection {
     case forward, back
-}
-
-private struct SettingsHomeScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat { 0 }
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
 }
 
 private struct SettingsMainBanner: View {

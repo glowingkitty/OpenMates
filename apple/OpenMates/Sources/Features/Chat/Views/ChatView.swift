@@ -721,9 +721,18 @@ struct ChatView: View {
                     }) {
                 VStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        if let chat = presentedChat, !isDraftOnlyChat(chat), bannerState == nil {
-                            if effectiveBannerState == nil {
+                        if effectiveBannerState == nil {
+                            if let chat = presentedChat, !isDraftOnlyChat(chat) {
                                 chatTopBar
+                            } else if let onReportIssue {
+                                HStack {
+                                    WorkspaceReportIssueButton(accessibilityIdentifier: "report-issue-button") {
+                                        onReportIssue(.init(title: "", category: "bug"))
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, .spacing6)
+                                .padding(.vertical, .spacing3)
                             }
                         }
 
@@ -1408,6 +1417,13 @@ struct ChatView: View {
 
             Spacer()
 
+            if let onReportIssue {
+                chatFloatingAction(icon: "bug", label: AppStrings.settingsReportIssue,
+                                   accessibilityIdentifier: "report-issue-button",
+                                   showsLabel: chatContainerWidth >= 640) {
+                    onReportIssue(.init(title: "", category: "bug"))
+                }
+            }
             if showEmbedFullscreen && chatWorkspaceWidth >= 1024 { splitChatHideAction }
             if chatHasPIIMappings {
                 chatFloatingAction(
@@ -2624,7 +2640,7 @@ struct ChatView: View {
                     accessibilityIdentifier: "report-issue-button",
                     showsLabel: chatContainerWidth >= 640
                 ) {
-                    onReportIssue?(.assistantResponseQuality())
+                    onReportIssue?(.init(title: "", category: "bug"))
                 }
 
                 if chatContainerWidth >= 460, onShareChat != nil {

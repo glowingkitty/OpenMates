@@ -3792,6 +3792,7 @@ struct MainAppView: View {
                 recordRequest: newChatRecordRequest,
                 cameraCaptureRequest: newChatCameraCaptureRequest,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
+                onReportIssue: { openReportIssue(prefill: .init(title: "", category: "bug")) },
                 onCreateChatWithMessage: { message, piiMappings, composerEmbeds, speechScope, draftID in
                     let now = ChatSendPipeline.isoString(from: Date())
                     if incognitoManager.isEnabled {
@@ -5521,12 +5522,13 @@ struct MainAppView: View {
         #endif
         guard isAuthenticated, authManager.hasNetworkAuthority,
               let identity = authManager.sessionRecoveryContext else { return }
-        wsManager.configureSessionRecovery {
+        wsManager.configureSessionRecovery { authenticationRejected in
             guard let current = authManager.sessionRecoveryContext,
                   current.accountID == identity.accountID, current.profile == identity.profile,
                   current.sessionID == identity.sessionID else { return .rejected }
-            // The core admits the session again, which rotates the ws_token.
-            await authManager.ensureAdmitted(forceReadmit: true)
+            // Transport loss alone does not invalidate the admitted session.
+            // A forced readmit recreates the core client and cancels its in-flight REST work.
+            await authManager.ensureAdmitted(forceReadmit: authenticationRejected)
             guard let recovered = authManager.sessionRecoveryContext,
                   recovered.accountID == identity.accountID, recovered.profile == identity.profile,
                   recovered.sessionID == identity.sessionID else { return .rejected }
@@ -7829,7 +7831,8 @@ struct OpenMatesWebHeader: View {
         NativeHeaderControlsLayoutPolicy.presentation(headerWidth: viewportWidth,
             leadingRequiredWidth: isChatsPanelOpen ? 0 : 44,
             logoWidth: intrinsicLogoWidth, trailingRequiredWidth: requiredTrailingWidth,
-            giftWidth: isAuthenticated ? intrinsicGiftWidth : 0, logoRequired: callPillVisible)
+            giftWidth: isAuthenticated ? intrinsicGiftWidth : 0,
+            logoRequired: callPillVisible || headerConnectionState == .reconnecting || headerConnectionState == .offline)
     }
     private var centerWidth: CGFloat {
         if isAuthenticated, showWorkspaceSwitcher { return controlsLayout.centerWidth }
@@ -8660,6 +8663,7 @@ struct NewChatWelcomeView: View {
     let recordRequest: Int
     let cameraCaptureRequest: Int
     let isSettingsOpen: Bool
+    var onReportIssue: (() -> Void)?
     let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed], AssistantSpeechScope?, String) async throws -> String
     let onChatCreated: (String) -> Void
     let onDraftPersisted: (String, Bool) -> Bool
@@ -9055,6 +9059,13 @@ struct NewChatWelcomeView: View {
 
     var body: some View {
         welcomeInteractionObservers
+            .overlay(alignment: .topLeading) {
+                if !isWelcomeWorkspaceSuppressed, !browsingChatGrid, let onReportIssue {
+                    WorkspaceReportIssueButton(accessibilityIdentifier: "report-issue-button", action: onReportIssue)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.top, .spacing4)
+                }
+            }
             .overlay {
                 if let record = composerSearchPreview {
                     EmbedFullscreenContainer(embeds: [record], initialEmbedId: record.id,

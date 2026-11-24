@@ -69,6 +69,7 @@ enum AudioRealtimeTranscriptionError: Error, Equatable, Sendable {
     case invalidAudioFormat
     case invalidServerMessage
     case serverFailure
+    case reportDictationDailyLimit
     case connectionEndedEarly
     case connectionTimedOut
     case localTranscriptionFailed
@@ -82,6 +83,8 @@ actor AudioRealtimeTranscriptionClient {
     static let tokenRefreshLeeway: TimeInterval = 30
     static let readinessTimeout: Duration = .seconds(15)
     static let completionTimeout: Duration = .seconds(90)
+
+    enum Purpose: Equatable, Sendable { case chat, reportIssue }
 
     struct Authentication: Sendable {
         let apiBaseURL: URL
@@ -155,6 +158,7 @@ actor AudioRealtimeTranscriptionClient {
     private let onTerminal: @Sendable () async -> Void
     private var terminalOwnerReleased = false
 
+    private let purpose: Purpose
     private let authenticationProvider: AuthenticationProvider
     private let transportFactory: TransportFactory
     private let eventHandler: EventHandler
@@ -174,6 +178,7 @@ actor AudioRealtimeTranscriptionClient {
 
     init(
         authenticationProvider: @escaping AuthenticationProvider,
+        purpose: Purpose = .chat,
         localRuntime: (any LocalPCMTranscribing)? = nil,
         localModelIdentifier: String = "whisper-large-v3-local",
         transcriptionDisabled: Bool = false,
@@ -188,6 +193,7 @@ actor AudioRealtimeTranscriptionClient {
         self.onTerminal = onTerminal
         self.localScopeIsCurrent = localScopeIsCurrent
         self.usesLocalTranscription = localRuntime != nil
+        self.purpose = purpose
         self.authenticationProvider = authenticationProvider
         self.transportFactory = transportFactory
         self.eventHandler = eventHandler
@@ -196,6 +202,7 @@ actor AudioRealtimeTranscriptionClient {
     @MainActor
     static func live(
         authManager: AuthManager,
+        purpose: Purpose = .chat,
         eventHandler: @escaping EventHandler
     ) -> AudioRealtimeTranscriptionClient {
         let owner = authManager.currentUser?.id
@@ -206,15 +213,20 @@ actor AudioRealtimeTranscriptionClient {
         let store = LocalModelStore.shared
         let selection = store.recordingTranscriptionSelection()
         let clientOwner = UUID()
+        let usesChatPreferences = purpose == .chat
         let client = AudioRealtimeTranscriptionClient(
             authenticationProvider: { @MainActor [weak authManager] forceRefresh in
-                guard let authManager, owner != nil,
-                      authManager.currentUser?.id == owner,
+                guard let authManager, authManager.currentUser?.id == owner,
                       scope.isCurrent(in: OfflineStore.shared),
-                      LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration,
+                      !usesChatPreferences || LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration,
                       ServerProfile.current().apiBaseURL == profile.apiBaseURL else {
                     throw AudioRealtimeTranscriptionError.authenticationUnavailable
                 }
+                if owner == nil, purpose == .reportIssue, authManager.state == .unauthenticated {
+                    return Authentication(apiBaseURL: profile.apiBaseURL, webOrigin: profile.webBaseURL.absoluteString,
+                                          sessionID: "", webSocketToken: "")
+                }
+                guard owner != nil else { throw AudioRealtimeTranscriptionError.authenticationUnavailable }
                 let grant: LegacySocketGrantRecord
                 do {
                     grant = try await authManager.socketGrant(force: forceRefresh, needsRefresh: { tokenNeedsRefresh($0) })
@@ -224,7 +236,7 @@ actor AudioRealtimeTranscriptionClient {
                 guard authManager.state == .authenticated,
                       authManager.currentUser?.id == owner,
                       scope.isCurrent(in: OfflineStore.shared),
-                      LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration,
+                      !usesChatPreferences || LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration,
                       ServerProfile.current().apiBaseURL == profile.apiBaseURL,
                       authManager.sessionValidationState == .onlineAuthenticated,
                       let token = grant.wsToken,
@@ -238,9 +250,10 @@ actor AudioRealtimeTranscriptionClient {
                     webSocketToken: token
                 )
             },
-            localRuntime: selection.runtime,
+            purpose: purpose,
+            localRuntime: usesChatPreferences ? selection.runtime : nil,
             localModelIdentifier: selection.route.localModelIdentifier ?? "whisper-large-v3-local",
-            transcriptionDisabled: selection.isDisabled,
+            transcriptionDisabled: usesChatPreferences && selection.isDisabled,
             onTerminal: { [weak store] in await store?.unregisterRecordingTranscriptionOwner(clientOwner) },
             localScopeIsCurrent: { @MainActor [weak authManager] in
                 authManager?.currentUser?.id == owner && scope.isCurrent(in: OfflineStore.shared) &&
@@ -249,7 +262,7 @@ actor AudioRealtimeTranscriptionClient {
             },
             eventHandler: eventHandler
         )
-        if !selection.isDisabled {
+        if usesChatPreferences && !selection.isDisabled {
             store.registerRecordingTranscriptionOwner(clientOwner, generation: selection.preferenceGeneration) { [weak client] in
                 await client?.cancel()
             }
@@ -295,7 +308,7 @@ actor AudioRealtimeTranscriptionClient {
 
         do {
             try await requireActiveStart()
-            let request = try Self.makeRequest(authentication: authentication)
+            let request = try Self.makeRequest(authentication: authentication, purpose: purpose)
             let activeTransport = transportFactory()
             transport = activeTransport
             try await activeTransport.connect(request)
@@ -543,7 +556,7 @@ actor AudioRealtimeTranscriptionClient {
         do {
             let authentication = try await authenticationProvider(true)
             guard canContinueAuthenticationRetry else { return false }
-            let request = try Self.makeRequest(authentication: authentication)
+            let request = try Self.makeRequest(authentication: authentication, purpose: purpose)
             let replacement = transportFactory()
             replacementTransport = replacement
             try await replacement.connect(request)
@@ -652,6 +665,9 @@ actor AudioRealtimeTranscriptionClient {
             await complete(with: result)
 
         case "session.error":
+            if purpose == .reportIssue, message["code"] as? String == "daily_limit" {
+                throw AudioRealtimeTranscriptionError.reportDictationDailyLimit
+            }
             throw AudioRealtimeTranscriptionError.serverFailure
 
         default:
@@ -764,20 +780,29 @@ actor AudioRealtimeTranscriptionClient {
         return expiry <= now.timeIntervalSince1970 + tokenRefreshLeeway
     }
 
-    static func makeRequest(authentication: Authentication) throws -> URLRequest {
-        guard !tokenNeedsRefresh(authentication.webSocketToken),
+    static func makeRequest(authentication: Authentication, purpose: Purpose = .chat) throws -> URLRequest {
+        let anonymous = purpose == .reportIssue && authentication.sessionID.isEmpty && authentication.webSocketToken.isEmpty
+        guard anonymous || !tokenNeedsRefresh(authentication.webSocketToken),
               var components = URLComponents(url: authentication.apiBaseURL, resolvingAgainstBaseURL: false) else {
             throw AudioRealtimeTranscriptionError.authenticationUnavailable
         }
         components.scheme = components.scheme == "http" ? "ws" : "wss"
         components.path = "/v1/apps/audio/realtime-transcription"
-        components.queryItems = [
-            URLQueryItem(name: "sessionId", value: authentication.sessionID),
-            URLQueryItem(name: "token", value: authentication.webSocketToken),
-        ]
+        if anonymous {
+            components.queryItems = nil
+        } else {
+            components.queryItems = [
+                URLQueryItem(name: "sessionId", value: authentication.sessionID),
+                URLQueryItem(name: "token", value: authentication.webSocketToken),
+            ]
+            if purpose == .reportIssue {
+                components.queryItems?.append(URLQueryItem(name: "purpose", value: "report_issue"))
+            }
+        }
         guard let url = components.url else { throw AudioRealtimeTranscriptionError.authenticationUnavailable }
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
+        if purpose == .reportIssue { request.httpShouldHandleCookies = false }
         request.setValue(authentication.webOrigin, forHTTPHeaderField: "Origin")
         APIClient.nativeClientHeaders.forEach { key, value in
             request.setValue(value, forHTTPHeaderField: key)

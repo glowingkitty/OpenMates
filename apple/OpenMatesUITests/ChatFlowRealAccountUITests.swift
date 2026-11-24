@@ -699,6 +699,55 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                       "A cached account must finish the real phased sync after launch")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,sync.startup.bounded-phases
+    func testPersonalAccountColdLaunchToInteractive() throws {
+        let credentials = try RealAccountTestCredentials.fromPersonalDevEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 60))
+        app.launchArguments.removeAll { $0 == "--ui-test-open-login" }
+
+        var samples: [Int] = []
+        for _ in 0..<5 {
+            app.terminate()
+            let start = ProcessInfo.processInfo.systemUptime
+            app.launch()
+            let settings = app.buttons["settings-button"]
+            XCTAssertTrue(settings.waitForExistence(timeout: 45))
+            XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 45))
+            settings.tap()
+            XCTAssertTrue(app.scrollViews["settings-menu"].waitForExistence(timeout: 10))
+            samples.append(Int((ProcessInfo.processInfo.systemUptime - start) * 1_000))
+        }
+        let attachment = XCTAttachment(string: "cold_process_to_synced_settings_ms=\(samples) median_ms=\(samples.sorted()[2])")
+        attachment.name = "Personal dev cold launch timings"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,sync.surface.semantic-parity
+    func testPersonalAccountResumesConnectivityThroughRepeatedBackgrounding() throws {
+        let credentials = try RealAccountTestCredentials.fromPersonalDevEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 60))
+        let status = app.descendants(matching: .any).matching(identifier: "connection-status-indicator").firstMatch
+        let settings = app.buttons["settings-button"]
+        for seconds in [5, 10, 30, 60, 15] {
+            XCUIDevice.shared.press(.home)
+            Thread.sleep(forTimeInterval: TimeInterval(seconds))
+            app.activate()
+            XCTAssertTrue(settings.waitForExistence(timeout: 30))
+            XCTAssertTrue(status.waitForNonExistence(timeout: 30), "Connection must recover after \(seconds)s in background")
+            XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 30))
+            XCTAssertTrue(settings.isHittable)
+        }
+    }
+
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
     func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
         let markerPrompt = "Reply with one short sentence: Hello from Osaka."

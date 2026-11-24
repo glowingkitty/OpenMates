@@ -109,7 +109,7 @@ final class OrderedRealtimePCMForwarder: @unchecked Sendable {
 
     init(
         client: AudioRealtimeTranscriptionClient,
-        chatID: String,
+        chatID: String?,
         beforeRemoteStart: (@MainActor @Sendable () async throws -> Void)? = nil,
         onFailure: @escaping @Sendable () async -> Void
     ) {
@@ -168,6 +168,7 @@ final class AudioRecordingRealtimeSession {
     private var rawTranscript: String?
 
     private(set) var usesLocalTranscription = false
+    private(set) var failure: AudioRealtimeTranscriptionError?
     private var generation = UUID()
     private var client: AudioRealtimeTranscriptionClient?
     private var pcmForwarder: OrderedRealtimePCMForwarder?
@@ -216,7 +217,8 @@ final class AudioRecordingRealtimeSession {
 
     func begin(
         authManager: AuthManager,
-        chatID: String,
+        chatID: String?,
+        purpose: AudioRealtimeTranscriptionClient.Purpose = .chat,
         beforeRemoteStart: (@MainActor @Sendable () async throws -> Void)? = nil,
         presentationHandler: @escaping PresentationHandler
     ) {
@@ -238,7 +240,7 @@ final class AudioRecordingRealtimeSession {
         rawTranscript = nil
         rawTranscriptHandler = nil
 
-        let client = AudioRealtimeTranscriptionClient.live(authManager: authManager) { [weak self] event in
+        let client = AudioRealtimeTranscriptionClient.live(authManager: authManager, purpose: purpose) { [weak self] event in
             guard let self, await self.generation == token else { return }
             await self.receive(event)
         }
@@ -350,7 +352,10 @@ final class AudioRecordingRealtimeSession {
         case .status(.correcting):
             isConnecting = false
             presentationHandler?(liveTranscript, false)
-        case .status(.failed), .status(.cancelled):
+        case .status(.failed(let error)):
+            failure = error
+            settle(nil)
+        case .status(.cancelled):
             settle(nil)
         case .status(.completed):
             break

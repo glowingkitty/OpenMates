@@ -25,6 +25,8 @@ final class AppleParityScreensUITests: XCTestCase {
     func testCaptureStartScreen() throws {
         let app = launchFixture(extra: ["--ui-test-start-new-chat", "--ui-test-start-inspiration"])
         XCTAssertTrue(element(app, "message-editor").waitForExistence(timeout: 30), "Start screen composer missing")
+        XCTAssertTrue(app.buttons["report-issue-button"].isHittable,
+                      "The new-chat welcome must expose Report Issue")
         Thread.sleep(forTimeInterval: 2)
         XCTAssertFalse(element(app, "daily-inspiration-card").exists, "The start screen has no inspiration banner")
         XCTAssertTrue(element(app, "welcome-row-actions").waitForExistence(timeout: 15), "Browse actions tile missing from the row")
