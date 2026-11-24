@@ -482,7 +482,7 @@ function applyPublishMerge(
 ): ProjectViewModel {
   if (merge.keepCurrent && current) return current;
   // Fence a concurrent list read even when no list has been loaded yet.
-  if (!merge.keepCurrent && merge.list !== "invalidate" && cached) {
+  if (merge.keepCurrent === false && merge.list !== "invalidate" && cached) {
     projectListCache.set(activeProjectListKey(), merge.list === "replace"
       ? cached.map((item) => item.project_id === project.project_id ? project : item)
       : merge.list === "prepend" ? [project, ...cached] : cached);
@@ -1203,6 +1203,8 @@ export async function readEncryptedProjectFile(
   }>(path);
   const headInput = { embedKeys: data.embed_keys ?? null, versionNumber: data.embed?.version_number };
   const head = PROJECT_RUST_CORE ? await decideProject("projectFileHead", headInput) : projectRule("projectFileHead", headInput);
+  const revision = head.revision;
+  if (revision === null) throw new Error("Invalid Project file revision");
   let embedKey = head.wrapper ? await unwrapEmbedKeyWithEmbedKey(head.wrapper, project.projectKey) : null;
   if (!embedKey) embedKey = await embedStore.getEmbedKey(embedId);
   if (!embedKey || typeof data.embed?.encrypted_content !== "string") {
@@ -1210,7 +1212,12 @@ export async function readEncryptedProjectFile(
       code: "file_key_unavailable",
     });
   }
-  const plaintext = await decryptWithEmbedKey(data.embed.encrypted_content, embedKey, {
+  const teamId = context.teamId ?? project.teamId;
+  const teamPlaintext = PROJECT_RUST_CORE && teamId
+    ? await (await import("./live/liveItemClient")).liveItemClient()
+      .liveOpenTeamRevisionContent(embedId, teamId, revision, data.embed.encrypted_content)
+    : null;
+  const plaintext = teamPlaintext ?? await decryptWithEmbedKey(data.embed.encrypted_content, embedKey, {
     embedId,
     fieldName: "encrypted_content",
   });
@@ -1220,8 +1227,6 @@ export async function readEncryptedProjectFile(
     });
   }
   const content = await decodeHostedProjectFileContent(plaintext);
-  const revision = head.revision;
-  if (revision === null) throw new Error("Invalid Project file revision");
   // History uses this same client key. Keep it only in the existing ephemeral
   // cache after current Project authorization and decryption have succeeded.
   embedStore.setEmbedKeyInCache(embedId, embedKey);
@@ -1490,7 +1495,7 @@ async function storeNewProjectEmbed(project: ProjectViewModel, embed: NewProject
   if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap project embed keys");
   const projectItemId = crypto.randomUUID();
 
-  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(project.project_id)}/upload-embed`, { team_id: project.teamId }), {
     method: "POST",
     body: JSON.stringify({
       embed: {
@@ -1745,7 +1750,7 @@ export async function uploadFileToProject(project: ProjectViewModel, file: File,
   const wrappedProjectKey = await wrapEmbedKeyWithChatKey(embedKey, project.projectKey);
   if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap upload embed keys");
 
-  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(project.project_id)}/upload-embed`, { team_id: project.teamId }), {
     method: "POST",
     body: JSON.stringify({
       embed: {

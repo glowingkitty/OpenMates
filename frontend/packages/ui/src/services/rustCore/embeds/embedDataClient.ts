@@ -222,6 +222,22 @@ export async function openStoredEmbedContent(key: Uint8Array, row: StoredEmbedRo
 	return fields.content;
 }
 
+/** Opens a stored Team revision in the selected chat through the shared core. */
+export async function openTeamChatEmbedContent(embedId: string, ciphertext: string,
+	hashedChatId?: string, version?: number): Promise<string | null> {
+	if (!hashedChatId || version === undefined) return null;
+	const [{ chatDB }, { activeChatStore }, { computeSHA256 }] = await Promise.all([
+		import('../../db'), import('../../../stores/activeChatStore'), import('../../../message_parsing/utils')
+	]);
+	const chatId = activeChatStore.get();
+	if (!chatId) return null;
+	const chat = await chatDB.getChat(chatId);
+	if (!chat?.team_id || await computeSHA256(chatId) !== hashedChatId) return null;
+	const { liveItemClient } = await import('../../live/liveItemClient');
+	const content = await liveItemClient().liveOpenTeamRevisionContent(embedId, chat.team_id, version, ciphertext);
+	return activeChatStore.get() === chatId ? content : null;
+}
+
 /** The type/preview Rust opened with this row's content, else the TS decrypt of `ciphertext`. */
 export async function openedEmbedField(row: StoredEmbedRow, field: 'type' | 'text_preview', ciphertext: string,
 	typescript: (ciphertext: string) => Promise<string | null>): Promise<string | null> {

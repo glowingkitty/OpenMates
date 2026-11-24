@@ -1338,6 +1338,8 @@ enum ErrorAllowance<'a> {
     EmbedDiff,
     /// Another device of the same owner holds this exact job's lease.
     RecoveryClaim { job: &'a str, request: &'a str },
+    /// The server refused this exact `request_embed` read (`embed_not_found`).
+    EmbedRead { embed_id: &'a str },
     /// The live monitor attributes every error frame itself
     /// (`transport/monitor_error_frames.rs`).
     Monitor,
@@ -1351,6 +1353,9 @@ impl ErrorAllowance<'_> {
                 && payload["request_id"].is_string()
                 && payload["embed_id"].is_string()
                 && payload["version_number"].as_u64().is_some_and(|v| v > 0),
+            Self::EmbedRead { embed_id } => {
+                payload["code"] == "embed_not_found" && payload["embed_id"] == embed_id
+            }
             Self::RecoveryClaim { job, request } => payload["code"] == "lease_conflict"
                 && payload["job_id"] == job
                 && payload["request_id"] == request,
@@ -1464,6 +1469,21 @@ pub(super) async fn wait_recovery_claim(
         (kind == "recovery_job_claimed" && (text(payload, "job_id") == job || text(inner, "job_id") == job))
             || (kind == "error" && allowance.admits(payload))
     }, allowance).await
+}
+/// Outcome of one `request_embed`: the `send_embed_data` frame, or this embed's
+/// `embed_not_found` refusal as `Error::Forbidden` (never a wait for a frame that
+/// will not come).
+pub(super) async fn wait_embed_read(ws: &mut Socket, embed_id: &str) -> Result<Value> {
+    let allowance = ErrorAllowance::EmbedRead { embed_id };
+    let (kind, payload) = wait_matching_policy(ws, |kind, payload| {
+        let inner = payload.get("payload").unwrap_or(payload);
+        (kind == "send_embed_data" && (text(payload, "embed_id") == embed_id || text(inner, "embed_id") == embed_id))
+            || (kind == "error" && allowance.admits(payload))
+    }, allowance).await?;
+    if kind == "error" {
+        return Err(Error::Forbidden);
+    }
+    Ok(payload)
 }
 pub(super) async fn wait_workflow(
     ws: &mut Socket,

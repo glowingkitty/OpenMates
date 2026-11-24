@@ -1,7 +1,7 @@
 //! Portable definitions contain no account bindings, credentials or runtime state.
 use super::*;
 use regex::Regex;
-#[cfg(feature="workflow-yaml")]
+#[cfg(feature = "workflow-yaml")]
 use unicode_normalization::UnicodeNormalization;
 pub const WORKFLOW_FILE_MAX_BYTES: usize = 1_048_576;
 #[derive(Clone, Serialize, Deserialize)]
@@ -455,7 +455,7 @@ mod tests {
 }
 
 /// Pure maintained native filename policy. No filesystem, account or IO access.
-#[cfg(feature="workflow-yaml")]
+#[cfg(feature = "workflow-yaml")]
 pub fn workflow_file_name(title: &str) -> String {
     let name = title
         .nfkc()
@@ -491,35 +491,55 @@ pub fn workflow_file_name(title: &str) -> String {
 }
 /// Pure portable formatting over caller-owned typed data, never authentication.
 /// Actual sync calls supply the document built from their own fresh workflow.
-#[cfg(feature="workflow-yaml")]
-pub fn serialize_workflow_file(document:&WorkflowFileDocument)->Result<(String,String)>{
+#[cfg(feature = "workflow-yaml")]
+pub fn serialize_workflow_file(document: &WorkflowFileDocument) -> Result<(String, String)> {
     validate_workflow_file(document)?;
     // npm exports omit an unset node title; drop `title: null` here (not in the typed
     // struct, whose JSON wire form must keep it) so exported files match byte-for-key.
-    let mut tree=serde_yaml::to_value(document).map_err(|_|Error::Protocol)?;
-    if let Some(nodes)=tree.get_mut("workflow").and_then(|w|w.get_mut("graph")).and_then(|g|g.get_mut("nodes")).and_then(|n|n.as_sequence_mut()){
-        for node in nodes{
-            if let Some(map)=node.as_mapping_mut(){
-                if map.get("title").is_some_and(serde_yaml::Value::is_null){map.remove("title");}
+    let mut tree = serde_yaml::to_value(document).map_err(|_| Error::Protocol)?;
+    if let Some(nodes) = tree
+        .get_mut("workflow")
+        .and_then(|w| w.get_mut("graph"))
+        .and_then(|g| g.get_mut("nodes"))
+        .and_then(|n| n.as_sequence_mut())
+    {
+        for node in nodes {
+            if let Some(map) = node.as_mapping_mut() {
+                if map.get("title").is_some_and(serde_yaml::Value::is_null) {
+                    map.remove("title");
+                }
             }
         }
     }
-    let source=serde_yaml::to_string(&tree).map_err(|_|Error::Protocol)?;
-    if source.len()>WORKFLOW_FILE_MAX_BYTES{return Err(Error::Invalid("Workflow export exceeds the file size limit."))}
-    Ok((workflow_file_name(&document.workflow.title),source))
+    let source = serde_yaml::to_string(&tree).map_err(|_| Error::Protocol)?;
+    if source.len() > WORKFLOW_FILE_MAX_BYTES {
+        return Err(Error::Invalid(
+            "Workflow export exceeds the file size limit.",
+        ));
+    }
+    Ok((workflow_file_name(&document.workflow.title), source))
 }
 
-#[cfg(all(test,feature="workflow-yaml"))]
+#[cfg(all(test, feature = "workflow-yaml"))]
 mod yaml_formatting_tests {
     use super::*;
     // contract-test: supporting surface=sdks.rust assertions=cli.surface.semantic-parity,auth.secrets.lifecycle
     #[test]
-    fn extracted_native_formatter_keeps_filename_and_exact_portable_yaml_bytes(){
-        let suite:Value=serde_json::from_str(include_str!("../../../tests/fixtures/workflow-file-sync.json")).unwrap();
+    fn extracted_native_formatter_keeps_filename_and_exact_portable_yaml_bytes() {
+        let suite: Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/workflow-file-sync.json"
+        ))
+        .unwrap();
         let doc:WorkflowFileDocument=serde_json::from_str(r#"{"format":"openmates-workflow","format_version":1,"workflow":{"title":"Updated","description":null,"run_content_retention":"last_5","graph":{"version":1,"trigger_node_id":null,"nodes":[],"edges":[]}},"binding_requirements":[]}"#).unwrap();
-        let(name,yaml)=serialize_workflow_file(&doc).unwrap();
-        assert_eq!(name,"updated.workflow.yml");
-        assert_eq!(yaml,suite["capabilities"]["work.project-workflow-file-sync.v1"]["expected_yaml"]);
-        assert_eq!(workflow_file_name(" Ｍy / Workflow.workflow.yml "),"my_-_workflow.workflow.yml");
+        let (name, yaml) = serialize_workflow_file(&doc).unwrap();
+        assert_eq!(name, "updated.workflow.yml");
+        assert_eq!(
+            yaml,
+            suite["capabilities"]["work.project-workflow-file-sync.v1"]["expected_yaml"]
+        );
+        assert_eq!(
+            workflow_file_name(" Ｍy / Workflow.workflow.yml "),
+            "my_-_workflow.workflow.yml"
+        );
     }
 }

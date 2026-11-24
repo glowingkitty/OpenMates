@@ -1195,6 +1195,8 @@ fn validate_recovery_wrapper(wrapper: &Value, team: bool, now: u64) -> Result<()
     } {
         match wrapper.get(*field).filter(|v| !v.is_null()) {
             Some(value) if value.as_u64() == Some(1) => {}
+            // Any rotation epoch is supported; the key is chosen by epoch.
+            Some(value) if *field == "team_key_epoch" && value.as_u64().is_some_and(|e| e >= 1) => {}
             None if !team => {}
             Some(value) if value.as_u64().is_none() => return Err(Error::Protocol),
             _ => return Err(Error::Conflict),

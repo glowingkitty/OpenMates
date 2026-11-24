@@ -781,7 +781,8 @@ fn encode_create(input: &PlanCreate, key: &[u8; 32], master: &[u8; 32]) -> Resul
         if text.len() > 1_000_000 {
             return Err(Error::Invalid("Plan text exceeds the supported limit."));
         }
-        value[format!("encrypted_{field}")] = json!(crypto::server_fields::encrypt_text(text, key, &[])?);
+        value[format!("encrypted_{field}")] =
+            json!(crypto::server_fields::encrypt_text(text, key, &[])?);
     }
     Ok(value)
 }
@@ -793,12 +794,14 @@ fn encode_patch(plan: &ResolvedPlan, input: &PlanPatch, master: &[u8; 32]) -> Re
             if text.len() > 1_000_000 {
                 return Err(Error::Invalid("Plan text exceeds the supported limit."));
             }
-            patch[format!("encrypted_{field}")] = json!(crypto::server_fields::encrypt_text(text, &plan.key, &[])?);
+            patch[format!("encrypted_{field}")] =
+                json!(crypto::server_fields::encrypt_text(text, &plan.key, &[])?);
         }
     }
     if let Some(slug) = &input.slug {
         let slug = crypto::normalize_object_slug(slug)?;
-        patch["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, &plan.key, &[])?);
+        patch["encrypted_slug"] =
+            json!(crypto::server_fields::encrypt_text(&slug, &plan.key, &[])?);
         patch["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, master)?);
     }
     if let Some(status) = &input.status {
@@ -809,15 +812,17 @@ fn encode_patch(plan: &ResolvedPlan, input: &PlanPatch, master: &[u8; 32]) -> Re
         validate_flows(flows)?;
         patch["encrypted_user_flows"] = json!(crypto::server_fields::encrypt_text(
             &serde_json::to_string(flows)?,
-            &plan.key
-        , &[])?);
+            &plan.key,
+            &[]
+        )?);
     }
     if let Some(projects) = &input.linked_project_ids {
         patch["linked_project_ids"] = json!(projects);
         patch["encrypted_linked_project_ids"] = json!(crypto::server_fields::encrypt_text(
             &serde_json::to_string(projects)?,
-            &plan.key
-        , &[])?);
+            &plan.key,
+            &[]
+        )?);
     }
     if let Some(chat) = &input.primary_chat_id {
         patch["primary_chat_id"] = json!(chat);
@@ -840,20 +845,79 @@ pub use advanced::*;
 mod ask;
 pub use ask::{PlanAskOptions, PlanAskUpdate, PlanProposal};
 
-mod team;
 mod recovery_ops;
+mod team;
 
-#[cfg(all(test,not(target_arch="wasm32")))]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
+    use super::super::task_crypto::field_interop_support::{assert_web, case};
     use super::*;
-    use super::super::task_crypto::field_interop_support::{case,assert_web};
     #[test]
-    fn actual_plan_create_patch_fields_read_in_web_legacy_decoders(){
-        let master=[7;32];let key=[9;32];
-        let input=PlanCreate{title:"Synthetic Plan ✓".into(),goal:"Useful private goal".into(),..Default::default()};
-        let created=encode_create(&input,&key,&master).unwrap();
-        let plan=ResolvedPlan{raw:created.clone(),public:json!({}),key:zeroize::Zeroizing::new(key)};
-        let patch=encode_patch(&plan,&PlanPatch{title:Some("Updated Plan 界".into()),goal:Some("".into()),..Default::default()},&master).unwrap();
-        assert_web(vec![case("plan-title","object-text",created["encrypted_title"].as_str().unwrap(),&key,input.title.as_bytes(),""),case("plan-goal","object-text",created["encrypted_goal"].as_str().unwrap(),&key,input.goal.as_bytes(),""),case("plan-user-flows","object-text",created["encrypted_user_flows"].as_str().unwrap(),&key,b"[]",""),case("plan-patch-title","object-text",patch["encrypted_title"].as_str().unwrap(),&key,"Updated Plan 界".as_bytes(),""),case("plan-empty-goal","object-text",patch["encrypted_goal"].as_str().unwrap(),&key,b"","")]);
+    fn actual_plan_create_patch_fields_read_in_web_legacy_decoders() {
+        let master = [7; 32];
+        let key = [9; 32];
+        let input = PlanCreate {
+            title: "Synthetic Plan ✓".into(),
+            goal: "Useful private goal".into(),
+            ..Default::default()
+        };
+        let created = encode_create(&input, &key, &master).unwrap();
+        let plan = ResolvedPlan {
+            raw: created.clone(),
+            public: json!({}),
+            key: zeroize::Zeroizing::new(key),
+        };
+        let patch = encode_patch(
+            &plan,
+            &PlanPatch {
+                title: Some("Updated Plan 界".into()),
+                goal: Some("".into()),
+                ..Default::default()
+            },
+            &master,
+        )
+        .unwrap();
+        assert_web(vec![
+            case(
+                "plan-title",
+                "object-text",
+                created["encrypted_title"].as_str().unwrap(),
+                &key,
+                input.title.as_bytes(),
+                "",
+            ),
+            case(
+                "plan-goal",
+                "object-text",
+                created["encrypted_goal"].as_str().unwrap(),
+                &key,
+                input.goal.as_bytes(),
+                "",
+            ),
+            case(
+                "plan-user-flows",
+                "object-text",
+                created["encrypted_user_flows"].as_str().unwrap(),
+                &key,
+                b"[]",
+                "",
+            ),
+            case(
+                "plan-patch-title",
+                "object-text",
+                patch["encrypted_title"].as_str().unwrap(),
+                &key,
+                "Updated Plan 界".as_bytes(),
+                "",
+            ),
+            case(
+                "plan-empty-goal",
+                "object-text",
+                patch["encrypted_goal"].as_str().unwrap(),
+                &key,
+                b"",
+                "",
+            ),
+        ]);
     }
 }

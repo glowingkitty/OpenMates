@@ -203,7 +203,7 @@ async fn uncertain_activity_delete_acknowledges_existing_tombstone() {
 fn start_intent_never_contains_private_plaintext() {
     let mut client = client("https://api.example.org");
     let tasks = client.tasks();
-    let task = decrypt(raw(), &[7; 32], &[7; 32], None).unwrap();
+    let task = decrypt(raw(), &[7; 32], &[7; 32], None, &[]).unwrap();
     let intent = tasks.start_intent(&task);
     assert!(!intent.to_string().contains("Private"));
     assert!(

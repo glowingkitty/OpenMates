@@ -24,6 +24,7 @@ logging:
 feature_flags:
   new_dashboard_feature: true
   experimental_analytics: false
+  live_collaboration: true
 
 # Keep in sync with backend_config.yml; see the pricing comment there.
 pricing:

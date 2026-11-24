@@ -119,6 +119,21 @@ export const variants = {
     },
   },
 
+  privateCopy: {
+    notification: {
+      id: "preview-private-copy",
+      type: "warning" as const,
+      message: "Access was removed. You can download a private copy of your unsent edits.",
+      duration: 0,
+      dismissible: false,
+      keepOnAction: true,
+      actionLabel: "Download private copy",
+      onAction: () => {
+        window.dispatchEvent(new Event("openmates:preview-private-copy"));
+      },
+    },
+  },
+
   /** With secondary message */
   withSecondary: {
     notification: {

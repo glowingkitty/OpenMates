@@ -360,7 +360,12 @@ impl Workflows<'_> {
                     .await?
             }
         };
-        let payload = project_item_wire(workflow_id, workflow["title"].as_str().unwrap_or(workflow_id), folder, &project.key)?;
+        let payload = project_item_wire(
+            workflow_id,
+            workflow["title"].as_str().unwrap_or(workflow_id),
+            folder,
+            &project.key,
+        )?;
         let route = self.path(
             &format!("/v1/projects/{}/items", string(&project.raw, "project_id")?),
             &[],
@@ -486,8 +491,15 @@ mod tests {
 }
 
 // Field codec only; caller retains scope, owner resolution and dispatch guards.
-fn project_item_wire(workflow_id: &str, title: &str, folder: Option<&str>, key: &[u8; 32]) -> Result<Value> {
-    Ok(json!({"project_item_id":uuid::Uuid::new_v4().to_string(),"folder_id":folder,"item_type":"workflow","target_id":workflow_id,"target_id_encrypted":crypto::server_fields::encrypt_text(workflow_id,key, &[])?,"encrypted_display_name":crypto::server_fields::encrypt_text(title,key, &[])?,"encrypted_note":crypto::server_fields::encrypt_text("",key, &[])?,"encrypted_metadata":crypto::server_fields::encrypt_text(r#"{"storage":"save_only_in_openmates","source":"sdk_add_to_project"}"#,key, &[])?,"created_at":now(),"updated_at":now(),"position":now()}))
+fn project_item_wire(
+    workflow_id: &str,
+    title: &str,
+    folder: Option<&str>,
+    key: &[u8; 32],
+) -> Result<Value> {
+    Ok(
+        json!({"project_item_id":uuid::Uuid::new_v4().to_string(),"folder_id":folder,"item_type":"workflow","target_id":workflow_id,"target_id_encrypted":crypto::server_fields::encrypt_text(workflow_id,key, &[])?,"encrypted_display_name":crypto::server_fields::encrypt_text(title,key, &[])?,"encrypted_note":crypto::server_fields::encrypt_text("",key, &[])?,"encrypted_metadata":crypto::server_fields::encrypt_text(r#"{"storage":"save_only_in_openmates","source":"sdk_add_to_project"}"#,key, &[])?,"created_at":now(),"updated_at":now(),"position":now()}),
+    )
 }
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
@@ -498,8 +510,23 @@ mod field_interop_tests {
         let key = [34; 32];
         let raw = project_item_wire("workflow-fixture", "Private workflow", None, &key).unwrap();
         let mut cases = vec![];
-        for (field, expected) in [("target_id_encrypted", "workflow-fixture"), ("encrypted_display_name", "Private workflow"), ("encrypted_note", ""), ("encrypted_metadata", r#"{"storage":"save_only_in_openmates","source":"sdk_add_to_project"}"#)] {
-            cases.push(case(field, "object-text", raw[field].as_str().unwrap(), &key, expected.as_bytes(), ""));
+        for (field, expected) in [
+            ("target_id_encrypted", "workflow-fixture"),
+            ("encrypted_display_name", "Private workflow"),
+            ("encrypted_note", ""),
+            (
+                "encrypted_metadata",
+                r#"{"storage":"save_only_in_openmates","source":"sdk_add_to_project"}"#,
+            ),
+        ] {
+            cases.push(case(
+                field,
+                "object-text",
+                raw[field].as_str().unwrap(),
+                &key,
+                expected.as_bytes(),
+                "",
+            ));
         }
         assert_eq!(raw["target_id"], "workflow-fixture");
         assert_eq!(raw["item_type"], "workflow");

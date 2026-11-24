@@ -1,5 +1,6 @@
 use super::sync::decrypt_optional;
 use super::*;
+use super::embed_user_revision::team_cipher::{TeamRevisionCipher, ciphertext_epoch};
 impl Client {
     pub(super) async fn embed_detail(&mut self, id: &str) -> Result<Item> {
         uuid::Uuid::parse_str(id).map_err(|_| Error::Invalid("A full embed ID is required."))?;
@@ -53,6 +54,13 @@ impl Client {
             wanted = parent.into();
         }
         let _ = ws.close(None).await;
+        let row = self.embeds.get(id).ok_or(Error::Protocol)?;
+        if let Some(epoch) = ciphertext_epoch(required(row, "encrypted_content")?)? {
+            let team = self.team()?.ok_or(Error::Forbidden)?.to_owned();
+            let cipher = self.team_revision_cipher(&team, id, Some(epoch)).await?;
+            let key = self.embed_key(id, &wrapping, &mut std::collections::HashSet::new())?;
+            return self.decrypt_embed_row_for_revision(id, &key, cipher.as_ref());
+        }
         self.decrypt_embed_item(id, &wrapping)
     }
     pub(super) fn decrypt_embed_item(&self, id: &str, wrapping: &[u8; 32]) -> Result<Item> {
@@ -62,13 +70,29 @@ impl Client {
     /// Decrypt cached embed row `id` with its already-resolved embed key; the
     /// key source (raw master or opaque browser capability) is the caller's.
     pub(super) fn decrypt_embed_row(&self, id: &str, key: &[u8; 32]) -> Result<Item> {
+        self.decrypt_embed_row_for_revision(id, key, None)
+    }
+
+    /// Open the cached head with its epoch cipher when it carries a Team frame.
+    /// Unversioned fields, including the immutable type, keep their original key.
+    pub(super) fn decrypt_embed_row_for_revision(
+        &self,
+        id: &str,
+        key: &[u8; 32],
+        cipher: Option<&TeamRevisionCipher>,
+    ) -> Result<Item> {
         let row = self.embeds.get(id).ok_or(Error::Protocol)?;
         let kind = decrypt_optional(row, "encrypted_type", &key)?;
-        let preview = decrypt_optional(row, "encrypted_text_preview", &key)?;
-        let content = super::toon::decode(&crypto::decrypt_combined(
-            required(row, "encrypted_content")?,
-            &key,
-        )?)?;
+        let open = |name, field| match row.get(name).and_then(Value::as_str) {
+            Some(value) if ciphertext_epoch(value)?.is_some() => {
+                let version = row["version_number"].as_i64().ok_or(Error::Protocol)?;
+                Ok(cipher.ok_or(Error::Crypto)?.open(version, field, value)?.to_string())
+            }
+            _ => decrypt_optional(row, name, key),
+        };
+        let preview = open("encrypted_text_preview", "preview")?;
+        required(row, "encrypted_content")?;
+        let content = super::toon::decode(&open("encrypted_content", "content")?)?;
         let title = ["title", "name", "filename"]
             .into_iter()
             .map(|k| text(&content, k))

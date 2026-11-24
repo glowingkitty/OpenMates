@@ -710,6 +710,9 @@ pub use initial_sync::{BrowserInitialSyncStoreBootstrap,BrowserInitialSyncStoreD
 
 #[path="browser_embed_user_edit.rs"]
 mod embed_user_edit;
+// Submodule so the live-item exports reach the private core client.
+#[path="browser_live_item.rs"]
+mod live_item;
 // Submodule so the present-remote exports reach the private core client.
 #[path="browser_present_remote.rs"]
 mod present_remote;

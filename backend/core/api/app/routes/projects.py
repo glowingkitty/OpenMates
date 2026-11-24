@@ -142,7 +142,8 @@ def _require_team_project_wrapper(payload: dict[str, Any], team_id: str | None) 
     if not wrappers or not all(
         wrapper.get("key_type") == "team"
         and wrapper.get("hashed_team_id") == expected_team_hash
-        and wrapper.get("team_key_epoch") == 1
+        and isinstance(wrapper.get("team_key_epoch"), int)
+        and wrapper.get("team_key_epoch") >= 1
         for wrapper in wrappers
     ):
         raise HTTPException(status_code=400, detail="TEAM_PROJECT_KEY_WRAPPER_REQUIRED")
@@ -310,10 +311,11 @@ class ProjectMoveRequest(BaseModel):
         if (
             wrapper.key_type != "team"
             or wrapper.hashed_team_id != hash_id(self.team_id)
-            or wrapper.team_key_epoch != 1
+            or wrapper.team_key_epoch is None
+            or wrapper.team_key_epoch < 1
             or wrapper.created_at is None
         ):
-            raise ValueError("A matching Team epoch-1 Project key wrapper is required")
+            raise ValueError("A matching Team Project key wrapper with a valid key epoch is required")
         return self
 
 

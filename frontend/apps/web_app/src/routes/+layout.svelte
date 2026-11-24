@@ -20,6 +20,7 @@
 	import { notificationStore } from '@repo/ui/stores/notificationStore';
 	import { onDestroy, onMount, type Component } from 'svelte';
 	import { installAccountSuspensionObserver } from '@repo/ui/stores/accountSuspension';
+	import { isLiveCollaborationEnabled } from '@repo/ui/config/liveCollaborationFlag';
 	import { browser } from '$app/environment';
 	import { setupI18n } from '@repo/ui/i18n/setup';
 	import { page, updated } from '$app/state';
@@ -132,6 +133,15 @@
 
 		window.location.reload();
 	}
+
+	onMount(() => {
+		if (!isLiveCollaborationEnabled()) return;
+		const lifetime = new AbortController();
+		void import('@repo/ui/services/live/liveItemClient')
+			.then(({ startLivePrivateCopyRecovery }) => startLivePrivateCopyRecovery(lifetime.signal))
+			.catch(() => console.debug('[live] Private-copy recovery could not start'));
+		return () => lifetime.abort();
+	});
 
 	onMount(async () => {
 		removeContentZoom = installContentZoom();

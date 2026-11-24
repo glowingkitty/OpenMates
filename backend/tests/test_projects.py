@@ -578,13 +578,13 @@ async def test_team_project_create_persists_team_owner_creator_and_wrapper() -> 
     assert wrapper_record["hashed_team_id"] == hash_id("team-1")
 
 
-def test_project_move_requires_matching_team_epoch_one_wrapper() -> None:
-    with pytest.raises(ValidationError):
-        ProjectMoveRequest(
-            team_id="team-1",
-            confirmed=True,
-            team_project_key_wrapper=team_project_wrapper(epoch=2),
-        )
+def test_project_move_accepts_rotated_team_epoch_and_requires_matching_team() -> None:
+    body = ProjectMoveRequest(
+        team_id="team-1",
+        confirmed=True,
+        team_project_key_wrapper=team_project_wrapper(epoch=2),
+    )
+    assert body.team_project_key_wrapper.team_key_epoch == 2
     with pytest.raises(ValidationError):
         ProjectMoveRequest(
             team_id="team-1",

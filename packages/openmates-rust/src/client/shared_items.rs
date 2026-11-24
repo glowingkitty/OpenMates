@@ -13,6 +13,7 @@ mod deck_inline;
 pub mod deck_markup;
 pub mod deck_operations;
 mod deck_store;
+pub(super) use deck_store::ROOT_SLIDES;
 pub mod deck_theme;
 pub mod deck_values;
 pub mod present_remote;

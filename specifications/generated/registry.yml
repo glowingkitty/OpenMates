@@ -880,9 +880,10 @@ specifications:
     version: 1
     status: draft
     path: features/live-collaboration
-    fingerprint: ce58689f06d1ace62c42acfdc05b3cc7d5f5647de7f312e96f15dd9d186ea1e4
+    fingerprint: 1604174464cf5daf42c191fdb962d4effd8a0e167ee8bc30c2325917a1744f5e
     required_applies_to:
     - rest_api
+    - cli
     - sdks.rust
     - gui.web
   feature.marketing-landing:
@@ -1069,7 +1070,7 @@ specifications:
     version: 4
     status: draft
     path: features/teams
-    fingerprint: b3352a401547ccecb0f84df76a60ee832711d4332b7a4f5b98fd11053111b58f
+    fingerprint: 9fab1235915cad391fbba1e91e6284271effe3a75edfd11780015417187e2410
     required_applies_to:
     - rest_api
     - cli
@@ -11786,76 +11787,164 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
-  live-collab.sync.concurrent-convergence:
+  live-collab.assistant.live-edits:
     specification: feature.live-collaboration@1
     specification_id: feature.live-collaboration
     type: behavior
-    fingerprint: b5b0b7bce732b16a5124c035cc7ba50fa49bed9f5c8181776a6501082ecbe4a0
+    fingerprint: 28a5490dd353d00502928d0d6bd837ec65a6235bd0f29b29214dc3e03340c9de
     required_applies_to:
     - rest_api
-    - sdks.rust
-    - gui.web
-  live-collab.presence.who-and-where:
-    specification: feature.live-collaboration@1
-    specification_id: feature.live-collaboration
-    type: behavior
-    fingerprint: a2d32f4e34520618dc002f0ceea79b95cda5038f39c763cbb3230beb325f3a09
-    required_applies_to:
-    - rest_api
-    - sdks.rust
-    - gui.web
-  live-collab.privacy.ciphertext-only:
-    specification: feature.live-collaboration@1
-    specification_id: feature.live-collaboration
-    type: privacy
-    fingerprint: a5a41048ffa117a18b6951c64f27a761e9a2517106a772c52b1aeb3326d6d98b
-    required_applies_to:
-    - rest_api
-    - sdks.rust
-    - gui.web
-  live-collab.access.members-with-write-access:
-    specification: feature.live-collaboration@1
-    specification_id: feature.live-collaboration
-    type: security
-    fingerprint: bbbfc4fdcf844abbdc40469ce83d34d96689d167c74dcadefd9bde4d7a607d14
-    required_applies_to:
-    - rest_api
-    - sdks.rust
-    - gui.web
-  live-collab.offline.merge-on-reconnect:
-    specification: feature.live-collaboration@1
-    specification_id: feature.live-collaboration
-    type: behavior
-    fingerprint: 84bf5903cb7ea1229d1aabd1c870a18ef43af0791d6cfd16be75c21272e8a3bd
-    required_applies_to:
-    - rest_api
+    - cli
     - sdks.rust
     - gui.web
   live-collab.assistant.one-change-for-everyone:
     specification: feature.live-collaboration@1
     specification_id: feature.live-collaboration
     type: behavior
-    fingerprint: 4216f645130ca9b2bf95277aabeadae8c545dc32115dcedfc0a758d2fd33c7a8
+    fingerprint: f5d1ac63d8de3cccd17f5394714e186fe9c1adacbd088e6197cc9968cce13818
     required_applies_to:
     - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.devices.same-account:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: 04415383b944d813dc2d6d6071539a73caf6804330869dc377972c691f4c74bd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.saving.automatic:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: d99fe22978089248276068357a850a0106828274c7ccdb557439441a9ee666da
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.sync.concurrent-convergence:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: ee0209195f33217bdc32f7093dd398792e22d246964804a7de74dc85c87eae9c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.presence.who-and-where:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: b222362863f06e7205a795e31305bbdd308887961b4b97d60b66ca9a6678c0cb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.privacy.ciphertext-only:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: privacy
+    fingerprint: 3ae62a3e467335ac51f63256b24942e671a62fdc267fc6bcdc2742c3c4a893f5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.access.roles:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: security
+    fingerprint: 87f2b8e9aba38df8fe969038bc5793e37ca8e71c447acafe852ee1312db02d27
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.keys.rotation-on-removal:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: security
+    fingerprint: bd3afa051ac673b45abf8f5ec4f061b6f1b989beccb7da5406cb654feb1d467b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.offline.merge-on-reconnect:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: ebb51cc222afac7d13122de2ec59e6611f05917955ebc197d872e9ba568c0fff
+    required_applies_to:
+    - rest_api
+    - cli
     - sdks.rust
     - gui.web
   live-collab.versions.named-snapshots:
     specification: feature.live-collaboration@1
     specification_id: feature.live-collaboration
     type: behavior
-    fingerprint: 3a5d03822da7217bea380bae6788ed1eab52281775d171b2b0e2f2edede3b410
+    fingerprint: ecf5c19310bb27a799bf9e5221caf08328d0e195f551ea94aa84beaeb5a64396
     required_applies_to:
     - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.code.hosted-project-files:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: 1afffe0ea499f91df8a13fab0bde6435c546273ef33a342006fa0c8bc3548c97
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.assistant.human-wins:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: 1d1f9c00d310426e519624f8ab3e7538ab86893423dea936913a93034f532e8c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.assistant.project-code-merge:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: ae0b42c06d582af2651e389ca3bd8c2ef9231e5d07b68b1b3d736b2011888ce0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  live-collab.share.view-only:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: security
+    fingerprint: 9a2df8d049d41ae3658befa3c033f28123d3c27b6e3ecf990be5314f44647c2d
+    required_applies_to:
+    - rest_api
+    - cli
     - sdks.rust
     - gui.web
   live-collab.core.one-shared-model:
     specification: feature.live-collaboration@1
     specification_id: feature.live-collaboration
     type: invariant
-    fingerprint: 4dfb74581c8498b805dbc77762bdb4f49446349695e02ced219013fdaa5f811e
+    fingerprint: d1798604bd945d392b12a3df52209481fd2e858536ba6734ceed8d94db9ed800
     required_applies_to:
     - rest_api
+    - cli
     - sdks.rust
     - gui.web
   marketing-landing.independent-scroll:

@@ -198,7 +198,7 @@ impl Client {
                 .find(|w| {
                     text(w, "key_type") == "team"
                         && text(w, "hashed_team_id") == hash
-                        && w["team_key_epoch"] == 1
+                        && crate::work::team_epoch_ok(w)
                 })
                 .ok_or(Error::Forbidden)?;
             required(wrapper, field)?
@@ -644,9 +644,10 @@ impl Client {
             body["created_at"] = json!(now_ms() / 1000);
             body["version"] = json!(1);
             self.add_slug_with_capability(&mut body,fields.get("slug").and_then(Value::as_str).unwrap_or(title),&MasterCapability::from_native(key.clone()),&wrapping,fields.get("slug").and_then(Value::as_str).is_some(),&scope).await?;
-            if let Some(team) = self.team()? {
+            if let Some(team) = self.team()?.map(str::to_owned) {
+                let team_epoch = self.team_key_epoch(&team).await?;
                 body["team_id"] = json!(team);
-                body["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":sha256(team),"team_key_epoch":1,(key_field):encrypted_key,"created_at":now_ms()/1000}]);
+                body["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":sha256(&team),"team_key_epoch":team_epoch,(key_field):encrypted_key,"created_at":now_ms()/1000}]);
             }
             if workspace == Workspace::Tasks {
                 body["status"] = json!("todo");

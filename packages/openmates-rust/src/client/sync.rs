@@ -219,14 +219,12 @@ impl Client {
         if text(row, "team_id") != team {
             return Err(Error::Forbidden);
         }
-        let key = key_from_bytes(&crypto::decrypt_bytes(
-            required(row, "encrypted_team_key")?,
-            &master,
-        )?)?;
-        self.team_wrapped_key = Some((
-            team.clone(),
-            required(row, "encrypted_team_key")?.to_owned(),
-        ));
+        let wrapped = match self.claim_sealed_team_key(&team, row).await? {
+            Some(claimed) => claimed,
+            None => required(row, "encrypted_team_key")?.to_owned(),
+        };
+        let key = key_from_bytes(&crypto::decrypt_bytes(&wrapped, &master)?)?;
+        self.team_wrapped_key = Some((team.clone(), wrapped));
         self.team_key = Some((team, key.clone()));
         Ok(key)
     }

@@ -14,9 +14,9 @@ pub use plans::*;
 mod checks;
 pub use checks::*;
 mod specifications;
-pub use specifications::*;
 /// Specification document hash under an unambiguous name (`projects` also exports a `content_hash`).
 pub use specifications::content_hash as specification_content_hash;
+pub use specifications::*;
 mod task_crypto;
 mod teams;
 pub use teams::*;
@@ -25,6 +25,8 @@ pub use tasks::*;
 mod team_move;
 pub use team_move::*;
 pub mod recovery;
+#[cfg(test)]
+mod team_rotation_tests;
 #[derive(Default, Clone)]
 pub(crate) struct TaskHeaders {
     pub assignee: bool,
@@ -177,17 +179,101 @@ impl Backend<'_> {
         let Some(team) = team else {
             return self.master().await;
         };
-        uuid::Uuid::parse_str(team).map_err(|_| Error::Invalid("Invalid Team ID."))?;
-        let value = self
-            .request(Method::GET, &format!("/v1/teams/{team}"), None, None)
-            .await?;
-        let row = &value["team"];
-        if string(row, "team_id")? != team {
-            return Err(Error::Forbidden);
-        }
-        self.unwrap_with_master(string(row, "encrypted_team_key")?)
+        let row = self.team_row(team).await?;
+        self.unwrap_with_master(string(&row, "encrypted_team_key")?)
             .await
     }
+    /// The Team row; a sealed rotated key is claimed (re-wrapped with the
+    /// master key) by cookie clients and refused for API-key clients, so a
+    /// sealed wrapper is never handed to a master-key unwrap.
+    async fn team_row(&mut self, team: &str) -> Result<Value> {
+        uuid::Uuid::parse_str(team).map_err(|_| Error::Invalid("Invalid Team ID."))?;
+        let row = match self {
+            Self::Cookie(client) if client.require_session().is_ok() => client.teams().get(team).await?,
+            Self::Cookie(client) => {
+                let mut row = client.team_key_row(team).await?;
+                if let Some(claimed) = client.claim_sealed_team_key(team, &row).await? {
+                    row["encrypted_team_key"] = json!(claimed);
+                }
+                row
+            }
+            Self::ApiKey(_) => {
+                let value = self
+                    .request(Method::GET, &format!("/v1/teams/{team}"), None, None)
+                    .await?;
+                value["team"].clone()
+            }
+        };
+        if string(&row, "team_id")? != team {
+            return Err(Error::Forbidden);
+        }
+        if row["encrypted_team_key"]
+            .as_str()
+            .is_some_and(|w| w.starts_with("OMTK1."))
+        {
+            return Err(Error::Invalid(
+                "This Team key was rotated; open the Team once in a signed-in client to claim it.",
+            ));
+        }
+        Ok(row)
+    }
+    /// Current key epoch of the Team (1 before any rotation); new Team key
+    /// wrappers are stamped with it.
+    async fn team_epoch(&mut self, team: &str) -> Result<u64> {
+        let row = self.team_row(team).await?;
+        Ok(row["team_key_epoch"]
+            .as_u64()
+            .filter(|e| *e >= 1)
+            .unwrap_or(1))
+    }
+    /// Earlier Team keys (`epoch`, key) from the previous-key chain; empty
+    /// before the first rotation.
+    async fn team_previous_keys(&mut self, team: &str) -> Result<Vec<(u64, Key)>> {
+        let row = self.team_row(team).await?;
+        let Some(chain) = row["encrypted_previous_team_keys"]
+            .as_str()
+            .filter(|c| !c.is_empty())
+        else {
+            return Ok(vec![]);
+        };
+        let current = self
+            .unwrap_with_master(string(&row, "encrypted_team_key")?)
+            .await?;
+        crate::client::previous_team_keys(chain, &current)
+    }
+}
+/// Stamps every Team key wrapper of a create/move payload with the Team's
+/// current epoch, so a wrapper written after a rotation never claims epoch 1.
+pub(crate) fn stamp_team_epoch(payload: &mut Value, epoch: u64) {
+    if let Some(wrappers) = payload["key_wrappers"].as_array_mut() {
+        for wrapper in wrappers.iter_mut().filter(|w| w["key_type"] == "team") {
+            wrapper["team_key_epoch"] = json!(epoch);
+        }
+    }
+    if payload["team_project_key_wrapper"].is_object() {
+        payload["team_project_key_wrapper"]["team_key_epoch"] = json!(epoch);
+    }
+}
+/// Wrapper epochs are any rotation epoch from 1; the key is chosen by
+/// [`open_team_wrapper`].
+pub(crate) fn team_epoch_ok(row: &Value) -> bool {
+    row["team_key_epoch"].as_u64().is_some_and(|e| e >= 1)
+}
+/// Open a Team-key wrapper: a chain key for its epoch first, then the current
+/// key (wrappers written after a rotation carry the current key whatever epoch
+/// label they were created with). Authenticated encryption makes a wrong key fail.
+pub(crate) fn open_team_wrapper(
+    encrypted: &str,
+    epoch: u64,
+    current: &[u8; 32],
+    previous: &[(u64, Key)],
+) -> Result<Vec<u8>> {
+    if let Some((_, old)) = previous.iter().find(|(e, _)| *e == epoch)
+        && let Ok(plain) = crypto::decrypt_bytes(encrypted, old)
+    {
+        return Ok(plain.to_vec());
+    }
+    Ok(crypto::decrypt_bytes(encrypted, current)?.to_vec())
 }
 pub(crate) fn string<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
     value[key]
@@ -263,12 +349,17 @@ pub(crate) fn verify_task_job_persistence(
     } {
         return Err(Error::Forbidden);
     }
-    let task = task_crypto::decrypt(raw, wrapping, wrapping, team)?;
+    let task = task_crypto::decrypt(raw, wrapping, wrapping, team, &[])?;
     verify_task_job_fields(&task, key, expected, version)
 }
 
 /// Verify the exact fields against the canonical Task opened by the active authority.
-fn verify_task_job_fields(task: &task_crypto::Resolved, key: &[u8; 32], expected: &Value, version: u64) -> Result<()> {
+fn verify_task_job_fields(
+    task: &task_crypto::Resolved,
+    key: &[u8; 32],
+    expected: &Value,
+    version: u64,
+) -> Result<()> {
     if task.key.as_ref() != key || task.raw["version"].as_u64() != Some(version) {
         return Err(Error::Conflict);
     }

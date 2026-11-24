@@ -9812,8 +9812,8 @@ async def handle_main_processing(
                         parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
                     parsed_args = _pts.without_forged_snapshot(parsed_args)
                     if _pts.is_cloud_command(parsed_args) and active_project_focus:
-                        from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_command
-                        if await sandbox_applies_to_command(
+                        from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_project
+                        if await sandbox_applies_to_project(
                             user_id=request_data.user_id, focus=active_project_focus,
                             directus_service=directus_service, log_prefix=log_prefix,
                         ):

@@ -27,8 +27,8 @@ use super::hosted_base::{
     language_for_path, normalize_path, refused, seal,
 };
 pub use api::{HostedApproval, HostedProposal};
-pub use job::{HostedFileJob, HostedFileOperation};
 pub(crate) use apply_changes::applied_change_mutations;
+pub use job::{HostedFileJob, HostedFileOperation};
 pub use restore::ProjectCommitRestoreResult;
 
 /// Largest hosted text file (UTF-8 bytes), also the mutation body limit.
@@ -70,12 +70,23 @@ impl HostedHead {
             .find(|(key, _)| key == name)
             .map(|(_, v)| v)
     }
-    /// TS `textContent`: `code ?? content`, a string of at most 200 KB with no NUL.
+    /// The typed field used by the native editor, or the older code fields.
+    fn text_field(&self) -> &'static str {
+        use crate::client::live::stored_form::{content_field, kind_of_embed_type};
+        match self
+            .field("type")
+            .and_then(Value::as_str)
+            .and_then(kind_of_embed_type)
+        {
+            Some(kind) if kind != crate::client::live::LiveItemKind::Code => content_field(kind),
+            _ if self.field("code").is_none_or(Value::is_null) => "content",
+            _ => "code",
+        }
+    }
+
+    /// The editable text, limited to 200 KB with no NUL.
     pub(crate) fn text(&self) -> HostedResult<&str> {
-        let value = match self.field("code") {
-            Some(Value::Null) | None => self.field("content"),
-            other => other,
-        };
+        let value = self.field(self.text_field());
         match value.and_then(Value::as_str) {
             Some(text) if text.len() <= MAX_TEXT_BYTES && !text.contains('\0') => Ok(text),
             _ => refused("unsupported_file_content"),

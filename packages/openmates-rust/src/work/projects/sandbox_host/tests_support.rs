@@ -47,7 +47,11 @@ pub(super) fn head(path: &str, text: &str, version: u64) -> Value {
 pub(super) fn head_of(revision: &Revision, new_version: u64) -> Value {
     let tx = &revision.transaction;
     let key_row = match tx["create"]["key_wrappers"].as_array() {
-        Some(rows) => rows.iter().find(|r| r["key_type"] == "project").unwrap().clone(),
+        Some(rows) => rows
+            .iter()
+            .find(|r| r["key_type"] == "project")
+            .unwrap()
+            .clone(),
         None => wrapper(&EMBED_KEY),
     };
     json!({
@@ -69,5 +73,8 @@ pub(super) fn new_tree(root: &std::path::Path) -> ProjectTree {
 }
 
 pub(super) fn ten_lines() -> String {
-    (1..=10).map(|n| format!("line {n}")).collect::<Vec<_>>().join("\n")
+    (1..=10)
+        .map(|n| format!("line {n}"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }

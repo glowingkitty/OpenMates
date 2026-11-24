@@ -151,13 +151,25 @@ fn recover_identity(
     owner: String,
     scope: String,
 ) -> Result<DirectIdentity> {
+    let wrapped = direct_identity_backup(record)?;
+    let plaintext = crypto::decrypt_bytes(&wrapped, master)?;
+    identity_from_backup(record, &plaintext, owner, scope)
+}
+
+/// Open a recipient backup with an opaque or native master resource. The
+/// returned identity is for this operation only and never enters the cache.
+async fn recover_identity_with_master(
+    record: &Value,
+    master: &crate::crypto::master::MasterCapability,
+    owner: String,
+) -> Result<DirectIdentity> {
+    let wrapped = direct_identity_backup(record)?;
+    let plaintext = master.decrypt_bytes(&wrapped).await?;
+    identity_from_backup(record, &plaintext, owner, String::new())
+}
+
+fn direct_identity_backup(record: &Value) -> Result<String> {
     if record["version"] != 1 || record["algorithm"] != "x25519-xsalsa20poly1305" {
-        return Err(Error::Crypto);
-    }
-    let key_id = required(record, "key_id")?;
-    let encoded_public = required(record, "public_key")?;
-    let public = public_key_bytes(encoded_public)?;
-    if !valid_key_id(key_id) || crypto::hex(&Sha256::digest(public)) != key_id {
         return Err(Error::Crypto);
     }
     let encrypted = required(record, "encrypted_private_key")?;
@@ -177,8 +189,22 @@ fn recover_identity(
     let mut normalized = unpadded.replace('-', "+").replace('_', "/");
     normalized.extend(std::iter::repeat_n('=', (4 - normalized.len() % 4) % 4));
     let wrapped = STANDARD.decode(&normalized).map_err(|_| Error::Crypto)?;
-    let plaintext = crypto::decrypt_bytes(&STANDARD.encode(wrapped), master)?;
-    let encoded_private = std::str::from_utf8(&plaintext).map_err(|_| Error::Crypto)?;
+    Ok(STANDARD.encode(wrapped))
+}
+
+fn identity_from_backup(
+    record: &Value,
+    plaintext: &[u8],
+    owner: String,
+    scope: String,
+) -> Result<DirectIdentity> {
+    let key_id = required(record, "key_id")?;
+    let encoded_public = required(record, "public_key")?;
+    let public = public_key_bytes(encoded_public)?;
+    if !valid_key_id(key_id) || crypto::hex(&Sha256::digest(public)) != key_id {
+        return Err(Error::Crypto);
+    }
+    let encoded_private = std::str::from_utf8(plaintext).map_err(|_| Error::Crypto)?;
     let raw_private = crypto::decode_url(encoded_private, 32)?;
     let private_key = key_from_bytes(&raw_private)?;
     if private_key.iter().all(|byte| *byte == 0) {
@@ -290,6 +316,9 @@ fn json_object(bytes: &[u8]) -> bool {
 mod open_chat;
 #[path = "direct_seal.rs"]
 mod seal;
+#[path = "direct_team_key.rs"]
+mod team_key;
+pub(crate) use team_key::{previous_team_keys, refuse_sealed_team_key};
 #[cfg(test)]
 #[path = "direct_ts_vector_tests.rs"]
 mod ts_vector_tests;
@@ -352,6 +381,68 @@ mod tests {
         weak[0] = 1;
         assert!(public_key_bytes(&URL_SAFE_NO_PAD.encode(weak)).is_err());
     }
+    struct OpaqueTestMaster;
+
+    impl crate::crypto::master::MasterCrypto for OpaqueTestMaster {
+        fn encrypt<'a>(
+            &'a self,
+            iv: &'a [u8; 12],
+            bytes: &'a [u8],
+        ) -> crate::crypto::master::MasterCryptoFuture<'a> {
+            Box::pin(
+                async move { crypto::encrypt_aead(bytes, &[7; 32], iv, &[]).map(Zeroizing::new) },
+            )
+        }
+
+        fn decrypt<'a>(
+            &'a self,
+            iv: &'a [u8; 12],
+            bytes: &'a [u8],
+        ) -> crate::crypto::master::MasterCryptoFuture<'a> {
+            Box::pin(async move { crypto::decrypt_aead(bytes, &[7; 32], iv, &[]) })
+        }
+    }
+
+    #[tokio::test]
+    async fn team_key_rotation_can_be_claimed_with_an_opaque_master() {
+        let master = crate::crypto::master::MasterCapability::opaque_for_test(std::sync::Arc::new(
+            OpaqueTestMaster,
+        ));
+        let mut browser_record = record();
+        let backup = crypto::server_fields::encrypt_bytes(
+            URL_SAFE_NO_PAD.encode([17; 32]).as_bytes(),
+            &[7; 32],
+            &[],
+        )
+        .unwrap();
+        browser_record["encrypted_private_key"] =
+            json!(URL_SAFE_NO_PAD.encode(STANDARD.decode(backup).unwrap()));
+        let identity = recover_identity_with_master(&browser_record, &master, "account-one".into())
+            .await
+            .unwrap();
+        assert!(master.native_key().is_err());
+        let member = super::team_key::Member {
+            hash: sha256(&identity.owner),
+            key_id: identity.key_id.clone(),
+            public_key: identity.public_key.clone(),
+        };
+        let sealed = super::team_key::seal_team_key(&[31; 32], TEAM, 2, &member).unwrap();
+        let key = super::team_key::open_team_key(
+            &sealed,
+            TEAM,
+            2,
+            &member.hash,
+            &member.key_id,
+            &identity.private_key,
+        )
+        .unwrap();
+        let claimed = master.encrypt_server_bytes(key.as_ref()).await.unwrap();
+        assert_eq!(
+            master.decrypt_bytes(&claimed).await.unwrap().as_slice(),
+            &[31; 32]
+        );
+    }
+
     #[test]
     fn recipient_box_binds_team_chat_account_and_key_id() {
         let envelope = seal_payload(payload());

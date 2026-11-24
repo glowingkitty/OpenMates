@@ -19,6 +19,9 @@
   import SlidesEditorToolbar from './SlidesEditorToolbar.svelte';
   import SlidesEditorStrip from './SlidesEditorStrip.svelte';
   import EmbedIconButton from '../shared/EmbedIconButton.svelte';
+  import { liveItemClient } from '../../../services/live/liveItemClient';
+  import type { LiveItemClient, LivePeer, LiveStatus } from '../../../services/live/liveItemTypes';
+  import { deckCursor, peerMate } from '../../../services/live/liveSurface';
   import { placeElements, readThemeValue, resolveTemplate } from './slidesTemplates';
   import { escapeInlineText } from './slidesEditorText';
   import { effectiveTextStyle, isTypingTarget, toRenderSlide, type CanvasBox } from './slidesEditorView';
@@ -57,9 +60,36 @@
     showDone?: boolean;
     /** True while Done commits the deck; bound by the fullscreen to show its header button busy. */
     finishing?: boolean;
+    /**
+     * Live collaboration (flag live_collaboration): the deck is the core's shared live item.
+     * Operations go through liveApplyOp({op:'deck',operation}), the editor renders `liveView`
+     * and there is no Save step (`markup` and `onSave` are unused).
+     */
+    liveItemId?: string;
+    liveProjectId?: string;
+    liveTeamId?: string;
+    liveClient?: LiveItemClient;
+    liveStatus?: LiveStatus;
+    livePeers?: LivePeer[];
   }
 
-  let { markup, onSave, onExit, initialSlideId, initialElementId, showDone = true, finishing = $bindable(false) }: Props = $props();
+  let {
+    markup, onSave, onExit, initialSlideId, initialElementId, showDone = true, finishing = $bindable(false),
+    liveItemId, liveProjectId, liveTeamId, liveClient = liveItemClient(), liveStatus = $bindable('saving'), livePeers = $bindable([])
+  }: Props = $props();
+  const liveId = untrack(() => liveItemId);
+  /** Peers on the open slide / on a selected element (outlines and badges; display only). */
+  let peerCursors = $derived(livePeers.map((peer) => ({ peer, cursor: deckCursor(peer) })));
+  let slideBadges = $derived(
+    Object.fromEntries(
+      peerCursors.flatMap(({ peer, cursor }) => {
+        const mate = peerMate(peer);
+        return mate && cursor ? [[cursor.slide_id, mate]] : [];
+      })
+    )
+  );
+  /** Ids seen before a create operation, so the editor opens what the core added. */
+  let awaitingNew: { slides: Set<string>; elements: Set<string>; slideId: string } | null = null;
 
   /** Arrow-key step in canvas units (Shift: larger). */
   const NUDGE = 10;
@@ -90,6 +120,16 @@
   let placedCurrent = $derived(
     current && view ? placeElements(toRenderSlide(current), template, view.canvas_height) : []
   );
+  let peerBoxes = $derived(
+    current && view
+      ? peerCursors.flatMap(({ peer, cursor }) => {
+          const entry = cursor?.slide_id === current.id && cursor.element_id
+            ? placedCurrent.find((placed) => placed.element.id === cursor.element_id)
+            : undefined;
+          return entry ? [{ peer, box: entry.box }] : [];
+        })
+      : []
+  );
   let selectedEntry = $derived(placedCurrent.find((entry) => entry.element.id === selectedId) ?? null);
   let selectedTextStyle = $derived(selectedEntry ? effectiveTextStyle(selectedEntry, template) : null);
   /** Paint-order position of the selection in the core's element order (-1: none). */
@@ -109,6 +149,44 @@
   });
 
   onMount(() => {
+    if (liveId) {
+      const stops = [
+        liveClient.on('liveView', (e) => {
+          if (e.itemId !== liveId) return;
+          const next = e.view as DeckView;
+          const first = view === null;
+          const pending = awaitingNew;
+          view = next;
+          if (first) {
+            const start = next.slides.find((slide) => slide.id === initialSlideId) ?? next.slides[0];
+            currentId = start?.id ?? '';
+            if (initialElementId && start?.elements.some((element) => element.id === initialElementId)) selectedId = initialElementId;
+            status = 'ready';
+          } else if (pending) {
+            awaitingNew = null;
+            const slide = next.slides.find((candidate) => !pending.slides.has(candidate.id));
+            if (slide) openSlide(slide.id);
+            else {
+              const open = next.slides.find((candidate) => candidate.id === pending.slideId);
+              const added = open?.elements.find((element) => !pending.elements.has(element.id));
+              if (added) startTyping(added.id);
+            }
+          }
+        }),
+        liveClient.on('livePresence', (e) => { if (e.itemId === liveId) livePeers = e.peers; }),
+        liveClient.on('liveStatus', (e) => { if (e.itemId === liveId) liveStatus = e.status; })
+      ];
+      void liveClient.liveOpen(liveId, 'deck', liveProjectId, liveTeamId).catch((error: unknown) => {
+        console.warn('[live] open failed', liveId, error);
+        liveStatus = 'offline';
+        errorCode = (error as { code?: string })?.code ?? String(error);
+        status = 'error';
+      });
+      return () => {
+        for (const stop of stops) stop();
+        void queue.finally(() => liveClient.liveClose(liveId));
+      };
+    }
     void openDeckDocument(markup).then(
       (opened) => {
         if (destroyed) {
@@ -133,6 +211,7 @@
 
   onDestroy(() => {
     destroyed = true;
+    if (liveId) return;
     const open = handle;
     handle = null;
     if (open !== null) void queue.finally(() => closeDeckDocument(open));
@@ -159,16 +238,54 @@
     return next;
   }
 
+  /** Live mode: one typed op to the core; the new view arrives as `liveView`. */
+  function applyLive(operation: DeckOperation): Promise<DeckOutcome | null> {
+    if (operation.op === 'add_slide' || operation.op === 'duplicate_slide' || operation.op === 'add_element') {
+      awaitingNew = {
+        slides: new Set(slides.map((slide) => slide.id)),
+        elements: new Set(current?.elements.map((element) => element.id) ?? []),
+        slideId: current?.id ?? ''
+      };
+    }
+    const next = queue.then(async () => {
+      try {
+        await liveClient.liveApplyOp(liveId as string, { op: 'deck', operation });
+        changeError = '';
+      } catch (error) {
+        awaitingNew = null;
+        changeError = (error as { code?: string })?.code ?? String(error);
+        console.error('[SlidesEditor] Core refused the change:', error);
+      }
+      return null;
+    });
+    queue = next;
+    return next;
+  }
+
   function apply(operation: DeckOperation): Promise<DeckOutcome | null> {
+    if (liveId) return applyLive(operation);
     return run((open) => applyDeckOperation(open, operation)).then((result) => result?.outcome ?? null);
   }
 
   function undo() {
+    if (!view?.can_undo) return;
     typingId = null;
+    if (liveId) {
+      queue = queue.then(async () => {
+        try {
+          await liveClient.liveUndoLatestAssistant?.(liveId);
+          changeError = '';
+        } catch (error) {
+          changeError = (error as { code?: string })?.code ?? String(error);
+        }
+      });
+      return;
+    }
     void run(undoDeck);
   }
 
   function redo() {
+    if (liveId) return;
     typingId = null;
     void run(redoDeck);
   }
@@ -177,6 +294,12 @@
     if (typingId && typingId !== elementId) typingId = null;
     selectedId = elementId;
   }
+
+  // Selection is shared as presence; the peers' outlines come back through `livePeers`.
+  $effect(() => {
+    if (!liveId || status !== 'ready' || !currentId) return;
+    void liveClient.liveSetPresence(liveId, { cursor: { slide_id: currentId, element_id: selectedId } });
+  });
 
   async function setGeometry(elementId: string, box: CanvasBox): Promise<void> {
     if (!current) return;
@@ -388,6 +511,7 @@
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     typingId = null;
     await queue;
+    if (liveId) { onExit(); return; }
     const open = handle;
     if (open !== null && dirty && view) {
       let markupOut: string;
@@ -423,6 +547,8 @@
   data-dirty={dirty ? 'true' : 'false'}
   data-slide-id={current?.id ?? ''}
   data-save-state={saveState}
+  data-live={liveId ? 'true' : undefined}
+  data-live-status={liveId ? liveStatus : undefined}
 >
   {#snippet doneAction()}
     {#if saveState !== 'idle'}
@@ -463,7 +589,7 @@
   {:else if view && current}
     <SlidesEditorToolbar
       canUndo={view.can_undo}
-      canRedo={view.can_redo}
+      canRedo={!liveId && view.can_redo}
       hasSelection={selectedId !== null}
       canForward={selectedOrder >= 0 && selectedOrder < current.elements.length - 1}
       canBackward={selectedOrder > 0}
@@ -505,6 +631,23 @@
         onStartTyping={startTyping}
         onCommitText={commitText}
       />
+      {#if peerBoxes.length > 0}
+        <div class="slides-editor-peers" aria-hidden="true">
+          {#each peerBoxes as { peer, box } (peer.user_id)}
+            <div
+              class="slides-editor-peer-box"
+              data-testid="slides-editor-peer-selection"
+              style:left="{(box.x / view.canvas_width) * 100}%"
+              style:top="{(box.y / view.canvas_height) * 100}%"
+              style:width="{(box.w / view.canvas_width) * 100}%"
+              style:height="{(box.h / view.canvas_height) * 100}%"
+              style:outline-color={peer.color}
+            >
+              <span class="slides-editor-peer-name" style:background={peer.color}>{peerMate(peer) ?? peer.display_name}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <div class="slides-editor-below" bind:this={belowEl}>
@@ -535,6 +678,7 @@
         onDuplicate={duplicateSlide}
         onDelete={deleteSlide}
         onMove={moveSlide}
+        badges={slideBadges}
       />
     </div>
   {/if}
@@ -647,8 +791,34 @@
 
   /* Room for the selection handles, which sit outside the frame at the slide edges. */
   .slides-editor-stage-wrap {
+    position: relative;
     box-sizing: border-box;
     padding: var(--spacing-6);
+  }
+
+  /* Peers' selected elements: same box as the canvas (inside the handle padding). */
+  .slides-editor-peers {
+    position: absolute;
+    inset: var(--spacing-6);
+    pointer-events: none;
+  }
+
+  .slides-editor-peer-box {
+    position: absolute;
+    box-sizing: border-box;
+    outline: 2px solid;
+  }
+
+  .slides-editor-peer-name {
+    position: absolute;
+    top: -1.5em;
+    left: 0;
+    padding: 0 var(--spacing-2);
+    border-radius: 3px 3px 3px 0;
+    color: var(--color-font-button);
+    font-size: var(--font-size-tiny);
+    font-weight: 600;
+    white-space: nowrap;
   }
 
   .slides-editor-below {

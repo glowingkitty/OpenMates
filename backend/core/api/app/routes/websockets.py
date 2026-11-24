@@ -12,6 +12,7 @@ from backend.core.api.app.utils.websocket_lifecycle import (
     SessionAuthorityCloseCategory, log_session_authority_close, receive_json_or_disconnect,
 )
 # Import necessary services and utilities
+from backend.core.api.app.services.live_items import LIVE_ITEM_MESSAGE_TYPES
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
 from backend.core.api.app.services.chat_unread_counter import UNREAD_COUNT_UPDATED_EVENT
@@ -3549,6 +3550,13 @@ async def websocket_endpoint(
         ),
     )
 
+    if _user_data.get("vault_key_id"):
+        from backend.apps.ai.assistant_live_changes import flush_pending_assistant_changes
+        await flush_pending_assistant_changes(
+            cache_service, encryption_service, user_id,
+            hashlib.sha256(user_id.encode()).hexdigest(), _user_data["vault_key_id"],
+        )
+
     recovery_inventory_manager = _bound_recovery_inventory_manager(
         manager, user_id, device_fingerprint_hash, inventory_request_id, websocket,
     )
@@ -5486,6 +5494,10 @@ async def websocket_endpoint(
                     code = "access_revoked" if isinstance(exc, PermissionError) or type(exc).__name__ == "TeamPermissionError" else "sync_deferred"
                     await websocket.send_json({"type": "project_task_sync_error", "payload": {"code": code}})
 
+            elif message_type in LIVE_ITEM_MESSAGE_TYPES:
+                # Sealed packets only; the relay never parses payloads.
+                await websocket.app.state.live_items.handle(websocket, user_id, message_type, payload)
+
             elif message_type == "project_remote_access_register":
                 await handle_project_remote_access_register(
                     websocket=websocket,
@@ -5709,6 +5721,8 @@ async def websocket_endpoint(
             initial_task.cancel()
         if hasattr(websocket.app.state, "project_task_sync"):
             websocket.app.state.project_task_sync.disconnect(websocket)
+        if hasattr(websocket.app.state, "live_items"):
+            websocket.app.state.live_items.disconnect(websocket)
         if hasattr(websocket.app.state, "chat_sync_feed"):
             websocket.app.state.chat_sync_feed.disconnect(websocket)
         for task in list(phased_sync_tasks):

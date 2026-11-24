@@ -17,6 +17,13 @@ fn web_edit_snapshot_yields_its_code_text() {
 }
 
 #[test]
+fn project_code_snapshot_yields_only_the_source_text() {
+    let project_head = HEAD.replacen("type: code", "type: code-code", 1);
+    let text = version_text(Zeroizing::new(project_head));
+    assert_eq!(text.as_str(), "const recipes = [];\n");
+}
+
+#[test]
 fn json_source_file_is_not_mistaken_for_a_code_object() {
     let package = "{\"type\": \"module\", \"code\": \"x\"}";
     assert_eq!(

@@ -20,7 +20,7 @@ def mask_literals(source: str) -> str:
     # Preserve offsets and braces outside comments/strings. Lifetime annotations
     # are not character literals and must remain visible to the impl scanner.
     pattern = re.compile(
-        r'//[^\n]*|/\*[\s\S]*?\*/|(?:br|r)(?P<hash>\#*)"[\s\S]*?"(?P=hash)|b?"(?:\\.|[^"\\])*"|b?\'(?:\\.|[^\'\\\n])\''
+        r'//[^\n]*|/\*[\s\S]*?\*/|(?:br|r)(?P<hash>\#*)"[\s\S]*?"(?P=hash)|b?"(?:\\[\s\S]|[^"\\])*"|b?\'(?:\\.|[^\'\\\n])\''
     )
     return pattern.sub(lambda match: re.sub(r"[^\n]", " ", match.group()), source)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from backend.apps.ai.assistant_live_changes import live_collaboration_enabled
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -16,6 +17,8 @@ from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationError,
     ProjectWriteAuthorizationService,
 )
+from backend.core.api.app.services.live_items.relay import publish_project_editor_event
+from backend.core.api.app.utils.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +105,11 @@ async def handle_commit_embed_revision(
                 team_id=payload.get("team_id"),
                 consume_approval=True,
             )
+            live_edit = not payload.get("create") and live_collaboration_enabled(ConfigManager())
+            if live_edit:
+                await publish_project_editor_event(cache_service, user_id, "embed_assistant_editing", {
+                    "embed_id": embed_id, "scope": [], "mate_name": "Assistant",
+                })
             result = await transaction.commit(transaction_payload, user_id=user_id)
         except ProjectWriteAuthorizationError as exc:
             await _result(
@@ -126,6 +134,11 @@ async def handle_commit_embed_revision(
             **({"idempotent": True} if result.get("idempotent") else {}),
         )
         if result.get("status") == "committed":
+            if live_edit and not result.get("idempotent"):
+                await publish_project_editor_event(cache_service, user_id, "embed_assistant_project_commit", {
+                    "embed_id": embed_id, "project_id": payload["project_id"],
+                    "operation_id": operation_id, "current_revision": result["current_revision"],
+                })
             await manager.broadcast_to_user(
                 message={
                     "type": "embed_revision_committed",

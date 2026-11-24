@@ -1404,6 +1404,25 @@
       "specs": [
         "components/proof-audio-capture.spec.ts"
       ]
+    },
+    "live_collaboration_components": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the live document and code editors (two TipTap/CodeMirror mirrors joined in memory by a fake link) and the live header status with presence avatars. No backend, Rust core, account credentials, provider or AI inference; real-stack multi-user specs are separate.",
+      "specs": [
+        "components/docs-live-editor-pair.spec.ts",
+        "components/code-live-editor-pair.spec.ts",
+        "components/live-header-status.spec.ts",
+        "components/sheet-live-grid-pair.spec.ts",
+        "components/slides-live-pair.spec.ts"
+      ]
+    },
+    "live_collaboration_e2e": {
+      "execution": "e2e",
+      "enabling_work": "Two isolated provisioned accounts (a Team owner and a member) in the run's own isolated stack with the live_collaboration web flag set per browser context; own batch because every spec runs two browsers.",
+      "specs": [
+        "live-collab-two-users.spec.ts",
+        "live-collab-conflicts.spec.ts"
+      ]
     }
   },
   "holds": {

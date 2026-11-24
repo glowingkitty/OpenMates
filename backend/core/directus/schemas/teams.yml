@@ -66,6 +66,18 @@ teams:
       type: string
       default: active
       note: "Team status: active, archived, or deleted."
+    team_key_epoch:
+      type: integer
+      default: 1
+      note: "Current Team key epoch. Rises by exactly 1 per rotation; null on legacy rows means 1."
+    rotation_pending:
+      type: boolean
+      default: false
+      note: "True after a member removal until a remaining owner/admin client uploads the rotated Team key set."
+    encrypted_previous_team_keys:
+      type: text
+      nullable: true
+      note: "[Client-encrypted] Chain of earlier Team keys encrypted under the current Team key, so content wrapped at older epochs stays readable for current members."
     created_at:
       type: integer
     updated_at:
@@ -245,10 +257,10 @@ team_key_wrappers:
     team_key_epoch:
       type: integer
       default: 1
-      note: "Teams V1 always uses epoch 1 and does not auto-rotate team keys."
+      note: "Team key epoch this wrapper belongs to. Each member holds one wrapper at the current epoch; a removal deletes the removed member wrapper and sets teams.rotation_pending."
     encrypted_team_key:
       type: text
-      note: "Team key wrapped for the member. Never stores raw key material."
+      note: "Team key wrapped for the member (master-key wrapped at creation or join, or an OMTK1 X25519 sealed box after rotation). Never stores raw key material."
     status:
       type: string
       default: active

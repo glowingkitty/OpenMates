@@ -31,6 +31,7 @@ import { installSendPrepUnit } from '@openmates/ui/src/services/rustCore/send/se
 import { installSettingsUnit } from '@openmates/ui/src/services/rustCore/settings/settingsUnit';
 import { installComposerUnit } from '@openmates/ui/src/services/rustCore/composer/composerUnit';
 import { installDeckDocumentUnit } from '@openmates/ui/src/services/rustCore/deckDocument/deckDocumentUnit';
+import { installLiveItemUnit } from '@openmates/ui/src/services/rustCore/live/liveItemUnit';
 import { installProjectTimelineUnit } from '@openmates/ui/src/services/rustCore/projects/projectTimelineUnit';
 import { installProjectFileJobsUnit } from '@openmates/ui/src/services/rustCore/projects/projectFileJobsUnit';
 import { installPresentRemoteUnit } from '@openmates/ui/src/services/rustCore/presentRemote/presentRemoteUnit';
@@ -58,6 +59,7 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	settings: installSettingsUnit,
 	composer: installComposerUnit,
 	deckDocument: installDeckDocumentUnit,
+	live: installLiveItemUnit,
 	embedEdit: (context) => installEmbedEditUnit(context),
 	projectTimeline: (context) => installProjectTimelineUnit(context),
 	taskJobs: (context) => installTaskJobsUnit(context),

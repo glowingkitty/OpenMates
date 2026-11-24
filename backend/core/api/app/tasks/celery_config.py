@@ -223,6 +223,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.web_browse_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_compaction_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_rollout_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.project_sandbox_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
@@ -1897,6 +1898,12 @@ if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
         'schedule': timedelta(minutes=30),
         'options': {'queue': 'persistence', 'expires': 1500},
     }
+# Metadata-only: hides old unnamed session versions behind the last one of their day; no ciphertext is touched.
+app.conf.beat_schedule['compact-embed-session-versions'] = {
+    'task': 'storage.compact_embed_session_versions',
+    'schedule': timedelta(hours=6),
+    'options': {'queue': 'persistence', 'expires': 5400},
+}
 # Hosted Project sandboxes: kill those past their hard maximum or without a cache record.
 app.conf.beat_schedule['reap-project-sandboxes'] = {
     'task': 'project_sandbox.reap',

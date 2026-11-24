@@ -208,3 +208,83 @@ task_restore_failed:
   en: "The task could not be restored. Please try again."
   de: "Die Aufgabe konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
   verified_by_human: []
+live_status_saved:
+  context: Live editor header status when every change is saved
+  en: Saved
+  de: Gespeichert
+  verified_by_human: []
+live_status_saving:
+  context: Live editor header status while changes are being saved
+  en: Saving…
+  de: Wird gespeichert…
+  verified_by_human: []
+live_status_offline:
+  context: Live editor header status when the connection is lost; edits are kept and sent later
+  en: Waiting for connection
+  de: Warte auf Verbindung
+  verified_by_human: []
+live_status_read_only:
+  context: Live editor header status when the person may only view the item
+  en: View only
+  de: Nur Ansicht
+  verified_by_human: []
+live_status_access_revoked:
+  context: Live editor header status when the person's access to the item was removed
+  en: Access removed
+  de: Zugriff entfernt
+  verified_by_human: []
+live_peers_label:
+  context: Accessible name of the avatars of the other people currently in the item
+  en: People here now
+  de: Gerade anwesend
+  verified_by_human: []
+live_editing_here:
+  context: Badge or caret label next to an assistant (mate) that is editing a spot of a shared document, sheet, slide or code file; {name} is the assistant's name
+  en: "{name} is editing here"
+  de: "{name} bearbeitet hier"
+  verified_by_human: []
+live_suggestion_accept:
+  context: Button that accepts an assistant's suggested value for a sheet cell
+  en: Accept suggestion
+  de: Vorschlag annehmen
+  verified_by_human: []
+live_suggestion_dismiss:
+  context: Button that dismisses an assistant's suggested value for a sheet cell
+  en: Dismiss suggestion
+  de: Vorschlag verwerfen
+  verified_by_human: []
+live_sheet_label:
+  context: Accessible name of the shared spreadsheet grid
+  en: Shared spreadsheet
+  de: Gemeinsame Tabelle
+  verified_by_human: []
+live_sheet_insert_row:
+  context: Button that inserts an empty row below this row of the shared sheet
+  en: Insert row below
+  de: Zeile darunter einfügen
+  verified_by_human: []
+live_sheet_delete_row:
+  context: Button that deletes this row of the shared sheet
+  en: Delete row
+  de: Zeile löschen
+  verified_by_human: []
+live_sheet_insert_col:
+  context: Button that inserts an empty column to the right of this column of the shared sheet
+  en: Insert column to the right
+  de: Spalte rechts einfügen
+  verified_by_human: []
+live_sheet_delete_col:
+  context: Button that deletes this column of the shared sheet
+  en: Delete column
+  de: Spalte löschen
+  verified_by_human: []
+live_private_copy_ready:
+  context: Persistent notification when a shared editor loses access with unsent local changes
+  en: "Access was removed. You can download a private copy of your unsent edits."
+  de: "Dein Zugriff wurde entfernt. Du kannst eine private Kopie deiner ungesendeten Änderungen herunterladen."
+  verified_by_human: []
+live_private_copy_download:
+  context: Action on the lost-access notification that downloads the edit locally
+  en: Download private copy
+  de: Private Kopie herunterladen
+  verified_by_human: []

@@ -22,11 +22,20 @@ export type ServerCheckedSessionAdmission = () => Promise<void>;
 
 let admission: ServerCheckedSessionAdmission | null = null;
 const admittedListeners = new Set<() => void>();
+const registrationListeners = new Set<() => void>();
 
 /** Registers the single admission hook; returns an unregister bound to this registration. */
 export function registerServerCheckedSession(next: ServerCheckedSessionAdmission): () => void {
 	admission = next;
+	for (const listener of [...registrationListeners]) listener();
 	return () => { if (admission === next) admission = null; };
+}
+
+/** Notifies startup work when the page can request a server-checked session. */
+export function onServerCheckedSessionRegistration(listener: () => void): () => void {
+	registrationListeners.add(listener);
+	if (admission) listener();
+	return () => { registrationListeners.delete(listener); };
 }
 
 /**

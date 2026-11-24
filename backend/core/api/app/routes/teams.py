@@ -1086,24 +1086,24 @@ async def remove_team_member(
         departing_payer_id=member_user_id,
     )
     removed_at = int(body.removed_at if body and body.removed_at else time.time())
-    await directus_service.team.deactivate_member(removable, removed_at=removed_at)
+    try:
+        removed = await directus_service.team.remove_member(
+            team_id, current_user.id, member_user_id, removed_at=removed_at
+        )
+    except (TeamPermissionError, ValueError) as exc:
+        _handle_team_error(exc)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Member not found")
     await ProjectRemoteAccessService(request.app.state.cache_service).revoke_member(
         team_id=team_id,
         member_user_id=member_user_id,
     )
+    await request.app.state.live_items.revoke_team_member(team_id, member_user_id)
     await directus_service.project.mark_team_member_sources_offline(
         team_id,
         member_user_id,
         updated_at=int(time.time()),
     )
-    try:
-        await directus_service.team.revoke_member_key_wrappers(
-            team_id,
-            member_user_id,
-            revoked_at=removed_at,
-        )
-    except Exception as exc:  # noqa: BLE001 - converted by typed handler
-        _handle_team_error(exc)
     _queue_team_membership_email(member_user_id, team_id, "removed")
     return {"success": True}
 
@@ -1121,7 +1121,7 @@ async def update_team_member_role(
     encryption_service: Any = Depends(get_encryption_service),
     payment_service: Any = Depends(get_lifecycle_payment_service),
 ) -> dict[str, Any]:
-    del request, response
+    del response
     try:
         if body.role not in {"owner", "admin"}:
             await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin"})
@@ -1136,6 +1136,7 @@ async def update_team_member_role(
         _handle_team_error(exc)
     if not membership:
         raise HTTPException(status_code=404, detail="Member not found")
+    await request.app.state.live_items.change_team_member_role(team_id, member_user_id, body.role)
     _queue_team_membership_email(member_user_id, team_id, "role_changed")
     return {"membership": membership}
 
@@ -2261,3 +2262,10 @@ async def download_team_invoice(
     pdf = AESGCM(base64.b64decode(aes_key)).decrypt(base64.b64decode(invoice["aes_nonce"]), encrypted_pdf, b"")
     filename = f"team_invoice_{invoice_id}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "private, no-store"})
+
+
+# The rotation routes import this module's helpers, so they are attached after
+# every name above exists.
+from backend.core.api.app.routes.team_key_rotation import router as _team_key_rotation_router  # noqa: E402
+
+router.include_router(_team_key_rotation_router)

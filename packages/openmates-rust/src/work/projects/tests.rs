@@ -58,11 +58,14 @@ fn project_scope_and_settings_reject_wrong_wrappers_and_focus_binding() {
     let wrapped = crypto::encrypt_bytes(&[8; 32], &[9; 32]).unwrap();
     raw["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":hash(TEAM),"team_key_epoch":1,"encrypted_project_key":wrapped}]);
     assert_eq!(*project_key(&raw, &[9; 32], Some(TEAM)).unwrap(), [8; 32]);
-    raw["key_wrappers"][0]["team_key_epoch"] = json!(2);
+    raw["key_wrappers"][0]["team_key_epoch"] = json!(0);
     assert!(matches!(
         project_key(&raw, &[9; 32], Some(TEAM)),
         Err(Error::Forbidden)
     ));
+    // After a rotation the Project wrapper is re-wrapped at the new epoch.
+    raw["key_wrappers"][0]["team_key_epoch"] = json!(2);
+    assert_eq!(*project_key(&raw, &[9; 32], Some(TEAM)).unwrap(), [8; 32]);
     let settings = json!({"encrypted_settings":raw["encrypted_settings"],"default_focus_id_hash":hash("other")});
     assert!(matches!(
         decode_settings(&settings, &[8; 32]),

@@ -1,6 +1,6 @@
 //! The text of a Project code file inside its stored embed content (shared
 //! core, native and web Worker). A hosted file's head content is an object
-//! (`type: "code"`, `code` or legacy `content`, `filename`, `language`,
+//! (`type: "code"` or `"code-code"`, `code` or legacy `content`, `filename`, `language`,
 //! `version_number`, `status`, `line_count`) stored as TOON or JSON, while the
 //! hosted writer (`work::projects::hosted::job`) keeps only the text in the
 //! version history. A web edit stores the whole object as its history
@@ -61,15 +61,15 @@ pub(crate) fn line_count(content: &str) -> usize {
 
 /// The file text of one replayed version. A history row holds either the
 /// text itself (hosted writer) or the whole code object (web edit); only an
-/// object with `type: "code"` and a string text field counts as the latter,
-/// so a JSON source file such as package.json stays text.
+/// object with a stored code embed type and a string text field counts as
+/// the latter, so a JSON source file such as package.json stays text.
 pub(crate) fn version_text(replayed: Zeroizing<String>) -> Zeroizing<String> {
     let Some(fields) = decode_content_fields(&replayed) else {
         return replayed;
     };
-    let is_code = fields
-        .iter()
-        .any(|(key, value)| key == "type" && value.as_str() == Some("code"));
+    let is_code = fields.iter().any(|(key, value)| {
+        key == "type" && matches!(value.as_str(), Some("code" | "code-code" | "code_code"))
+    });
     let field = text_field(&fields);
     let text = fields
         .iter()

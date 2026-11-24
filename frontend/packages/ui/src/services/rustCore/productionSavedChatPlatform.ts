@@ -12,7 +12,7 @@ import type { PriorProfileLifecycle } from "./platformLifecycle";
 import type { ExistingSavedChatProfile, ExistingSavedChatSources } from "./secondDeviceSavedChatSession";
 import type { SavedChatSelection } from "./selectedSavedChat";
 
-interface BrowserContext {
+export interface BrowserContext {
   ownerId: string | null; authenticated: boolean; initialized: boolean; checking: boolean;
   deviceVerification: boolean; loggingOut: boolean; forcedLogout: boolean;
   loginGeneration: number; teamId: string | null; teamEpoch: number; workspaceEpoch: number;
@@ -38,11 +38,17 @@ export interface PreparedSavedChatPlatform {
   close(): void;
 }
 const contextFields = ["ownerId", "authenticated", "initialized", "checking", "deviceVerification", "loggingOut", "forcedLogout", "loginGeneration", "teamId", "teamEpoch", "workspaceEpoch"] as const;
-function allowed(context: BrowserContext, local: boolean): boolean {
+/** Whether the signed-in browser state may admit the core session. The session's
+ * principal is the user; a Team scope travels per call (`admitChat(chatId, teamId)`,
+ * Team Project reads) and `teamId`/`teamEpoch` stay in `contextFields`, so switching
+ * workspace invalidates the snapshot and the next request re-admits under the new scope.
+ * An active Team therefore does not block admission (Team live co-editing needs it). */
+export function admissionContextAllowed(context: BrowserContext, local: boolean): boolean {
   return typeof context.ownerId === "string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(context.ownerId)
     && context.authenticated && context.initialized && (local || !context.checking) && !context.deviceVerification
-    && !context.loggingOut && !context.forcedLogout && context.teamId === null;
+    && !context.loggingOut && !context.forcedLogout;
 }
+const allowed = admissionContextAllowed;
 function opaqueMaster(key: CryptoKey | null): key is CryptoKey {
   return !!key && typeof CryptoKey !== "undefined" && key instanceof CryptoKey && key.type === "secret"
     && key.algorithm.name === "AES-GCM" && (key.algorithm as AesKeyAlgorithm).length === 256

@@ -98,6 +98,10 @@ class FakeRedis:
     async def delete(self, key):
         self.deleted.append(key)
 
+    async def set(self, key, value, ex=None):
+        self.values = getattr(self, "values", {})
+        self.values[key] = value
+
 
 class FakeCache:
     def __init__(self):

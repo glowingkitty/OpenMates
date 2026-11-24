@@ -26,6 +26,8 @@ mod edit_keys;
 pub(crate) mod refusal;
 #[path = "embed_user_restore.rs"]
 pub(crate) mod restore;
+#[path = "team_revision_cipher.rs"]
+pub(crate) mod team_cipher;
 pub use client_io::{EmbedRevisionOutcome, EventDelivery, EventNotice};
 
 /// Highest version the server accepts (`MAX_VERSION` of the route).
@@ -333,6 +335,15 @@ pub struct UserRevisionRequest {
     /// chain (`work::projects::hosted::job`), so a revision of it records the
     /// texts there; `None` snapshots the head contents (every other embed).
     pub history_text: Option<(Zeroizing<String>, Zeroizing<String>)>,
+    /// Timeline kind of the version (`session`, `assistant`, `restore`,
+    /// `named` or `commit`); omitted from the wire when `None`.
+    pub version_kind: Option<String>,
+    /// User-given version name in plaintext; sealed with the embed key before
+    /// sending as `encrypted_version_name`. Only a `named` version carries one.
+    pub version_name: Option<Zeroizing<String>>,
+    /// Contributors of the version: objects with `user_hash` (SHA-256 hex) or
+    /// `mate_name`; omitted from the wire when `None`.
+    pub contributors: Option<Vec<Value>>,
 }
 
 impl UserRevisionRequest {
@@ -360,6 +371,9 @@ impl UserRevisionRequest {
             media_index: None,
             operation_id,
             history_text: None,
+            version_kind: None,
+            version_name: None,
+            contributors: None,
         }
     }
 
@@ -389,6 +403,9 @@ impl UserRevisionRequest {
             media_index,
             operation_id: None,
             history_text: None,
+            version_kind: None,
+            version_name: None,
+            contributors: None,
         }
     }
 }
@@ -571,12 +588,30 @@ pub fn prepare_user_revision(
     now_ms: i64,
     nonces: &mut impl NonceSource,
 ) -> RevisionResult<PreparedUserRevision> {
+    prepare_user_revision_with_cipher(request, embed_key, None, now_ms, nonces)
+}
+
+fn prepare_user_revision_with_cipher(
+    request: &UserRevisionRequest,
+    embed_key: &[u8; 32],
+    team_cipher: Option<&team_cipher::TeamRevisionCipher>,
+    now_ms: i64,
+    nonces: &mut impl NonceSource,
+) -> RevisionResult<PreparedUserRevision> {
     validate(request)?;
     let head = &request.head;
+    let next = head.version + 1;
+    if team_cipher.is_some() && request.history_text.is_some() {
+        return Err(validation("invalid_history_rows"));
+    }
+    let mut seal = |field, plaintext: &str| match team_cipher {
+        Some(cipher) => cipher.seal(next, field, plaintext, nonces),
+        None => encrypt_text(plaintext, embed_key, None, nonces),
+    };
     let now_seconds = now_ms.div_euclid(1000);
-    let head_ciphertext = encrypt_text(&request.content, embed_key, None, nonces)?;
+    let head_ciphertext = seal("content", &request.content)?;
     let preview_ciphertext = match &request.text_preview {
-        Some(preview) => Some(encrypt_text(preview, embed_key, None, nonces)?),
+        Some(preview) => Some(seal("preview", preview)?),
         None => None,
     };
     if head_ciphertext.len() > MAX_CIPHERTEXT_CHARS
@@ -591,7 +626,6 @@ pub fn prepare_user_revision(
         .operation_id
         .clone()
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    let next = head.version + 1;
     let (next_row, base_row) = match &request.history_text {
         Some((base_text, next_text)) => (
             snapshot_row(
@@ -637,6 +671,19 @@ pub fn prepare_user_revision(
     });
     if let Some(from) = request.restored_from {
         body["restored_from"] = json!(from);
+    }
+    if let Some(kind) = &request.version_kind {
+        body["version_kind"] = json!(kind);
+    }
+    if let Some(name) = &request.version_name {
+        let encrypted = match team_cipher {
+            Some(cipher) => cipher.seal(next, "name", name, nonces)?,
+            None => encrypt_text(name, embed_key, None, nonces)?,
+        };
+        body["encrypted_version_name"] = json!(encrypted);
+    }
+    if let Some(contributors) = &request.contributors {
+        body["contributors"] = json!(contributors);
     }
     match &request.files {
         Some(RevisionFiles::HeadFileKeys(keys)) => body["files"] = json!({"head_file_keys": keys}),
@@ -727,9 +774,15 @@ impl CommittedUserRevision {
     /// `Transport(Protocol)` when `row` is not an object.
     pub fn apply_to_cached_row(&self, row: &mut Value) -> RevisionResult<()> {
         let object = row.as_object_mut().ok_or(Error::Protocol)?;
+        let epoch_framed = team_cipher::ciphertext_epoch(&self.encrypted_content)?.is_some();
         object.insert("encrypted_content".into(), json!(self.encrypted_content));
         if let Some(preview) = &self.encrypted_text_preview {
             object.insert("encrypted_text_preview".into(), json!(preview));
+        } else if epoch_framed {
+            object.insert("encrypted_text_preview".into(), Value::Null);
+        }
+        if epoch_framed {
+            object.insert("encrypted_diff".into(), Value::Null);
         }
         object.insert("version_number".into(), json!(self.version));
         object.insert("content_hash".into(), json!(self.content_hash));

@@ -110,7 +110,8 @@ fn source_create_wire(input: &ProjectSourceCreate, key: &[u8; 32]) -> Result<Val
     // Creation preserves the backend's empty-capability legacy representation.
     source_capabilities(&input.capabilities, false)?;
     let name = crypto::server_fields::encrypt_text(&input.display_name, key, &[])?;
-    let metadata = crypto::server_fields::encrypt_text(&serde_json::to_string(&input.metadata)?, key, &[])?;
+    let metadata =
+        crypto::server_fields::encrypt_text(&serde_json::to_string(&input.metadata)?, key, &[])?;
     if name.len() > 128_000 || metadata.len() > 128_000 {
         return Err(Error::Invalid(
             "Project source ciphertext exceeds the server bound.",
@@ -295,7 +296,12 @@ impl Projects<'_> {
 impl Projects<'_> {
     /// Remove a source link (never files on its host). The legacy route
     /// requires the exact source ID again as `confirmation_source_id`.
-    pub async fn delete_source(&mut self, selector: &str, id: &str, confirmation: &str) -> Result<Value> {
+    pub async fn delete_source(
+        &mut self,
+        selector: &str,
+        id: &str,
+        confirmation: &str,
+    ) -> Result<Value> {
         self.source_cookie_only()?;
         let encoded_id = source_patch_segment(id)?;
         if confirmation != id {
@@ -337,15 +343,36 @@ mod field_interop_tests {
     fn actual_source_fields_read_in_web_legacy_decoders() {
         let key = [31; 32];
         let input = ProjectSourceCreate {
-            source_id: "fixture/source".into(), source_type: ProjectSourceType::LocalFolder,
-            display_name: "Private source Δ".into(), metadata: serde_json::from_value(json!({"root":"/synthetic/project"})).unwrap(),
-            capabilities: vec![ProjectSourceCapability::Read], status: ProjectSourceStatus::Connected,
-            created_at: 1, updated_at: 2, last_indexed_at: None,
+            source_id: "fixture/source".into(),
+            source_type: ProjectSourceType::LocalFolder,
+            display_name: "Private source Δ".into(),
+            metadata: serde_json::from_value(json!({"root":"/synthetic/project"})).unwrap(),
+            capabilities: vec![ProjectSourceCapability::Read],
+            status: ProjectSourceStatus::Connected,
+            created_at: 1,
+            updated_at: 2,
+            last_indexed_at: None,
         };
         let raw = source_create_wire(&input, &key).unwrap();
         let metadata = serde_json::to_string(&input.metadata).unwrap();
-        assert_web(vec![case("source.name", "object-text", raw["encrypted_display_name"].as_str().unwrap(), &key, input.display_name.as_bytes(), ""),
-            case("source.metadata", "object-text", raw["encrypted_metadata"].as_str().unwrap(), &key, metadata.as_bytes(), "")]);
+        assert_web(vec![
+            case(
+                "source.name",
+                "object-text",
+                raw["encrypted_display_name"].as_str().unwrap(),
+                &key,
+                input.display_name.as_bytes(),
+                "",
+            ),
+            case(
+                "source.metadata",
+                "object-text",
+                raw["encrypted_metadata"].as_str().unwrap(),
+                &key,
+                metadata.as_bytes(),
+                "",
+            ),
+        ]);
         assert_eq!(raw["source_id"], "fixture/source");
         assert_eq!(raw["capabilities"], json!(["read"]));
     }

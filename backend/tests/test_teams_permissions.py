@@ -22,7 +22,9 @@ async def _seed_team_with_role(role: str) -> tuple[FakeDirectus, TeamMethods]:
 
 
 @pytest.mark.anyio
-async def test_viewer_can_read_team_but_cannot_mutate_any_team_state() -> None:
+# contract-test: supporting surface=rest_api assertions=teams.membership.role-gated
+async def test_viewer_can_read_team_but_cannot_mutate_any_team_state(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-team-key-transaction")
     _directus, methods = await _seed_team_with_role("viewer")
 
     assert (await methods.get_team("team-1", "bob"))["role"] == "viewer"
@@ -39,7 +41,9 @@ async def test_viewer_can_read_team_but_cannot_mutate_any_team_state() -> None:
 
 
 @pytest.mark.anyio
-async def test_member_can_read_but_cannot_manage_team_or_membership() -> None:
+# contract-test: supporting surface=rest_api assertions=teams.membership.role-gated
+async def test_member_can_read_but_cannot_manage_team_or_membership(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-team-key-transaction")
     _directus, methods = await _seed_team_with_role("member")
 
     assert (await methods.get_team("team-1", "bob"))["role"] == "member"
@@ -52,6 +56,7 @@ async def test_member_can_read_but_cannot_manage_team_or_membership() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=teams.membership.role-gated
 async def test_admin_can_manage_members_but_cannot_delete_team() -> None:
     _directus, methods = await _seed_team_with_role("admin")
 
@@ -63,6 +68,7 @@ async def test_admin_can_manage_members_but_cannot_delete_team() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=teams.membership.role-gated
 async def test_non_member_cannot_read_team_or_satisfy_any_role() -> None:
     directus = FakeDirectus()
     methods = TeamMethods(directus)

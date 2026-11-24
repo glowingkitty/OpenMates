@@ -64,6 +64,7 @@ logging:
 feature_flags:
   new_dashboard_feature: true
   experimental_analytics: false
+  live_collaboration: false
 
 # Customer pricing (cost-plus). Every customer credit price is derived from the
 # supplier cost (USD per billed unit) as cost x (1 + margin_percent / 100), at

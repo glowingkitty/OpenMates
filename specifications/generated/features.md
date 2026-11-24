@@ -23,7 +23,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 31 |
 | TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 47 |
-| REST API | 5 | 2 | 34 | 16 | 29 | 15 | 0 | 2 | 0 | 27 |
+| REST API | 5 | 2 | 34 | 16 | 30 | 15 | 0 | 1 | 0 | 27 |
 | npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 57 |
 | PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 58 |
 
@@ -70,7 +70,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Issue Reporting](#issue-reporting) | **FAIL** 2/11 | partial 6/11 |  | impl | — | **FAIL** 2/11 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | [Learning Mode — Age-Tiered Teaching, Collaborative Building and Guest Use](#learning-mode) | not run 0/6 | impl |  | impl | — | not run 0/6 | impl | impl | on (no flag) | on (no flag) | v0.12.0-alpha |
 | [Lightweight Public Website and Scrollable Landing Page](#marketing-landing) | **FAIL** 1/16 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | v0.13.0-alpha |
-| [Live Collaboration on Documents, Sheets and Slides](#live-collaboration) | partial 1/8 | planned |  | — | — | planned | — | — | on (no flag) | on (no flag) | unverified |
+| [Live Collaboration on Documents, Sheets and Slides](#live-collaboration) | partial 2/16 | planned |  | — | — | not run 0/16 | — | — | on (no flag) | on (no flag) | unverified |
 | [Memories](#app-memories) | **FAIL** 19/33 | partial 10/33 |  | **FAIL** 2/33 | impl | **FAIL** 15/33 | partial 2/33 | partial 2/33 | on (no flag) | on (no flag) | v0.7.0-alpha |
 | [Message Highlights and Selection Toolbar](#message-highlights) | not run 0/1 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Message Input](#message-input) | **FAIL** 7/25 | **FAIL** 9/25 |  | not run 0/1 | impl | not run 0/2 | — | — | on (no flag) | on (no flag) | v0.5.0-alpha |
@@ -1933,18 +1933,19 @@ Lightweight public website: landing page, news, blog and legal pages, linking in
 
 Members of a Team or Project can edit the same document, sheet or deck at the same time.
 
-- Specifications: [feature.live-collaboration](../../specifications/features/live-collaboration/specification.yml) (draft) · 8 assertion(s)
+- Specifications: [feature.live-collaboration](../../specifications/features/live-collaboration/specification.yml) (draft) · 16 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unverified
+- Check intent: CLI: marked not_planned, but 16 required assertion(s) apply to cli
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 1/8 | 1 pass · 0 fail · 0 not run · 7 no test | 2 unit test file(s), e.g. [deckDocumentSharedUnit.test.ts](../../frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentSharedUnit.test.ts), [deckDocumentWire.test.ts](../../frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentWire.test.ts) |
+| Web | partial 2/16 | 2 pass · 0 fail · 8 not run · 6 no test | [code-live-editor-pair.spec.ts](../../frontend/apps/web_app/tests/components/code-live-editor-pair.spec.ts)<br>[docs-live-editor-pair.spec.ts](../../frontend/apps/web_app/tests/components/docs-live-editor-pair.spec.ts)<br>[live-header-status.spec.ts](../../frontend/apps/web_app/tests/components/live-header-status.spec.ts)<br>[notification-grouping.spec.ts](../../frontend/apps/web_app/tests/components/notification-grouping.spec.ts)<br>[sheet-live-grid-pair.spec.ts](../../frontend/apps/web_app/tests/components/sheet-live-grid-pair.spec.ts)<br>[slides-live-pair.spec.ts](../../frontend/apps/web_app/tests/components/slides-live-pair.spec.ts)<br>[live-collab-conflicts.spec.ts](../../frontend/apps/web_app/tests/live-collab-conflicts.spec.ts)<br>[live-collab-two-users.spec.ts](../../frontend/apps/web_app/tests/live-collab-two-users.spec.ts)<br>[real-inference-live-assistant-code.spec.ts](../../frontend/apps/web_app/tests/real-inference-live-assistant-code.spec.ts)<br>[real-inference-live-assistant-doc.spec.ts](../../frontend/apps/web_app/tests/real-inference-live-assistant-doc.spec.ts)<br>[real-inference-live-assistant-sheet.spec.ts](../../frontend/apps/web_app/tests/real-inference-live-assistant-sheet.spec.ts)<br>6 unit test file(s), e.g. [liveItemClient.test.ts](../../frontend/packages/ui/src/services/live/liveItemClient.test.ts), [liveHeaderStatus.test.ts](../../frontend/packages/ui/src/components/embeds/shared/__tests__/liveHeaderStatus.test.ts) |
 | Apple | planned | — | — |
-| CLI | — | — | — |
+| CLI | — | 0 pass · 0 fail · 0 not run · 16 no test | — |
 | TUI | — | — | — |
-| REST API | planned | 0 pass · 0 fail · 0 not run · 8 no test | — |
+| REST API | not run 0/16 | 0 pass · 0 fail · 10 not run · 6 no test | 8 unit test file(s), e.g. [test_live_items_relay.py](../../backend/tests/test_live_items_relay.py), [test_assistant_live_changes.py](../../backend/tests/test_assistant_live_changes.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 
@@ -2918,7 +2919,7 @@ Teams: shared contexts with members and roles, team credits, connected accounts 
 | Apple | tested 4/4 | 4 pass · 0 fail · 0 not run · 0 no test | [SettingsModesParityUITests.swift](../../apple/OpenMatesUITests/SettingsModesParityUITests.swift)<br>[SettingsTeamsParityUITests.swift](../../apple/OpenMatesUITests/SettingsTeamsParityUITests.swift)<br>7 unit test file(s), e.g. [SettingsTeamsServiceTests.swift](../../apple/OpenMatesTests/SettingsTeamsServiceTests.swift), [TeamWorkspaceContextTests.swift](../../apple/OpenMatesTests/TeamWorkspaceContextTests.swift) |
 | CLI | **FAIL** 1/21 | 1 pass · 1 fail · 13 not run · 6 no test | [cli-team-artifacts-parity.spec.ts](../../frontend/apps/web_app/tests/cli-team-artifacts-parity.spec.ts)<br>[cli-team-tasks-real.spec.ts](../../frontend/apps/web_app/tests/cli-team-tasks-real.spec.ts)<br>15 unit test file(s), e.g. [teams-permissions.test.ts](../../frontend/packages/openmates-cli/tests/teams-permissions.test.ts), [tuiWorkspaceInteraction.test.ts](../../frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts)<br>❌ [test_message_received_embed_bundle.py › test_bundle_gate_precedes_preflight_broadcast_cache_and_confirmation](../../backend/tests/test_message_received_embed_bundle.py › test_bundle_gate_precedes_preflight_broadcast_cache_and_confirmation) |
 | TUI | **FAIL** 0/8 | 0 pass · 3 fail · 5 not run · 0 no test | [cli-tui-team-collaboration.spec.ts](../../frontend/apps/web_app/tests/cli-tui-team-collaboration.spec.ts)<br>[cli-tui-team-direct-chat.spec.ts](../../frontend/apps/web_app/tests/cli-tui-team-direct-chat.spec.ts)<br>❌ [cli-tui-team-direct-chat.spec.ts › opens a CLI-created Team DM on web and reads a web-created Team DM in CLI and TUI](../../frontend/apps/web_app/tests/cli-tui-team-direct-chat.spec.ts › opens a CLI-created Team DM on web and reads a web-created Team DM in CLI and TUI) |
-| REST API | partial 9/21 | 9 pass · 0 fail · 9 not run · 3 no test | [storage-team-portability.spec.ts](../../frontend/apps/web_app/tests/storage-team-portability.spec.ts)<br>55 unit test file(s), e.g. [test_teams_routes.py](../../backend/tests/test_teams_routes.py), [test_teams_chat_ai.py](../../backend/tests/test_teams_chat_ai.py) |
+| REST API | partial 9/21 | 9 pass · 0 fail · 9 not run · 3 no test | [storage-team-portability.spec.ts](../../frontend/apps/web_app/tests/storage-team-portability.spec.ts)<br>56 unit test file(s), e.g. [test_teams_routes.py](../../backend/tests/test_teams_routes.py), [test_teams_chat_ai.py](../../backend/tests/test_teams_chat_ai.py) |
 | npm SDK | not run 0/21 | 0 pass · 0 fail · 9 not run · 12 no test | 6 unit test file(s), e.g. [sdk-teams.test.ts](../../frontend/packages/openmates-cli/tests/sdk-teams.test.ts), [directChatsSdk.test.ts](../../frontend/packages/openmates-cli/tests/directChatsSdk.test.ts) |
 | PyPI SDK | not run 0/21 | 0 pass · 0 fail · 8 not run · 13 no test | 3 unit test file(s), e.g. [test_teams.py](../../packages/openmates-python/tests/test_teams.py), [test_sdk_team_direct_chats.py](../../packages/openmates-python/tests/test_sdk_team_direct_chats.py) |
 

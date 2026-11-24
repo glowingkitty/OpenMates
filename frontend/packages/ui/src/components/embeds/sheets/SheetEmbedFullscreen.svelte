@@ -22,6 +22,10 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import SheetLiveGrid from './SheetLiveGrid.svelte';
+  import LiveHeaderStatus from '../shared/LiveHeaderStatus.svelte';
+  import { isLiveCollaborationEnabled } from '../../../config/liveCollaborationFlag';
+  import type { LivePeer, LiveStatus } from '../../../services/live/liveItemTypes';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { 
@@ -238,6 +242,11 @@
   }
 
   let finishingEdit = $state(false);
+  // Live collaboration (flag live_collaboration): the core saves every change, so there is no Save step.
+  const liveMode = isLiveCollaborationEnabled();
+  let liveStatus = $state<LiveStatus>('saving');
+  let livePeers = $state<LivePeer[]>([]);
+  let liveActive = $derived(liveMode && editMode && canEdit && !!embedId);
 
   /**
    * The header Edit button: turns edit mode on; while editing it is the check
@@ -245,6 +254,7 @@
    * is saved as its own version; persistEdit reports failures) and leaves edit mode.
    */
   async function toggleEditMode() {
+    if (liveMode) { editMode = !editMode; activeCell = null; return; }
     if (!editMode) { editMode = true; activeCell = null; return; }
     commitCellEdit();
     activeCell = null;
@@ -616,7 +626,7 @@
       
       <!-- Edit toggle lives in the shared top bar (round pen button before Share).
            The save status overlays the grid corner so it never shifts the table. -->
-      {#if canEdit}
+      {#if canEdit && !liveMode}
         {#if pendingSaves > 0}
           <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saving" role="status">{$text('common.save')}…</span>
         {:else}
@@ -655,7 +665,10 @@
 
       <!-- Spreadsheet area — natural height; the fullscreen content area scrolls it -->
       <div class="spreadsheet-wrapper" bind:this={tableContainerEl}>
-        {#if parsedTable.headers.length > 0}
+        {#if liveActive && embedId}
+          <LiveHeaderStatus status={liveStatus} peers={livePeers} />
+          <SheetLiveGrid itemId={embedId} {projectId} teamId={teamId ?? undefined} bind:status={liveStatus} bind:peers={livePeers} />
+        {:else if parsedTable.headers.length > 0}
           <table class="spreadsheet" bind:clientWidth={gridWidthPx}>
             <colgroup>
               <!-- Row-number gutter: fixed 40px -->

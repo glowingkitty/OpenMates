@@ -430,7 +430,8 @@ impl<'a> Workflows<'a> {
                 .wrapping(self.filters.team_id.as_deref())
                 .await?;
             let slug = crypto::normalize_object_slug(&slug)?;
-            payload["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, &key, &[])?);
+            payload["encrypted_slug"] =
+                json!(crypto::server_fields::encrypt_text(&slug, &key, &[])?);
             payload["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, &key)?);
         }
         if payload.as_object().is_none_or(|m| m.is_empty()) {
@@ -949,16 +950,49 @@ mod tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
     use super::*;
-    use crate::work::tasks::tests::client;
     use crate::work::task_crypto::field_interop_support::{assert_web, case};
+    use crate::work::tasks::tests::client;
     #[tokio::test]
     async fn actual_workflow_create_patch_slugs_read_in_web_legacy_decoders() {
         let mut client = client("http://127.0.0.1:1");
         let mut workflows = client.workflows();
-        let create = workflows.create_wire(WorkflowCreate { title: "Fixture".into(), slug: Some("private-slug".into()), ..Default::default() }).await.unwrap();
-        let patch = workflows.patch_wire(WorkflowPatch { slug: Some("updated-slug".into()), ..Default::default() }).await.unwrap();
-        assert_web(vec![case("workflow.create.slug","master-text",create["encrypted_slug"].as_str().unwrap(),&[7;32],b"private-slug",""),case("workflow.patch.slug","master-text",patch["encrypted_slug"].as_str().unwrap(),&[7;32],b"updated-slug","")]);
-        assert_eq!(create["slug_lookup_hash"], crypto::object_slug_lookup_hash("private-slug",&[7;32]).unwrap());
+        let create = workflows
+            .create_wire(WorkflowCreate {
+                title: "Fixture".into(),
+                slug: Some("private-slug".into()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let patch = workflows
+            .patch_wire(WorkflowPatch {
+                slug: Some("updated-slug".into()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_web(vec![
+            case(
+                "workflow.create.slug",
+                "master-text",
+                create["encrypted_slug"].as_str().unwrap(),
+                &[7; 32],
+                b"private-slug",
+                "",
+            ),
+            case(
+                "workflow.patch.slug",
+                "master-text",
+                patch["encrypted_slug"].as_str().unwrap(),
+                &[7; 32],
+                b"updated-slug",
+                "",
+            ),
+        ]);
+        assert_eq!(
+            create["slug_lookup_hash"],
+            crypto::object_slug_lookup_hash("private-slug", &[7; 32]).unwrap()
+        );
         assert!(create.get("slug").is_none() && patch.get("slug").is_none());
     }
 }

@@ -62,6 +62,7 @@ pub(super) fn decrypt(
     _master: &[u8; 32],
     wrapping: &[u8; 32],
     team: Option<&str>,
+    previous: &[(u64, Key)],
 ) -> Result<Resolved> {
     if raw["source"] == "workflow_run" {
         let id = string(&raw, "task_id")?;
@@ -79,13 +80,19 @@ pub(super) fn decrypt(
             key: zeroize::Zeroizing::new([0; 32]),
         });
     }
-    let encrypted = task_key_wrapper(&raw, team)?;
-    let key = key_bytes(&crypto::decrypt_bytes(encrypted, wrapping)?)?;
+    let (encrypted, epoch) = task_key_wrapper_with_epoch(&raw, team)?;
+    let key = key_bytes(&crate::work::open_team_wrapper(
+        encrypted, epoch, wrapping, previous,
+    )?)?;
     decode_with_key(raw, key)
 }
 
-/// Select the authorized wrapper before unwrapping with either master implementation.
+/// Select the authorized wrapper before unwrapping with the opaque master.
 pub(super) fn task_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result<&'a str> {
+    task_key_wrapper_with_epoch(raw, team).map(|(encrypted, _)| encrypted)
+}
+
+fn task_key_wrapper_with_epoch<'a>(raw: &'a Value, team: Option<&str>) -> Result<(&'a str, u64)> {
     let wrappers = raw["key_wrappers"].as_array();
     let candidates = wrappers
         .into_iter()
@@ -94,7 +101,7 @@ pub(super) fn task_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result
             if let Some(team) = team {
                 row["key_type"] == "team"
                     && row["hashed_team_id"] == hash(team)
-                    && row["team_key_epoch"] == 1
+                    && crate::work::team_epoch_ok(row)
             } else {
                 row["key_type"] == "master"
             }
@@ -131,9 +138,10 @@ pub(super) fn task_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result
         {
             return Err(Error::Forbidden);
         }
-        string(wrapper, "encrypted_task_key")
+        let epoch = wrapper["team_key_epoch"].as_u64().unwrap_or(1);
+        Ok((string(wrapper, "encrypted_task_key")?, epoch))
     } else if team.is_none() {
-        string(raw, "encrypted_task_key")
+        Ok((string(raw, "encrypted_task_key")?, 1))
     } else {
         Err(Error::Forbidden)
     }
@@ -512,7 +520,7 @@ mod field_interop_tests {
         let master=[7;32];
         let input=TaskCreate{title:"Synthetic Task ✓".into(),description:"Private task description".into(),..Default::default()};
         let created=encrypt_create(&input,&master,&master,None).unwrap();
-        let task=decrypt(created.clone(),&master,&master,None).unwrap();
+        let task=decrypt(created.clone(),&master,&master,None,&[]).unwrap();
         let mut rows=vec![case("task-key","master-binary",created["encrypted_task_key"].as_str().unwrap(),&master,task.key.as_ref(),""),case("task-title","object-text",created["encrypted_title"].as_str().unwrap(),&task.key,input.title.as_bytes(),""),case("task-description","object-text",created["encrypted_description"].as_str().unwrap(),&task.key,input.description.as_bytes(),"")];
         let patch=encrypt_patch(&task,&TaskPatch{title:Some("Updated Task 界".into()),description:Some("".into()),..Default::default()},&master,&master).unwrap();
         rows.push(case("task-patch-title","object-text",patch["encrypted_title"].as_str().unwrap(),&task.key,"Updated Task 界".as_bytes(),""));

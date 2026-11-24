@@ -48,9 +48,9 @@ summary:
       tested: 2
       partial: 34
       failing: 16
-      not_run: 29
+      not_run: 30
       implemented: 15
-      planned: 2
+      planned: 1
       not_planned: 27
     sdk_npm:
       partial: 3
@@ -6128,24 +6128,38 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 8
+  assertions: 16
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 1
+        passing: 2
         failing: 0
-        not_run: 0
-        missing: 7
-        counted: 8
+        not_run: 8
+        missing: 6
+        counted: 16
       key_tests: []
-      e2e_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/components/code-live-editor-pair.spec.ts
+      - frontend/apps/web_app/tests/components/docs-live-editor-pair.spec.ts
+      - frontend/apps/web_app/tests/components/live-header-status.spec.ts
+      - frontend/apps/web_app/tests/components/notification-grouping.spec.ts
+      - frontend/apps/web_app/tests/components/sheet-live-grid-pair.spec.ts
+      - frontend/apps/web_app/tests/components/slides-live-pair.spec.ts
+      - frontend/apps/web_app/tests/live-collab-conflicts.spec.ts
+      - frontend/apps/web_app/tests/live-collab-two-users.spec.ts
+      - frontend/apps/web_app/tests/real-inference-live-assistant-code.spec.ts
+      - frontend/apps/web_app/tests/real-inference-live-assistant-doc.spec.ts
+      - frontend/apps/web_app/tests/real-inference-live-assistant-sheet.spec.ts
       key_unit_tests:
+      - frontend/packages/ui/src/services/live/liveItemClient.test.ts
+      - frontend/packages/ui/src/components/embeds/shared/__tests__/liveHeaderStatus.test.ts
+      - frontend/packages/ui/src/services/live/liveMirror.test.ts
+      - frontend/packages/ui/src/services/rustCore/__tests__/admissionContextAllowed.test.ts
       - frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentSharedUnit.test.ts
-      - frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentWire.test.ts
-      unit_test_files: 2
+      unit_test_files: 6
     apple:
       status: planned
       source: intent
@@ -6172,8 +6186,9 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 0
-        counted: 0
+        missing: 16
+        counted: 16
+      conflict: marked not_planned, but 16 required assertion(s) apply to cli
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -6193,19 +6208,24 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: planned
-      source: intent
+      status: not_run
+      source: tests
       intent: planned
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
-        missing: 8
-        counted: 8
+        not_run: 10
+        missing: 6
+        counted: 16
       key_tests: []
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - backend/tests/test_live_items_relay.py
+      - backend/tests/test_assistant_live_changes.py
+      - backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
+      - backend/tests/test_live_items_access.py
+      - backend/tests/test_embed_version_timeline_metadata.py
+      unit_test_files: 8
     sdk_npm:
       status: not_planned
       source: intent
@@ -9985,7 +10005,7 @@ features:
       - backend/tests/test_teams_data_portability.py
       - scripts/tests/test_teams_privacy_audit.py
       - backend/tests/test_native_chats_api.py
-      unit_test_files: 55
+      unit_test_files: 56
     sdk_npm:
       status: not_run
       source: tests

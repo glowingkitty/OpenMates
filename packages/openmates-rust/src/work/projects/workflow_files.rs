@@ -127,7 +127,12 @@ fn mutation(binding: &Value, path: &str, content: &str) -> Result<PrivateJson> {
     Ok(value)
 }
 /// `projectFileMutationDigest`: keyed proposal commitment (shared with the hosted writer).
-pub(super) fn commitment(key: &[u8; 32], project: &str, chat: &str, mutation: &Value) -> Result<String> {
+pub(super) fn commitment(
+    key: &[u8; 32],
+    project: &str,
+    chat: &str,
+    mutation: &Value,
+) -> Result<String> {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     let mut tuple = PrivateJson(json!([

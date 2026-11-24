@@ -1,11 +1,10 @@
 //! Three-way merge with a head another device committed, and the scan for
 //! changes made directly on disk (by commands).
 use super::hosted::io::decode_head;
-use crate::path_rules::ignore_rules::{Matcher, candidate};
 use super::tree::ProjectTree;
 use super::*;
+use crate::path_rules::ignore_rules::{Matcher, candidate};
 use std::path::Path;
-use std::process::Command;
 
 /// Result of [`ProjectTree::merge_with_head`].
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -25,29 +24,10 @@ pub enum MergeOutcome {
     },
 }
 
-/// `git merge-file -p`: `Ok((text, conflicted))`.
+/// Pure three-way line merge (`projects::merge3`): `Ok((text, conflicted))`.
+#[allow(clippy::unnecessary_wraps)] // keeps the call sites' HostedResult shape
 fn merge3(ours: &str, base: &str, theirs: &str) -> HostedResult<(String, bool)> {
-    let dir = std::env::temp_dir().join(format!("omsh-merge-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir(&dir).map_err(|_| Error::Protocol)?;
-    let run = || -> std::io::Result<std::process::Output> {
-        for (name, text) in [("ours", ours), ("base", base), ("theirs", theirs)] {
-            std::fs::write(dir.join(name), text)?;
-        }
-        Command::new("git")
-            .current_dir(&dir)
-            .args(["merge-file", "-p", "-L", "local", "-L", "base", "-L", "other"])
-            .args(["ours", "base", "theirs"])
-            .output()
-    };
-    let output = run();
-    let _ = std::fs::remove_dir_all(&dir);
-    let output = output.map_err(|_| HostedFileError::Refused("merge_unavailable"))?;
-    let text = String::from_utf8(output.stdout).map_err(|_| Error::Crypto)?;
-    match output.status.code() {
-        Some(0) => Ok((text, false)),
-        Some(code) if (1..128).contains(&code) => Ok((text, true)),
-        _ => refused("merge_failed"),
-    }
+    Ok(crate::work::projects::merge3::merge3(ours, base, theirs))
 }
 
 impl ProjectTree {

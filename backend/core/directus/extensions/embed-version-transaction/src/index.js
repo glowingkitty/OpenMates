@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { readScopedEmbedPage } from './scoped-reads.js';
 import { adoptProjectEmbed, deleteProjectItem, renameProjectItem } from './project-items.js';
 import { commitUserEmbedRevision } from './user-revisions.js';
+import { applyTeamKeyRotation, removeTeamMember } from './team-key-rotation.js';
 import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy,
   pruneEmbedArchivePayload, publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, writeLegacyEmbedDiff, ProtocolError } from './operations.js';
@@ -88,6 +89,24 @@ export default {
         return res.status(500).json({ error: { code: 'user_revision_failed' } });
       }
     });
+    // Internal-only Team key lifecycle operations. Both lock the Team row first.
+    for (const [path, operation, errorCode] of [
+      ['/team-key-rotation', applyTeamKeyRotation, 'team_key_rotation_failed'],
+      ['/team-member-removal', removeTeamMember, 'team_member_removal_failed'],
+    ]) {
+      router.post(path, async (req, res) => {
+        if (!isAuthorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
+          return res.status(401).json({ error: { code: 'internal_auth_failed' } });
+        }
+        try {
+          return res.status(200).json({ data: await operation(database, req.body) });
+        } catch (error) {
+          if (error instanceof ProtocolError) return res.status(error.status).json({ error: { code: error.code } });
+          logger.error({ code: errorCode }, 'Team key lifecycle transaction failed');
+          return res.status(500).json({ error: { code: errorCode } });
+        }
+      });
+    }
     router.post('/snapshots', async (req, res) => {
       if (!isAuthorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
         return res.status(401).json({ error: { code: 'internal_auth_failed' } });

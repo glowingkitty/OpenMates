@@ -311,7 +311,7 @@ impl Tasks<'_> {
                 .filter(|r| {
                     r["key_type"] == "team"
                         && r["hashed_team_id"] == hash(team)
-                        && r["team_key_epoch"] == 1
+                        && crate::work::team_epoch_ok(r)
                 })
                 .collect::<Vec<_>>();
             if candidates.len() != 1 {
@@ -324,7 +324,7 @@ impl Tasks<'_> {
             if verified.as_slice() != task.key.as_ref() {
                 return Err(Error::Crypto);
             }
-            wrappers.push(json!({"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":1,"encrypted_task_key":string(candidates[0],"encrypted_task_key")?,"created_at":now()}));
+            wrappers.push(json!({"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":candidates[0]["team_key_epoch"].as_u64().unwrap_or(1),"encrypted_task_key":string(candidates[0],"encrypted_task_key")?,"created_at":now()}));
         } else {
             wrappers.push(json!({"key_type":"master","encrypted_task_key":self.backend.wrap_with_master(task.key.as_ref()).await?,"created_at":now()}));
         }
@@ -494,29 +494,56 @@ mod tests {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
     use super::*;
-    use crate::work::tasks::tests::{client, mock};
     use crate::work::task_crypto::field_interop_support::{assert_web, case};
+    use crate::work::tasks::tests::{client, mock};
     #[tokio::test]
     async fn actual_job_create_and_move_wrappers_read_in_web_legacy_decoders() {
         const TASK: &str = "11111111-1111-4111-8111-111111111111";
         const CHAT: &str = "22222222-2222-4222-8222-222222222222";
         let mut fresh_client = client("http://127.0.0.1:1");
         let create = json!({"task_id":TASK,"operation":"create","expected_task_version":0,"private_patch":{"title":"Job title"},"safe_metadata":{"primary_chat_id":CHAT}});
-        let (created, key, _) = fresh_client.tasks().encrypt_update_job(&create, CHAT, &[8;32]).await.unwrap();
+        let (created, key, _) = fresh_client
+            .tasks()
+            .encrypt_update_job(&create, CHAT, &[8; 32])
+            .await
+            .unwrap();
         let row = json!({"task_id":TASK,"version":3,"encrypted_task_key":crypto::encrypt_bytes(&key[..],&[7;32]).unwrap(),"encrypted_title":crypto::encrypt_combined("Old title",&key).unwrap(),"encrypted_description":crypto::encrypt_combined("",&key).unwrap(),"encrypted_linked_project_ids":crypto::encrypt_combined("[]",&key).unwrap(),"primary_chat_id":CHAT,"priority":0,"status":"todo"});
-        let wrappers = json!([{"key_type":"master","encrypted_task_key":row["encrypted_task_key"]}]);
-        let (api, server) = mock(vec![json!({"task":row}),json!({"key_wrappers":wrappers})]).await;
+        let wrappers =
+            json!([{"key_type":"master","encrypted_task_key":row["encrypted_task_key"]}]);
+        let (api, server) = mock(vec![json!({"task":row}), json!({"key_wrappers":wrappers})]).await;
         let claim = json!({"task_id":TASK,"operation":"move","expected_task_version":3,"private_patch":{"blocked_reason":"Private blocker"},"safe_metadata":{"primary_chat_id":CHAT}});
-        let (moved, moved_key, _) = client(&api).tasks().encrypt_update_job(&claim,CHAT,&[8;32]).await.unwrap();
-        assert_eq!(*key,*moved_key);
-        let mut cases = vec![case("job.blocked_reason","object-text",moved["encrypted_blocked_reason"].as_str().unwrap(),&key,b"Private blocker","")];
-        for (label, payload) in [("create",created),("move",moved)] {
+        let (moved, moved_key, _) = client(&api)
+            .tasks()
+            .encrypt_update_job(&claim, CHAT, &[8; 32])
+            .await
+            .unwrap();
+        assert_eq!(*key, *moved_key);
+        let mut cases = vec![case(
+            "job.blocked_reason",
+            "object-text",
+            moved["encrypted_blocked_reason"].as_str().unwrap(),
+            &key,
+            b"Private blocker",
+            "",
+        )];
+        for (label, payload) in [("create", created), ("move", moved)] {
             for wrapper in payload["key_wrappers"].as_array().unwrap() {
-                let (kind, wrapping) = if wrapper["key_type"] == "master" { ("master-binary", [7;32]) } else { ("object-binary", [8;32]) };
-                cases.push(case(label,kind,wrapper["encrypted_task_key"].as_str().unwrap(),&wrapping,&key[..],""));
+                let (kind, wrapping) = if wrapper["key_type"] == "master" {
+                    ("master-binary", [7; 32])
+                } else {
+                    ("object-binary", [8; 32])
+                };
+                cases.push(case(
+                    label,
+                    kind,
+                    wrapper["encrypted_task_key"].as_str().unwrap(),
+                    &wrapping,
+                    &key[..],
+                    "",
+                ));
             }
         }
         assert_web(cases);
-        assert!(server.await.unwrap().iter().all(|r|r.starts_with("GET ")));
+        assert!(server.await.unwrap().iter().all(|r| r.starts_with("GET ")));
     }
 }

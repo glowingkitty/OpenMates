@@ -1114,7 +1114,7 @@ fn selected_wrapper_requires_supported_team_epoch_version_and_live_expiry() {
     let supported = json!({"team_key_epoch":1,"wrapper_version":1,"expires_at":11});
     assert!(validate_recovery_wrapper(&supported, true, now).is_ok());
     for (field, value) in [
-        ("team_key_epoch", json!(2)),
+        ("team_key_epoch", json!(0)),
         ("team_key_epoch", Value::Null),
         ("wrapper_version", json!(2)),
         ("wrapper_version", Value::Null),
@@ -1151,7 +1151,7 @@ fn selected_wrapper_requires_supported_team_epoch_version_and_live_expiry() {
 #[tokio::test]
 async fn unsupported_or_expired_team_wrapper_defers_before_key_fetch_or_claim() {
     bounded(async {
-        for (field,value) in [("team_key_epoch",json!(2)),("wrapper_version",json!(2)),("expires_at",json!(1))] {
+        for (field,value) in [("team_key_epoch",json!(0)),("wrapper_version",json!(2)),("expires_at",json!(1))] {
             let peer = Peer::new().await;
             let team = "99999999-9999-4999-8999-999999999999";
             let mut wrapper = json!({"hashed_chat_id":sha256(CHAT),"key_type":"team","hashed_team_id":sha256(team),"team_key_epoch":1,"wrapper_version":1,"encrypted_chat_key":"must-not-decrypt"});

@@ -325,7 +325,12 @@ fn wrapper(value: &Value) -> Result<()> {
     {
         return Err(Error::Protocol);
     }
-    if kind == "team" && value.get("team_key_epoch").and_then(Value::as_u64) != Some(1) {
+    if kind == "team"
+        && value
+            .get("team_key_epoch")
+            .and_then(Value::as_u64)
+            .is_none_or(|e| e < 1)
+    {
         return Err(Error::Protocol);
     }
     Ok(())

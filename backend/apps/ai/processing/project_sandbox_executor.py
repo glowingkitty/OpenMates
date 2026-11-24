@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 from fastapi import HTTPException
 
-from backend.core.api.app.services import e2b_upload_consent
+from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_project
 from backend.core.api.app.services.project_sandbox_service import (
     ProjectSandboxService,
     ProjectSandboxUnavailable,
@@ -33,17 +33,11 @@ async def run_project_tool_in_sandbox(
     head_loader: Any = None,
 ) -> Optional[dict]:
     """Return the model-facing tool result, or None when the device path must handle the operation."""
-    if dispatch_focus.get("source_id"):
-        return None  # connected-machine sources stay on their own executor
     if operation not in SANDBOX_OPERATIONS:
         return None
     user_id, chat_id = request_data.user_id, request_data.chat_id
-    try:
-        consent = await e2b_upload_consent.get_decision(user_id, directus_service)
-    except HTTPException as exc:
-        logger.warning("%s Sandbox skipped: consent unavailable (status %s)", log_prefix, exc.status_code)
-        return None
-    if consent.get("decision") != "allowed":
+    if not await sandbox_applies_to_project(user_id=user_id, focus=dispatch_focus,
+                                            directus_service=directus_service, log_prefix=log_prefix):
         return None
     project_id = str(dispatch_focus["project_id"])
     team_id = dispatch_focus.get("team_id")

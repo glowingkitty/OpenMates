@@ -2,115 +2,210 @@ schema_version: 1
 id: feature.live-collaboration
 version: 1
 status: draft
-title: Live Collaboration on Documents, Sheets and Slides
+title: Live Collaboration on Documents, Sheets, Slides and Code Files
 summary: >
-  Members of a Team or Project can edit the same document, sheet or deck at the
-  same time. Everyone sees the others' changes and positions within about a
-  second, concurrent edits are merged without losing anyone's work, and the
-  server only ever handles encrypted changes.
+  Documents, sheets, slide decks and code files in hosted Projects can be edited
+  live: the assistant's edits appear while it writes, the same account can edit
+  on several devices, and Team and Project members edit together with presence.
+  Edits are merged without losing anyone's work, a person's newer change always
+  wins over the assistant, every change is saved automatically into a readable
+  version timeline, and the server stores and relays only encrypted changes.
 
 related_contracts:
   - specification: feature.teams@4
-    relationship: Membership, roles and Team keys decide who may edit; this contract adds simultaneous editing of one item.
+    relationship: Membership, roles and Team keys decide who may edit; this contract adds simultaneous editing of one item and Team key rotation when a member is removed.
   - specification: feature.projects@2
-    relationship: Project membership and write permission decide who may edit items in a Project.
+    relationship: Project membership, Project files, versions and native commits; commits point at the versions this contract creates.
   - specification: feature.doc-editor@1
-    relationship: The document editor is one of the three editors that work live.
+    relationship: The document editor is one of the editors that work live.
   - specification: feature.slides@1
-    relationship: The slides editor is one of the three editors that work live.
+    relationship: The slides editor is one of the editors that work live.
+  - specification: feature.embed-user-edits@1
+    relationship: The single version history per item is kept; with live editing, saving becomes automatic and versions are checkpoints.
   - specification: feature.chats@7
-    relationship: The version timeline and assistant edits of embeds are kept; versions become named snapshots of the shared item.
+    relationship: The version timeline and assistant edits of embeds are kept; assistant edits arrive as live changes.
 
 scope:
   includes:
-    - Simultaneous editing of documents, sheets and decks by Team and Project members with write access.
-    - Showing who else is in the item and where they are working.
+    - Live assistant edits that appear in an open document, sheet, deck or code file while the assistant writes.
+    - Editing at the same time as the assistant without conflicts.
+    - The same account editing one item on several devices.
+    - Simultaneous editing by Team and Project members with view, comment and edit roles, presence and attribution in the version history.
+    - A new key for future changes after a member is removed from a Team or Project.
+    - A version timeline grouped per editing session, with contributors, named versions, one entry per assistant edit and restores that never delete.
     - Merging edits made offline when the device reconnects.
-    - Assistant edits arriving as one change for everyone.
   excludes:
-    - Editing through share links, which stay view-only.
-    - Comments, suggestions and tracked changes.
-    - Live collaboration on other embed types such as code, diagrams and mind maps.
-    - Apple editing, which follows in a later contract version.
+    - Files in a Git repository on a connected machine; they are edited on that machine and are not shared live.
+    - Tracked changes and suggestion mode.
+    - Live collaboration on other embed types such as diagrams, mind maps and whiteboards.
+    - Apple editors, which follow in a later contract version; Apple keeps viewing.
+    - Editing or commenting through share links, anonymous guests and comments; they follow in a later contract version, and share links stay view-only.
 
 assertions:
+  - id: live-collab.assistant.live-edits
+    type: behavior
+    must: >
+      While the assistant edits a document, sheet, deck or code file that a
+      user has open, its changes appear in place piece by piece as the
+      assistant writes them, without reloading and without a separate diff
+      card. A user who keeps typing elsewhere in the same item keeps their
+      text. When the turn ends, the whole assistant edit is one undo step for
+      the user who asked and one version in the timeline.
+    depends_on: [examples.assistant_live]
+  - id: live-collab.assistant.one-change-for-everyone
+    type: behavior
+    must: >
+      An assistant edit to an item that several people have open appears for
+      all of them, keeps edits they made in the meantime, and never replaces
+      a newer version made by a person. If the requesting device goes offline
+      during the turn, the edit is applied as soon as one of that user's
+      devices is online again.
+    depends_on: [examples.assistant]
+  - id: live-collab.devices.same-account
+    type: behavior
+    must: >
+      When the same account has one item open on two devices, a change on one
+      device appears on the other within about a second, and both end with
+      identical content.
+    depends_on: [examples.devices]
+  - id: live-collab.saving.automatic
+    type: behavior
+    must: >
+      Every change is saved automatically within a few seconds; there is no
+      Save step and no "newer version" conflict that discards typed text. The
+      Edit button still enters and leaves edit mode. The item shows when
+      changes are saved and when they are waiting for a connection.
+    depends_on: [examples.saving]
   - id: live-collab.sync.concurrent-convergence
     type: behavior
     must: >
-      When two or more members edit the same document, sheet or deck, each
-      sees the others' changes within about a second without reloading, and
-      all end with identical content. Edits at different places are all kept.
-      When two members change the very same sheet cell or the same property of
-      the same slide element at once, one value wins for everyone and the
-      other member sees it replace theirs.
+      When two or more people edit the same document, sheet, deck or code
+      file, each sees the others' changes within about a second without
+      reloading, and all end with identical content. Edits at different
+      places are all kept. When two people change the very same sheet cell or
+      the same property of the same slide element at once, one value wins for
+      everyone and the other person sees it replace theirs.
     depends_on: [examples.sync]
   - id: live-collab.presence.who-and-where
     type: behavior
     must: >
-      Each member in an item sees the names of the others with a colour per
-      person, and where they are: the text cursor and selection in a document,
-      the selected cell in a sheet, the selected slide and element in a deck.
-      Presence disappears when a member leaves and is never stored.
+      Each person in an item sees the names of the others with a colour per
+      person, and where they are: the text cursor and selection in a document
+      or code file, the selected cell in a sheet, the selected slide and
+      element in a deck. While the assistant edits, the others see "<mate> is
+      editing here" at the part it changes. Presence disappears
+      when a person leaves and is never stored.
     depends_on: [examples.presence]
   - id: live-collab.privacy.ciphertext-only
     type: privacy
     must: >
-      Every change and every presence update is encrypted on the member's
-      device with a key the server does not have. The server relays and stores
-      only ciphertext and cannot read or alter the content of an item.
+      Every change and every presence update is encrypted on the person's
+      device with a key the server does not have. The server relays and
+      stores only ciphertext and cannot read or alter the content of an item.
+      The content is processed in readable form only for an assistant request
+      on that item, as for any other assistant request.
     depends_on: [examples.privacy]
-  - id: live-collab.access.members-with-write-access
+  - id: live-collab.access.roles
     type: security
     must: >
-      Only members who may edit the item's Team or Project can send changes.
-      People viewing through a share link, and members with read-only access,
-      receive the item but every change from them is refused. A member who is
-      removed stops receiving changes at once and can no longer send any.
+      Each person has one role on an item: view, comment or edit. Team and
+      Project members get the role their membership allows. Only people with
+      the edit role can send changes; changes from anyone else are refused
+      and the item stays unchanged for everyone. A person who is removed
+      stops receiving changes at once and can no longer send any.
     depends_on: [examples.access]
+  - id: live-collab.keys.rotation-on-removal
+    type: security
+    must: >
+      After a member is removed from a Team or Project, every later change to the affected items is encrypted with a
+      new key that the removed person never receives. Content the
+      person could already see before the removal is not taken back from
+      their devices, and the app says so when confirming the removal.
+    depends_on: [examples.keys]
   - id: live-collab.offline.merge-on-reconnect
     type: behavior
     must: >
       Edits made while a device is offline are kept on the device and merged
-      with the others' changes when it reconnects, following the same rules as
-      simultaneous edits. Nothing is silently discarded; the member sees the
-      merged result.
+      with the others' changes when it reconnects, following the same rules
+      as simultaneous edits. Nothing is silently discarded; the person sees
+      that their offline changes were merged. If the person lost edit access
+      while offline, their changes are not sent and they are offered a
+      private copy.
     depends_on: [examples.offline]
-  - id: live-collab.assistant.one-change-for-everyone
-    type: behavior
-    must: >
-      An assistant edit to an item that several members have open appears for
-      all of them as one change, keeps edits members made in the meantime, is
-      one step in the requesting member's undo history, and is one version in
-      the timeline.
-    depends_on: [examples.assistant]
   - id: live-collab.versions.named-snapshots
     type: behavior
     must: >
-      The version timeline of a shared item lists snapshots with time and the
-      members who contributed. Restoring a snapshot changes the item for all
-      members at once and is itself added as a new version.
+      The version timeline never shows single keystrokes. Changes are grouped
+      into one version per editing session, which ends after a few minutes
+      without changes, and each version shows its time and everyone who
+      contributed. A person can name a version. Each assistant edit is its own
+      version. Restoring a version changes the item for everyone at once and is
+      added as a new version; no version is deleted by a restore. After about
+      30 days, small unnamed session versions are merged into fewer versions,
+      while named versions, assistant edits, restores and Project commits stay.
+      A Project commit points at the versions of its files. The existing
+      timeline and previews of the item keep working.
     depends_on: [examples.versions]
+  - id: live-collab.code.hosted-project-files
+    type: behavior
+    must: >
+      Code files stored in a hosted Project are edited live like the other
+      types, with line-aware assistant edits. Files of a Git repository on a
+      connected machine are not edited live; they open read-only with a note
+      that they are edited on that machine.
+    depends_on: [examples.code]
+  - id: live-collab.assistant.human-wins
+    type: behavior
+    must: >
+      The assistant never overwrites a change a person made after the assistant
+      read the item. The assistant works from the state it read and its edit is
+      merged into the current content. If a person changed the same spot, the
+      assistant reads again and writes its edit once more; if that spot changes
+      again, the edit is shown as a suggestion card that a person can apply or
+      dismiss. If the part it edits was deleted, the edit is dropped and the
+      assistant says so in the chat. If much else changed, the assistant
+      re-checks its edit or asks in the chat. In a sheet each cell is decided on
+      its own: a cell a person changed becomes a suggestion and the other cells
+      are applied, and a formula that refers to a deleted row or column shows
+      an error. Two assistants editing one item take turns.
+    depends_on: [examples.assistant_conflicts]
+  - id: live-collab.assistant.project-code-merge
+    type: behavior
+    must: >
+      When the assistant changes code files of a hosted Project in its
+      sandbox, its changes are merged into the live files when they are written
+      back. Lines a person changed in the meantime are never overwritten; there
+      the assistant's change becomes a proposal. The Project's tests run again
+      after the merge.
+    depends_on: [examples.code]
+  - id: live-collab.share.view-only
+    type: security
+    must: >
+      Share links stay view-only. A visitor through a share link sees the item
+      but cannot send changes and does not join live editing.
+    depends_on: [examples.share_view_only]
   - id: live-collab.core.one-shared-model
     type: invariant
     must: >
       The shared client core holds the authoritative copy of every open
-      document, sheet and deck and owns everything that decides its content:
-      the item's structure, merging, applying assistant edits, undo history,
-      versions, saving, encryption and sync. The sheet and slides editors change
-      an item only by sending the core named operations such as "set cell" or
-      "move element" and draw what the core reports back; a drag is previewed
-      locally and committed when it ends. Only for typing rich text (the
-      document editor and text boxes on slides) may the web app keep a mirror
-      of the item next to the editor; the mirror exchanges opaque change bytes
-      with the core and contains no OpenMates rules, so nothing in it decides a
-      conflict, a permission or what is saved. Clients that call the core
-      directly, such as the Apple apps, use no mirror, and no editing rule is
-      written a second time for them.
+      document, sheet, deck and code file and owns everything that decides
+      its content: the item's structure, merging, applying assistant edits,
+      undo history, versions, saving, encryption, keys, permissions checks on
+      the client and sync. The sheet and slides editors change an item only
+      by sending the core named operations such as "set cell" or "move
+      element" and draw what the core reports back; a drag is previewed
+      locally and committed when it ends. Only for typing text (the document
+      editor, text boxes on slides and the code editor) may the web app keep
+      a mirror of the item next to the editor; the mirror exchanges opaque
+      change bytes with the core and contains no OpenMates rules, so nothing
+      in it decides a conflict, a permission or what is saved. Clients that
+      call the core directly, such as the CLI and the Apple apps, use no
+      mirror, and no editing rule is written a second time for them.
     depends_on: [examples.core]
 
 applies_to:
-  rest_api: {required: true, role: Relay and storage of encrypted changes and relay of encrypted presence over the existing WebSocket sync.}
-  cli: {required: false, parity: semantic}
+  rest_api: {required: true, role: Relay and storage of encrypted changes and relay of encrypted presence over the existing WebSocket sync, with access from Team and Project membership.}
+  cli: {required: true, parity: semantic}
   sdks:
     required: true
     implementations:
@@ -125,4 +220,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [sync, presence, privacy, access, offline, assistant, versions, core]
+  required_groups: [assistant_live, assistant, assistant_conflicts, devices, saving, sync, presence, privacy, access, keys, offline, versions, code, share_view_only, core]

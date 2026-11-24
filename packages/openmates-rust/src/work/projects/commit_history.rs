@@ -34,6 +34,17 @@ pub(crate) fn replay_rows(
     embed_key: &[u8; 32],
     version: u64,
 ) -> std::result::Result<Zeroizing<String>, ReplayError> {
+    replay_rows_with(rows, version, |_, _, ciphertext| {
+        crypto::server_fields::decrypt_text(ciphertext, embed_key, &[]).map(Zeroizing::new)
+    })
+}
+
+/// Rebuild a version with a field opener that can resolve mixed encryption epochs.
+pub(crate) fn replay_rows_with(
+    rows: &[Value],
+    version: u64,
+    mut open: impl FnMut(u64, &str, &str) -> Result<Zeroizing<String>>,
+) -> std::result::Result<Zeroizing<String>, ReplayError> {
     let mut content: Option<Zeroizing<String>> = None;
     let mut expected = None;
     for row in rows {
@@ -50,18 +61,10 @@ pub(crate) fn replay_rows(
                 row["encrypted_snapshot"].as_str().filter(|s| !s.is_empty()),
                 &content,
             ) {
-                (Some(snapshot), _) => Zeroizing::new(crypto::server_fields::decrypt_text(
-                    snapshot,
-                    embed_key,
-                    &[],
-                )?),
+                (Some(snapshot), _) => open(number, "content", snapshot)?,
                 (None, Some(previous)) => {
                     let cipher = row["encrypted_patch"].as_str().ok_or(Error::Protocol)?;
-                    let patch = Zeroizing::new(crypto::server_fields::decrypt_text(
-                        cipher,
-                        embed_key,
-                        &[],
-                    )?);
+                    let patch = open(number, "patch", cipher)?;
                     Zeroizing::new(
                         crate::embed_read::patch::apply_version_patch(previous, &patch)
                             .map_err(|_| ReplayError::InvalidPatch)?,
@@ -123,6 +126,36 @@ pub(crate) fn project_wrapped_embed_key(
 }
 
 impl Projects<'_> {
+    /// The fresh encrypted head of a file of Project `project_id`
+    /// (`GET /v1/embeds/{id}/encrypted`, with this view's Team filter). The route admits
+    /// every member of the Project, not only the embed's author.
+    ///
+    /// # Errors
+    /// `Invalid` for a malformed id, `Forbidden` for an answer about another embed,
+    /// transport errors.
+    pub(crate) async fn project_embed_head(
+        &mut self,
+        project_id: &str,
+        embed_id: &str,
+    ) -> Result<Value> {
+        uuid(embed_id)?;
+        let route = self.path(
+            &format!("/v1/embeds/{embed_id}/encrypted"),
+            &[("project_id".into(), project_id.into())],
+        );
+        let response = self
+            .backend
+            .request(Method::GET, &route, None, None)
+            .await?;
+        if response["embed"]["embed_id"]
+            .as_str()
+            .is_some_and(|id| id != embed_id)
+        {
+            return Err(Error::Forbidden);
+        }
+        Ok(response)
+    }
+
     /// Embed key of a file of Project `project_id` through its Project
     /// wrapper (see [`project_wrapped_embed_key`]). Works in the web Worker:
     /// the Project key is unwrapped through the master binding, and no chat
@@ -135,16 +168,8 @@ impl Projects<'_> {
         project_id: &str,
         embed_id: &str,
     ) -> Result<Option<Key>> {
-        uuid(embed_id)?;
         let project = self.resolve(project_id).await?;
-        let route = self.path(
-            &format!("/v1/embeds/{embed_id}/encrypted"),
-            &[("project_id".into(), project_id.into())],
-        );
-        let response = self
-            .backend
-            .request(Method::GET, &route, None, None)
-            .await?;
+        let response = self.project_embed_head(project_id, embed_id).await?;
         project_wrapped_embed_key(&response, embed_id, project_id, &project.key)
     }
 

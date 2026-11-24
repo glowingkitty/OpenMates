@@ -432,3 +432,25 @@ units:
     rust_paths:
     - packages/openmates-rust/src/client/shared_items/deck_handles.rs
     - packages/openmates-browser-bindings/src/browser_deck_document.rs
+  live:
+    specs:
+    - live-collab-two-users.spec.ts
+    - live-collab-conflicts.spec.ts
+    - real-inference-live-assistant-doc.spec.ts
+    - real-inference-live-assistant-sheet.spec.ts
+    - real-inference-live-assistant-code.spec.ts
+    - components/slides-live-pair.spec.ts
+    vectors: []
+    open_gaps:
+    - Slides assistant undo has component and Rust coverage. A real-inference Slides assistant edit is still unverified.
+    spec_assertions:
+    - live-collab.core.one-shared-model
+    - live-collab.sync.concurrent-convergence
+    - live-collab.presence.who-and-where
+    - live-collab.privacy.ciphertext-only
+    - live-collab.assistant.one-change-for-everyone
+    - live-collab.offline.merge-on-reconnect
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-rust/src/client/live/*.rs
+    - packages/openmates-browser-bindings/src/browser_live_item.rs

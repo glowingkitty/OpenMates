@@ -888,6 +888,7 @@ async def test_project_file_result_is_opaque_before_redis_or_celery(
     worker_request = AskSkillRequest(**payload)
     restore_async_tool_completion_message(worker_request, sealed_fields)
     assert "PRIVATE README CONTENT" in worker_request.message_history[-1].content
+    assert "This Project file operation did not complete" not in worker_request.message_history[-1].content
     wrong_task = AskSkillRequest(**payload)
     restore_async_tool_completion_message(wrong_task, {
         "async_tool_history": [{**sealed_fields["async_tool_history"][-1], "index": 0}],

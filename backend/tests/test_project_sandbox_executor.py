@@ -7,6 +7,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.apps.ai.processing import project_sandbox_executor as executor
+from backend.apps.ai.processing import project_sandbox_gate as gate
 from backend.core.api.app.services import project_sandbox_writeback as writeback
 from backend.core.api.app.services.project_sandbox_service import ProjectSandboxUnavailable
 from backend.core.api.app.services.project_write_authorization_service import (
@@ -212,7 +213,7 @@ async def run_exec(monkeypatch, decision, service, focus=None, directus=None, ca
         if isinstance(decision, Exception):
             raise decision
         return {"decision": decision}
-    monkeypatch.setattr(executor.e2b_upload_consent, "get_decision", get_decision)
+    monkeypatch.setattr(gate.e2b_upload_consent, "get_decision", get_decision)
     directus = directus or FakeDirectus()
     return await executor.run_project_tool_in_sandbox(
         request_data=request(), operation="update_file", operation_arguments={"path": "a.txt", "content": SECRET_TEXT},
@@ -442,7 +443,7 @@ async def test_worker_secrets_reach_the_sandbox_and_a_missing_e2b_key_keeps_the_
         async def ensure_ready(self, **kwargs):
             raise ProjectSandboxUnavailable("create_failed")
 
-    monkeypatch.setattr(executor.e2b_upload_consent, "get_decision", allowed)
+    monkeypatch.setattr(gate.e2b_upload_consent, "get_decision", allowed)
     monkeypatch.setattr(executor, "ProjectSandboxService", KeylessService)
     vault = object()
     result = await executor.run_project_tool_in_sandbox(

@@ -268,11 +268,14 @@ impl Client {
         if text(row, "team_id") != team {
             return Err(Error::Forbidden);
         }
-        let encrypted = required(row, "encrypted_team_key")?;
-        let bytes = master.decrypt_bytes(encrypted).await?;
+        let encrypted = match self.claim_sealed_team_key(&team, row).await? {
+            Some(claimed) => claimed,
+            None => required(row, "encrypted_team_key")?.to_owned(),
+        };
+        let bytes = master.decrypt_bytes(&encrypted).await?;
         scope.check(self)?;
         let key = key_from_bytes(&bytes)?;
-        self.team_wrapped_key = Some((team.clone(), encrypted.to_owned()));
+        self.team_wrapped_key = Some((team.clone(), encrypted));
         self.team_key = Some((team, key.clone()));
         Ok(MasterCapability::from_native(key))
     }

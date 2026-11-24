@@ -317,7 +317,7 @@ fn owner_operation_local_mode_and_wrapper_epoch_restrict_without_new_grants() {
     let scope = ReplayScope::begin(&client).unwrap();
     for row in [
         json!({"wrapper_version":2}),
-        json!({"team_key_epoch":2}),
+        json!({"team_key_epoch":0}),
         json!({"expires_at":1}),
     ] {
         assert!(matches!(scope.remember_wrapper(&row), Err(Error::Conflict)));

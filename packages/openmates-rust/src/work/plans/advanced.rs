@@ -436,28 +436,88 @@ fn segment(id: &str) -> Result<String> {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
     use super::*;
-    use crate::work::tasks::tests::{client, mock};
     use crate::work::task_crypto::field_interop_support::{assert_web, case};
+    use crate::work::tasks::tests::{client, mock};
     const PLAN: &str = "aabbccdd-1111-4111-8111-aabbccddeeff";
     #[tokio::test]
     async fn actual_revision_and_evidence_requests_read_in_web_legacy_decoders() {
         let key = [33; 32];
-        let mut raw = encode_create(&PlanCreate { plan_id: Some(PLAN.into()), title: "Private plan".into(), goal: "Accepted goal".into(), ..Default::default() }, &key, &[7; 32]).unwrap();
+        let mut raw = encode_create(
+            &PlanCreate {
+                plan_id: Some(PLAN.into()),
+                title: "Private plan".into(),
+                goal: "Accepted goal".into(),
+                ..Default::default()
+            },
+            &key,
+            &[7; 32],
+        )
+        .unwrap();
         raw["key_wrappers"] = json!([{"key_type":"master","encrypted_plan_key":crypto::encrypt_bytes(&key,&[7;32]).unwrap()}]);
         let mut snapshot = decode(raw.clone(), &[7; 32]).unwrap().public;
-        for field in ["approval_state", "submitted_revision_id", "approved_revision_id"] { snapshot.as_object_mut().unwrap().remove(field); }
+        for field in [
+            "approval_state",
+            "submitted_revision_id",
+            "approved_revision_id",
+        ] {
+            snapshot.as_object_mut().unwrap().remove(field);
+        }
         let expected = serde_json::to_string(&snapshot).unwrap();
-        let (api, server) = mock(vec![json!({"plan":raw}), json!({"revision":{"revision_id":"fixture"}}), json!({"plan":raw}), json!({"verification":{}})]).await;
+        let (api, server) = mock(vec![
+            json!({"plan":raw}),
+            json!({"revision":{"revision_id":"fixture"}}),
+            json!({"plan":raw}),
+            json!({"verification":{}}),
+        ])
+        .await;
         let mut client = client(&api);
         client.plans().create_revision(PLAN).await.unwrap();
-        client.plans().add_verification_evidence(PLAN, "fixture", PlanVerificationEvidence { status: "passed".into(), result_summary: Some("Private result".into()), required_fixes: Some("Private fixes".into()), ..Default::default() }).await.unwrap();
+        client
+            .plans()
+            .add_verification_evidence(
+                PLAN,
+                "fixture",
+                PlanVerificationEvidence {
+                    status: "passed".into(),
+                    result_summary: Some("Private result".into()),
+                    required_fixes: Some("Private fixes".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
         let requests = server.await.unwrap();
         assert_eq!(requests.len(), 4);
-        let revision: Value = serde_json::from_str(requests[1].split("\r\n\r\n").nth(1).unwrap()).unwrap();
-        let evidence: Value = serde_json::from_str(requests[3].split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        let revision: Value =
+            serde_json::from_str(requests[1].split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        let evidence: Value =
+            serde_json::from_str(requests[3].split("\r\n\r\n").nth(1).unwrap()).unwrap();
         assert_eq!(revision["fingerprint"], hash(&expected));
-        assert_web(vec![case("revision.snapshot", "object-text", revision["encrypted_snapshot"].as_str().unwrap(), &key, expected.as_bytes(), ""),
-            case("verification.result", "object-text", evidence["encrypted_result_summary"].as_str().unwrap(), &key, b"Private result", ""),
-            case("verification.fixes", "object-text", evidence["encrypted_required_fixes"].as_str().unwrap(), &key, b"Private fixes", "")]);
+        assert_web(vec![
+            case(
+                "revision.snapshot",
+                "object-text",
+                revision["encrypted_snapshot"].as_str().unwrap(),
+                &key,
+                expected.as_bytes(),
+                "",
+            ),
+            case(
+                "verification.result",
+                "object-text",
+                evidence["encrypted_result_summary"].as_str().unwrap(),
+                &key,
+                b"Private result",
+                "",
+            ),
+            case(
+                "verification.fixes",
+                "object-text",
+                evidence["encrypted_required_fixes"].as_str().unwrap(),
+                &key,
+                b"Private fixes",
+                "",
+            ),
+        ]);
     }
 }

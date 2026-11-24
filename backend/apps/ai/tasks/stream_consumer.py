@@ -24,6 +24,10 @@ from backend.apps.ai.processing.chat_orchestration_hooks import (
 )
 from backend.shared.python_utils.saved_chat_turn_authority import admission_chat_id
 from backend.core.api.app.tasks import celery_config
+from backend.apps.ai.assistant_live_changes import (
+    deliver_assistant_change, emit_assistant_editing, hunk_scope, is_live_embed_type,
+    claim_embed_version, live_collaboration_enabled, resolve_outcome_details,
+)
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.chat_unread_counter import increment_unread_for_assistant_reply
@@ -2281,6 +2285,77 @@ async def _finalize_diagram_html_embed(
     )
 
 
+async def _announce_live_diff_start(
+    request_data: AskSkillRequest, cache_service: CacheService,
+    language: Optional[str], filename: Optional[str],
+) -> None:
+    """Presence for a live-capable embed as soon as its diff fence opens (flag on only)."""
+    if not live_collaboration_enabled(getattr(celery_config, "config_manager", None)):
+        return
+    file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
+    if not _is_diff_edit_fence(language, filename, file_path_index):
+        return
+    from backend.core.api.app.services.embed_diff_service import resolve_diff_target_embed_id
+    embed_id = resolve_diff_target_embed_id(filename or next(iter(file_path_index), None), file_path_index)
+    if not embed_id:
+        return
+    cached = await cache_service.get_embed_from_cache(embed_id)
+    if cached and is_live_embed_type(cached.get("type")):
+        await emit_assistant_editing(cache_service, request_data.user_id, request_data.user_id_hash,
+                                     embed_id, [], request_data.mate_id or "Assistant")
+
+
+async def _deliver_live_diff(
+    *, parsed_diff: Any, new_content: str, embed_type: str, target_embed_id: str, base_version: int,
+    resolved_ref: Optional[str], diff_content: str, request_data: AskSkillRequest, cache_service: CacheService,
+    encryption_service: EncryptionService, user_vault_key_id: str, log_prefix: str,
+    regenerate_attempt: int = 0, turn_id_override: Optional[str] = None,
+) -> str:
+    """Live-collaboration path: send the change to the requester instead of writing a version."""
+    scope = hunk_scope(parsed_diff)
+    turn_id = turn_id_override or request_data.message_id
+    mate_name = getattr(request_data, "mate_name", None) or request_data.mate_id or "Assistant"
+    await emit_assistant_editing(cache_service, request_data.user_id, request_data.user_id_hash,
+                                 target_embed_id, scope, mate_name)
+    delivery = await deliver_assistant_change(
+        cache_service=cache_service, encryption_service=encryption_service,
+        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id, user_vault_key_id=user_vault_key_id,
+        embed_id=target_embed_id, turn_id=turn_id, base_version=base_version,
+        new_text_form=new_content,
+        mate_name=mate_name,
+        scope=scope,
+    )
+    embed_ref_json = f"```json\n{json.dumps({'type': embed_type, 'embed_id': target_embed_id})}\n```\n\n"
+    logger.info(f"{log_prefix} [DIFF_BLOCK] Live change for {target_embed_id} {delivery} (base v{base_version})")
+    if delivery == "pending":
+        return embed_ref_json
+    next_step, details = await resolve_outcome_details(
+        cache_service, target_embed_id, turn_id, encryption_service, user_vault_key_id,
+    )
+    if next_step == "suggestion_card" and details.get("current_text_form") is not None and regenerate_attempt == 0:
+        # Regenerate once (bounded re-ask): the client sent the text after the user's live
+        # edits; re-run the diff application tier (tiered fuzzy apply) against it. A second
+        # same_spot, or a patch that no longer applies, ends in the suggestion card.
+        from backend.core.api.app.services.embed_diff_service import apply_patch
+        retry = apply_patch(str(details["current_text_form"]), parsed_diff)
+        if retry.success:
+            logger.info(f"{log_prefix} [DIFF_BLOCK] same_spot: regenerate_once for {target_embed_id}")
+            return await _deliver_live_diff(
+                parsed_diff=parsed_diff, new_content=retry.new_content, embed_type=embed_type,
+                target_embed_id=target_embed_id, base_version=int(details.get("current_version") or base_version),
+                resolved_ref=resolved_ref, diff_content=diff_content, request_data=request_data,
+                cache_service=cache_service, encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+                regenerate_attempt=1, turn_id_override=f"{turn_id}:r1",
+            )
+    if next_step == "suggestion_card":
+        return _render_diff_visual_card(resolved_ref, diff_content, "changed at the same time; review the suggestion")
+    if next_step == "dropped_note":
+        return embed_ref_json + "_This change was dropped because the part it edits was deleted meanwhile._\n\n"
+    return embed_ref_json
+
+
 async def _apply_diff_block_to_existing_embed(
     *,
     diff_content: str,
@@ -2397,6 +2472,31 @@ async def _apply_diff_block_to_existing_embed(
         return _render_diff_visual_card(resolved_ref, diff_content, "could not apply automatically")
 
     current_version = cached_embed.get("version_number") or 1
+    # Base check (task eafb0277): never overwrite a version newer than the one the
+    # assistant read. A newer human version turns the edit into a suggestion card.
+    latest_embed = await cache_service.get_embed_from_cache(target_embed_id)
+    if latest_embed and (latest_embed.get("version_number") or 1) > current_version:
+        logger.warning(
+            f"{log_prefix} [DIFF_BLOCK] Embed {target_embed_id} moved from v{current_version} to "
+            f"v{latest_embed.get('version_number')} while editing; not writing."
+        )
+        return _render_diff_visual_card(resolved_ref, diff_content, "the embed changed while the edit was prepared")
+
+    if is_live_embed_type(cached_embed.get("type")) and live_collaboration_enabled(
+        getattr(celery_config, "config_manager", None)
+    ):
+        return await _deliver_live_diff(
+            parsed_diff=parsed_diff, new_content=patch_result.new_content, embed_type=cached_embed["type"],
+            target_embed_id=target_embed_id, base_version=current_version, resolved_ref=resolved_ref,
+            diff_content=diff_content, request_data=request_data, cache_service=cache_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+        )
+
+    # Atomic base check: compare-and-set on the head version at write time.
+    if not await claim_embed_version(cache_service, target_embed_id, current_version, current_version + 1):
+        logger.warning(f"{log_prefix} [DIFF_BLOCK] Embed {target_embed_id} version changed before the write; not writing.")
+        return _render_diff_visual_card(resolved_ref, diff_content, "the embed changed while the edit was prepared")
+
     version_history_rows = []
     now = int(time.time())
     if current_version == 1:
@@ -8684,6 +8784,10 @@ async def _consume_main_processing_stream(
                             chunk = ""  # Don't emit anything yet
                             logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Detected bare fence, waiting for potential language in next chunk")
                             continue  # Skip the rest of processing, wait for next chunk
+
+                        await _announce_live_diff_start(
+                            request_data, cache_service, current_code_language, current_code_filename,
+                        )
                         
                         # Extract any content after opening fence in this chunk
                         if len(lines) > 1:

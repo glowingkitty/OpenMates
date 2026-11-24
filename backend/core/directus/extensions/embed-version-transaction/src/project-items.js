@@ -89,10 +89,10 @@ async function authorizeProjectWrite(trx, scope) {
   if (!project) fail(404, 'project_not_found');
   if (teamHash) {
     if (project.hashed_team_id !== teamHash || project.hashed_user_id != null) fail(404, 'project_not_found');
+    const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
     const membership = await trx(MEMBERSHIPS).where({
       hashed_team_id: teamHash, hashed_user_id: scope.actor_user_hash, status: 'active',
     }).forShare().first();
-    const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
     if (!team || !membership || !WRITE_ROLES.includes(membership.role)) fail(403, 'forbidden');
   } else if (project.hashed_user_id !== scope.actor_user_hash || project.hashed_team_id != null) {
     fail(404, 'project_not_found');

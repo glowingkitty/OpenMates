@@ -95,7 +95,7 @@ fn private_fields_and_activity_are_encrypted_and_bound() {
     for private in ["Private task", "Private details", "Secret label"] {
         assert!(!encoded.contains(private));
     }
-    let task = decrypt(raw, &[7; 32], &[7; 32], None).unwrap();
+    let task = decrypt(raw, &[7; 32], &[7; 32], None, &[]).unwrap();
     assert_eq!(task.public["title"], "Private task");
     let entry_id = "b".repeat(64);
     let input = activity_input(
@@ -134,11 +134,11 @@ fn team_key_wrappers_cannot_fall_back_to_personal_key() {
         Some(team),
     )
     .unwrap();
-    assert!(decrypt(raw.clone(), &[7; 32], &[8; 32], Some(team)).is_ok());
-    assert!(decrypt(raw.clone(), &[7; 32], &[7; 32], None).is_err());
+    assert!(decrypt(raw.clone(), &[7; 32], &[8; 32], Some(team), &[]).is_ok());
+    assert!(decrypt(raw.clone(), &[7; 32], &[7; 32], None, &[]).is_err());
     raw["key_wrappers"][0]["hashed_team_id"] = json!(hash("different-team"));
     assert!(matches!(
-        decrypt(raw, &[7; 32], &[8; 32], Some(team)),
+        decrypt(raw, &[7; 32], &[8; 32], Some(team), &[]),
         Err(Error::Forbidden)
     ));
 }
@@ -150,11 +150,11 @@ fn nullable_patch_and_projection_controls_preserve_intent() {
     assert_eq!(clear.primary_chat_id, Some(None));
     assert_eq!(clear.plan_id, Some(None));
     let mut raw = json!({"source":"workflow_run","task_id":"workflow-schedule:trigger:123","projection_kind":"next_run","scheduled_at":123,"can_delete":true});
-    let projection = decrypt(raw.clone(), &[7; 32], &[7; 32], None).unwrap();
+    let projection = decrypt(raw.clone(), &[7; 32], &[7; 32], None, &[]).unwrap();
     assert!(deletable(&projection).is_ok());
     assert!(readonly(&projection).is_err());
     raw["projection_kind"] = json!("current_run");
-    assert!(deletable(&decrypt(raw, &[7; 32], &[7; 32], None).unwrap()).is_err());
+    assert!(deletable(&decrypt(raw, &[7; 32], &[7; 32], None, &[]).unwrap()).is_err());
 }
 #[tokio::test]
 async fn ambient_codex_thread_does_not_mark_unlinked_creation() {
@@ -223,7 +223,9 @@ async fn claude_session_links_are_encrypted_context_without_assignee_identity() 
         .unwrap();
     let wire = prepared.input.to_string();
     assert_eq!(prepared.input["external_chat_provider"], "claude");
-    let hash = prepared.input["external_chat_lookup_hash"].as_str().unwrap();
+    let hash = prepared.input["external_chat_lookup_hash"]
+        .as_str()
+        .unwrap();
     assert!(hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
     assert!(!wire.contains(SESSION) && !wire.contains("Claude Code session"));
     assert!(prepared.input["assignee_identity"].is_null());
@@ -240,7 +242,10 @@ async fn claude_session_links_are_encrypted_context_without_assignee_identity() 
     assert_ne!(hash, codex_hash, "provider is part of the lookup index");
     for invalid in ["not-a-uuid", "00000000000040008000000000c1a0"] {
         assert!(matches!(
-            client.tasks().prepare_create(linked(invalid), &"b".repeat(64)).await,
+            client
+                .tasks()
+                .prepare_create(linked(invalid), &"b".repeat(64))
+                .await,
             Err(Error::Invalid(_))
         ));
     }
@@ -282,7 +287,7 @@ fn reconciliation_requires_exact_commit_and_preserves_conflicts() {
 #[tokio::test]
 async fn activity_search_counts_all_pages_but_only_message_matches() {
     let raw = raw_task();
-    let resolved = decrypt(raw.clone(), &[7; 32], &[7; 32], None).unwrap();
+    let resolved = decrypt(raw.clone(), &[7; 32], &[7; 32], None, &[]).unwrap();
     let row = |id: &str, message: &str| {
         let mut row = activity_input(
             &resolved,
@@ -512,29 +517,29 @@ fn canonical_task_wrappers_reject_ambiguity_wrong_object_and_scope() {
         json!({"key_type":"master","hashed_task_id":hash(TASK),"encrypted_task_key":encrypted});
     raw["key_wrappers"] = json!([wrapper]);
     assert_eq!(
-        decrypt(raw.clone(), &[7; 32], &[7; 32], None)
+        decrypt(raw.clone(), &[7; 32], &[7; 32], None, &[])
             .unwrap()
             .public["title"],
         "Private task"
     );
     raw["key_wrappers"][0]["hashed_task_id"] = json!(hash(THREAD));
     assert!(matches!(
-        decrypt(raw.clone(), &[7; 32], &[7; 32], None),
+        decrypt(raw.clone(), &[7; 32], &[7; 32], None, &[]),
         Err(Error::Forbidden)
     ));
     raw["key_wrappers"] = json!([wrapper, wrapper]);
     assert!(matches!(
-        decrypt(raw.clone(), &[7; 32], &[7; 32], None),
+        decrypt(raw.clone(), &[7; 32], &[7; 32], None, &[]),
         Err(Error::Forbidden)
     ));
     raw["key_wrappers"] = json!([wrapper]);
     raw["hashed_team_id"] = json!(hash(THREAD));
     assert!(matches!(
-        decrypt(raw.clone(), &[7; 32], &[7; 32], None),
+        decrypt(raw.clone(), &[7; 32], &[7; 32], None, &[]),
         Err(Error::Forbidden)
     ));
     assert!(matches!(
-        decrypt(raw, &[7; 32], &[7; 32], Some(THREAD)),
+        decrypt(raw, &[7; 32], &[7; 32], Some(THREAD), &[]),
         Err(Error::Forbidden)
     ));
 }
@@ -558,41 +563,123 @@ async fn cancelled_cookie_task_create_never_admits_a_new_write() {
     assert!(parent.is_cancelled());
 }
 
-
 // contract-test: supporting surface=sdks.rust assertions=tasks.surface.semantic-parity
 #[test]
 fn task_move_omits_unset_fields_but_keeps_explicit_zero_and_status() {
-    for (movement,expected) in [
-        (TaskMove{position:Some(200),..Default::default()},json!({"position":200})),
-        (TaskMove{position:Some(0),..Default::default()},json!({"position":0})),
-        (TaskMove{before_task_id:Some(TASK.into()),..Default::default()},json!({"before_task_id":TASK})),
-        (TaskMove{after_task_id:Some(TASK.into()),..Default::default()},json!({"after_task_id":TASK})),
-        (TaskMove{status:Some("blocked".into()),position:Some(-1),..Default::default()},json!({"status":"blocked","position":-1})),
-    ] { assert_eq!(serde_json::to_value(movement).unwrap(),expected); }
-    assert_eq!(serde_json::to_value(TaskMove::default()).unwrap(),json!({}));
+    for (movement, expected) in [
+        (
+            TaskMove {
+                position: Some(200),
+                ..Default::default()
+            },
+            json!({"position":200}),
+        ),
+        (
+            TaskMove {
+                position: Some(0),
+                ..Default::default()
+            },
+            json!({"position":0}),
+        ),
+        (
+            TaskMove {
+                before_task_id: Some(TASK.into()),
+                ..Default::default()
+            },
+            json!({"before_task_id":TASK}),
+        ),
+        (
+            TaskMove {
+                after_task_id: Some(TASK.into()),
+                ..Default::default()
+            },
+            json!({"after_task_id":TASK}),
+        ),
+        (
+            TaskMove {
+                status: Some("blocked".into()),
+                position: Some(-1),
+                ..Default::default()
+            },
+            json!({"status":"blocked","position":-1}),
+        ),
+    ] {
+        assert_eq!(serde_json::to_value(movement).unwrap(), expected);
+    }
+    assert_eq!(
+        serde_json::to_value(TaskMove::default()).unwrap(),
+        json!({})
+    );
 }
 // contract-test: supporting surface=sdks.rust assertions=tasks.surface.semantic-parity
 #[tokio::test]
 async fn position_reorder_preserves_owner_version_and_absent_status_on_wire() {
-    let raw=raw_task();let mut updated=raw.clone();updated["position"]=json!(200);updated["version"]=json!(2);
-    let (api,server)=mock(vec![json!({"task":raw}),json!({"tasks":[updated]})]).await;
-    let result=client(&api).tasks().reorder(TASK,TaskMove{position:Some(200),..Default::default()}).await.unwrap();
-    assert_eq!(result.len(),1);assert_eq!(result[0]["status"],"todo");assert_eq!(result[0]["position"],200);
-    let requests=server.await.unwrap();assert_eq!(requests.len(),2);
+    let raw = raw_task();
+    let mut updated = raw.clone();
+    updated["position"] = json!(200);
+    updated["version"] = json!(2);
+    let (api, server) = mock(vec![json!({"task":raw}), json!({"tasks":[updated]})]).await;
+    let result = client(&api)
+        .tasks()
+        .reorder(
+            TASK,
+            TaskMove {
+                position: Some(200),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["status"], "todo");
+    assert_eq!(result[0]["position"], 200);
+    let requests = server.await.unwrap();
+    assert_eq!(requests.len(), 2);
     assert!(requests[1].starts_with("POST /v1/user-tasks/reorder "));
-    let body:Value=serde_json::from_str(requests[1].split_once("\r\n\r\n").unwrap().1).unwrap();
-    assert_eq!(body,json!({"moves":[{"task_id":TASK,"version":1,"position":200}],"team_id":null}));
-    assert!(requests.iter().all(|r|r.to_ascii_lowercase().contains("x-openmates-sdk: rust")));
+    let body: Value = serde_json::from_str(requests[1].split_once("\r\n\r\n").unwrap().1).unwrap();
+    assert_eq!(
+        body,
+        json!({"moves":[{"task_id":TASK,"version":1,"position":200}],"team_id":null})
+    );
+    assert!(
+        requests
+            .iter()
+            .all(|r| r.to_ascii_lowercase().contains("x-openmates-sdk: rust"))
+    );
 }
 // contract-test: supporting surface=sdks.rust assertions=tasks.surface.semantic-parity
 #[tokio::test]
 async fn anchored_reorder_omits_null_position_and_resolves_canonical_anchor() {
-    let raw=raw_task();let mut anchor=raw.clone();anchor["task_id"]=json!(THREAD);
-    let mut updated=raw.clone();updated["position"]=json!(499);updated["version"]=json!(2);
-    let (api,server)=mock(vec![json!({"task":raw}),json!({"task":anchor}),json!({"tasks":[updated]})]).await;
-    let result=client(&api).tasks().reorder(TASK,TaskMove{before_task_id:Some(THREAD.into()),..Default::default()}).await.unwrap();
-    assert_eq!(result[0]["status"],"todo");assert_eq!(result[0]["position"],499);
-    let requests=server.await.unwrap();assert_eq!(requests.len(),3);
-    let body:Value=serde_json::from_str(requests[2].split_once("\r\n\r\n").unwrap().1).unwrap();
-    assert_eq!(body,json!({"moves":[{"task_id":TASK,"version":1,"before_task_id":THREAD}],"team_id":null}));
+    let raw = raw_task();
+    let mut anchor = raw.clone();
+    anchor["task_id"] = json!(THREAD);
+    let mut updated = raw.clone();
+    updated["position"] = json!(499);
+    updated["version"] = json!(2);
+    let (api, server) = mock(vec![
+        json!({"task":raw}),
+        json!({"task":anchor}),
+        json!({"tasks":[updated]}),
+    ])
+    .await;
+    let result = client(&api)
+        .tasks()
+        .reorder(
+            TASK,
+            TaskMove {
+                before_task_id: Some(THREAD.into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(result[0]["status"], "todo");
+    assert_eq!(result[0]["position"], 499);
+    let requests = server.await.unwrap();
+    assert_eq!(requests.len(), 3);
+    let body: Value = serde_json::from_str(requests[2].split_once("\r\n\r\n").unwrap().1).unwrap();
+    assert_eq!(
+        body,
+        json!({"moves":[{"task_id":TASK,"version":1,"before_task_id":THREAD}],"team_id":null})
+    );
 }

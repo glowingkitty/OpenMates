@@ -1,3 +1,4 @@
+import { LIVE_OUTBOX_STORE } from './rustCore/live/liveOutboxStorage';
 import { isActiveVoiceCallRow } from "./voiceCallOwnership";
 // frontend/packages/ui/src/services/db.ts
 // Manages IndexedDB storage for chat-related data.
@@ -174,7 +175,8 @@ class ChatDatabase {
   //             notebook cell outputs, separate from canonical notebook source.
   // Version 32: bounded pending-message retry indexes. Backfill the numeric
   // pending-turn marker from existing encrypted preflight journals.
-  private readonly VERSION = 32;
+  // Version 33: queued live CRDT update packets survive editor restarts.
+  private readonly VERSION = 33;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
@@ -185,6 +187,7 @@ class ChatDatabase {
     this.CHATS_STORE_NAME,
     this.MESSAGES_STORE_NAME,
     this.OFFLINE_CHANGES_STORE_NAME,
+    LIVE_OUTBOX_STORE,
     this.NEW_CHAT_SUGGESTIONS_STORE_NAME,
     this.APP_SETTINGS_MEMORIES_STORE_NAME,
     this.PENDING_OG_METADATA_STORE_NAME,
@@ -1479,6 +1482,8 @@ class ChatDatabase {
       });
     }
 
+    if (!db.objectStoreNames.contains(LIVE_OUTBOX_STORE)) db.createObjectStore(LIVE_OUTBOX_STORE);
+
     // New chat suggestions store
     if (!db.objectStoreNames.contains(this.NEW_CHAT_SUGGESTIONS_STORE_NAME)) {
       const suggestionsStore = db.createObjectStore(
@@ -2611,6 +2616,7 @@ class ChatDatabase {
       this.CHATS_STORE_NAME,
       this.MESSAGES_STORE_NAME,
       this.OFFLINE_CHANGES_STORE_NAME,
+      LIVE_OUTBOX_STORE,
     ];
 
     const transaction = await this.getTransaction(storesToClear, "readwrite");

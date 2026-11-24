@@ -67,25 +67,26 @@ pub struct ProjectSettingsPatch {
     pub focus_activation_policy: Option<ProjectFocusActivationPolicy>,
     pub default_focus: Option<ProjectDefaultFocus>,
 }
-pub mod sandbox_key;
+mod ask;
+mod merge3;
 #[cfg(feature = "workflow-yaml")]
 mod sandbox_change;
 #[cfg(all(test, feature = "workflow-yaml"))]
 mod sandbox_change_tests;
-#[cfg(test)]
-mod sandbox_key_tests;
 #[cfg(all(feature = "sandbox-host", not(target_arch = "wasm32")))]
 pub mod sandbox_host;
-mod ask;
+pub mod sandbox_key;
+#[cfg(test)]
+mod sandbox_key_tests;
 pub use ask::*;
 mod assistant_request;
 pub use assistant_request::*;
 mod presentation;
 pub use presentation::*;
 #[cfg(test)]
-mod presentation_tests;
-#[cfg(test)]
 mod assistant_request_tests;
+#[cfg(test)]
+mod presentation_tests;
 #[cfg(test)]
 pub(crate) use assistant_request_tests::{
     CHAT as FIXTURE_CHAT, REQUEST as FIXTURE_REQUEST, request_event, rest_fixture, rest_handler,
@@ -98,7 +99,7 @@ pub(crate) use file_text_content::{
     content_with_text, decode_content_fields, line_count, version_text,
 };
 mod commit_restore_inputs;
-pub(crate) use commit_history::{ReplayError, replay_rows};
+pub(crate) use commit_history::{ReplayError, replay_rows_with};
 pub(crate) use commit_restore_inputs::UserRestoreInputs;
 mod timeline;
 pub use timeline::*;
@@ -114,15 +115,15 @@ pub use adoption::{AdoptEmbedKind, ProjectEmbedAdoptError};
 pub use hosted_base::{HostedFileError, HostedIdentityKind, HostedResult, hosted_file_identity};
 #[cfg(feature = "workflow-yaml")]
 mod hosted;
+/// Display mutations of an applied cloud-command batch (local diff cards).
+#[cfg(feature = "workflow-yaml")]
+pub(crate) use hosted::applied_change_mutations;
 /// Hosted Project file writer (shares the platform-neutral `path_rules` matcher, so it also builds for the browser).
 #[cfg(feature = "workflow-yaml")]
 pub use hosted::{
     HostedApproval, HostedFile, HostedFileJob, HostedFileMutation, HostedFileOperation,
     HostedProposal, ProjectCommitRestoreResult, apply_exact_patch, content_hash, replacement_patch,
 };
-/// Display mutations of an applied cloud-command batch (local diff cards).
-#[cfg(feature = "workflow-yaml")]
-pub(crate) use hosted::applied_change_mutations;
 mod remote_command_stop;
 pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
 mod remote_files;
@@ -230,14 +231,23 @@ impl<'a> Projects<'a> {
             }
         }
         let team = self.filters.team_id.as_deref();
-        let wrapper = project_key_wrapper(raw, team)?;
+        let (epoch, wrapper) = project_key_wrapper_epoch(raw, team)?;
         match team {
             // Personal wrappers sit under the master key: unwrap through the
             // backend's master binding (web Worker master is non-extractable).
             None => self.backend.unwrap_with_master(wrapper).await,
             Some(team) => {
                 let wrapping = self.backend.wrapping(Some(team)).await?;
-                key_bytes(&crypto::decrypt_bytes(wrapper, &wrapping)?)
+                match super::open_team_wrapper(wrapper, epoch, &wrapping, &[]) {
+                    Ok(plain) => key_bytes(&plain),
+                    Err(Error::Crypto) => {
+                        let previous = self.backend.team_previous_keys(team).await?;
+                        key_bytes(&super::open_team_wrapper(
+                            wrapper, epoch, &wrapping, &previous,
+                        )?)
+                    }
+                    Err(error) => Err(error),
+                }
             }
         }
     }
@@ -317,7 +327,10 @@ impl<'a> Projects<'a> {
         let payload = match self.filters.team_id.clone() {
             Some(team) => {
                 let wrapping = self.backend.wrapping(Some(&team)).await?;
-                encode_create(&input, &key, &wrapping, Some(&team))?
+                let epoch = self.backend.team_epoch(&team).await?;
+                let mut payload = encode_create(&input, &key, &wrapping, Some(&team))?;
+                super::stamp_team_epoch(&mut payload, epoch);
+                payload
             }
             None => {
                 // Personal Projects wrap through the shell's master binding: the
@@ -532,6 +545,10 @@ impl<'a> Projects<'a> {
 /// The encrypted Project key this scope may unwrap: the single epoch-1 Team
 /// wrapper of `team`, or the personal (master-wrapped) key of a non-Team row.
 fn project_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result<&'a str> {
+    project_key_wrapper_epoch(raw, team).map(|(_, wrapper)| wrapper)
+}
+/// The wrapper and its Team-key epoch (0 for a personal row).
+fn project_key_wrapper_epoch<'a>(raw: &'a Value, team: Option<&str>) -> Result<(u64, &'a str)> {
     let encrypted = if let Some(team) = team {
         if raw["hashed_team_id"]
             .as_str()
@@ -545,13 +562,16 @@ fn project_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result<&'a str
             .filter(|row| {
                 row["key_type"] == "team"
                     && row["hashed_team_id"] == hash(team)
-                    && row["team_key_epoch"] == 1
+                    && super::team_epoch_ok(row)
             })
             .collect::<Vec<_>>();
         if rows.len() != 1 {
             return Err(Error::Forbidden);
         }
-        string(rows[0], "encrypted_project_key")?
+        (
+            rows[0]["team_key_epoch"].as_u64().unwrap_or(1),
+            string(rows[0], "encrypted_project_key")?,
+        )
     } else {
         if raw["hashed_team_id"]
             .as_str()
@@ -562,7 +582,7 @@ fn project_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result<&'a str
         {
             return Err(Error::Forbidden);
         }
-        string(raw, "encrypted_project_key")?
+        (0, string(raw, "encrypted_project_key")?)
     };
     Ok(encrypted)
 }
@@ -766,6 +786,34 @@ fn segment(id: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod rotation_epoch_tests {
+    use super::*;
+    #[test]
+    fn new_team_project_wrapper_carries_the_rotated_epoch_and_opens_with_the_current_key() {
+        let team = "11111111-1111-4111-8111-111111111111";
+        let current = [5; 32];
+        let key = [9; 32];
+        let input = ProjectCreate {
+            name: "Kitchen renovation".into(),
+            write_mode: Some(ProjectWriteMode::AlwaysAsk),
+            ..Default::default()
+        };
+        let mut payload = encode_create(&input, &key, &current, Some(team)).unwrap();
+        crate::work::stamp_team_epoch(&mut payload, 2);
+        let wrapper = &payload["key_wrappers"][0];
+        assert_eq!(wrapper["team_key_epoch"], 2);
+        let opened = crate::work::open_team_wrapper(
+            wrapper["encrypted_project_key"].as_str().unwrap(),
+            2,
+            &current,
+            &[],
+        )
+        .unwrap();
+        assert_eq!(opened, key.to_vec());
+    }
+}
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {

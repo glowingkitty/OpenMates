@@ -141,6 +141,7 @@ impl VersionReadScope {
             if let Some(value) = row.get(name).filter(|v| !v.is_null()) {
                 match value.as_u64() {
                     Some(1) => {}
+                    Some(e) if name == "team_key_epoch" && e >= 1 => {}
                     Some(_) => return Err(Error::Conflict),
                     None => return Err(Error::Protocol),
                 }

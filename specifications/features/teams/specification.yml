@@ -58,13 +58,14 @@ scope:
     - Team-wide visibility for ordinary chats and other Team resources; participant-private direct chats are visible only to their two active Team participants. Viewer restrictions on Team resource mutation and AI use remain enforced.
     - Automatic account public-key exchange for two-person Team chats across first-party backend, npm SDK, CLI/TUI, and web, with encrypted private-key backup and independent recipient-wrapped chat keys.
     - Team-owned connected accounts use team-scoped encrypted credential bundles and token brokerage; owner/admin can manage connections, members can use approved capabilities, and viewers remain read-only without receiving raw provider credentials or personal-account fallback.
+    - Removing a member deletes their Team key wrappers and flags the Team for rotation; a remaining owner or admin client generates a new Team key at epoch+1, seals it to each current member's account key, re-wraps the Project keys and uploads the set; the server rejects sets that skip the epoch or do not cover exactly the active members.
     - Updated Figma Teams settings, security controls, member management, MRU quick selection, workspace avatars, context-scoped billing and bounded best-effort offline caching.
     - Semantic parity across REST/API, OpenMates CLI, npm SDK, pip SDK, and web for every Teams operation each surface exposes.
   excludes:
     - Private Team chats with more than two human participants, general per-resource ACLs, public team discovery, SSO/SAML, and user groups.
     - Per-member credit limits, team-to-personal credit transfers, per-seat subscriptions, and enterprise sales flows.
     - Sharing, copying, importing, or falling back to any member's Personal connected account while Team context is active.
-    - Automatic Team or account identity key rotation, historical rewrap, key transparency, or strict cryptographic erasure of already-synced data.
+    - Account identity key rotation, key transparency, or strict cryptographic erasure of already-synced data (content a removed member already downloaded cannot be taken back).
     - Apple-native Teams implementation before REST/API, CLI, SDK, web, visual-smoke, and user-confirmation gates are complete or explicitly deferred.
     - A top-level Teams workspace route, workspace navigation tab, or Teams-as-workspace web surface.
 
