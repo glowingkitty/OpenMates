@@ -146,6 +146,35 @@ def new_record(title: str, model: str, effort: str, cwd: str, explicit_model: bo
             "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
 
+def register_native_thread(thread_id: str) -> str:
+    """Resolve a native terminal thread and register it from its own rollout."""
+    thread_id = thread_id.strip()
+    if not UUID_RE.fullmatch(thread_id):
+        return ""
+    for record in records():
+        if record.get("thread_id") == thread_id:
+            return str(record["chat_id"])
+    path = rollout_path(thread_id)
+    if path is None:
+        return ""
+    try:
+        with path.open(encoding="utf-8") as handle:
+            header = json.loads(handle.readline())
+    except (OSError, ValueError):
+        return ""
+    meta = header.get("payload") if header.get("type") == "session_meta" else None
+    if not isinstance(meta, dict) or meta.get("id") != thread_id:
+        return ""
+    cwd = meta.get("cwd")
+    if not isinstance(cwd, str) or not Path(cwd).is_absolute():
+        return ""
+    record = new_record(str(meta.get("title") or os.getenv("CLAUDE_CHAT_TITLE") or "Terminal Codex chat"),
+                        DEFAULT_MODEL, MAX_EFFORT, cwd, False)
+    record.update(chat_id=thread_id, thread_id=thread_id, started_at=meta.get("timestamp") or record["started_at"])
+    save(record)
+    return thread_id
+
+
 # ── Launch command ───────────────────────────────────────────────────────────
 
 def chat_env(record: dict[str, Any]) -> dict[str, str]:

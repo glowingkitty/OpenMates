@@ -412,7 +412,12 @@ def build_prompt(summary: str, session_id: str, worktree: str, task_id: str, old
 
 
 def handoff(args: argparse.Namespace) -> int:
+    import codex_chats
+
     chat_id = args.chat or os.environ.get("OPENMATES_CHAT_ID") or os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    native_id = os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID") or ""
+    if not args.chat and native_id and not chat_id:
+        chat_id = codex_chats.register_native_thread(native_id)
     if not re.fullmatch(r"[a-zA-Z0-9-]+", chat_id):
         print("Refused: a valid chat ID is required.", file=sys.stderr)
         return 2
@@ -441,7 +446,6 @@ def handoff(args: argparse.Namespace) -> int:
         return 2
     prompt = build_prompt(summary, session_id, worktree, task_id, chat_id)
     import chat_usage_watch
-    import codex_chats
 
     registry = codex_chats.load(chat_id) if codex_chats.is_codex_chat(chat_id) else {}
     old_title = chat_usage_watch.chat_title(chat_id, root, chat_usage_watch.PROJECT_DIR,

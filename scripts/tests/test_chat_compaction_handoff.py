@@ -317,3 +317,26 @@ def test_live_different_task_owner_is_never_released(tmp_path, monkeypatch):
         assert h.launch_successor(tmp_path, "source", "", "task-id", "Title", "Prompt", NOTE,
                                   task={"external_chat": {"provider": "codex", "id": "other"}}) == 2
     cli.assert_not_called()
+
+
+
+def test_terminal_codex_handoff_registers_native_identity(tmp_path, monkeypatch, capsys):
+    import codex_chats
+
+    thread = "b8848a32-6a6d-4d3c-9b50-48fc924a4db7"
+    rollout = tmp_path / "rollout.jsonl"
+    rollout.write_text(json.dumps({
+        "type": "session_meta", "payload": {"id": thread, "cwd": str(tmp_path)},
+    }) + "\n")
+    monkeypatch.delenv("OPENMATES_CHAT_ID", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    monkeypatch.setenv("CODEX_THREAD_ID", thread)
+    monkeypatch.setenv("OPENMATES_CODEX_CHATS_DIR", str(tmp_path / "registry"))
+    monkeypatch.setattr(codex_chats, "rollout_path", lambda value: rollout if value == thread else None)
+    note = tmp_path / "note.md"
+    note.write_text("## Done\nOne step\n## Not done\nNone\n## Next step\nCheck the result\n"
+                    "## Open decisions\nNone\n## References\nLocal verification\n")
+    args = argparse.Namespace(summary_file=str(note), session="", chat="", task="task-1", dry_run=True)
+    assert h.handoff(args) == 0
+    assert codex_chats.load(thread)["thread_id"] == thread
+    assert "continuation" in capsys.readouterr().out
