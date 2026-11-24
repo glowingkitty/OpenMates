@@ -450,9 +450,11 @@ for (const scenario of SCENARIOS) {
               browse = completed.reduce((total, count) => total + count, 0);
               return browse;
             }, { timeout: 240_000, message: 'the spoken answer is filled through Browse in the same chat' }).toBeGreaterThan(0);
-            const questions = ((await reply.innerText()).match(/\?/g) || []).length;
+            const spokenReply = await reply.getByTestId('message-content').last().innerText();
+            // Punctuation in a quoted form label belongs to the website.
+            const questions = (spokenReply.replace(/“[^”]*”|"[^"]*"/g, '').match(/\?/g) || []).length;
             log(`form voice reply: browse embeds ${browse}; question marks ${questions}`);
-            expect(questions, 'one question per spoken turn').toBeLessThanOrEqual(2);
+            expect(questions, 'one question per spoken turn').toBe(1);
           }
           const generatedBy = reply.getByTestId('generated-by');
           if (scenario.form && FORM_VOICE_MODEL) await expect(generatedBy).toContainText(FORM_VOICE_MODEL);
