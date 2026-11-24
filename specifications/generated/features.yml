@@ -6617,18 +6617,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 26
+  assertions: 27
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 8
         failing: 13
         not_run: 5
         missing: 1
-        counted: 26
+        counted: 27
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -6731,6 +6731,7 @@ features:
       - frontend/apps/web_app/tests/storage-message-embed-bundle.spec.ts
       - frontend/apps/web_app/tests/teams-image-upload.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+      - frontend/apps/web_app/tests/voice-call-guest.spec.ts
       - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-composer.spec.ts
       - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
@@ -6750,8 +6751,8 @@ features:
         passing: 12
         failing: 1
         not_run: 1
-        missing: 12
-        counted: 26
+        missing: 13
+        counted: 27
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
       key_tests: []
@@ -6865,6 +6866,82 @@ features:
       key_unit_tests: []
       unit_test_files: 0
   subfeatures:
+  - id: signed-out-action-access
+    name: Signed-out composer actions
+    description: Guest allowance checks before starting dictation or calls, and account routing before opening the file picker.
+    assertion_ids:
+    - message-input.signed-out-action-access
+    surfaces:
+      web:
+        status: live
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 1
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 1
+      apple:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 1
+          counted: 1
+      cli:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
   - id: dictation
     name: Dictation
     description: Realtime transcription, gated correction, editable transcript, guest admission, workspace dictation

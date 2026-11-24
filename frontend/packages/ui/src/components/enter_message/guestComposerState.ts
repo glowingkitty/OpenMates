@@ -62,9 +62,9 @@ export const GUEST_ACCESS_REASON_KEYS: Record<GuestAccessReason, string> = {
 
 /** The only states a signed-out composer may render. Pure: no stores, no I/O. */
 export function resolveGuestComposerState(input: GuestComposerInput): GuestComposerState {
-    if (input.fileAttachmentPending) return { kind: 'account', action: 'signup', reason: 'file_requires_account' };
     // A browser that has logged in before must log in rather than chat as a guest.
     if (input.lastAuthMethod) return { kind: 'account', action: 'login', reason: 'logged_in_before' };
+    if (input.fileAttachmentPending) return { kind: 'account', action: 'signup', reason: 'file_requires_account' };
     if (input.phase === 'pending') return { kind: 'loading' };
     if (input.phase === 'failed') return { kind: 'account', action: 'signup', reason: 'status_unavailable' };
     const status = input.status;

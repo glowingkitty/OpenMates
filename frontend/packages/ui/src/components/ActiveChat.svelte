@@ -382,6 +382,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         hasMeaningfulDraftForChat: (chatId: string) => boolean;
         hasLiveUserEditForChat: (chatId: string) => boolean;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
+        allowGuestMediaStart: () => Promise<boolean>;
         stopRecordingForVoiceCall: () => void;
     };
 
@@ -8152,15 +8153,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             !isPublicChat(currentChat.chat_id))
     );
 
-    function handleStartVoiceCall(): void {
+    async function handleStartVoiceCall(): Promise<void> {
         if (voiceCallOwnsAudio) {
             callController.hangup();
             return;
         }
         if (!voiceCallLaunchEligible) return;
+        const guest = !$authStore.isAuthenticated;
+        if (guest && !await messageInputFieldRef?.allowGuestMediaStart()) return;
+        if (!voiceCallLaunchEligible) return;
         messageInputFieldRef?.stopRecordingForVoiceCall();
         void assistantSpeechController.stop();
-        if (!$authStore.isAuthenticated) {
+        if (guest) {
             // Guest turns arrive through the turn sink, which already shows the
             // local guest chat; the binding only keeps the call strip in place.
             void guestVoiceCallController.start(showWelcome ? undefined : currentChat?.chat_id, (boundChatId) => {

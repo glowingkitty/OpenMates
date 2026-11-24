@@ -9,6 +9,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import type { Page, TestInfo } from '@playwright/test';
 
 const { expect, test: auditedTest } = require('./helpers/cookie-audit');
 const { withProofAudio, proofAudioLaunchArgs } = require('./helpers/proof-audio');
@@ -139,8 +140,54 @@ test.describe('guest voice call', () => {
     });
   }
 
+  for (const knownDevice of [false, true]) {
+    // contract-test: direct surface=gui.web assertions=message-input.signed-out-action-access,video-call.guest-calls
+    test(`blocked call opens ${knownDevice ? 'login' : 'signup'} before starting on a ${knownDevice ? 'known' : 'new'} device`, async ({ page }: { page: Page }, testInfo: TestInfo) => {
+      const seen = await mockGuestBackend(page, 'answer');
+      let exhausted = knownDevice;
+      await page.route('**/v1/anonymous/free-usage/status**', route => route.fulfill({
+        json: exhausted
+          ? { ...usage(), active: false, can_send_text: false, reason: 'per_identity_exhausted' }
+          : usage(),
+      }));
+      await page.addInitScript((known: boolean) => {
+        if (known) localStorage.setItem('openmates:last-auth-method', 'email');
+        const starts: string[] = [];
+        Object.assign(window, { callStarts: starts });
+        navigator.mediaDevices.getUserMedia = async () => {
+          starts.push('microphone');
+          throw new Error('A blocked call requested the microphone');
+        };
+        new MutationObserver(() => {
+          if (document.querySelector('[data-testid="voice-call-bar"]')) starts.push('call bar');
+        }).observe(document, { subtree: true, childList: true });
+      }, knownDevice);
+      await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+      const field = page.getByTestId('message-field');
+      await expect(field).toHaveAttribute('data-editor-ready', 'true', { timeout: 30_000 });
+      const editor = field.getByTestId('message-editor').locator('[contenteditable="true"]');
+      await editor.fill('A local draft');
+      if (knownDevice) {
+        await expect(page.getByTestId('guest-access-reason')).toHaveText("You've logged in on this device before. Log in to keep chatting.");
+        await expect(page.getByTestId('composer-account-cta')).toHaveText(/^log\s?in$/i);
+      } else {
+        await expect(field.getByTestId('composer-send-button')).toBeEnabled();
+        // A different visitor can use up the shared allowance while this tab is open.
+        exhausted = true;
+      }
+      // The welcome header hides while the composer is focused.
+      await editor.blur();
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect(page.getByTestId(knownDevice ? 'login-modal' : 'signup-modal')).toBeVisible();
+      await expect(page.getByTestId('notification').filter({ hasText: 'Continue' })).toHaveCount(0);
+      expect(await page.evaluate(() => (window as typeof window & { callStarts: string[] }).callStarts)).toEqual([]);
+      expect(seen.socketUrls).toEqual([]);
+      await testInfo.attach('account-flow-without-call', { body: await page.screenshot(), contentType: 'image/png' });
+    });
+  }
+
   // contract-test: direct surface=gui.web assertions=video-call.guest-calls
-  test('an exhausted allowance ends the call and offers sign-up', async ({ page }: any, testInfo: any) => {
+  test('an allowance exhausted during a call ends it and offers sign-up', async ({ page }: any, testInfo: any) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 720 });
     const seen = await mockGuestBackend(page, 'limit');

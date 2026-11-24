@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@15
+specification: feature.message-input@16
 dictation_correction_gate:
 - id: clean-dictation-is-kept
   given: The web composer has recognized “Please close the window.” exactly as spoken.
@@ -449,6 +449,15 @@ signed_out_states:
   given: A signed-out visitor with guest chat open types "Capital of France?" and clicks Send, but the on-device privacy runtime never finishes loading.
   when: Fifteen seconds pass without the send reaching the server.
   then: A notification says the send is taking too long, the draft text stays in the composer, an active Send comes back, and the message is never sent twice.
+signed_out_action_access:
+- id: blocked-composer-actions-on-a-new-browser
+  given: A signed-out visitor on a new browser has used the available free allowance.
+  when: They press Record audio, Attach files, or Start voice call.
+  then: Sign up opens directly. The microphone, file chooser, and call setup stay closed.
+- id: blocked-composer-actions-on-a-returning-browser
+  given: A visitor has signed out on a browser where they previously logged in, and free usage is unavailable.
+  when: They press Record audio, Attach files, or Start voice call.
+  then: The same Log in flow used for sending a message opens directly, with no microphone, file chooser, or call setup.
 send_collapse:
 - id: phone-send-closes-keyboard-at-once
   assertion_ids: [message-input.send.collapse-at-send]

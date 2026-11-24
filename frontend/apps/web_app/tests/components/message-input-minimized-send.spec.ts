@@ -21,6 +21,7 @@ for (const device of [
         });
       }
       const params = new URLSearchParams({ theme: device.theme ?? (device.camera ? 'dark' : 'light'), background: '#dbeafe', width: String(Math.min(device.width - 40, 680)), chrome: '0' });
+      if (!device.camera) params.set('variant', 'recording');
       await page.goto(`/dev/preview/enter_message/MessageInput?${params}`);
       await waitForComponentPreview(page);
       const field = page.getByTestId('message-field');
@@ -62,8 +63,8 @@ for (const device of [
       await expect(editor).toBeEmpty();
       await expect(shortcut).toBeVisible();
 
-      // Guest styling must preserve the same clickable-icon gradient.
-      params.set('props', JSON.stringify({ guestCtaMode: true }));
+      // Mobile guest camera styling keeps the same clickable-icon gradient.
+      if (device.camera) params.set('props', JSON.stringify({ guestCtaMode: true }));
       await page.goto(`/dev/preview/enter_message/MessageInput?${params}`);
       await waitForComponentPreview(page);
       await expect(shortcut).toBeVisible();

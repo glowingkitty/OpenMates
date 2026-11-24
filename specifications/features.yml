@@ -441,6 +441,10 @@ features:
     evidence:
       tui: "frontend/packages/openmates-tui-native/src/ui/editor.rs, ui.rs composer, drafts, paste, @file"
     subfeatures:
+      - id: signed-out-action-access
+        name: "Signed-out composer actions"
+        description: "Guest allowance checks before starting dictation or calls, and account routing before opening the file picker."
+        assertions: ["message-input.signed-out-action-access"]
       - id: dictation
         name: "Dictation"
         description: "Realtime transcription, gated correction, editable transcript, guest admission, workspace dictation"

@@ -766,6 +766,7 @@
     let anonymousTextSendEnabled = $derived(guestComposerState?.kind === 'send');
     let guestAccessRequest = 0;
     let lastGuestAccessRetryAt = 0;
+    let guestMediaCheckPending = false;
     /** A retry keeps showing Sign up with its reason until it succeeds; only the first check shows loading. */
     async function checkGuestAccess(retry = false): Promise<void> {
         const request = ++guestAccessRequest;
@@ -773,6 +774,29 @@
         if (!retry) guestAccessPhase = 'pending';
         const phase = await loadGuestAccessPhase();
         if (request === guestAccessRequest && !composerDestroyed && (!retry || phase === 'loaded')) guestAccessPhase = phase;
+    }
+
+    /** Use the Send access decision before any guest microphone or call setup. */
+    export async function allowGuestMediaStart(): Promise<boolean> {
+        if (guestMediaCheckPending) return false;
+        guestMediaCheckPending = true;
+        const chatId = currentChatId;
+        try {
+            if (guestComposerState?.kind !== 'account') {
+                // Recheck advertised access before starting. Another tab or
+                // visitor can use up the shared allowance after this page loads.
+                const request = ++guestAccessRequest;
+                const phase = await loadGuestAccessPhase();
+                if (request !== guestAccessRequest || composerDestroyed ||
+                    currentChatId !== chatId || $authStore.isAuthenticated) return false;
+                guestAccessPhase = phase;
+            }
+            if (guestComposerState?.kind === 'send') return true;
+            if (guestComposerState?.kind === 'account') await handleSignUpClick();
+            return false;
+        } finally {
+            guestMediaCheckPending = false;
+        }
     }
     // A failed check retries when the visitor comes back to the field (on focus, not
     // while focused) or the network returns.
@@ -2388,9 +2412,9 @@
     );
 
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
-    let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
     let unauthenticatedCtaLabel = $derived(
-        (anonymousFileAttachmentPending || anonymousUsageExhausted) ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+        guestComposerState?.kind === 'account' && guestComposerState.action === 'login'
+            ? $text('login.login') : $text('signup.sign_up')
     );
 
     $effect(() => {
@@ -5908,6 +5932,10 @@
         }
     }
     function handleFileSelect() {
+        if (!$authStore.isAuthenticated) {
+            void handleSignUpClick();
+            return;
+        }
         openNativeAttachmentPicker(fileInput);
     }
     /**
@@ -6548,7 +6576,8 @@
     }
 
     async function handleSignUpClick() {
-        const authEvent = (anonymousFileAttachmentPending || anonymousUsageExhausted) ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
+        const authEvent = guestComposerState?.kind === 'account' && guestComposerState.action === 'login'
+            ? 'openLoginInterface' : 'openSignupInterface';
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
             // Still open the auth interface even if draft can't be saved.
@@ -6657,6 +6686,10 @@
         const action = event.detail.action;
         if (action === 'start') {
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            if (!$authStore.isAuthenticated && !await allowGuestMediaStart()) {
+                window.dispatchEvent(new Event('recordingShortcutFinished'));
+                return;
+            }
             prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
             prepareEditorForRecording();
             await tick();
@@ -6807,6 +6840,8 @@
     }
 
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        if (callOwnsAudio || event.detail.originalEvent.button !== 0) return;
+        if (!$authStore.isAuthenticated && !await allowGuestMediaStart()) return;
         if (callOwnsAudio) return;
         prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
@@ -6836,6 +6871,8 @@
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     async function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        if (callOwnsAudio) return;
+        if (!$authStore.isAuthenticated && !await allowGuestMediaStart()) return;
         if (callOwnsAudio) return;
         prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();

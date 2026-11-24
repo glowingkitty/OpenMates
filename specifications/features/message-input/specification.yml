@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 15
+version: 16
 status: approved
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -481,6 +481,15 @@ assertions:
     whose local preparation (privacy scan, model or storage readiness, status refresh) does not finish within fifteen
     seconds stops with a visible notification and an active Send again instead of hanging, and never sends twice.
   depends_on: [examples.signed_out_states]
+
+- id: message-input.signed-out-action-access
+  type: behavior
+  must: On web and mobile web, the dictation and voice call buttons check guest free usage before starting.
+    File upload from the composer button requires an account. When the composer blocks one of these actions,
+    it opens the same account flow as a blocked text send, Log in on a browser used to log in before and
+    Sign up for a new browser. No microphone prompt, recording controls, file chooser, or call setup starts
+    for the blocked action. Signed-in visitors retain the normal action behavior.
+  depends_on: [examples.signed_out_action_access]
 applies_to:
   rest_api:
     required: false
