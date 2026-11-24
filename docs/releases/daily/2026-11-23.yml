@@ -1,0 +1,3887 @@
+schema_version: 1
+cadence: daily
+date: '2026-11-23'
+generated_at: '2026-11-24T00:20:57+00:00'
+range:
+  since: '2026-11-23T00:00:00+00:00'
+  until: '2026-11-24T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 53
+  section_counts:
+    features: 10
+    bug_fixes: 32
+    improvements: 0
+    docs: 1
+    tests: 6
+    infrastructure: 4
+    internal: 0
+    other: 0
+  newsletter_ready_items: 1
+  user_facing_items: 15
+  dev_only_items: 52
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: embed:slides:template
+    kind: embed
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:code:write_specification
+    kind: platform
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: admin_config
+  - id: focus:slides:design_template
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: focus:slides:plan_presentation
+    kind: focus
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:slides
+    source: backend/apps/slides/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:design:get_design
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:design
+    source: backend/apps/design/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:list-spawned-chats
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:read-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:report-to-creator
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:send-to-spawned-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:openmates:start-chat
+    kind: skill
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(meetings): schedule weekday accountability pushes'
+    section: features
+    commits:
+    - 656e69a1ba
+    authored_at: '2026-11-23T18:24:28+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - docs/plans/daily-meeting-accountability/plan.yml
+    - scripts/daily_meeting_accountability.py
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_morning.py
+    - scripts/daily_meeting_reflection.py
+    - scripts/systemd/openmates-daily-meeting.service
+    - scripts/systemd/openmates-daily-meeting.timer
+    - scripts/tests/test_daily_meeting_accountability.py
+    - scripts/tests/test_daily_meeting_briefing.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: centralize connected accounts and add Gmail drafts'
+    section: features
+    commits:
+    - 8ae8145170
+    authored_at: '2026-11-23T18:17:06+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/permission_broker.py
+    - backend/apps/mail/app.yml
+    - backend/apps/mail/skills/create_draft_skill.py
+    - backend/apps/mail/skills/gmail_search.py
+    - backend/apps/mail/skills/read_thread_skill.py
+    - backend/apps/mail/skills/search_skill.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/connected_accounts_service.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/core/directus/schemas/connected_accounts.yml
+    - backend/shared/providers/gmail/__init__.py
+    - backend/shared/providers/gmail/client.py
+    - backend/shared/providers/gmail/errors.py
+    - backend/shared/providers/gmail/mime.py
+    - backend/shared/providers/google_calendar/errors.py
+    - backend/shared/python_utils/connected_account_registry.py
+    - backend/shared/python_utils/mail_gmail_support.py
+    - backend/tests/fake_gmail.py
+    - backend/tests/live/test_google_calendar_permissions_live.py
+    - backend/tests/test_connected_account_usage_metadata.py
+    - backend/tests/test_gmail_skills.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - backend/tests/test_google_calendar_skill_hardening.py
+    - backend/tests/test_token_broker_refs.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/shared-client.yml
+    - docs/plans/connected-accounts-central-page/plan.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    - frontend/apps/web_app/tests/components/connected-accounts-before.spec.ts
+    - frontend/apps/web_app/tests/components/connected-accounts-central.spec.ts
+    - frontend/apps/web_app/tests/components/connected-accounts-redesign.spec.ts
+    - frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/apps/web_app/tests/helpers/settings-readiness.ts
+    - frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/connectedAccountIds.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/connected-account-ids.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsConnectedAccounts.preview.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/connectedAccountPreviewFixture.ts
+    - frontend/packages/ui/src/components/settings/connected_accounts/AppConnectedAccountsSection.svelte
+    - frontend/packages/ui/src/components/settings/connected_accounts/ConnectedAccountDetail.svelte
+    - frontend/packages/ui/src/components/settings/connected_accounts/FigmaConnectedAccounts.preview.ts
+    - frontend/packages/ui/src/components/settings/connected_accounts/FigmaConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/connected_accounts/connectedAccountEntries.ts
+    - frontend/packages/ui/src/components/settings/connected_accounts/googleAccountLabel.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsSectionHeading.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/mail.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountLastUsed.test.ts
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthReturn.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/connectedAccountsProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/connectedAccountsUnit.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/rustConnectedAccountWrites.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/rustConnectedAccounts.ts
+    - packages/openmates-browser-bindings/src/browser_connected_accounts.rs
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/account/connected_accounts.rs
+    - packages/openmates-rust/src/account/connected_accounts_tests.rs
+    - packages/openmates-rust/src/generated/metadata.json
+    - packages/openmates-rust/src/web_connected_accounts.rs
+    - packages/openmates-rust/src/web_connected_accounts_oauth.rs
+    - packages/openmates-rust/src/web_connected_accounts_oauth_tests.rs
+    - packages/openmates-rust/src/web_connected_accounts_tests.rs
+    - packages/openmates-rust/src/web_connected_accounts_tokens.rs
+    - packages/openmates-rust/src/web_connected_accounts_write_ts_vectors.json
+    - scripts/ci_coverage_manifest.json
+    - specifications/architecture/connected-accounts/specification.yml
+    - specifications/features.yml
+    - specifications/features/app-skills/calendar/specification.yml
+    - specifications/features/app-skills/mail-gmail/examples.yml
+    - specifications/features/app-skills/mail-gmail/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:mail:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:mail, embed:mail:search, skill:finance:check_accounts, skill:mail:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(chats): hand off long Claude and Codex chats and brake repeated failures'
+    section: features
+    commits:
+    - a937b3c3de
+    authored_at: '2026-11-23T17:40:30+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/testing.md
+    - .claude/settings.json
+    - AGENTS.md
+    - CLAUDE.md
+    - scripts/agent_question.py
+    - scripts/chat_compaction_handoff.py
+    - scripts/chat_usage_watch.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_triage_gate.py
+    - scripts/claude_idle_chats.py
+    - scripts/codex_chats.py
+    - scripts/tests/test_agent_question.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_chat_usage_watch.py
+    - scripts/tests/test_ci_triage_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(push): urgent pushes skip the 20-minute limit, held pushes are queued and sent later; merged PR is the prod
+      go-ahead'
+    section: features
+    commits:
+    - 37bf44a966
+    authored_at: '2026-11-23T16:08:24+00:00'
+    changed_paths:
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - CLAUDE.md
+    - scripts/agent_question.py
+    - scripts/host_resources.py
+    - scripts/tests/test_agent_question.py
+    - scripts/tests/test_host_resources.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(chats): Codex as second work-chat engine with the same rules and guards (TASK-4476)'
+    section: features
+    commits:
+    - b51881fef6
+    authored_at: '2026-11-23T15:22:08+00:00'
+    changed_paths:
+    - .codex/hooks.json
+    - .github/workflows/agents-md-sync.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/agents_md.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/claude_weekly_model.py
+    - scripts/codex_chats.py
+    - scripts/codex_hook_adapter.py
+    - scripts/codex_setup.py
+    - scripts/tests/test_agents_md.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_weekly_model.py
+    - scripts/tests/test_codex_chats.py
+    - scripts/tests/test_codex_hook_adapter.py
+    - scripts/tests/test_codex_setup.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(security): daily email lists every GitHub Dependabot and secret scanning alert with our verdict'
+    section: features
+    commits:
+    - 640805595c
+    authored_at: '2026-11-23T13:25:52+00:00'
+    changed_paths:
+    - scripts/security_monitor.py
+    - scripts/security_monitoring/dispatch.py
+    - scripts/security_monitoring/github_alerts.py
+    - scripts/security_monitoring/health.py
+    - scripts/security_monitoring/notify.py
+    - scripts/tests/test_security_monitoring_github_alerts.py
+    - specifications/architecture/security-monitoring/examples.yml
+    - specifications/architecture/security-monitoring/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(tooling): AI test-user prod runs wait or skip during a production update and mark runs that overlapped one'
+    section: features
+    commits:
+    - f36500ab10
+    authored_at: '2026-11-23T13:13:35+00:00'
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_deploy_guard.py
+    - scripts/ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_deploy_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(tooling): every CI/E2B Playwright run attaches its video to the push; pushes keep proof copies'
+    section: features
+    commits:
+    - 6c1ca97ea6
+    authored_at: '2026-11-23T12:40:55+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - .github/workflows/selfhost-smoke-rust.yml
+    - .github/workflows/selfhost-smoke.yml
+    - CLAUDE.md
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/agent_question.py
+    - scripts/push_proof.py
+    - scripts/tests/test_push_proof.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(ci): E2B runners can start from a template with dependencies baked in, one per dependency hash (switch, off
+      by default)'
+    section: features
+    commits:
+    - 4d3a986da4
+    authored_at: '2026-11-23T12:38:11+00:00'
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/ci_e2b_runner.py
+    - scripts/ci_e2b_template.py
+    - scripts/ci_speedups.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_e2b_runner.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(ai-test-users): DEV/PRODUCTION issue push with debug-chat status, automatic debug chats for functional errors
+      only, no issue emails for test-user reports'
+    section: features
+    commits:
+    - e424462fc7
+    authored_at: '2026-11-23T12:17:33+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/issue_report_contact_email.py
+    - backend/tests/test_issue_report_contact_email.py
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_message.py
+    - scripts/ai_test_users_triage.py
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - scripts/tests/test_ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_triage.py
+    - scripts/tests/test_ai_test_users_video.py
+    - scripts/tests/test_claude_dispatch.py
+    - specifications/architecture/ai-test-users/examples.yml
+    - specifications/architecture/ai-test-users/specification.yml
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix(design): keep embroidery previews and machine files in saved chats'
+    section: bug_fixes
+    commits:
+    - 5f913d2b30
+    authored_at: '2026-11-23T23:41:46+00:00'
+    changed_paths:
+    - backend/shared/python_utils/embed_producer_worker.py
+    - backend/tests/test_detached_embed_producer.py
+    - docs/plans/embroidery-saved-result-recovery/plan.yml
+    - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
+    - frontend/apps/web_app/tests/components/team-context-picker-preview.spec.ts
+    - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.svelte
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/components/settings/TeamQuickActionPreviewHarness.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_model_mention_embed.test.ts
+    - frontend/packages/ui/src/message_parsing/embedFenceRepair.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/helpers/transferZipCases.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/transferZipVectors.test.ts
+    - frontend/packages/ui/src/services/rustCore/transfer/rustChatZip.ts
+    - frontend/packages/ui/src/services/rustCore/transfer/transferProtocol.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    - packages/openmates-rust/src/web_transfer_zip.rs
+    - packages/openmates-rust/src/web_transfer_zip_ts_vectors.json
+    - specifications/features/app-skills/design-embroidery/examples.yml
+    - specifications/features/app-skills/design-embroidery/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(tooling): refresh work chat mirrors after image support lands'
+    section: bug_fixes
+    commits:
+    - d63da18a61
+    authored_at: '2026-11-23T21:41:56+00:00'
+    changed_paths:
+    - scripts/codex_chats.py
+    - scripts/tests/test_codex_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(tooling): attach screenshots to Codex work chats'
+    section: bug_fixes
+    commits:
+    - afb2c4fe90
+    authored_at: '2026-11-23T21:38:04+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/claude_dispatch.py
+    - scripts/codex_chats.py
+    - scripts/tests/test_codex_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(tooling): block private links in public GitHub text'
+    section: bug_fixes
+    commits:
+    - 4638e5fc00
+    authored_at: '2026-11-23T19:58:58+00:00'
+    changed_paths:
+    - .claude/hooks/bash-guard.sh
+    - .claude/settings.json
+    - .claude/skills/create-pr/SKILL.md
+    - .github/workflows/public-text-guard.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - scripts/install-hooks.sh
+    - scripts/public_link_guard.py
+    - scripts/sessions.py
+    - scripts/tests/test_public_link_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(settings): restore saved AI model preferences after sign-in'
+    section: bug_fixes
+    commits:
+    - e6d1207ed2
+    authored_at: '2026-11-23T19:40:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_pair_v2.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/schemas/user.py
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_auth_pair_v2_state_machine.py
+    - backend/tests/test_user_response_ai_preferences.py
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(events): verify venue addresses inside formatted source links'
+    section: bug_fixes
+    commits:
+    - 5a5f90f8b6
+    authored_at: '2026-11-23T19:09:06+00:00'
+    changed_paths:
+    - backend/shared/python_utils/web_result_extraction.py
+    - backend/tests/test_web_result_extraction.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chats): retain the archived workspace for reserve handovers'
+    section: bug_fixes
+    commits:
+    - 10e08da14e
+    authored_at: '2026-11-23T18:55:44+00:00'
+    changed_paths:
+    - scripts/chat_compaction_handoff.py
+    - scripts/sessions.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_sessions_agent_binding.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(events): preserve sourced street addresses in web results'
+    section: bug_fixes
+    commits:
+    - e6d1a9865f
+    authored_at: '2026-11-23T18:53:48+00:00'
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/shared/python_utils/web_result_extraction.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_web_result_extraction.py
+    - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chats): keep dispatch boilerplate out of queued model routing'
+    section: bug_fixes
+    commits:
+    - 2841cbd4a7
+    authored_at: '2026-11-23T18:50:56+00:00'
+    changed_paths:
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_claude_dispatch.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete chat workspace handoffs and message delivery'
+    section: bug_fixes
+    commits:
+    - f7311ca453
+    authored_at: '2026-11-23T18:49:02+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_idle_chats.py
+    - scripts/codex_chats.py
+    - scripts/sessions.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_codex_chats.py
+    - scripts/tests/test_sessions_agent_binding.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chats): hand Claude work to Codex when weekly usage enters reserve'
+    section: bug_fixes
+    commits:
+    - 7ebc59b361
+    authored_at: '2026-11-23T18:47:08+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/chat_compaction_handoff.py
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/claude_usage_guard.py
+    - scripts/claude_weekly_model.py
+    - scripts/codex_chats.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_claude_weekly_model.py
+    - scripts/tests/test_codex_chats.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore dev chat queue draining and forced starts'
+    section: bug_fixes
+    commits:
+    - 2cb07290d9
+    authored_at: '2026-11-23T18:31:42+00:00'
+    changed_paths:
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/codex_setup.py
+    - scripts/force_chat.py
+    - scripts/tests/test_chat_slots.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_codex_setup.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent lifecycle wakes from creating chats'
+    section: bug_fixes
+    commits:
+    - f7ea1e0ee2
+    authored_at: '2026-11-23T18:22:33+00:00'
+    changed_paths:
+    - scripts/claude_idle_chats.py
+    - scripts/claude_idle_nudge.py
+    - scripts/socialhub_e2b.py
+    - scripts/tests/test_claude_chat_continue.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_claude_idle_nudge.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(selfhost): generate core Compose from one service definition'
+    section: bug_fixes
+    commits:
+    - 521c26b8c0
+    authored_at: '2026-11-23T18:20:40+00:00'
+    changed_paths:
+    - .github/workflows/core-compose-drift.yml
+    - .github/workflows/selfhost-smoke-rust.yml
+    - backend/core/core-compose.dev-overrides.yml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_billing_worker_compose.py
+    - backend/tests/test_celery_queue_consumers.py
+    - backend/tests/test_core_compose_generation.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-tui-native/assets/manifest.json
+    - frontend/packages/openmates-tui-native/assets/selfhost/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-tui-native/src/server.rs
+    - frontend/packages/openmates-tui-native/src/server/configuration.rs
+    - frontend/packages/openmates-tui-native/src/server/startup.rs
+    - frontend/packages/openmates-tui-native/src/server/update.rs
+    - scripts/bump_alpha_version_line.py
+    - scripts/ci_native_release.py
+    - scripts/sync_core_compose.py
+    - scripts/sync_rust_cli_assets.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(codex): AGENTS.md regenerates in every deploy; a drift only warns, never blocks Codex starts (TASK-4476)'
+    section: bug_fixes
+    commits:
+    - 483c0a9843
+    authored_at: '2026-11-23T16:28:18+00:00'
+    changed_paths:
+    - AGENTS.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/agents_md.py
+    - scripts/codex_setup.py
+    - scripts/sessions.py
+    - scripts/tests/test_codex_setup.py
+    - scripts/tests/test_sessions_lane_deploy_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chat-lifecycle): a wake-up box taller than the pane still counts as unsent'
+    section: bug_fixes
+    commits:
+    - 1da224eca8
+    authored_at: '2026-11-23T16:02:54+00:00'
+    changed_paths:
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chat-lifecycle): hooks run from the main checkout, wake-ups are verified and CI waits time out'
+    section: bug_fixes
+    commits:
+    - 783c310f3a
+    authored_at: '2026-11-23T14:44:57+00:00'
+    changed_paths:
+    - .claude/hooks/run.sh
+    - .claude/settings.json
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_chat_waiters.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_hook_runner.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(voice-call): spoken turns no longer fail when the server has Projects switched off (F74ES)'
+    section: bug_fixes
+    commits:
+    - cad4c5075b
+    authored_at: '2026-11-23T13:46:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call-real.spec.ts
+    - packages/openmates-rust/src/client/context.rs
+    - packages/openmates-rust/src/client/context_focus_disabled_tests.rs
+    - scripts/voice_call_web_real_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ci): Playwright browser cache is keyed per runner layout and the install always verifies the browser'
+    section: bug_fixes
+    commits:
+    - fc7d9e1f80
+    authored_at: '2026-11-23T13:38:26+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(selfhost): production compose template runs the AI routing worker so focus auto-confirm answers again'
+    section: bug_fixes
+    commits:
+    - 9cd7c2f6d8
+    authored_at: '2026-11-23T13:37:17+00:00'
+    changed_paths:
+    - backend/tests/test_celery_queue_consumers.py
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/prepare_release_candidate.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ui): mobile assistant bubble tail centred under the avatar'
+    section: bug_fixes
+    commits:
+    - 83fcd82823
+    authored_at: '2026-11-23T13:33:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-message-bubble-tail.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chats): a turn the server already answered or refused for good is no longer resent on every reconnect'
+    section: bug_fixes
+    commits:
+    - 6a33c1cb6d
+    authored_at: '2026-11-23T13:30:07+00:00'
+    changed_paths:
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/shared-client.yml
+    - docs/migration/rust/web-app.yml
+    - frontend/packages/ui/src/services/rustCore/__tests__/rustTurnOutcomeWatch.test.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/sendPrepOutboxVectors.test.ts
+    - frontend/packages/ui/src/services/rustCore/send/rustTurnOutcomeWatch.ts
+    - frontend/packages/ui/src/services/rustCore/send/sendPrepProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - packages/openmates-browser-bindings/src/browser_send_prep.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/send_finished_turn.rs
+    - packages/openmates-rust/src/web_send_prep/mod.rs
+    - packages/openmates-rust/src/web_send_prep/turn_outcome.rs
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ci): rust-check tooling checkout includes the pinned SDK test peer requirements'
+    section: bug_fixes
+    commits:
+    - a09d652953
+    authored_at: '2026-11-23T13:02:04+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(backend): stop four recurring prod worker errors and downgrade expected log noise'
+    section: bug_fixes
+    commits:
+    - c9ab19cc0d
+    authored_at: '2026-11-23T12:43:40+00:00'
+    changed_paths:
+    - backend/apps/pdf/skills/read_skill.py
+    - backend/apps/pdf/skills/search_skill.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/auth_routes/auth_utils.py
+    - backend/core/api/app/services/directus/health_event_methods.py
+    - backend/core/api/app/tasks/email_tasks/daily_notification_dispatcher.py
+    - backend/core/api/app/tasks/email_tasks/webhook_rate_limit_digest_email_task.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/shared/python_utils/image_safety/account_suspension.py
+    - backend/shared/python_utils/image_safety/safety_review.py
+    - backend/tests/test_account_deletion_unshare_filter.py
+    - backend/tests/test_health_event_history_query.py
+    - backend/tests/test_notification_email_preferences.py
+    - backend/tests/test_pdf_search_read_v2.py
+    - backend/tests/test_safety_appeals.py
+    - backend/tests/test_safety_strikes.py
+    - backend/tests/test_webhook_rl_digest_cache_init.py
+    - backend/tests/test_workflow_digest_email.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:pdf, embed:pdf:read, embed:pdf:search, skill:pdf:read, skill:pdf:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(billing): events conference usage resolves provider info via pretalx, not a 404 gpn24 lookup'
+    section: bug_fixes
+    commits:
+    - 39faffa316
+    authored_at: '2026-11-23T12:36:12+00:00'
+    changed_paths:
+    - backend/providers/pretalx.yml
+    - backend/shared/python_utils/skill_provider_attribution.py
+    - backend/tests/test_skill_provider_attribution.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ui): assistant bubble tail on mobile, word-boundary embed card titles, test users ignore sticky bars'
+    section: bug_fixes
+    commits:
+    - a1f1e37286
+    authored_at: '2026-11-23T12:34:15+00:00'
+    changed_paths:
+    - backend/scripts/ai_test_users/models.py
+    - frontend/apps/web_app/tests/components/chat-message-bubble-tail.spec.ts
+    - frontend/apps/web_app/tests/components/embed-card-title-wrap.spec.ts
+    - frontend/packages/public-site/src/components/results/ResultEmbedCard.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/GeneratedMediaGroupEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessInvestorSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/hosting/HostingSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/jobs/JobsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/plans/PlanEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedPreview.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:business:company_ownership
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_investors
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:calendar:event
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:calendar
+      source: backend/apps/calendar/app.yml
+    - id: embed:design:embroidery
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:design
+      source: backend/apps/design/app.yml
+    - id: embed:hosting:search_domains
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:hosting
+      source: backend/apps/hosting/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:audio:generate, embed:audio:speak, embed:business:company_ownership, embed:business:search_investors,
+      embed:business:search_trademarks, embed:calendar:event, embed:design:embroidery, embed:hosting:search_domains, embed:images:generate,
+      embed:images:generate_draft, embed:images:modify, embed:images:vectorize, embed:jobs:search, embed:models3d:generate,
+      embed:music:generate, embed:videos:generate, embed:web:browse'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chats): the switch to the new chat recovery mode also retires old batch claims idle for over a day'
+    section: bug_fixes
+    commits:
+    - 1285c0b3b9
+    authored_at: '2026-11-23T12:30:18+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): authored result source and image refs copied as embed:<ref> resolve like existing-card refs'
+    section: bug_fixes
+    commits:
+    - 349304975b
+    authored_at: '2026-11-23T12:23:42+00:00'
+    changed_paths:
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/tests/test_authored_result_service.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): citation fallback shows the bare domain, not an English ''according to'''
+    section: bug_fixes
+    commits:
+    - 453ad86e82
+    authored_at: '2026-11-23T12:21:28+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_embed_referencing_instruction.md
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_embed_link_fixes.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - frontend/packages/ui/src/utils/__tests__/embedDisplayText.test.ts
+    - frontend/packages/ui/src/utils/embedDisplayText.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(release): prod update reuses an open SSH connection; CLI start-screen test matches server inspirations'
+    section: bug_fixes
+    commits:
+    - ec36894175
+    authored_at: '2026-11-23T12:13:24+00:00'
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(prod-smoke): paid-chat and app-skill prod smokes run at their Berlin hours on the UTC host cron'
+    section: bug_fixes
+    commits:
+    - dad97a3225
+    authored_at: '2026-11-23T12:10:09+00:00'
+    changed_paths:
+    - scripts/test_schedule_setup.py
+    - scripts/tests/test_test_schedule_setup.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(chats): Apps result follow-ups show only your words, and pasted lists no longer empty the composer'
+    section: bug_fixes
+    commits:
+    - c9b68ef81b
+    authored_at: '2026-11-23T09:45:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/chat-paste-long-list-send.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatMessageExpansionPreview.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_write_mode_lists.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/writeModeBlocks.ts
+    - frontend/packages/ui/src/services/appsWorkspaceChatHandoffService.ts
+    - frontend/packages/ui/src/utils/__tests__/appsResultContextDisplay.test.ts
+    - frontend/packages/ui/src/utils/appsResultContextDisplay.ts
+    - frontend/packages/ui/src/utils/chatTimeline.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: require production proof before product video recording'
+    section: docs
+    commits:
+    - 1cf5d1e58d
+    authored_at: '2026-11-23T18:24:50+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - scripts/daily_meeting_briefing.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test(projects): use the workspace switcher in the phone recipe proof'
+    section: tests
+    commits:
+    - 1b9049c990
+    authored_at: '2026-11-23T19:43:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(chat-paste): long list paste E2E proves the real Paste-as-text path and waits for the finished reply'
+    section: tests
+    commits:
+    - d15436f4d9
+    authored_at: '2026-11-23T14:48:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-paste-long-list-send.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(voice-call): real voice proof ignores the account''s own Security Reminder notice'
+    section: tests
+    commits:
+    - ba628322a5
+    authored_at: '2026-11-23T14:08:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(ci): run the live-collaboration assistant real-inference specs in isolated CI'
+    section: tests
+    commits:
+    - 990c65916e
+    authored_at: '2026-11-23T13:49:42+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(projects): the recipe proof closes the dev update notice when it covers a click'
+    section: tests
+    commits:
+    - 0107427c27
+    authored_at: '2026-11-23T12:58:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(projects): each recipe proof test checks only its own proof checkpoints'
+    section: tests
+    commits:
+    - cdfee910dd
+    authored_at: '2026-11-23T12:28:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.test.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore(ci): user timer keeps the E2B CI runner dependency template for dev warm every 30 minutes'
+    section: infrastructure
+    commits:
+    - e556706211
+    authored_at: '2026-11-23T13:16:51+00:00'
+    changed_paths:
+    - scripts/ci-e2b-template-warm-setup.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore(claude): Marco gets one notice when a chat uses unusually many sub-agents or tokens; CLAUDE.md names the
+      set wait, triage gate and no-caps rule'
+    section: infrastructure
+    commits:
+    - 9001ddc73c
+    authored_at: '2026-11-23T13:11:46+00:00'
+    changed_paths:
+    - CLAUDE.md
+    - scripts/chat_usage_watch.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_chat_usage_watch.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore(claude): a chat compacted four times hands off to a fresh chat on the same session and Task'
+    section: infrastructure
+    commits:
+    - cb60e769d9
+    authored_at: '2026-11-23T13:03:51+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/settings.json
+    - CLAUDE.md
+    - scripts/chat_compaction_handoff.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_claude_chat_continue.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore(claude): messages to another chat wait in its mailbox until its next turn unless marked URGENT'
+    section: infrastructure
+    commits:
+    - f4cdc1aedf
+    authored_at: '2026-11-23T13:00:12+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/settings.json
+    - CLAUDE.md
+    - scripts/chat_mailbox.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_chat_mailbox.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix(design): keep embroidery previews and machine files in saved chats'
+    commits:
+    - 5f913d2b30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(tooling): refresh work chat mirrors after image support lands'
+    commits:
+    - d63da18a61
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(tooling): attach screenshots to Codex work chats'
+    commits:
+    - afb2c4fe90
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(tooling): block private links in public GitHub text'
+    commits:
+    - 4638e5fc00
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(projects): use the workspace switcher in the phone recipe proof'
+    commits:
+    - 1b9049c990
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(settings): restore saved AI model preferences after sign-in'
+    commits:
+    - e6d1207ed2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(events): verify venue addresses inside formatted source links'
+    commits:
+    - 5a5f90f8b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chats): retain the archived workspace for reserve handovers'
+    commits:
+    - 10e08da14e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(events): preserve sourced street addresses in web results'
+    commits:
+    - e6d1a9865f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix(chats): keep dispatch boilerplate out of queued model routing'
+    commits:
+    - 2841cbd4a7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: complete chat workspace handoffs and message delivery'
+    commits:
+    - f7311ca453
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chats): hand Claude work to Codex when weekly usage enters reserve'
+    commits:
+    - 7ebc59b361
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore dev chat queue draining and forced starts'
+    commits:
+    - 2cb07290d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: require production proof before product video recording'
+    commits:
+    - 1cf5d1e58d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(meetings): schedule weekday accountability pushes'
+    commits:
+    - 656e69a1ba
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent lifecycle wakes from creating chats'
+    commits:
+    - f7ea1e0ee2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(selfhost): generate core Compose from one service definition'
+    commits:
+    - 521c26b8c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: centralize connected accounts and add Gmail drafts'
+    commits:
+    - 8ae8145170
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:mail:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - title: 'feat(chats): hand off long Claude and Codex chats and brake repeated failures'
+    commits:
+    - a937b3c3de
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(codex): AGENTS.md regenerates in every deploy; a drift only warns, never blocks Codex starts (TASK-4476)'
+    commits:
+    - 483c0a9843
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(push): urgent pushes skip the 20-minute limit, held pushes are queued and sent later; merged PR is the prod
+      go-ahead'
+    commits:
+    - 37bf44a966
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chat-lifecycle): a wake-up box taller than the pane still counts as unsent'
+    commits:
+    - 1da224eca8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(chats): Codex as second work-chat engine with the same rules and guards (TASK-4476)'
+    commits:
+    - b51881fef6
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(chat-paste): long list paste E2E proves the real Paste-as-text path and waits for the finished reply'
+    commits:
+    - d15436f4d9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(chat-lifecycle): hooks run from the main checkout, wake-ups are verified and CI waits time out'
+    commits:
+    - 783c310f3a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(voice-call): real voice proof ignores the account''s own Security Reminder notice'
+    commits:
+    - ba628322a5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(ci): run the live-collaboration assistant real-inference specs in isolated CI'
+    commits:
+    - 990c65916e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(voice-call): spoken turns no longer fail when the server has Projects switched off (F74ES)'
+    commits:
+    - cad4c5075b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(ci): Playwright browser cache is keyed per runner layout and the install always verifies the browser'
+    commits:
+    - fc7d9e1f80
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(selfhost): production compose template runs the AI routing worker so focus auto-confirm answers again'
+    commits:
+    - 9cd7c2f6d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(ui): mobile assistant bubble tail centred under the avatar'
+    commits:
+    - 83fcd82823
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(chats): a turn the server already answered or refused for good is no longer resent on every reconnect'
+    commits:
+    - 6a33c1cb6d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(security): daily email lists every GitHub Dependabot and secret scanning alert with our verdict'
+    commits:
+    - 640805595c
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore(ci): user timer keeps the E2B CI runner dependency template for dev warm every 30 minutes'
+    commits:
+    - e556706211
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(tooling): AI test-user prod runs wait or skip during a production update and mark runs that overlapped one'
+    commits:
+    - f36500ab10
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore(claude): Marco gets one notice when a chat uses unusually many sub-agents or tokens; CLAUDE.md names the
+      set wait, triage gate and no-caps rule'
+    commits:
+    - 9001ddc73c
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore(claude): a chat compacted four times hands off to a fresh chat on the same session and Task'
+    commits:
+    - cb60e769d9
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ci): rust-check tooling checkout includes the pinned SDK test peer requirements'
+    commits:
+    - a09d652953
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore(claude): messages to another chat wait in its mailbox until its next turn unless marked URGENT'
+    commits:
+    - f4cdc1aedf
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(projects): the recipe proof closes the dev update notice when it covers a click'
+    commits:
+    - 0107427c27
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(backend): stop four recurring prod worker errors and downgrade expected log noise'
+    commits:
+    - c9ab19cc0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+  - title: 'feat(tooling): every CI/E2B Playwright run attaches its video to the push; pushes keep proof copies'
+    commits:
+    - 6c1ca97ea6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat(ci): E2B runners can start from a template with dependencies baked in, one per dependency hash (switch, off
+      by default)'
+    commits:
+    - 4d3a986da4
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(billing): events conference usage resolves provider info via pretalx, not a 404 gpn24 lookup'
+    commits:
+    - 39faffa316
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ui): assistant bubble tail on mobile, word-boundary embed card titles, test users ignore sticky bars'
+    commits:
+    - a1f1e37286
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:business:company_ownership
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_investors
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:calendar:event
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:calendar
+      source: backend/apps/calendar/app.yml
+    - id: embed:design:embroidery
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:design
+      source: backend/apps/design/app.yml
+    - id: embed:hosting:search_domains
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:hosting
+      source: backend/apps/hosting/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix(chats): the switch to the new chat recovery mode also retires old batch claims idle for over a day'
+    commits:
+    - 1285c0b3b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(projects): each recipe proof test checks only its own proof checkpoints'
+    commits:
+    - cdfee910dd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): authored result source and image refs copied as embed:<ref> resolve like existing-card refs'
+    commits:
+    - 349304975b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): citation fallback shows the bare domain, not an English ''according to'''
+    commits:
+    - 453ad86e82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(ai-test-users): DEV/PRODUCTION issue push with debug-chat status, automatic debug chats for functional errors
+      only, no issue emails for test-user reports'
+    commits:
+    - e424462fc7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(release): prod update reuses an open SSH connection; CLI start-screen test matches server inspirations'
+    commits:
+    - ec36894175
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(prod-smoke): paid-chat and app-skill prod smokes run at their Berlin hours on the UTC host cron'
+    commits:
+    - dad97a3225
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: centralize connected accounts and add Gmail drafts'
+    commits:
+    - 8ae8145170
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:mail:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+  - title: 'fix(chats): a turn the server already answered or refused for good is no longer resent on every reconnect'
+    commits:
+    - 6a33c1cb6d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix(chats): Apps result follow-ups show only your words, and pasted lists no longer empty the composer'
+    commits:
+    - c9b68ef81b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix(design): keep embroidery previews and machine files in saved chats'
+    commits:
+    - 5f913d2b30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(settings): restore saved AI model preferences after sign-in'
+    commits:
+    - e6d1207ed2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(events): preserve sourced street addresses in web results'
+    commits:
+    - e6d1a9865f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix(selfhost): generate core Compose from one service definition'
+    commits:
+    - 521c26b8c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: centralize connected accounts and add Gmail drafts'
+    commits:
+    - 8ae8145170
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: embed:mail:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:mail:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:mail
+      source: backend/apps/mail/app.yml
+    newsletter_ready: false
+  - title: 'fix(voice-call): spoken turns no longer fail when the server has Projects switched off (F74ES)'
+    commits:
+    - cad4c5075b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(selfhost): production compose template runs the AI routing worker so focus auto-confirm answers again'
+    commits:
+    - 9cd7c2f6d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(ui): mobile assistant bubble tail centred under the avatar'
+    commits:
+    - 83fcd82823
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(backend): stop four recurring prod worker errors and downgrade expected log noise'
+    commits:
+    - c9ab19cc0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    newsletter_ready: false
+  - title: 'feat(tooling): every CI/E2B Playwright run attaches its video to the push; pushes keep proof copies'
+    commits:
+    - 6c1ca97ea6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(ui): assistant bubble tail on mobile, word-boundary embed card titles, test users ignore sticky bars'
+    commits:
+    - a1f1e37286
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:business:company_ownership
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_investors
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: embed:calendar:event
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:calendar
+      source: backend/apps/calendar/app.yml
+    - id: embed:design:embroidery
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:design
+      source: backend/apps/design/app.yml
+    - id: embed:hosting:search_domains
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:hosting
+      source: backend/apps/hosting/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:models3d:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:videos:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix(ai): citation fallback shows the bare domain, not an English ''according to'''
+    commits:
+    - 453ad86e82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat(ai-test-users): DEV/PRODUCTION issue push with debug-chat status, automatic debug chats for functional errors
+      only, no issue emails for test-user reports'
+    commits:
+    - e424462fc7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(release): prod update reuses an open SSH connection; CLI start-screen test matches server inspirations'
+    commits:
+    - ec36894175
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(chats): Apps result follow-ups show only your words, and pasted lists no longer empty the composer'
+    commits:
+    - c9b68ef81b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 5f913d2b3077701dbd3f30b57ba42cf0f979539e
+    short_sha: 5f913d2b30
+    authored_at: '2026-11-23T23:41:46+00:00'
+    subject: 'fix(design): keep embroidery previews and machine files in saved chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/embed_producer_worker.py
+    - backend/tests/test_detached_embed_producer.py
+    - docs/plans/embroidery-saved-result-recovery/plan.yml
+    - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
+    - frontend/apps/web_app/tests/components/team-context-picker-preview.spec.ts
+    - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.svelte
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/components/settings/TeamQuickActionPreviewHarness.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_model_mention_embed.test.ts
+    - frontend/packages/ui/src/message_parsing/embedFenceRepair.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/helpers/transferZipCases.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/transferZipVectors.test.ts
+    - frontend/packages/ui/src/services/rustCore/transfer/rustChatZip.ts
+    - frontend/packages/ui/src/services/rustCore/transfer/transferProtocol.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    - packages/openmates-rust/src/web_transfer_zip.rs
+    - packages/openmates-rust/src/web_transfer_zip_ts_vectors.json
+    - specifications/features/app-skills/design-embroidery/examples.yml
+    - specifications/features/app-skills/design-embroidery/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: d63da18a6195564911d3392e917230585f753818
+    short_sha: d63da18a61
+    authored_at: '2026-11-23T21:41:56+00:00'
+    subject: 'fix(tooling): refresh work chat mirrors after image support lands'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/codex_chats.py
+    - scripts/tests/test_codex_chats.py
+    related_feature_ids: []
+  - sha: afb2c4fe9022f1ae54041092b62abcdcdc17ddd8
+    short_sha: afb2c4fe90
+    authored_at: '2026-11-23T21:38:04+00:00'
+    subject: 'fix(tooling): attach screenshots to Codex work chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/claude_dispatch.py
+    - scripts/codex_chats.py
+    - scripts/tests/test_codex_chats.py
+    related_feature_ids: []
+  - sha: 4638e5fc00891ba2e89a14d7225a932c38da4ca2
+    short_sha: 4638e5fc00
+    authored_at: '2026-11-23T19:58:58+00:00'
+    subject: 'fix(tooling): block private links in public GitHub text'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/bash-guard.sh
+    - .claude/settings.json
+    - .claude/skills/create-pr/SKILL.md
+    - .github/workflows/public-text-guard.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - scripts/install-hooks.sh
+    - scripts/public_link_guard.py
+    - scripts/sessions.py
+    - scripts/tests/test_public_link_guard.py
+    related_feature_ids: []
+  - sha: 1b9049c990af40469564fe75c394acd42b99e7f7
+    short_sha: 1b9049c990
+    authored_at: '2026-11-23T19:43:16+00:00'
+    subject: 'test(projects): use the workspace switcher in the phone recipe proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: e6d1207ed2b1eeb3c6ecc30f640f1597643a2e5d
+    short_sha: e6d1207ed2
+    authored_at: '2026-11-23T19:40:31+00:00'
+    subject: 'fix(settings): restore saved AI model preferences after sign-in'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_pair_v2.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/schemas/user.py
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_auth_pair_v2_state_machine.py
+    - backend/tests/test_user_response_ai_preferences.py
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 5a5f90f8b6ed20e944d4da5b201f748c1bab2522
+    short_sha: 5a5f90f8b6
+    authored_at: '2026-11-23T19:09:06+00:00'
+    subject: 'fix(events): verify venue addresses inside formatted source links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/web_result_extraction.py
+    - backend/tests/test_web_result_extraction.py
+    related_feature_ids: []
+  - sha: 10e08da14e1c480bcc59979f71fc337d832d2d38
+    short_sha: 10e08da14e
+    authored_at: '2026-11-23T18:55:44+00:00'
+    subject: 'fix(chats): retain the archived workspace for reserve handovers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/chat_compaction_handoff.py
+    - scripts/sessions.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_sessions_agent_binding.py
+    related_feature_ids: []
+  - sha: e6d1a9865f6f50a7e060e27e0373267ca3c0cd3b
+    short_sha: e6d1a9865f
+    authored_at: '2026-11-23T18:53:48+00:00'
+    subject: 'fix(events): preserve sourced street addresses in web results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/shared/python_utils/web_result_extraction.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_web_result_extraction.py
+    - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids:
+    - app:events
+    - embed:events:search
+    - skill:events:search
+  - sha: 2841cbd4a79fe33846d1fc9138735f5e121c3ce1
+    short_sha: 2841cbd4a7
+    authored_at: '2026-11-23T18:50:56+00:00'
+    subject: 'fix(chats): keep dispatch boilerplate out of queued model routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_claude_dispatch.py
+    related_feature_ids: []
+  - sha: f7311ca4539b1e07e377a4ef5cf6090959d0955f
+    short_sha: f7311ca453
+    authored_at: '2026-11-23T18:49:02+00:00'
+    subject: 'fix: complete chat workspace handoffs and message delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/claude_idle_chats.py
+    - scripts/codex_chats.py
+    - scripts/sessions.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_codex_chats.py
+    - scripts/tests/test_sessions_agent_binding.py
+    related_feature_ids: []
+  - sha: 7ebc59b361d86ccc8526771185c8a641bda94f6b
+    short_sha: 7ebc59b361
+    authored_at: '2026-11-23T18:47:08+00:00'
+    subject: 'fix(chats): hand Claude work to Codex when weekly usage enters reserve'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/chat_compaction_handoff.py
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/claude_usage_guard.py
+    - scripts/claude_weekly_model.py
+    - scripts/codex_chats.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_claude_weekly_model.py
+    - scripts/tests/test_codex_chats.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 2cb07290d9d5f83eb89ade384a440915cbc6ab84
+    short_sha: 2cb07290d9
+    authored_at: '2026-11-23T18:31:42+00:00'
+    subject: 'fix: restore dev chat queue draining and forced starts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/codex_setup.py
+    - scripts/force_chat.py
+    - scripts/tests/test_chat_slots.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_codex_setup.py
+    related_feature_ids: []
+  - sha: 1cf5d1e58d4a11f7b0f4d69441ec961116d01bc9
+    short_sha: 1cf5d1e58d
+    authored_at: '2026-11-23T18:24:50+00:00'
+    subject: 'docs: require production proof before product video recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - scripts/daily_meeting_briefing.py
+    related_feature_ids: []
+  - sha: 656e69a1baf3e924803d662c7851717f9cfa2830
+    short_sha: 656e69a1ba
+    authored_at: '2026-11-23T18:24:28+00:00'
+    subject: 'feat(meetings): schedule weekday accountability pushes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - docs/plans/daily-meeting-accountability/plan.yml
+    - scripts/daily_meeting_accountability.py
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_morning.py
+    - scripts/daily_meeting_reflection.py
+    - scripts/systemd/openmates-daily-meeting.service
+    - scripts/systemd/openmates-daily-meeting.timer
+    - scripts/tests/test_daily_meeting_accountability.py
+    - scripts/tests/test_daily_meeting_briefing.py
+    related_feature_ids: []
+  - sha: f7ea1e0ee2265dd81d89112b325e1bd20f750d8a
+    short_sha: f7ea1e0ee2
+    authored_at: '2026-11-23T18:22:33+00:00'
+    subject: 'fix: prevent lifecycle wakes from creating chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude_idle_chats.py
+    - scripts/claude_idle_nudge.py
+    - scripts/socialhub_e2b.py
+    - scripts/tests/test_claude_chat_continue.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_claude_idle_nudge.py
+    related_feature_ids: []
+  - sha: 521c26b8c0176c3c1454ab975b7ea15b99b5a964
+    short_sha: 521c26b8c0
+    authored_at: '2026-11-23T18:20:40+00:00'
+    subject: 'fix(selfhost): generate core Compose from one service definition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/core-compose-drift.yml
+    - .github/workflows/selfhost-smoke-rust.yml
+    - backend/core/core-compose.dev-overrides.yml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_billing_worker_compose.py
+    - backend/tests/test_celery_queue_consumers.py
+    - backend/tests/test_core_compose_generation.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-tui-native/assets/manifest.json
+    - frontend/packages/openmates-tui-native/assets/selfhost/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-tui-native/src/server.rs
+    - frontend/packages/openmates-tui-native/src/server/configuration.rs
+    - frontend/packages/openmates-tui-native/src/server/startup.rs
+    - frontend/packages/openmates-tui-native/src/server/update.rs
+    - scripts/bump_alpha_version_line.py
+    - scripts/ci_native_release.py
+    - scripts/sync_core_compose.py
+    - scripts/sync_rust_cli_assets.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 8ae8145170934ebd9ef466bbbdb45e901ec80025
+    short_sha: 8ae8145170
+    authored_at: '2026-11-23T18:17:06+00:00'
+    subject: 'feat: centralize connected accounts and add Gmail drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/permission_broker.py
+    - backend/apps/mail/app.yml
+    - backend/apps/mail/skills/create_draft_skill.py
+    - backend/apps/mail/skills/gmail_search.py
+    - backend/apps/mail/skills/read_thread_skill.py
+    - backend/apps/mail/skills/search_skill.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/connected_accounts_service.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/core/directus/schemas/connected_accounts.yml
+    - backend/shared/providers/gmail/__init__.py
+    - backend/shared/providers/gmail/client.py
+    - backend/shared/providers/gmail/errors.py
+    - backend/shared/providers/gmail/mime.py
+    - backend/shared/providers/google_calendar/errors.py
+    - backend/shared/python_utils/connected_account_registry.py
+    - backend/shared/python_utils/mail_gmail_support.py
+    - backend/tests/fake_gmail.py
+    - backend/tests/live/test_google_calendar_permissions_live.py
+    - backend/tests/test_connected_account_usage_metadata.py
+    - backend/tests/test_gmail_skills.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - backend/tests/test_google_calendar_skill_hardening.py
+    - backend/tests/test_token_broker_refs.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/shared-client.yml
+    - docs/plans/connected-accounts-central-page/plan.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    - frontend/apps/web_app/tests/components/connected-accounts-before.spec.ts
+    - frontend/apps/web_app/tests/components/connected-accounts-central.spec.ts
+    - frontend/apps/web_app/tests/components/connected-accounts-redesign.spec.ts
+    - frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/apps/web_app/tests/helpers/settings-readiness.ts
+    - frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/connectedAccountIds.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/connected-account-ids.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsConnectedAccounts.preview.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/connectedAccountPreviewFixture.ts
+    - frontend/packages/ui/src/components/settings/connected_accounts/AppConnectedAccountsSection.svelte
+    - frontend/packages/ui/src/components/settings/connected_accounts/ConnectedAccountDetail.svelte
+    - frontend/packages/ui/src/components/settings/connected_accounts/FigmaConnectedAccounts.preview.ts
+    - frontend/packages/ui/src/components/settings/connected_accounts/FigmaConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/connected_accounts/connectedAccountEntries.ts
+    - frontend/packages/ui/src/components/settings/connected_accounts/googleAccountLabel.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsSectionHeading.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/mail.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountLastUsed.test.ts
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthReturn.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/connectedAccountsSharedUnit.test.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/connectedAccountsProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/connectedAccountsUnit.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/rustConnectedAccountWrites.ts
+    - frontend/packages/ui/src/services/rustCore/connectedAccounts/rustConnectedAccounts.ts
+    - packages/openmates-browser-bindings/src/browser_connected_accounts.rs
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/account/connected_accounts.rs
+    - packages/openmates-rust/src/account/connected_accounts_tests.rs
+    - packages/openmates-rust/src/generated/metadata.json
+    - packages/openmates-rust/src/web_connected_accounts.rs
+    - packages/openmates-rust/src/web_connected_accounts_oauth.rs
+    - packages/openmates-rust/src/web_connected_accounts_oauth_tests.rs
+    - packages/openmates-rust/src/web_connected_accounts_tests.rs
+    - packages/openmates-rust/src/web_connected_accounts_tokens.rs
+    - packages/openmates-rust/src/web_connected_accounts_write_ts_vectors.json
+    - scripts/ci_coverage_manifest.json
+    - specifications/architecture/connected-accounts/specification.yml
+    - specifications/features.yml
+    - specifications/features/app-skills/calendar/specification.yml
+    - specifications/features/app-skills/mail-gmail/examples.yml
+    - specifications/features/app-skills/mail-gmail/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:mail
+    - embed:mail:search
+    - skill:finance:check_accounts
+    - skill:mail:search
+  - sha: a937b3c3de4cf0962c16d5ae0dc26fa8414d8d71
+    short_sha: a937b3c3de
+    authored_at: '2026-11-23T17:40:30+00:00'
+    subject: 'feat(chats): hand off long Claude and Codex chats and brake repeated failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/testing.md
+    - .claude/settings.json
+    - AGENTS.md
+    - CLAUDE.md
+    - scripts/agent_question.py
+    - scripts/chat_compaction_handoff.py
+    - scripts/chat_usage_watch.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_triage_gate.py
+    - scripts/claude_idle_chats.py
+    - scripts/codex_chats.py
+    - scripts/tests/test_agent_question.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_chat_usage_watch.py
+    - scripts/tests/test_ci_triage_gate.py
+    related_feature_ids: []
+  - sha: 483c0a984364096898323aac2f3856815438b915
+    short_sha: 483c0a9843
+    authored_at: '2026-11-23T16:28:18+00:00'
+    subject: 'fix(codex): AGENTS.md regenerates in every deploy; a drift only warns, never blocks Codex starts (TASK-4476)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/agents_md.py
+    - scripts/codex_setup.py
+    - scripts/sessions.py
+    - scripts/tests/test_codex_setup.py
+    - scripts/tests/test_sessions_lane_deploy_pipeline.py
+    related_feature_ids: []
+  - sha: 37bf44a966d160668c2ee8ef70b0656c5cc7eade
+    short_sha: 37bf44a966
+    authored_at: '2026-11-23T16:08:24+00:00'
+    subject: 'feat(push): urgent pushes skip the 20-minute limit, held pushes are queued and sent later; merged PR is the
+      prod go-ahead'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - CLAUDE.md
+    - scripts/agent_question.py
+    - scripts/host_resources.py
+    - scripts/tests/test_agent_question.py
+    - scripts/tests/test_host_resources.py
+    related_feature_ids: []
+  - sha: 1da224eca88e81d87b30c240ebf70aafa0224058
+    short_sha: 1da224eca8
+    authored_at: '2026-11-23T16:02:54+00:00'
+    subject: 'fix(chat-lifecycle): a wake-up box taller than the pane still counts as unsent'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    related_feature_ids: []
+  - sha: b51881fef6d2bdeff6b107c016c69e415955ecc0
+    short_sha: b51881fef6
+    authored_at: '2026-11-23T15:22:08+00:00'
+    subject: 'feat(chats): Codex as second work-chat engine with the same rules and guards (TASK-4476)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .codex/hooks.json
+    - .github/workflows/agents-md-sync.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - scripts/agents_md.py
+    - scripts/claude_dispatch.py
+    - scripts/claude_idle_chats.py
+    - scripts/claude_weekly_model.py
+    - scripts/codex_chats.py
+    - scripts/codex_hook_adapter.py
+    - scripts/codex_setup.py
+    - scripts/tests/test_agents_md.py
+    - scripts/tests/test_claude_dispatch.py
+    - scripts/tests/test_claude_weekly_model.py
+    - scripts/tests/test_codex_chats.py
+    - scripts/tests/test_codex_hook_adapter.py
+    - scripts/tests/test_codex_setup.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: d15436f4d929b280ae44e245a80b941601d51669
+    short_sha: d15436f4d9
+    authored_at: '2026-11-23T14:48:46+00:00'
+    subject: 'test(chat-paste): long list paste E2E proves the real Paste-as-text path and waits for the finished reply'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-paste-long-list-send.spec.ts
+    related_feature_ids: []
+  - sha: 783c310f3a1ead3f5d66eee0ba3cac35bb9a2619
+    short_sha: 783c310f3a
+    authored_at: '2026-11-23T14:44:57+00:00'
+    subject: 'fix(chat-lifecycle): hooks run from the main checkout, wake-ups are verified and CI waits time out'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/run.sh
+    - .claude/settings.json
+    - scripts/claude_chat_waiters.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_chat_waiters.py
+    - scripts/tests/test_claude_idle_chats.py
+    - scripts/tests/test_hook_runner.py
+    related_feature_ids: []
+  - sha: ba628322a53628b56a2b6a0d2d03ecab792d8da3
+    short_sha: ba628322a5
+    authored_at: '2026-11-23T14:08:17+00:00'
+    subject: 'test(voice-call): real voice proof ignores the account''s own Security Reminder notice'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call-real.spec.ts
+    related_feature_ids: []
+  - sha: 990c65916eb70c0b6d07aefbb545f4c1bbe05af9
+    short_sha: 990c65916e
+    authored_at: '2026-11-23T13:49:42+00:00'
+    subject: 'test(ci): run the live-collaboration assistant real-inference specs in isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: cad4c5075b8fc032959d1d6acb70d87d92e536af
+    short_sha: cad4c5075b
+    authored_at: '2026-11-23T13:46:36+00:00'
+    subject: 'fix(voice-call): spoken turns no longer fail when the server has Projects switched off (F74ES)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/voice-call-real.spec.ts
+    - packages/openmates-rust/src/client/context.rs
+    - packages/openmates-rust/src/client/context_focus_disabled_tests.rs
+    - scripts/voice_call_web_real_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: fc7d9e1f80c306499a3a4c881edd907cbec55b07
+    short_sha: fc7d9e1f80
+    authored_at: '2026-11-23T13:38:26+00:00'
+    subject: 'fix(ci): Playwright browser cache is keyed per runner layout and the install always verifies the browser'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    related_feature_ids: []
+  - sha: 9cd7c2f6d87056d6bfb055ccfff61c586d1d9cce
+    short_sha: 9cd7c2f6d8
+    authored_at: '2026-11-23T13:37:17+00:00'
+    subject: 'fix(selfhost): production compose template runs the AI routing worker so focus auto-confirm answers again'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_celery_queue_consumers.py
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/prepare_release_candidate.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 83fcd82823cee2974421d0b544578e5c5f021bed
+    short_sha: 83fcd82823
+    authored_at: '2026-11-23T13:33:38+00:00'
+    subject: 'fix(ui): mobile assistant bubble tail centred under the avatar'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-message-bubble-tail.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    related_feature_ids: []
+  - sha: 6a33c1cb6dac6e77e51ba498bbf34f1678a016a7
+    short_sha: 6a33c1cb6d
+    authored_at: '2026-11-23T13:30:07+00:00'
+    subject: 'fix(chats): a turn the server already answered or refused for good is no longer resent on every reconnect'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/shared-client.yml
+    - docs/migration/rust/web-app.yml
+    - frontend/packages/ui/src/services/rustCore/__tests__/rustTurnOutcomeWatch.test.ts
+    - frontend/packages/ui/src/services/rustCore/__tests__/sendPrepOutboxVectors.test.ts
+    - frontend/packages/ui/src/services/rustCore/send/rustTurnOutcomeWatch.ts
+    - frontend/packages/ui/src/services/rustCore/send/sendPrepProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - packages/openmates-browser-bindings/src/browser_send_prep.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/send_finished_turn.rs
+    - packages/openmates-rust/src/web_send_prep/mod.rs
+    - packages/openmates-rust/src/web_send_prep/turn_outcome.rs
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 640805595c30d4789198d5dd0b1ae24bfbd7f7e1
+    short_sha: 640805595c
+    authored_at: '2026-11-23T13:25:52+00:00'
+    subject: 'feat(security): daily email lists every GitHub Dependabot and secret scanning alert with our verdict'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/security_monitor.py
+    - scripts/security_monitoring/dispatch.py
+    - scripts/security_monitoring/github_alerts.py
+    - scripts/security_monitoring/health.py
+    - scripts/security_monitoring/notify.py
+    - scripts/tests/test_security_monitoring_github_alerts.py
+    - specifications/architecture/security-monitoring/examples.yml
+    - specifications/architecture/security-monitoring/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: e556706211825052a3cb76f036d561fe08863103
+    short_sha: e556706211
+    authored_at: '2026-11-23T13:16:51+00:00'
+    subject: 'chore(ci): user timer keeps the E2B CI runner dependency template for dev warm every 30 minutes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci-e2b-template-warm-setup.sh
+    related_feature_ids: []
+  - sha: f36500ab10ca9f93999721201a5281000fa11f5c
+    short_sha: f36500ab10
+    authored_at: '2026-11-23T13:13:35+00:00'
+    subject: 'feat(tooling): AI test-user prod runs wait or skip during a production update and mark runs that overlapped
+      one'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_deploy_guard.py
+    - scripts/ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_deploy_guard.py
+    related_feature_ids: []
+  - sha: 9001ddc73c9e5351e5917a7f2384935665520d89
+    short_sha: 9001ddc73c
+    authored_at: '2026-11-23T13:11:46+00:00'
+    subject: 'chore(claude): Marco gets one notice when a chat uses unusually many sub-agents or tokens; CLAUDE.md names the
+      set wait, triage gate and no-caps rule'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - CLAUDE.md
+    - scripts/chat_usage_watch.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_chat_usage_watch.py
+    related_feature_ids: []
+  - sha: cb60e769d91a64d3e1cca2e0460e3900e8747f59
+    short_sha: cb60e769d9
+    authored_at: '2026-11-23T13:03:51+00:00'
+    subject: 'chore(claude): a chat compacted four times hands off to a fresh chat on the same session and Task'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/settings.json
+    - CLAUDE.md
+    - scripts/chat_compaction_handoff.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_chat_compaction_handoff.py
+    - scripts/tests/test_claude_chat_continue.py
+    related_feature_ids: []
+  - sha: a09d65295388c75978ef015bd9154d519dfbfb05
+    short_sha: a09d652953
+    authored_at: '2026-11-23T13:02:04+00:00'
+    subject: 'fix(ci): rust-check tooling checkout includes the pinned SDK test peer requirements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    related_feature_ids: []
+  - sha: f4cdc1aedfb62a6677765888be66798d50b8637b
+    short_sha: f4cdc1aedf
+    authored_at: '2026-11-23T13:00:12+00:00'
+    subject: 'chore(claude): messages to another chat wait in its mailbox until its next turn unless marked URGENT'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/settings.json
+    - CLAUDE.md
+    - scripts/chat_mailbox.py
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_chat_mailbox.py
+    related_feature_ids: []
+  - sha: 0107427c276dc8560f508300c7ce23fafb76621d
+    short_sha: 0107427c27
+    authored_at: '2026-11-23T12:58:23+00:00'
+    subject: 'test(projects): the recipe proof closes the dev update notice when it covers a click'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c9ab19cc0dbdba9540dc7649aced2b92904fbaab
+    short_sha: c9ab19cc0d
+    authored_at: '2026-11-23T12:43:40+00:00'
+    subject: 'fix(backend): stop four recurring prod worker errors and downgrade expected log noise'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/pdf/skills/read_skill.py
+    - backend/apps/pdf/skills/search_skill.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/auth_routes/auth_utils.py
+    - backend/core/api/app/services/directus/health_event_methods.py
+    - backend/core/api/app/tasks/email_tasks/daily_notification_dispatcher.py
+    - backend/core/api/app/tasks/email_tasks/webhook_rate_limit_digest_email_task.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/shared/python_utils/image_safety/account_suspension.py
+    - backend/shared/python_utils/image_safety/safety_review.py
+    - backend/tests/test_account_deletion_unshare_filter.py
+    - backend/tests/test_health_event_history_query.py
+    - backend/tests/test_notification_email_preferences.py
+    - backend/tests/test_pdf_search_read_v2.py
+    - backend/tests/test_safety_appeals.py
+    - backend/tests/test_safety_strikes.py
+    - backend/tests/test_webhook_rl_digest_cache_init.py
+    - backend/tests/test_workflow_digest_email.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:pdf
+    - embed:pdf:read
+    - embed:pdf:search
+    - skill:pdf:read
+    - skill:pdf:search
+  - sha: 6c1ca97ea6e9501d155fceafc09a17aefd405868
+    short_sha: 6c1ca97ea6
+    authored_at: '2026-11-23T12:40:55+00:00'
+    subject: 'feat(tooling): every CI/E2B Playwright run attaches its video to the push; pushes keep proof copies'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - .github/workflows/selfhost-smoke-rust.yml
+    - .github/workflows/selfhost-smoke.yml
+    - CLAUDE.md
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/agent_question.py
+    - scripts/push_proof.py
+    - scripts/tests/test_push_proof.py
+    related_feature_ids: []
+  - sha: 4d3a986da4d42105bcee6a89daf52228dc5c45c3
+    short_sha: 4d3a986da4
+    authored_at: '2026-11-23T12:38:11+00:00'
+    subject: 'feat(ci): E2B runners can start from a template with dependencies baked in, one per dependency hash (switch,
+      off by default)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/ci_e2b_runner.py
+    - scripts/ci_e2b_template.py
+    - scripts/ci_speedups.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_ci_e2b_runner.py
+    related_feature_ids: []
+  - sha: 39faffa316c21c2acac448338087cc3e4f2e44bb
+    short_sha: 39faffa316
+    authored_at: '2026-11-23T12:36:12+00:00'
+    subject: 'fix(billing): events conference usage resolves provider info via pretalx, not a 404 gpn24 lookup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/providers/pretalx.yml
+    - backend/shared/python_utils/skill_provider_attribution.py
+    - backend/tests/test_skill_provider_attribution.py
+    related_feature_ids: []
+  - sha: a1f1e372862640f3017f68ca7929bd22a8945845
+    short_sha: a1f1e37286
+    authored_at: '2026-11-23T12:34:15+00:00'
+    subject: 'fix(ui): assistant bubble tail on mobile, word-boundary embed card titles, test users ignore sticky bars'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/ai_test_users/models.py
+    - frontend/apps/web_app/tests/components/chat-message-bubble-tail.spec.ts
+    - frontend/apps/web_app/tests/components/embed-card-title-wrap.spec.ts
+    - frontend/packages/public-site/src/components/results/ResultEmbedCard.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/GeneratedMediaGroupEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessInvestorSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/hosting/HostingSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/jobs/JobsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/plans/PlanEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/BrowseEmbedPreview.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids:
+    - embed:audio:generate
+    - embed:audio:speak
+    - embed:business:company_ownership
+    - embed:business:search_investors
+    - embed:business:search_trademarks
+    - embed:calendar:event
+    - embed:design:embroidery
+    - embed:hosting:search_domains
+    - embed:images:generate
+    - embed:images:generate_draft
+    - embed:images:modify
+    - embed:images:vectorize
+    - embed:jobs:search
+    - embed:models3d:generate
+    - embed:music:generate
+    - embed:videos:generate
+    - embed:web:browse
+  - sha: 1285c0b3b9867b45ccaffd35fe117e3000616820
+    short_sha: 1285c0b3b9
+    authored_at: '2026-11-23T12:30:18+00:00'
+    subject: 'fix(chats): the switch to the new chat recovery mode also retires old batch claims idle for over a day'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: cdfee910dd1da6e0cf682977496ec7280d5f0528
+    short_sha: cdfee910dd
+    authored_at: '2026-11-23T12:28:12+00:00'
+    subject: 'test(projects): each recipe proof test checks only its own proof checkpoints'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.test.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 349304975b6c2df37353921f024acf0ffe408c08
+    short_sha: 349304975b
+    authored_at: '2026-11-23T12:23:42+00:00'
+    subject: 'fix(ai): authored result source and image refs copied as embed:<ref> resolve like existing-card refs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/authored_result_service.py
+    - backend/tests/test_authored_result_service.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 453ad86e82e8a3960c318eeb6d4a23c0751b7263
+    short_sha: 453ad86e82
+    authored_at: '2026-11-23T12:21:28+00:00'
+    subject: 'fix(ai): citation fallback shows the bare domain, not an English ''according to'''
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_embed_referencing_instruction.md
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_embed_link_fixes.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - frontend/packages/ui/src/utils/__tests__/embedDisplayText.test.ts
+    - frontend/packages/ui/src/utils/embedDisplayText.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids:
+    - app:ai
+  - sha: e424462fc772366c89e333e9abffbd9eec728691
+    short_sha: e424462fc7
+    authored_at: '2026-11-23T12:17:33+00:00'
+    subject: 'feat(ai-test-users): DEV/PRODUCTION issue push with debug-chat status, automatic debug chats for functional
+      errors only, no issue emails for test-user reports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/issue_report_contact_email.py
+    - backend/tests/test_issue_report_contact_email.py
+    - docs/architecture/infrastructure/claude-dispatch.md
+    - docs/plans/regular-ai-test-users/plan.yml
+    - scripts/ai_test_users.py
+    - scripts/ai_test_users_exec.py
+    - scripts/ai_test_users_message.py
+    - scripts/ai_test_users_triage.py
+    - scripts/claude_dispatch.py
+    - scripts/tests/test_ai_test_users_daily.py
+    - scripts/tests/test_ai_test_users_message.py
+    - scripts/tests/test_ai_test_users_triage.py
+    - scripts/tests/test_ai_test_users_video.py
+    - scripts/tests/test_claude_dispatch.py
+    - specifications/architecture/ai-test-users/examples.yml
+    - specifications/architecture/ai-test-users/specification.yml
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: ec36894175762b515800ea39a4e3646837f92b2c
+    short_sha: ec36894175
+    authored_at: '2026-11-23T12:13:24+00:00'
+    subject: 'fix(release): prod update reuses an open SSH connection; CLI start-screen test matches server inspirations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/update-prod-server/SKILL.md
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: dad97a32257018eccdc67ff6dc95651b7d1b3816
+    short_sha: dad97a3225
+    authored_at: '2026-11-23T12:10:09+00:00'
+    subject: 'fix(prod-smoke): paid-chat and app-skill prod smokes run at their Berlin hours on the UTC host cron'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/test_schedule_setup.py
+    - scripts/tests/test_test_schedule_setup.py
+    related_feature_ids: []
+  - sha: c9b68ef81b9ad7558fba43c69d18c0fdb74c167e
+    short_sha: c9b68ef81b
+    authored_at: '2026-11-23T09:45:51+00:00'
+    subject: 'fix(chats): Apps result follow-ups show only your words, and pasted lists no longer empty the composer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/chat-paste-long-list-send.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatMessageExpansionPreview.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_write_mode_lists.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/writeModeBlocks.ts
+    - frontend/packages/ui/src/services/appsWorkspaceChatHandoffService.ts
+    - frontend/packages/ui/src/utils/__tests__/appsResultContextDisplay.test.ts
+    - frontend/packages/ui/src/utils/appsResultContextDisplay.ts
+    - frontend/packages/ui/src/utils/chatTimeline.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates improved the chat experience by fixing composer behavior when handling long lists and refining follow-up
+    displays in the Apps workspace. Significant development progress was made on a centralized connected accounts interface,
+    Gmail draft integration, and a multi-model architecture for internal work chats using Codex.
+  released_changes:
+  - text: Follow-up messages in the Apps workspace now display only the user's words, providing a cleaner conversation history.
+    evidence:
+      commits:
+      - c9b68ef81b
+    release_status: released_main
+  - text: The chat composer now correctly retains text when long lists are pasted into the input field.
+    evidence:
+      commits:
+      - c9b68ef81b
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where pasting long lists into the chat composer could unexpectedly clear the input field.
+    evidence:
+      commits:
+      - c9b68ef81b
+    release_status: released_main
+  unreleased_progress:
+  - text: A centralized settings page for managing connected accounts is in development, including initial support for creating
+      Gmail drafts.
+    evidence:
+      commits:
+      - 8ae8145170
+    release_status: dev_only
+  - text: Codex is being integrated as a secondary engine for internal work chats, following the same safety and dispatch
+      rules as existing models.
+    evidence:
+      commits:
+      - b51881fef6
+      - 483c0a9843
+    release_status: dev_only
+  - text: Automated accountability pushes for weekday meetings are being implemented.
+    evidence:
+      commits:
+      - 656e69a1ba
+    release_status: dev_only
+  - text: Mobile UI refinements are centering the assistant's message bubble tail under the avatar for better visual alignment.
+    evidence:
+      commits:
+      - 83fcd82823
+      - a1f1e37286
+    release_status: dev_only
+  - text: AI citation fallbacks are being updated to display bare domains instead of generic introductory phrases.
+    evidence:
+      commits:
+      - 453ad86e82
+    release_status: dev_only
+  - text: Self-hosting improvements include a unified Docker Compose definition and better routing for AI workers to ensure
+      focus auto-confirmations function correctly.
+    evidence:
+      commits:
+      - 521c26b8c0
+      - 9cd7c2f6d8
+    release_status: dev_only
+  - text: Saved chats are being updated to better preserve embroidery previews and associated machine files.
+    evidence:
+      commits:
+      - 5f913d2b30
+    release_status: dev_only
+  internal_progress:
+  - text: New orchestration logic manages the handoff of long internal chats between Claude and Codex to optimize token usage
+      and prevent session failures.
+    evidence:
+      commits:
+      - a937b3c3de
+      - 7ebc59b361
+      - f7311ca453
+    release_status: dev_only
+  - text: A security monitoring service now generates daily email reports summarizing GitHub Dependabot and secret scanning
+      alerts.
+    evidence:
+      commits:
+      - 640805595c
+    release_status: dev_only
+  - text: CI infrastructure was updated to support dependency-baked runner templates and improved Playwright browser caching
+      to reduce test execution times.
+    evidence:
+      commits:
+      - 4d3a986da4
+      - e556706211
+      - fc7d9e1f80
+    release_status: dev_only
+  - text: The production deployment pipeline now includes guards to pause AI test-user runs during updates and reuses SSH
+      connections for faster releases.
+    evidence:
+      commits:
+      - 37bf44a966
+      - f36500ab10
+      - ec36894175
+    release_status: dev_only
+  newsletter_recommendation:
+    include:
+    - text: Improved chat composer stability and cleaner Apps workspace history.
+      evidence:
+        commits:
+        - c9b68ef81b
+      reason: This update fixes a common frustration with the chat composer and improves the readability of the Apps workspace.
+    exclude:
+    - text: Centralized connected accounts and Gmail draft support.
+      evidence:
+        commits:
+        - 8ae8145170
+      reason: This feature is currently in dev_only status and not yet available to all users.
+    - text: Codex integration for work chats.
+      evidence:
+        commits:
+        - b51881fef6
+      reason: This is an internal architectural change for work chats and is dev_only.
+    rationale: The primary user-facing improvement today is a fix for chat composer behavior and workspace clarity, while
+      larger features like connected accounts remain in development.
+  social_video_recommendations:
+  - idea: Demonstrate the fix for pasting long lists and the cleaner Apps workspace follow-up view.
+    priority: medium
+    reason: These are concrete quality-of-life improvements that users will notice immediately in their daily workflows.
+    evidence:
+      commits:
+      - c9b68ef81b
+  quality_notes:
+  - Internal work is shifting toward a multi-model strategy (Claude and Codex) for agentic tasks.
+  - Heavy emphasis on deployment safety with new guards for AI test-users and automated security reporting.
+  - UI refinements continue for mobile message alignment and AI citation fallbacks.
+  validation_warnings: []
