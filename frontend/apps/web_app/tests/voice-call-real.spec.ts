@@ -27,6 +27,7 @@
 import type { Page, TestInfo } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { selectMentionResult } from './helpers/mention-test-helpers';
 
 const { expect, test: playwrightTest } = require('@playwright/test');
 const { withProofAudio } = require('./helpers/proof-audio');
@@ -64,6 +65,7 @@ interface Scenario {
 
 // The typed request with the form link (kept out of the repository; passed by the runner).
 const FORM_PROMPT = process.env.VOICE_CALL_FORM_PROMPT || '';
+const FORM_VOICE_MODEL = process.env.VOICE_CALL_FORM_EXPECTED_MODEL;
 const BROWSE_EMBED = '[data-testid="embed-preview"][data-app-id="web"][data-skill-id="browse"]';
 
 const MEMORY_TITLE = 'Job application profile';
@@ -135,11 +137,14 @@ async function saveMemoryFirst(page: Page, log: any, screenshot: any): Promise<s
 /** Typed first turn that opens the form with Browse; the call then continues in this chat. */
 async function startFormFirst(page: Page, log: any, screenshot: any) {
   await startNewChat(page, log);
-  await sendMessage(page, FORM_PROMPT, log, screenshot, 'form-typed-request');
+  await selectMentionResult(page, 'Gemini-3.8-Flash', 'Gemini 3.8 Flash');
+  await sendMessage(page, FORM_PROMPT, log, screenshot, 'form-typed-request', { preserveExistingContent: true });
   await waitForAssistantMessage(page, { which: 'last', timeout: 300_000, logCheckpoint: log });
   await expect(page.getByTestId('stop-processing-button')).toHaveCount(0, { timeout: 300_000 });
   await expandActivity(page);
-  await expect(page.getByTestId('message-assistant').last().locator(BROWSE_EMBED).first(),
+  const reply = page.getByTestId('message-assistant').last();
+  await expect(reply.getByTestId('generated-by')).toContainText(/Gemini 3\.8 Flash/i);
+  await expect(reply.locator(BROWSE_EMBED).first(),
     'the typed form request opens the form with Browse').toBeVisible({ timeout: 30_000 });
   log('form opened with Browse by the typed request');
 }
@@ -263,14 +268,16 @@ for (const scenario of SCENARIOS) {
         page.on('pageerror', (error) => consoleTail.push(`[pageerror] ${String(error).slice(0, 300)}`));
         // Acknowledgement clips are fetched and played from blob: URLs, so their path is only visible
         // in the server event that announces them and in the clip download.
-        const acknowledgementUrls: string[] = [];
+        const acknowledgements: { url: string; messageId: string }[] = [];
         const clipDownloads: string[] = [];
         const toolTurnAudioPhases: string[] = [];
         page.on('websocket', (socket) => socket.on('framereceived', ({ payload }) => {
           if (typeof payload !== 'string' || (!payload.includes('assistant_speech_acknowledgement')
             && !(scenario.videos && payload.includes('assistant_speech_audio')))) return;
-          const frame = JSON.parse(payload) as { type?: string; payload?: { audio_url?: string; kind?: string; phase?: string } };
-          if (frame.type === 'assistant_speech_acknowledgement') acknowledgementUrls.push(String(frame.payload?.audio_url ?? ''));
+          const frame = JSON.parse(payload) as { type?: string; payload?: { audio_url?: string; message_id?: string; kind?: string; phase?: string } };
+          if (frame.type === 'assistant_speech_acknowledgement') {
+            acknowledgements.push({ url: frame.payload?.audio_url ?? '', messageId: frame.payload?.message_id ?? '' });
+          }
           if (frame.type === 'assistant_speech_audio' && frame.payload?.kind === 'voice_prose_turn'
             && ['start', 'end', 'error'].includes(frame.payload.phase ?? '')) {
             toolTurnAudioPhases.push(frame.payload.phase!);
@@ -288,7 +295,11 @@ for (const scenario of SCENARIOS) {
         let memoryChatId: string | null = null;
         try {
           if (scenario.memory) memoryChatId = await saveMemoryFirst(page, log, screenshot);
-          if (scenario.form) await startFormFirst(page, log, screenshot);
+          if (scenario.form) {
+            await startFormFirst(page, log, screenshot);
+            acknowledgements.length = 0;
+            clipDownloads.length = 0;
+          }
           let repliesBeforeCall = await page.getByTestId('message-assistant').count();
           const microphone = await page.evaluate(async () => {
             const devices = await navigator.mediaDevices.enumerateDevices();
@@ -386,6 +397,7 @@ for (const scenario of SCENARIOS) {
           const played = state.played.filter((entry) => entry.playing);
           log(`played audio: ${JSON.stringify(played.map((entry) => ({
             src: entry.src.startsWith('blob:') ? 'blob' : entry.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0], seconds: Math.round(entry.maxTime * 10) / 10 })))}`);
+          const acknowledgementUrls = acknowledgements.map(({ url }) => url);
           log(`acknowledgements: ${JSON.stringify(acknowledgementUrls.map((url) => url.replace(/^https?:\/\/[^/]+/, '')))}; clip downloads: ${JSON.stringify(clipDownloads)}`);
           if (!scenario.form) {
             // Only a call that starts a new chat confirms with the system clip.
@@ -394,7 +406,23 @@ for (const scenario of SCENARIOS) {
             expect(clipDownloads.some((url) => url.includes(`${ACK_ROOT}system/`)), 'the system clip is fetched for playback').toBe(true);
           }
           const mateClips = [...acknowledgementUrls, ...clipDownloads].filter((url) => MATE_WAITING_CLIP.test(url));
-          if (scenario.firstTurn) {
+          if (scenario.form) {
+            // Browse can finish in a separate assistant reply after the spoken follow-up.
+            // Check each acknowledgement against its own reply instead of counting the whole call.
+            const formAcks = acknowledgements.filter(({ url }) => MATE_WAITING_CLIP.test(url));
+            expect(formAcks.length, 'the form follow-up plays a routed Mate waiting clip').toBeGreaterThan(0);
+            const messageIds = formAcks.map(({ messageId }) => messageId);
+            expect(new Set(messageIds).size, 'each assistant message gets at most one waiting clip').toBe(formAcks.length);
+            for (const { messageId, url } of formAcks) {
+              expect(messageId, 'the waiting clip identifies its response').toBeTruthy();
+              const response = page.getByTestId('message-assistant').and(page.locator(`[data-message-id="${messageId}"]`));
+              const mate = (await response.getByTestId('chat-mate-name').first().textContent())?.trim().toLowerCase();
+              expect(mate, 'the response names the Mate').toBeTruthy();
+              expect(url, 'the waiting clip uses the responding Mate').toContain(`${ACK_ROOT}${mate}/`);
+              expect(clipDownloads.some((download) => url.endsWith(download)),
+                'the waiting clip of the responding Mate is fetched for playback').toBe(true);
+            }
+          } else if (scenario.firstTurn) {
             // A follow-up turn may wait in the voice of the Mate that answers it, never another one.
             const mate = (await reply.getByTestId('chat-mate-name').first().textContent())?.trim().toLowerCase() ?? '';
             log(`follow-up turn mate: ${mate}; mate clips: ${JSON.stringify(mateClips)}`);
@@ -412,14 +440,22 @@ for (const scenario of SCENARIOS) {
           log(`call duration: ${timerAtStart}s -> ${timerNow}s`);
           expect(timerNow, 'call duration counter runs').toBeGreaterThan(timerAtStart + 5);
           if (scenario.form) {
-            await expandActivity(page);
-            const browse = await reply.locator(BROWSE_EMBED).count();
+            let browse = 0;
+            await expect.poll(async () => {
+              await expandActivity(page);
+              const responses = (await page.getByTestId('message-assistant').all()).slice(repliesBeforeCall);
+              const completed = await Promise.all(responses.map((response) => (
+                response.locator(BROWSE_EMBED).filter({ hasText: 'Completed' }).count()
+              )));
+              browse = completed.reduce((total, count) => total + count, 0);
+              return browse;
+            }, { timeout: 240_000, message: 'the spoken answer is filled through Browse in the same chat' }).toBeGreaterThan(0);
             const questions = ((await reply.innerText()).match(/\?/g) || []).length;
             log(`form voice reply: browse embeds ${browse}; question marks ${questions}`);
-            expect(browse, 'the spoken answer is filled through Browse in the same chat').toBeGreaterThan(0);
             expect(questions, 'one question per spoken turn').toBeLessThanOrEqual(2);
           }
           const generatedBy = reply.getByTestId('generated-by');
+          if (scenario.form && FORM_VOICE_MODEL) await expect(generatedBy).toContainText(FORM_VOICE_MODEL);
           if (await generatedBy.isVisible().catch(() => false)) log(`reply generated by: ${(await generatedBy.textContent())?.trim()}`);
           if (scenario.memory) await expectIncludedMemoryTitles(page, log, 'after the reply');
           await snap(page, testInfo, `${scenario.slug}-05-answered`);
