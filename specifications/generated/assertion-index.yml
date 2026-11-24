@@ -55654,12 +55654,12 @@ assertions:
       surface: rest_api
     - &id6877
       path: backend/tests/test_audio_transcribe_ascii_sanitization.py
-      line: 258
+      line: 261
       name: test_gemini_correction_rejects_response_without_tool_call
       surface: rest_api
     - &id6878
       path: backend/tests/test_audio_transcribe_ascii_sanitization.py
-      line: 305
+      line: 308
       name: test_gemini_correction_rejects_malformed_json_without_corrected_field
       surface: rest_api
     - &id6879
@@ -55859,7 +55859,7 @@ assertions:
     supporting_tests:
     - &id6902
       path: backend/tests/test_audio_transcribe_ascii_sanitization.py
-      line: 351
+      line: 354
       name: test_audio_custom_route_can_dispatch_hidden_transcribe_skill
       surface: rest_api
     - &id6903
