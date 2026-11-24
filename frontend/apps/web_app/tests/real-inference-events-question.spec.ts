@@ -230,12 +230,32 @@ dictatedTest.describe('dictated conference discovery', () => {
 				await expect(badge).toBeVisible();
 				await expect(badge.locator('span')).toHaveText('Sat');
 				await expect(badge.locator('strong')).toHaveText('30');
+				await expect.poll(() => badge.evaluate(element => {
+					const node = element as HTMLElement;
+					const prior = node.style.pointerEvents;
+					node.style.pointerEvents = 'auto';
+					try {
+						const { x, y, width, height } = node.getBoundingClientRect();
+						return node.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+							&& node.contains(document.elementFromPoint(x + width / 2, y + height / 2));
+					} finally {
+						node.style.pointerEvents = prior;
+					}
+				})).toBe(true);
 				await testInfo.attach(`fosdem-date-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
 			}
 			await page.setViewportSize({ width: 1280, height: 900 });
 			await calendar.click();
 			await expect(calendar).toHaveAttribute('aria-selected', 'true');
-			await expect(results.getByRole('tabpanel', { name: 'Calendar results' })).toBeVisible();
+			const calendarPanel = results.getByRole('tabpanel', { name: 'Calendar results' });
+			await expect(calendarPanel).toBeVisible();
+			const fosdemDates = calendarPanel.getByTestId('embeds-results-view-calendar-date-only')
+				.filter({ hasText: /FOSDEM(?: 2027)?/i });
+			const nextWeek = calendarPanel.getByRole('button', { name: 'Next week' });
+			for (let week = 0; week < 12 && !await fosdemDates.count() && await nextWeek.isEnabled(); week++) {
+				await nextWeek.click();
+			}
+			await expect(fosdemDates).toHaveText([/2027-01-30/, /2027-01-31/]);
 			await testInfo.attach('conference-calendar', { body: await page.screenshot(), contentType: 'image/png' });
 			await map.click();
 

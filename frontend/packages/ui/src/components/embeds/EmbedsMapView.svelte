@@ -782,12 +782,17 @@
     const endMinutes = rawEndMinutes != null && (rawEndMinutes !== startMinutes || endDayOffset > 0)
       ? rawEndMinutes + (endDayOffset || (rawEndMinutes < startMinutes ? 1440 : 0))
       : durationMinutes != null && durationMinutes > 0 ? startMinutes + durationMinutes : undefined;
+    const dateOnly = departureMinutes == null;
+    const hasDateOnlyEnd = dateOnly && endDateOrdinal != null
+      && typeof entry.decodedContent?.date_end === 'string'
+      && /^\d{4}-\d{2}-\d{2}$/.test(entry.decodedContent.date_end);
+    // Event search gives the last day of a conference. The calendar accepts an exclusive end.
+    const eventEndOffset = normalizeEmbedType(entry.embedType ?? '') === 'events-event' ? 1 : 0;
     return {
       ref: entry.ref, title: entry.title, category: entry.category, highlighted: entry.highlighted,
       location: calendarLocation(entry), dateOrdinal, startMinutes, endMinutes,
-      dateOnly: departureMinutes == null,
-      endDateOrdinal: departureMinutes == null && typeof entry.decodedContent?.date_end === 'string'
-        && /^\d{4}-\d{2}-\d{2}$/.test(entry.decodedContent.date_end) ? endDateOrdinal ?? undefined : undefined,
+      dateOnly,
+      endDateOrdinal: hasDateOnlyEnd ? endDateOrdinal + eventEndOffset : undefined,
     };
   }
 

@@ -48841,7 +48841,7 @@ assertions:
       surface: sdks.npm
     - &id6099
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 399
+      line: 404
       name: renders selected Hosting domains as cards without a map or calendar
       surface: gui.web
     - &id6101
@@ -49065,7 +49065,7 @@ assertions:
       surface: sdks.npm
     - &id6128
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 399
+      line: 404
       name: renders selected Hosting domains as cards without a map or calendar
       surface: gui.web
     - &id6130
@@ -77022,7 +77022,7 @@ assertions:
       surface: rest_api
     - &id9604
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 1079
+      line: 1087
       name: waits for the hosting message to finish streaming before showing the admin
         diagnostic
       surface: gui.web
@@ -89663,12 +89663,12 @@ assertions:
       surface: rest_api
     - &id11240
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 930
+      line: 938
       name: retries source refs when the ref index changes during the initial load
       surface: gui.web
     - &id11241
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 976
+      line: 984
       name: retries unresolved source refs when synced embeds become available
       surface: gui.web
     - &id11242
@@ -122763,17 +122763,17 @@ assertions:
       surface: gui.web
     - &id15613
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 357
+      line: 362
       name: removes the view when its last valid location disappears
       surface: gui.web
     - &id15614
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 374
+      line: 379
       name: 'only renders eligible dated or located entries: %j'
       surface: gui.web
     - &id15615
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 1051
+      line: 1059
       name: shows diagnostics only when server admin is %s
       surface: gui.web
     - &id15616
@@ -174338,70 +174338,70 @@ assertions:
       surface: cli
     - &id22055
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 428
+      line: 433
       name: loads source children, sorts highlights first, and derives filters
       surface: gui.web
     - &id22056
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 468
+      line: 473
       name: selects entries locally in fullscreen mode without opening child fullscreens
       surface: gui.web
     - &id22057
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 503
+      line: 508
       name: opens a top-right filter menu and dims non-hovered entries
       surface: gui.web
     - &id22058
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 556
+      line: 561
       name: preserves calendar durations and times, including overlaps and overnight
         entries
       surface: gui.web
     - &id22059
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 593
+      line: 598
       name: navigates only calendar weeks with filtered entries and skips empty weeks
       surface: gui.web
     - &id22060
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 654
+      line: 662
       name: switches from the map state to the full weekly calendar state
       surface: gui.web
     - &id22061
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 697
+      line: 705
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
     - &id22062
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 729
+      line: 737
       name: does not map online event placeholder coordinates
       surface: gui.web
     - &id22063
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 760
+      line: 768
       name: shows authored event cards without any map when no entry has valid coordinates
         (0/0 is not a venue)
       surface: gui.web
     - &id22064
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 777
+      line: 785
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
     - &id22065
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 818
+      line: 826
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
     - &id22066
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 900
+      line: 908
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
     - &id22067
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 1016
+      line: 1024
       name: cancels one scheduled idle map hydration when unmounted
       surface: gui.web
     - &id22068
@@ -175429,70 +175429,70 @@ assertions:
       surface: gui.web
     - &id22189
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 428
+      line: 433
       name: loads source children, sorts highlights first, and derives filters
       surface: gui.web
     - &id22190
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 468
+      line: 473
       name: selects entries locally in fullscreen mode without opening child fullscreens
       surface: gui.web
     - &id22191
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 503
+      line: 508
       name: opens a top-right filter menu and dims non-hovered entries
       surface: gui.web
     - &id22192
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 556
+      line: 561
       name: preserves calendar durations and times, including overlaps and overnight
         entries
       surface: gui.web
     - &id22193
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 593
+      line: 598
       name: navigates only calendar weeks with filtered entries and skips empty weeks
       surface: gui.web
     - &id22194
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 654
+      line: 662
       name: switches from the map state to the full weekly calendar state
       surface: gui.web
     - &id22195
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 697
+      line: 705
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
     - &id22196
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 729
+      line: 737
       name: does not map online event placeholder coordinates
       surface: gui.web
     - &id22197
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 760
+      line: 768
       name: shows authored event cards without any map when no entry has valid coordinates
         (0/0 is not a venue)
       surface: gui.web
     - &id22198
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 777
+      line: 785
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
     - &id22199
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 818
+      line: 826
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
     - &id22200
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 900
+      line: 908
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
     - &id22201
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 1016
+      line: 1024
       name: cancels one scheduled idle map hydration when unmounted
       surface: gui.web
     - &id22202
