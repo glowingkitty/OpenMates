@@ -32,6 +32,7 @@ struct FollowUpSuggestions: View {
     private let visibleSuggestions: [FollowUpSuggestionPresentation.Item]
     private let compact: Bool
     private let singleLine: Bool
+    private let alignStart: Bool
     private let containerIdentifier: String
     private let rowIdentifierPrefix: String?
 
@@ -43,12 +44,14 @@ struct FollowUpSuggestions: View {
         icon: String? = nil,
         compact: Bool = false,
         singleLine: Bool = false,
+        alignStart: Bool = false,
         maxVisible: Int = 4,
         containerIdentifier: String = "suggestions-wrapper",
         rowIdentifierPrefix: String? = nil,
         onSelect: @escaping (String) -> Void
     ) {
         self.singleLine = singleLine
+        self.alignStart = alignStart
         self.containerIdentifier = containerIdentifier
         self.rowIdentifierPrefix = rowIdentifierPrefix
         self.suggestions = suggestions
@@ -71,7 +74,7 @@ struct FollowUpSuggestions: View {
 
     var body: some View {
         if !visibleSuggestions.isEmpty {
-            VStack(alignment: .trailing, spacing: itemSpacing) {
+            VStack(alignment: alignStart ? .leading : .trailing, spacing: itemSpacing) {
                 ForEach(visibleSuggestions) { suggestion in
                     Button {
                         guard !isDismissing else { return }
@@ -88,7 +91,7 @@ struct FollowUpSuggestions: View {
                                 .font(compact ? .omXs : .omSmall)
                                 .fontWeight(.semibold)
                                 .foregroundStyle(Color.grey70)
-                                .multilineTextAlignment(.trailing)
+                                .multilineTextAlignment(alignStart ? .leading : .trailing)
                                 .lineLimit(singleLine ? 1 : nil)
                                 .truncationMode(.tail)
 
@@ -100,7 +103,7 @@ struct FollowUpSuggestions: View {
                                 .frame(width: 17, height: 17)
                                 .accessibilityHidden(true)
                         }
-                        .frame(maxWidth: singleLine ? .infinity : nil, alignment: .trailing)
+                        .frame(maxWidth: singleLine ? .infinity : nil, alignment: alignStart ? .leading : .trailing)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -108,12 +111,14 @@ struct FollowUpSuggestions: View {
                     .accessibilityIdentifier(rowIdentifierPrefix.map { "\($0)\(suggestion.id)" } ?? "follow-up-suggestion-item")
                 }
             }
-            .frame(maxWidth: 780, alignment: .trailing)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.top, .spacing4)
-            // Web ChatHistory.svelte uses an exact 14px bottom inset here.
-            .padding(.bottom, 14)
-            .padding(.horizontal, compact ? .spacing5 : .spacing10)
+            .padding(.top, alignStart ? 0 : .spacing4)
+            // The chat history rail has a bottom inset. The start row owns its
+            // spacing above the composer, so the same inset is not added twice.
+            .padding(.bottom, alignStart ? 0 : 14)
+            .padding(.horizontal, alignStart ? .spacing6 : (compact ? .spacing5 : .spacing10))
+            .frame(maxWidth: alignStart ? MessageComposerMetric.mainAppMaxWidth : 780,
+                   alignment: alignStart ? .leading : .trailing)
+            .frame(maxWidth: alignStart ? nil : .infinity, alignment: .trailing)
             .opacity(isDismissing ? 0 : 1)
             .allowsHitTesting(!isDismissing)
             .accessibilityElement(children: .contain)

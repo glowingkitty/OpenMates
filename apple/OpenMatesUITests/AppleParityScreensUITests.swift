@@ -21,7 +21,7 @@ final class AppleParityScreensUITests: XCTestCase {
         #endif
     }
 
-    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,daily-inspiration.start-row-suggestions
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,daily-inspiration.start-row-suggestions,daily-inspiration.start-suggestions-layout
     func testCaptureStartScreen() throws {
         let app = launchFixture(extra: ["--ui-test-start-new-chat", "--ui-test-start-inspiration"])
         XCTAssertTrue(element(app, "message-editor").waitForExistence(timeout: 30), "Start screen composer missing")
@@ -52,6 +52,12 @@ final class AppleParityScreensUITests: XCTestCase {
         let rows = (0..<4).map { element(app, "start-screen-suggestion-\($0)") }.filter { $0.exists }
         XCTAssertTrue((1...3).contains(rows.count), "Expected 1-3 suggestion rows, got \(rows.count)")
         for row in rows { XCTAssertLessThanOrEqual(row.frame.height, 32, "Suggestion rows are a single line") }
+        for row in rows { XCTAssertEqual(row.frame.minX, rows[0].frame.minX, accuracy: 1) }
+        let inspiration = element(app, "welcome-row-inspiration-card")
+        for _ in 0..<4 where !inspiration.isHittable { carousel.swipeLeft() }
+        XCTAssertTrue(inspiration.isHittable, "Daily inspiration is a tappable start card")
+        XCTAssertGreaterThan(inspiration.frame.height, 150, "Portrait inspiration uses the large chat-card layout")
+        capture(app, "apple-chats-large-inspiration")
         let first = rows[0]
         let label = first.label
         first.tap()

@@ -91,6 +91,7 @@ actor AudioRealtimeTranscriptionClient {
         let webOrigin: String
         let sessionID: String
         let webSocketToken: String
+        var anonymousID: String? = nil
     }
 
     struct TranscriptionResult: Equatable, Sendable {
@@ -225,6 +226,10 @@ actor AudioRealtimeTranscriptionClient {
                 if owner == nil, purpose == .reportIssue, authManager.state == .unauthenticated {
                     return Authentication(apiBaseURL: profile.apiBaseURL, webOrigin: profile.webBaseURL.absoluteString,
                                           sessionID: "", webSocketToken: "")
+                }
+                if owner == nil, purpose == .chat, authManager.state == .unauthenticated, profile == .development || profile == .production {
+                    return Authentication(apiBaseURL: profile.apiBaseURL, webOrigin: profile.webBaseURL.absoluteString,
+                        sessionID: "", webSocketToken: "", anonymousID: AnonymousFreeUsageService.shared.anonymousId)
                 }
                 guard owner != nil else { throw AudioRealtimeTranscriptionError.authenticationUnavailable }
                 let grant: LegacySocketGrantRecord
@@ -781,14 +786,17 @@ actor AudioRealtimeTranscriptionClient {
     }
 
     static func makeRequest(authentication: Authentication, purpose: Purpose = .chat) throws -> URLRequest {
-        let anonymous = purpose == .reportIssue && authentication.sessionID.isEmpty && authentication.webSocketToken.isEmpty
-        guard anonymous || !tokenNeedsRefresh(authentication.webSocketToken),
+        let anonymousReport = purpose == .reportIssue && authentication.sessionID.isEmpty && authentication.webSocketToken.isEmpty
+        let guestID = purpose == .chat ? authentication.anonymousID : nil
+        guard anonymousReport || guestID != nil || !tokenNeedsRefresh(authentication.webSocketToken),
               var components = URLComponents(url: authentication.apiBaseURL, resolvingAgainstBaseURL: false) else {
             throw AudioRealtimeTranscriptionError.authenticationUnavailable
         }
         components.scheme = components.scheme == "http" ? "ws" : "wss"
         components.path = "/v1/apps/audio/realtime-transcription"
-        if anonymous {
+        if let guestID {
+            components.queryItems = [URLQueryItem(name: "anonymous_id", value: guestID)]
+        } else if anonymousReport {
             components.queryItems = nil
         } else {
             components.queryItems = [
@@ -802,7 +810,7 @@ actor AudioRealtimeTranscriptionClient {
         guard let url = components.url else { throw AudioRealtimeTranscriptionError.authenticationUnavailable }
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
-        if purpose == .reportIssue { request.httpShouldHandleCookies = false }
+        if purpose == .reportIssue || guestID != nil { request.httpShouldHandleCookies = false }
         request.setValue(authentication.webOrigin, forHTTPHeaderField: "Origin")
         APIClient.nativeClientHeaders.forEach { key, value in
             request.setValue(value, forHTTPHeaderField: key)

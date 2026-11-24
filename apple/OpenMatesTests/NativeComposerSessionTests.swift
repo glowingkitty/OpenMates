@@ -9,6 +9,34 @@ import XCTest
 
 @MainActor
 final class NativeComposerSessionTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.audio.editable-transcript,message-input.audio.live-editor-transcript
+    func testDictationCorrectsInPlaceWithoutRemovingTheExistingDraft() throws {
+        let session = NativeComposerSession(canonicalMarkdown: "Before after")
+        try session.controller.setSelection(NSRange(location: 7, length: 0))
+        session.beginDictation()
+        XCTAssertTrue(session.updateDictation("raw words"))
+        XCTAssertEqual(session.canonicalMarkdown, "Before raw words after")
+        XCTAssertTrue(session.finishDictation("corrected words"))
+        XCTAssertEqual(session.canonicalMarkdown, "Before corrected words after")
+        XCTAssertFalse(session.isDictating)
+        XCTAssertEqual(session.controller.document.nodes.filter { $0.kind == "embed" }.count, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.audio.live-editor-transcript
+    func testDictationCancellationPreservesTextAndCorrectionCannotClobberAnEdit() throws {
+        let session = NativeComposerSession(canonicalMarkdown: "Keep")
+        session.beginDictation()
+        XCTAssertTrue(session.updateDictation("spoken"))
+        session.cancelDictation()
+        XCTAssertEqual(session.canonicalMarkdown, "Keep")
+
+        session.beginDictation()
+        XCTAssertTrue(session.updateDictation("spoken"))
+        try session.replaceSelection(with: " and typed")
+        XCTAssertTrue(session.finishDictation("late correction"))
+        XCTAssertEqual(session.canonicalMarkdown, "Keep spoken and typed")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
     func testInitializingCanonicalReferencesUsesSemanticEndWithoutRawTextFallback() throws {
         let markdown = "Before @mate:developer\n```json\n{\"type\":\"image\",\"embed_id\":\"synthetic-image\"}\n```\n\n```json\n{\"type\":\"audio-recording\",\"embed_id\":\"synthetic-audio\"}\n```"

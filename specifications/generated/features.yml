@@ -4766,8 +4766,8 @@ features:
       assertions:
         passing: 9
         failing: 0
-        not_run: 3
-        missing: 4
+        not_run: 4
+        missing: 3
         counted: 16
       key_tests: []
       e2e_tests:
@@ -6745,10 +6745,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 10
+        passing: 12
         failing: 1
         not_run: 1
-        missing: 14
+        missing: 12
         counted: 26
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
@@ -6781,8 +6781,8 @@ features:
       - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
       - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
       - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+      - apple/OpenMatesTests/NativeComposerSessionTests.swift
       - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
-      - apple/OpenMatesTests/APIClientUploadTransportTests.swift
       unit_test_files: 33
       platforms:
       - ios
@@ -6894,10 +6894,10 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 1
+          passing: 3
           failing: 0
           not_run: 0
-          missing: 5
+          missing: 3
           counted: 6
       cli:
         status: unverified

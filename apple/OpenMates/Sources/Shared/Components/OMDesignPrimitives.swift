@@ -205,6 +205,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var inlineFieldContent: AnyView? = nil
     var idleFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
+    var overlayAtBottom = false
     var onSubmit: () -> Void
     @ViewBuilder var actionButtons: () -> ActionButtons
 
@@ -383,7 +384,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 ZStack(alignment: .topTrailing) {
                     overlayContent
                 }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: overlayAtBottom ? .bottomTrailing : .topTrailing)
                     .zIndex(3)
             }
 

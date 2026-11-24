@@ -128,6 +128,14 @@ struct WorkflowHomeView: View {
                         Text(error).font(.omSmall).foregroundStyle(Color.error)
                             .accessibilityIdentifier("workflows-error")
                     }
+                    if !promptActive, !showingAll {
+                        FollowUpSuggestions(suggestions: (1...3).map { AppStrings.workflowStartSuggestion($0) },
+                            singleLine: true, alignStart: true, maxVisible: StartScreenSuggestions.maxVisible,
+                            containerIdentifier: "workflows-start-suggestions",
+                            rowIdentifierPrefix: "workflows-start-suggestion-") { suggestion in
+                            instruction = suggestion
+                        }
+                    }
                     WorkflowPromptComposerView(
                         text: $instruction,
                         placeholder: AppStrings.workflowBuilder(.new_workflow_placeholder),
@@ -273,16 +281,6 @@ struct WorkflowHomeView: View {
             }
             .frame(height: (tallCards ? 224 : 56) + (landingCards.contains(where: \.isNew) ? 31 : 0))
             .accessibilityIdentifier("workflow-mixed-row")
-
-            // Same single-line follow-up chips as the Chats start screen (web TASK-1321).
-            FollowUpSuggestions(suggestions: (1...3).map { AppStrings.workflowStartSuggestion($0) }, singleLine: true,
-                maxVisible: StartScreenSuggestions.maxVisible,
-                containerIdentifier: "workflows-start-suggestions",
-                rowIdentifierPrefix: "workflows-start-suggestion-") { suggestion in
-                instruction = suggestion
-            }
-            .frame(maxWidth: 640)
-            .frame(maxWidth: .infinity)
 
             if !promptActive, let error = store.errorMessage {
                 Text(error).font(.omSmall).foregroundStyle(Color.error)

@@ -592,6 +592,7 @@ struct ChatView: View {
     @State private var activeRecordingRealtimeSession: AudioRecordingRealtimeSession?
     @State private var recordingLiveTranscript = ""
     @State private var recordingRealtimeConnecting = false
+    @State private var dictationFinishTask: Task<Void, Never>?
     @StateObject private var pendingUploads = PendingUploadStore.shared
     @State private var composerEmbedLifecycle = ComposerEmbedLifecycle()
     @State private var composerPendingSendCoordinator = ComposerPendingSendCoordinator()
@@ -1052,9 +1053,12 @@ struct ChatView: View {
         .onChange(of: composerSession.revision) { _, _ in
             if suppressNextDraftSave {
                 suppressNextDraftSave = false
-            } else {
+            } else if !composerSession.isDictating {
                 scheduleEncryptedDraftSave()
             }
+        }
+        .onChange(of: composerSession.isDictating) { _, active in
+            if !active { scheduleEncryptedDraftSave() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
             guard notification.userInfo?["chatId"] as? String == chatId,
@@ -3432,7 +3436,7 @@ struct ChatView: View {
             viewportCap: max(0, chatViewportHeight - MessageComposerMetric.expandedTopReservedHeight))
         let recordingOverlayActive = composerOverlay == .recording || isUITestRecordingOverlayForced
         let overlayHeight = recordingOverlayActive
-            ? ComposerRecordingOverlay.compactPanelHeight
+            ? ComposerRecordingOverlay.compactPanelHeight + (composerSession.isDictating ? MessageComposerMetric.focusedEmptyHeight : 0)
             : min(400, maximumViewportFieldHeight)
         return VStack(spacing: .spacing2) {
             #if DEBUG
@@ -3500,6 +3504,7 @@ struct ChatView: View {
                 onExcludePII: { id in excludeComposerPII(id) },
                 onSubmit: sendMessage,
                 inlineFieldContent: nil,
+                overlayAtBottom: recordingOverlayActive && composerSession.isDictating,
                 idleFieldContent: compact && !overlayActive ? idleFieldControls : nil,
                 showsDraftPreview: draftPreview,
                 draftPreviewMicrophone: AnyView(recordGestureButton),
@@ -3664,22 +3669,10 @@ struct ChatView: View {
                 liveTranscript: recordingLiveTranscript,
                 isRealtimeConnecting: recordingRealtimeConnecting,
                 compact: true,
-                onStop: { url in
-                    let duration = composerRecorder.duration
-                    let uploadContext = finishRealtimeRecording(duration: duration)
-                    self.composerOverlay = nil
-                    self.recordAttemptActive = false
-                    self.recordStartedFromKeyboard = false
-                    self.recordDragOffsetX = 0
-                    let inserted = enqueueRecordingUpload(
-                        url: url,
-                        duration: duration,
-                        waveform: uploadContext.waveform,
-                        realtimeResult: uploadContext.realtimeResult,
-                        realtimeSession: uploadContext.realtimeSession
-                    )
-                    restoreChatEditorAfterRecording(inserted: inserted)
-                },
+                onStop: { completeRecordingCapture(url: $0) },
+                onSend: composerSession.isDictating && !detectedPIIMatches.contains {
+                    !piiExclusions.contains($0.id) && !piiExcludedValues.contains($0.value)
+                } ? { completeRecordingCapture(url: $0, send: true) } : nil,
                 onCancel: {
                     composerRecorder.cancelRecording()
                     cancelRealtimeRecording()
@@ -4407,7 +4400,7 @@ struct ChatView: View {
     }
 
     private func startRecordFromControlIfNeeded(startLocation: CGPoint = .zero) {
-        guard !recordAttemptActive, composerOverlay != .recording else { return }
+        guard !recordAttemptActive, !composerSession.isDictating, composerOverlay != .recording else { return }
         beginRecordAttempt(startLocation: startLocation)
     }
 
@@ -4421,25 +4414,26 @@ struct ChatView: View {
     #endif
 
     private func prepareRealtimeRecording() {
-        #if DEBUG
-        if isUITestCompactDraftRecording {
-            activeRecordingRealtimeSession = nil
-            composerRecorder.setPCMHandler(nil)
-            return
-        }
-        #endif
         recordingLiveTranscript = ""
         recordingRealtimeConnecting = false
         composerRecorder.setPCMHandler(nil)
-        guard authManager.state == .authenticated else {
-            activeRecordingRealtimeSession = nil
+        #if DEBUG
+        if isUITestCompactDraftRecording { return }
+        #endif
+        if ComposerDictationCapture.isFixture {
+            composerSession.beginDictation()
+            composerSession.updateDictation(ComposerDictationCapture.fixturePartial)
             return
         }
+        let transcribing = LocalModelStore.shared.recordingTranscriptionPreference != .off
+        if transcribing { composerSession.beginDictation() }
+        guard transcribing || authManager.state == .authenticated else { return }
         let session = AudioRecordingRealtimeSession()
         activeRecordingRealtimeSession = session
         session.begin(authManager: authManager, chatID: chatId) { transcript, isConnecting in
             guard activeRecordingRealtimeSession === session else { return }
-            recordingLiveTranscript = transcript
+            if composerSession.isDictating { composerSession.updateDictation(transcript) }
+            else { recordingLiveTranscript = transcript }
             recordingRealtimeConnecting = isConnecting
         }
         composerRecorder.setPCMHandler { [weak session] samples, sampleRate in
@@ -4469,7 +4463,38 @@ struct ChatView: View {
         return (waveform, provider, session)
     }
 
+    private func completeRecordingCapture(url: URL, send: Bool = false) {
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordStartedFromKeyboard = false
+        recordDragOffsetX = 0
+        if composerSession.isDictating {
+            composerRecorder.setPCMHandler(nil)
+            let realtime = activeRecordingRealtimeSession
+            activeRecordingRealtimeSession = nil
+            let scope = AudioRecordingUploadScope.capture()
+            let teamEpoch = TeamWorkspaceContext.shared.contextEpoch
+            dictationFinishTask = ComposerDictationCapture.finish(url: url, realtime: realtime,
+                editor: composerSession, isCurrent: {
+                    scope.isCurrent && teamEpoch == TeamWorkspaceContext.shared.contextEpoch
+                }) { inserted, readyToSend in
+                dictationFinishTask = nil
+                if readyToSend && send { sendMessage() }
+                else { restoreChatEditorAfterRecording(inserted: inserted) }
+            }
+            return
+        }
+        let duration = composerRecorder.duration
+        let upload = finishRealtimeRecording(duration: duration)
+        let inserted = enqueueRecordingUpload(url: url, duration: duration, waveform: upload.waveform,
+            realtimeResult: upload.realtimeResult, realtimeSession: upload.realtimeSession)
+        restoreChatEditorAfterRecording(inserted: inserted)
+    }
+
     private func cancelRealtimeRecording() {
+        dictationFinishTask?.cancel()
+        dictationFinishTask = nil
+        composerSession.cancelDictation()
         composerRecorder.setPCMHandler(nil)
         guard let session = activeRecordingRealtimeSession else { return }
         activeRecordingRealtimeSession = nil
@@ -4525,20 +4550,7 @@ struct ChatView: View {
         recordStartTask = nil
 
         if composerOverlay == .recording, let url = composerRecorder.stopRecording() {
-            let duration = composerRecorder.duration
-            let uploadContext = finishRealtimeRecording(duration: duration)
-            composerOverlay = nil
-            recordAttemptActive = false
-            recordStartedFromKeyboard = false
-            recordDragOffsetX = 0
-            let inserted = enqueueRecordingUpload(
-                url: url,
-                duration: duration,
-                waveform: uploadContext.waveform,
-                realtimeResult: uploadContext.realtimeResult,
-                realtimeSession: uploadContext.realtimeSession
-            )
-            restoreChatEditorAfterRecording(inserted: inserted)
+            completeRecordingCapture(url: url)
             return
         }
 
@@ -4704,6 +4716,7 @@ struct ChatView: View {
     #endif
 
     private func sendMessage() {
+        guard !composerSession.isDictating else { return }
         let sendActionStarted = NativeSyncPerfLog.now()
         #if DEBUG
         recordComposerSendFixturePhase("entered")

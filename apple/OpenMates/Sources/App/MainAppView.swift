@@ -8760,6 +8760,7 @@ struct NewChatWelcomeView: View {
     @State private var activeRecordingRealtimeSession: AudioRecordingRealtimeSession?
     @State private var recordingLiveTranscript = ""
     @State private var recordingRealtimeConnecting = false
+    @State private var dictationFinishTask: Task<Void, Never>?
     #if DEBUG
     @State private var welcomeSendStage = "idle"
     #endif
@@ -9198,7 +9199,7 @@ struct NewChatWelcomeView: View {
                     piiMatches: activePIIMatches,
                     piiVerifying: isVerifyingWelcomePIISend,
                     anonymousAttachmentPending: anonymousAttachmentPending,
-                    isSubmitting: isCreatingChat || isRecordingUploadPending,
+                    isSubmitting: isCreatingChat || isRecordingUploadPending || composerSession.isDictating,
                     pendingComposerEmbeds: pendingComposerEmbeds,
                     recordHintText: recordHintText,
                     recordAttemptActive: recordAttemptActive,
@@ -9411,9 +9412,12 @@ struct NewChatWelcomeView: View {
         .onChange(of: composerSession.revision) { _, _ in
             if suppressNextDraftSave {
                 suppressNextDraftSave = false
-            } else {
+            } else if !composerSession.isDictating {
                 scheduleNewChatDraftSave()
             }
+        }
+        .onChange(of: composerSession.isDictating) { _, active in
+            if !active { scheduleNewChatDraftSave() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
             guard notification.userInfo?["reloadComposer"] as? Bool != false,
@@ -9829,7 +9833,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func startWelcomeRecordingIfNeeded() {
-        guard !recordAttemptActive, composerOverlay != .recording else { return }
+        guard !recordAttemptActive, !composerSession.isDictating, composerOverlay != .recording else { return }
         beginRecordAttempt()
     }
 
@@ -9849,23 +9853,32 @@ struct NewChatWelcomeView: View {
         recordingLiveTranscript = ""
         recordingRealtimeConnecting = false
         composerRecorder.setPCMHandler(nil)
-        guard isAuthenticated, authManager.state == .authenticated else {
-            activeRecordingRealtimeSession = nil
+        if ComposerDictationCapture.isFixture {
+            composerSession.beginDictation()
+            composerSession.updateDictation(ComposerDictationCapture.fixturePartial)
             return
         }
+        #if DEBUG
+        if isUITestWelcomeSimulatedRecording || isUITestWelcomeGuestLocalRecording { return }
+        #endif
+        let transcribing = LocalModelStore.shared.recordingTranscriptionPreference != .off
+        if transcribing { composerSession.beginDictation() }
+        guard transcribing || (isAuthenticated && authManager.state == .authenticated) else { return }
         let session = AudioRecordingRealtimeSession()
         activeRecordingRealtimeSession = session
-        let allocation = welcomeAudioPreallocation(recordingChatID: modelDraftID)
+        let allocation = isAuthenticated ? welcomeAudioPreallocation(recordingChatID: modelDraftID) : nil
         let ownerID = authManager.currentUser?.id
         let markerGeneration = OfflineStore.shared.scopeGeneration
         let markerProfile = ServerProfile.current()
         let markerTeamEpoch = composerSearchTeam.contextEpoch
-        session.begin(authManager: authManager, chatID: modelDraftID, beforeRemoteStart: {
+        session.begin(authManager: authManager, chatID: isAuthenticated ? modelDraftID : nil, beforeRemoteStart: {
+            guard allocation != nil else { return }
             try await BillingUsageDraftAudioRegistry.shared.markCaptured(allocation, accountID: ownerID,
                 cacheGeneration: markerGeneration, serverProfile: markerProfile, teamEpoch: markerTeamEpoch)
         }) { transcript, isConnecting in
             guard activeRecordingRealtimeSession === session else { return }
-            recordingLiveTranscript = transcript
+            if composerSession.isDictating { composerSession.updateDictation(transcript) }
+            else { recordingLiveTranscript = transcript }
             recordingRealtimeConnecting = isConnecting
         }
         composerRecorder.setPCMHandler { [weak session] samples, sampleRate in
@@ -9894,6 +9907,9 @@ struct NewChatWelcomeView: View {
     }
 
     private func cancelWelcomeRealtimeRecording() {
+        dictationFinishTask?.cancel()
+        dictationFinishTask = nil
+        composerSession.cancelDictation()
         composerRecorder.setPCMHandler(nil)
         guard let session = activeRecordingRealtimeSession else { return }
         activeRecordingRealtimeSession = nil
@@ -10200,6 +10216,42 @@ struct NewChatWelcomeView: View {
         }
     }
 
+    private func completeWelcomeCapture(url: URL, send: Bool = false) {
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordGestureCancelled = false
+        recordStartedFromKeyboard = false
+        collapseComposerAfterRecordingCancel = false
+        recordDragOffsetX = 0
+        if composerSession.isDictating {
+            composerRecorder.setPCMHandler(nil)
+            let realtime = activeRecordingRealtimeSession
+            activeRecordingRealtimeSession = nil
+            let scope = AudioRecordingUploadScope.capture()
+            let draft = modelDraftID
+            let teamEpoch = composerSearchTeam.contextEpoch
+            dictationFinishTask = ComposerDictationCapture.finish(url: url, realtime: realtime,
+                editor: composerSession, isCurrent: {
+                    scope.isCurrent && draft == modelDraftID && teamEpoch == composerSearchTeam.contextEpoch
+                }) { inserted, readyToSend in
+                dictationFinishTask = nil
+                if readyToSend && send { createChatWith(message: messageText) }
+                else { restoreWelcomeEditorAfterRecording(inserted: inserted) }
+            }
+            return
+        }
+        let duration = max(composerRecorder.duration, 1)
+        let inserted: Bool
+        if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
+            cancelWelcomeRealtimeRecording()
+            inserted = addPendingComposerEmbed(filename: url.lastPathComponent, kind: .audio,
+                duration: duration, appendAtEnd: true)
+        } else {
+            inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
+        }
+        restoreWelcomeEditorAfterRecording(inserted: inserted)
+    }
+
     private func finishRecordAttempt() {
         recordStartTask?.cancel()
         recordStartTask = nil
@@ -10210,26 +10262,12 @@ struct NewChatWelcomeView: View {
         }
 
         if composerOverlay == .recording {
-            let duration = max(composerRecorder.duration, 1)
-            let inserted: Bool
-            if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
-                _ = composerRecorder.stopRecording()
-                cancelWelcomeRealtimeRecording()
-                inserted = addPendingComposerEmbed(filename: "recording-ui-test.m4a", kind: .audio, duration: duration, appendAtEnd: true)
-            } else if let url = composerRecorder.stopRecording() {
-                inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
+            if let url = composerRecorder.stopRecording() {
+                completeWelcomeCapture(url: url)
             } else {
-                cancelWelcomeRealtimeRecording()
+                cancelWelcomeRecording()
                 showRecordHint(duration: 0)
-                inserted = false
             }
-            composerOverlay = nil
-            recordAttemptActive = false
-            recordGestureCancelled = false
-            recordStartedFromKeyboard = false
-            collapseComposerAfterRecordingCancel = false
-            recordDragOffsetX = 0
-            restoreWelcomeEditorAfterRecording(inserted: inserted)
             return
         }
 
@@ -10517,27 +10555,8 @@ struct NewChatWelcomeView: View {
                     liveTranscript: recordingLiveTranscript,
                     isRealtimeConnecting: recordingRealtimeConnecting,
                     compact: true,
-                    onStop: { url in
-                        let duration = max(composerRecorder.duration, 1)
-                        let inserted: Bool
-                        if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
-                            cancelWelcomeRealtimeRecording()
-                            inserted = addPendingComposerEmbed(
-                                filename: url.lastPathComponent,
-                                kind: .audio,
-                                duration: duration,
-                                appendAtEnd: true
-                            )
-                        } else {
-                            inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
-                        }
-                        self.composerOverlay = nil
-                        self.recordAttemptActive = false
-                        self.recordStartedFromKeyboard = false
-                        self.collapseComposerAfterRecordingCancel = false
-                        self.recordDragOffsetX = 0
-                        restoreWelcomeEditorAfterRecording(inserted: inserted)
-                    },
+                    onStop: { completeWelcomeCapture(url: $0) },
+                    onSend: composerSession.isDictating ? { completeWelcomeCapture(url: $0, send: true) } : nil,
                     onCancel: { cancelWelcomeRecording() },
                     onFailure: {
                         cancelWelcomeRecording()
@@ -10605,7 +10624,7 @@ struct NewChatWelcomeView: View {
     @ViewBuilder private var startScreenSuggestionRows: some View {
         let texts = startScreenSuggestionTexts
         if !texts.isEmpty {
-            FollowUpSuggestions(suggestions: texts, singleLine: true,
+            FollowUpSuggestions(suggestions: texts, singleLine: true, alignStart: true,
                 maxVisible: StartScreenSuggestions.maxVisible,
                 containerIdentifier: "start-screen-suggestions",
                 rowIdentifierPrefix: "start-screen-suggestion-") { text in
@@ -12193,7 +12212,7 @@ struct WelcomeDraftCard: View {
         VStack(alignment: .leading, spacing: .spacing1) {
             Text(AppStrings.draftBadge).font(.omP).foregroundStyle(Color.grey60)
             Text(card.draftPreview ?? "").font(.omP).fontWeight(.medium)
-                .foregroundStyle(Color.fontPrimary).lineLimit(1)
+                .foregroundStyle(Color.fontPrimary).lineLimit(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, .spacing8).padding(.vertical, .spacing5)
@@ -12670,7 +12689,7 @@ private struct WelcomeComposer: View {
 
     private var overlayHeight: CGFloat {
         isRecordingOverlayActive
-            ? ComposerRecordingOverlay.compactPanelHeight
+            ? ComposerRecordingOverlay.compactPanelHeight + (session.isDictating ? MessageComposerMetric.focusedEmptyHeight : 0)
             : min(400, maximumViewportFieldHeight)
     }
 
@@ -12724,6 +12743,7 @@ private struct WelcomeComposer: View {
                     (isAuthenticated || canSendAnonymously) ? onSend() : onOpenAuth()
                 },
                 inlineFieldContent: nil,
+                overlayAtBottom: isRecordingOverlayActive && session.isDictating,
                 idleFieldContent: !isOpen && !isDraftPreview ? idleFieldControls : nil,
                 showsDraftPreview: isDraftPreview,
                 draftPreviewMicrophone: AnyView(recordGestureButton),

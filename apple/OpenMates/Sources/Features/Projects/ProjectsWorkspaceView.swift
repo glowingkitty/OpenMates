@@ -298,7 +298,17 @@ struct ProjectsWorkspaceView: View {
                     activeOpacity: 1,
                     onDismiss: { homePromptDismissID = UUID() })
 
-                projectHomeComposer(availableHeight: max(118, geometry.size.height - keyboardOverlap))
+                VStack(spacing: .spacing4) {
+                    if !homePromptActive, !browsingProjects {
+                        FollowUpSuggestions(suggestions: (1...3).map { AppStrings.localized("projects.home.suggestion_\($0)") },
+                            singleLine: true, alignStart: true, maxVisible: StartScreenSuggestions.maxVisible,
+                            containerIdentifier: "projects-start-suggestions",
+                            rowIdentifierPrefix: "projects-start-suggestion-") { suggestion in
+                            projectNameInput = suggestion
+                        }
+                    }
+                    projectHomeComposer(availableHeight: max(118, geometry.size.height - keyboardOverlap))
+                }
                     .frame(maxWidth: narrow ? .infinity : 629)
                     .padding(.horizontal, narrow ? 0 : 15)
                     .padding(.bottom, (narrow ? 5 : 15) + keyboardOverlap)
