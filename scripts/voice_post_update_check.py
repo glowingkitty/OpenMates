@@ -105,9 +105,9 @@ def _disk_error(*details: object) -> bool:
 
 
 def _runner_disk_error(out: Path) -> bool:
-    for name in ("run.log", "wrapper.log"):
+    for path in (out / "run.log", out.with_name(f"{out.name}-wrapper.log")):
         try:
-            with (out / name).open("rb") as log:
+            with path.open("rb") as log:
                 log.seek(max(0, os.fstat(log.fileno()).st_size - 16384))
                 if _disk_error(log.read().decode(errors="replace")):
                     return True
@@ -229,8 +229,8 @@ def run_signed_in_dev(revision: str, out: Path) -> None:
     command = [sys.executable, str(SCRIPTS / "voice_call_web_real_test.py"), "--session", SESSION_LABEL,
                "--revision", revision, "--output-dir", str(out), "--personal-dev-test-account",
                "--throwaway-account", "--allow-paid-dev-inference", "--scenario", SCENARIO]
-    out.mkdir(parents=True, exist_ok=True)
-    with (out / "wrapper.log").open("w") as log:
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.with_name(f"{out.name}-wrapper.log").open("w") as log:
         subprocess.run(command, check=False, timeout=RUN_TIMEOUT_SECONDS * 3,
                        stdout=log, stderr=subprocess.STDOUT)
 

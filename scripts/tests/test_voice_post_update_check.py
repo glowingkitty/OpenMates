@@ -368,6 +368,19 @@ def test_failed_runner_log_checks_for_real_disk_exhaustion(tmp_path):
     assert result["reason"] == "disk_space"
 
 
+def test_signed_in_runner_receives_a_fresh_output_path(tmp_path, monkeypatch):
+    out = tmp_path / "signed_in"
+
+    def run(command, *, stdout, **kwargs):
+        assert command[command.index("--output-dir") + 1] == str(out)
+        assert not out.exists()
+        stdout.write("OSError: [Errno 28] No space left on device")
+
+    monkeypatch.setattr(check.subprocess, "run", run)
+    check.run_signed_in_dev("revision", out)
+    assert check.evaluate_leg(out)["reason"] == "disk_space"
+
+
 def test_actual_disk_failure_cleans_alerts_once_and_retries_after_recovery(tmp_path, monkeypatch):
     state = tmp_path / "state.json"
     clock = [10_000]
