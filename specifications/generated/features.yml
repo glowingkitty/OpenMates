@@ -3080,9 +3080,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 11
+        passing: 12
         failing: 15
-        not_run: 6
+        not_run: 5
         missing: 2
         counted: 34
       failing_tests:
@@ -3268,6 +3268,7 @@ features:
       - frontend/apps/web_app/tests/model-override.spec.ts
       - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
       - frontend/apps/web_app/tests/native-cache-selected-tools.spec.ts
+      - frontend/apps/web_app/tests/offline-draft-replay.spec.ts
       - frontend/apps/web_app/tests/persisted-draft-discovery.spec.ts
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
       - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts
@@ -3298,7 +3299,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 162
+      unit_test_files: 163
     apple:
       status: failing
       source: tests
@@ -3520,9 +3521,9 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 1
+          passing: 2
           failing: 1
-          not_run: 1
+          not_run: 0
           missing: 1
           counted: 4
         failing_tests:
