@@ -280,6 +280,7 @@ def test_run_cycle_keeps_the_waiting_chat_and_reopens_it_after_it_was_closed(tmp
         lc.Chat(**{**c.__dict__, "waiters": (found or {}).get(c.session_id, [])}) for c in live])
     stopped, resumed = [], []
     monkeypatch.setattr(lc, "stop", lambda target: stopped.append(target.session_id) or True)
+    monkeypatch.setattr(lc, "close_dead_panes", lambda *a, **k: None)
     monkeypatch.setattr(lc, "guard_unfinished", lambda plan, *a, **k: (plan, []))
     monkeypatch.setattr(lc, "unfinished_stalled", lambda registry: [])
     import claude_dispatch
