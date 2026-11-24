@@ -18,6 +18,8 @@ CLI:
   public_link_guard.py pr                 CI: PR_TITLE and PR_BODY from the environment
   public_link_guard.py tree [BASE]        Check staged blobs or blobs changed since BASE
   public_link_guard.py branch [REF ...]   Check branch names
+  public_link_guard.py range BASE HEAD    Check each introduced commit and its changed blobs
+  public_link_guard.py pre-push REMOTE    Check refs and commits from Git pre-push stdin
 Tests: scripts/tests/test_public_link_guard.py
 """
 from __future__ import annotations
@@ -32,6 +34,10 @@ from pathlib import Path
 _SUB = r"(?:[a-z0-9-]+\.)*"
 # Keep the forbidden spelling out of the repository itself.
 RESERVED_NAME = "social" + "hub"
+_RESERVED_EXPRESSION = r"[\s_-]*".join(("social", "hub"))
+_RESERVED_TEXT = re.compile(_RESERVED_EXPRESSION, re.I)
+_RESERVED_BYTES = re.compile(_RESERVED_EXPRESSION.encode(), re.I)
+REPHRASE = "Rephrase without referring to the other project, then retry."
 CHAT_LINK_PATTERNS: dict[str, re.Pattern[str]] = {
     "Claude chat, code session, artifact or share link": re.compile(
         r"\bclaude\.ai/(?:chat|code|share|artifact|artifacts|public|project|projects)\b", re.I),
@@ -64,7 +70,7 @@ class ChatLinkError(ValueError):
 def findings(text: str, *, check_name: bool = True) -> list[str]:
     """Report categories without copying private links or keys into logs."""
     found = [kind for kind, pattern in CHAT_LINK_PATTERNS.items() if pattern.search(text)]
-    if check_name and RESERVED_NAME in text.casefold():
+    if check_name and _RESERVED_TEXT.search(text):
         found.append("reserved external project name")
     return found
 
@@ -72,7 +78,7 @@ def findings(text: str, *, check_name: bool = True) -> list[str]:
 def refuse(text: str, where: str, *, check_name: bool = True) -> None:
     """Reject private links and, within this repository, the reserved name."""
     if hits := findings(text, check_name=check_name):
-        raise ChatLinkError(f"{where} violates public text policy: {', '.join(hits)}. Remove it and retry.")
+        raise ChatLinkError(f"{where} violates public text policy: {', '.join(hits)}. {REPHRASE}")
 
 
 def _files_in(command: str, cwd: Path) -> list[Path]:
@@ -100,7 +106,7 @@ def check_bash(command: str, cwd: Path = Path(".")) -> list[str]:
     """Findings for a Bash command that writes public GitHub text; [] for any other command."""
     if not (GH_WRITE.search(command) or GIT_COMMIT.search(command)):
         return ["reserved external project name in Git command"] if (
-            GIT_BRANCH.search(command) and RESERVED_NAME in command.casefold()
+            GIT_BRANCH.search(command) and _RESERVED_TEXT.search(command)
         ) else []
     hits = findings(command)
     for path in _files_in(command, cwd):
@@ -123,11 +129,51 @@ def check_tree(base: str | None = None) -> None:
     files = subprocess.check_output(diff).split(b"\0")
     for path in filter(None, files):
         revision = (b"HEAD:" if base else b":") + path
-        if RESERVED_NAME.encode() in path.lower():
-            raise ChatLinkError("A changed file path contains the reserved external project name.")
-        blob = subprocess.check_output(["git", "cat-file", "blob", revision])
-        if RESERVED_NAME.encode() in blob.lower():
-            raise ChatLinkError(f"{os.fsdecode(path)!r} contains the reserved external project name.")
+        check_blob(path, revision)
+
+
+def check_blob(path: bytes, revision: bytes) -> None:
+    if _RESERVED_BYTES.search(path):
+        raise ChatLinkError(f"A changed file path contains the reserved external project name. {REPHRASE}")
+    if subprocess.check_output(["git", "cat-file", "-t", revision]).strip() != b"blob":
+        return
+    blob = subprocess.check_output(["git", "cat-file", "blob", revision])
+    if _RESERVED_BYTES.search(blob):
+        raise ChatLinkError(f"{os.fsdecode(path)!r} contains the reserved external project name. {REPHRASE}")
+
+
+def check_commits(*revisions: str) -> None:
+    """Check each introduced commit and its changed blobs, including intermediate versions."""
+    commits = subprocess.check_output(["git", "rev-list", *revisions, "--"]).splitlines()
+    seen = set()
+    for commit in commits:
+        message = subprocess.check_output(["git", "show", "-s", "--format=%B", commit])
+        refuse(message.decode(errors="replace"), f"commit {commit[:10].decode()}")
+        changes = subprocess.check_output(["git", "diff-tree", "-m", "-r", "--root", "--no-commit-id",
+                                           "--no-renames", "--diff-filter=ACMRT", "--raw", "--no-abbrev",
+                                           "-z", commit]).split(b"\0")
+        for metadata, path in zip(changes[::2], changes[1::2]):
+            mode, blob = metadata.split()[1:4:2]
+            if (path, blob) in seen:
+                continue
+            seen.add((path, blob))
+            if _RESERVED_BYTES.search(path):
+                raise ChatLinkError(f"A changed file path contains the reserved external project name. {REPHRASE}")
+            if mode != b"160000":  # Gitlinks contain a referenced commit ID, not file bytes.
+                check_blob(path, blob)
+
+
+def check_push(remote: str, lines: str) -> None:
+    for line in lines.splitlines():
+        local_ref, local_oid, remote_ref, remote_oid = line.split()
+        if _RESERVED_TEXT.search(local_ref) or _RESERVED_TEXT.search(remote_ref):
+            raise ChatLinkError(f"A pushed ref contains the reserved external project name. {REPHRASE}")
+        if not local_oid.strip("0"):  # A deleted ref introduces no commits.
+            continue
+        if remote_oid.strip("0"):
+            check_commits(f"{remote_oid}..{local_oid}")
+        else:
+            check_commits(local_oid, "--not", f"--remotes={remote}")
 
 
 def main(argv: list[str]) -> int:
@@ -140,21 +186,29 @@ def main(argv: list[str]) -> int:
     elif verb == "bash" and rest:
         hits = check_bash(rest[0], Path(rest[1]) if len(rest) > 1 else Path("."))
         if hits:
-            print("BLOCKED by public text policy: " + ", ".join(hits), file=sys.stderr)
+            print("BLOCKED by public text policy: " + ", ".join(hits) + ". " + REPHRASE, file=sys.stderr)
             return 2
         return 0
     elif verb == "pr":
         text = f"{os.environ.get('PR_TITLE', '')}\n{os.environ.get('PR_BODY', '')}"
         where = "pull request title or description"
     elif verb == "branch":
-        if any(RESERVED_NAME in ref.casefold() for ref in rest):
-            print("public_link_guard: branch name contains the reserved external project name.", file=sys.stderr)
+        if any(_RESERVED_TEXT.search(ref) for ref in rest):
+            print(f"public_link_guard: branch name contains the reserved external project name. {REPHRASE}", file=sys.stderr)
             return 1
         return 0
-    elif verb == "tree":
+    elif verb in {"tree", "range", "pre-push"}:
         try:
-            check_tree(rest[0] if rest else None)
-        except (ChatLinkError, subprocess.CalledProcessError) as error:
+            if verb == "tree":
+                check_tree(rest[0] if rest else None)
+            elif verb == "range" and len(rest) == 2:
+                before, after = rest
+                check_commits(f"{before}..{after}" if before.strip("0") else after)
+            elif verb == "pre-push" and rest:
+                check_push(rest[0], sys.stdin.read())
+            else:
+                return 64
+        except (ValueError, subprocess.CalledProcessError) as error:
             print(f"public_link_guard: {error}", file=sys.stderr)
             return 1
         return 0

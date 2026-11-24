@@ -11,6 +11,7 @@ import json
 import sqlite3
 import sys
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -500,3 +501,16 @@ def test_wake_receipts_deduplicate_an_overlapping_batch(tmp_path):
     delivered, failures = rec.run({CHAT: ready[1:]}, {}, {}, tmp_path)
     assert delivered == {ready[1].key} and not failures
     assert len(rec.resumed) == 1
+
+
+def test_codex_start_keeps_scheduled_time_while_claude_is_low(tmp_path, monkeypatch):
+    import claude_weekly_model
+
+    monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path))
+    now = datetime.fromtimestamp(NOW, timezone.utc)
+    claude_weekly_model.update(96, now + timedelta(days=3), now, notify=lambda _: "")
+    key = cw.add_start(tmp_path, {"verb": "start_chat", "args": {"model": "claude-opus-5-5"}},
+                      NOW + 60, ["explicit start time"], NOW)
+    assert cw.due_starts(tmp_path, NOW + 59) == {}
+    due = cw.due_starts(tmp_path, NOW + 60, usage=lambda: pytest.fail("asked for Claude usage"))
+    assert list(due) == [key]

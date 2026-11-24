@@ -264,6 +264,16 @@ def weekly_usage() -> tuple[float, datetime]:
     return claude_usage_guard.fetch_weekly_usage()
 
 
+def _scheduled_start_uses_codex(entry: dict, now: float) -> bool:
+    request = entry.get("start") or {}
+    if request.get("verb") != "start_chat":
+        return False
+    import claude_weekly_model
+
+    model = (request.get("args") or {}).get("model") or "claude"
+    return claude_weekly_model.queued_route(model, datetime.fromtimestamp(now, timezone.utc))[0] == "codex"
+
+
 def settle_timers(state: Path, now: float, usage: Callable[[], tuple[float, datetime]] | None = None,
                   log=lambda event: None) -> None:
     """Fire due timers; a due usage-checked timer whose weekly usage is still used up moves one hour later."""
@@ -275,7 +285,7 @@ def settle_timers(state: Path, now: float, usage: Callable[[], tuple[float, date
         for key, entry in data.items():
             if entry["kind"] != "timer" or entry.get("fired_at") or now < entry["timeout_at"]:
                 continue
-            if entry.get("usage_check"):
+            if entry.get("usage_check") and not _scheduled_start_uses_codex(entry, now):
                 import claude_usage_guard  # noqa: E402  (sibling script)
 
                 try:

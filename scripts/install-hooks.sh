@@ -94,4 +94,14 @@ echo "✅ Installed: $COMMIT_MSG"
 
 echo ""
 echo "The pre-commit hook will now block high-confidence debt and missing \$text() keys."
-echo "To skip in an emergency (not recommended): git commit --no-verify"
+
+PRE_PUSH="$HOOKS_DIR/pre-push"
+cat > "$PRE_PUSH" << 'HOOK'
+#!/usr/bin/env bash
+set -euo pipefail
+guard="$(git rev-parse --show-toplevel)/scripts/public_link_guard.py"
+[ -f "$guard" ] || guard="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/scripts/public_link_guard.py"
+exec python3 "$guard" pre-push "$1"
+HOOK
+chmod +x "$PRE_PUSH"
+echo "Installed: $PRE_PUSH"

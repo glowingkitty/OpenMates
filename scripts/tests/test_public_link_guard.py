@@ -151,3 +151,35 @@ def test_reserved_name_is_refused_in_commit_pr_and_branch(tmp_path):
             capture_output=True, text=True,
         )
         assert run.returncode == 1 and "reserved external project name" in run.stderr
+
+
+@pytest.mark.parametrize("separator", ["", " ", "-", "_", "\t"])
+def test_reserved_name_spelling_variants(separator):
+    name = separator.join(("SoCiAl", "HuB"))
+    assert guard.findings(name) == ["reserved external project name"]
+    assert guard.main(["branch", f"refs/heads/{name}"]) == 1
+
+
+def test_range_and_pre_push_reject_an_intermediate_blob(tmp_path):
+    def git(*args, data=None):
+        return subprocess.check_output(["git", *args], input=data, cwd=tmp_path).strip().decode()
+
+    git("init", "-q")
+    empty = git("mktree", data=b"")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "A", "GIT_AUTHOR_EMAIL": "a@example.org",
+           "GIT_COMMITTER_NAME": "A", "GIT_COMMITTER_EMAIL": "a@example.org"}
+
+    def commit(tree, *parents):
+        return subprocess.check_output(["git", "commit-tree", tree, *parents], input=b"clean message\n",
+                                       cwd=tmp_path, env=env).strip().decode()
+
+    base = commit(empty)
+    blob = git("hash-object", "-w", "--stdin", data=b"SoCiAl" + b"-" + b"HuB")
+    dirty = git("mktree", data=f"100644 blob {blob}\tsettings.txt\n".encode())
+    middle = commit(dirty, "-p", base)
+    head = commit(empty, "-p", middle)
+    push = f"refs/heads/dev {head} refs/heads/dev {base}\n"
+    for args in (["range", base, head], ["pre-push", "origin"]):
+        run = subprocess.run([sys.executable, str(SCRIPT), *args], cwd=tmp_path, input=push,
+                             capture_output=True, text=True)
+        assert run.returncode == 1 and "Rephrase" in run.stderr

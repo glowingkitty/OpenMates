@@ -300,9 +300,7 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
             break
         explicit = bool(entry.get("explicit_model"))
         media = {"images": tuple(entry["images"])} if entry.get("images") else {}
-        task_prompt = entry["prompt"].removesuffix(f"\n\n{PUSH_RULE}")
-        engine, model = claude_weekly_model.route(entry["model"], explicit, f"{entry['title']}\n{task_prompt}",
-                                                  live_voice=bool(entry.get("live_voice")))
+        engine, model = claude_weekly_model.queued_route(entry["model"])
         if engine == "codex":
             unavailable = codex_wait_reason()
             if unavailable:
@@ -315,7 +313,7 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
                                    live_voice=bool(entry.get("live_voice")), **media)
         path.unlink()
         outcome = {"file": path.name, "status": "launched", "session": where, "title": entry["title"]}
-        _record_launch({"kind": "pending", "model": entry["model"], "forced": force, **outcome})
+        _record_launch({"kind": "pending", "engine": engine, "model": model, "forced": force, **outcome})
         results.append(outcome)
     return results
 

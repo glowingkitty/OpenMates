@@ -125,6 +125,13 @@ def route(default: str, explicit_model: bool = False, text: str = "", now: datet
     return "claude", default
 
 
+def queued_route(model: str, now: datetime | None = None, record: dict | None = None) -> tuple[str, str]:
+    """Scheduled and pending starts follow the usage policy, including saved model choices."""
+    if switch_active(now, record):
+        return "codex", CODEX_MODEL
+    return route(model, explicit_model=True, now=now)
+
+
 def new_chat_model(default: str, explicit_model: bool = False, now: datetime | None = None) -> str:
     """The Claude model a new Claude chat starts on (the switch now moves chats to Codex, not Sonnet)."""
     return default
