@@ -114,6 +114,9 @@ assertions:
       or obtained through available permitted skills when a rich card helps the
       answer or the user asks for one. Creation guidance is available without
       selecting the corresponding discovery skill or connecting a provider.
+      When a search already returns cards for an answer, present that search's
+      existing result group and link its cards in the prose. Author new cards
+      only for independent researched or user-supplied facts or an explicit draft.
       Preserve normal prose and existing authorable content formats.
     depends_on: [examples.creation]
   - id: authored-results.eligibility.all-suitable-results
@@ -203,9 +206,9 @@ assertions:
       items and their order when another item fails. Opening a member shows
       that member's existing rich fullscreen view. An item may name a skill
       result card of the same chat and owner as an existing reference, and a
-      researched item whose identity facts (for a connection: exact departure
-      and arrival instants) match such a card reuses that complete card instead
-      of storing a thinner copy without its legs, stations, map or provider.
+      researched item whose identity facts match a skill result card reuses that
+      original card across search skills. A reply presents a matching search
+      result in one result group. Independently researched items remain usable.
     depends_on: [examples.groups]
   - id: authored-results.maps.source-faithful-geometry
     type: invariant

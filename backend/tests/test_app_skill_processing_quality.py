@@ -120,6 +120,54 @@ def test_event_semantic_deduplication_collapses_cross_provider_copies() -> None:
     ]
 
 
+# contract-test: direct surface=rest_api assertions=events-search.relevance.bounded-candidates
+def test_web_event_deduplication_keeps_the_more_complete_source_and_its_provenance() -> None:
+    listing = {
+        "provider_id": "web",
+        "title": "Libre Days",
+        "url": "https://list.example/libre",
+        "source_page_url": "https://list.example/upcoming",
+        "date_start": "2027-01-14",
+        "venue": {"city": "Lyon"},
+    }
+    official = {
+        **listing,
+        "url": "https://libre.example/2027",
+        "source_page_url": "https://libre.example/2027",
+        "image_url": "https://libre.example/venue.jpg",
+        "venue": {"city": "Lyon", "name": "Libre Hall", "address": "24 rue des Fleurs"},
+    }
+    other = {**listing, "title": "Open Source Weekend", "url": "https://list.example/weekend"}
+    assert SearchSkill._deduplicate_events([listing, other, official]) == [official, other]
+    assert SearchSkill._deduplicate_events([official, listing]) == [official]
+
+
+# contract-test: direct surface=rest_api assertions=events-search.results.actionable
+def test_web_cards_combine_complementary_facts_from_the_same_edition() -> None:
+    url = "https://libre.example/2027/"
+    origin = {"provider_id": "web", "url": url, "title": "Libre Days", "date_start": "2027-01-14"}
+    official = {**origin, "source_page_url": url,
+                "venue": {"name": "Libre Hall", "address": "24 rue des Fleurs", "city": "Lyon"}}
+    detail = {**origin, "source_page_url": "https://community.example/libre-days",
+              "description": "Maintainers compare security and packaging workflows in hands-on workshops.",
+              "image_url": "https://community.example/libre-days/banner.jpg", "organizer": "Libre Association"}
+    for results in ([official, detail], [detail, official]):
+        merged, = SearchSkill._deduplicate_events(results)
+        assert merged["venue"] == official["venue"] and merged["source_page_url"] == url
+        for field in ("description", "image_url", "organizer"):
+            assert merged[field] == detail[field]
+            assert merged[f"{field}_source_url"] == detail["source_page_url"]
+
+
+# contract-test: direct surface=rest_api assertions=events-search.results.actionable
+def test_web_event_listings_with_or_without_a_time_share_the_same_occurrence() -> None:
+    listing = {"provider_id": "web", "title": "Libre Policy Summit 2027", "url": "https://list.example/summit",
+               "date_start": "2027-01-29", "event_type": "online"}
+    organizer = {**listing, "url": "https://summit.example/", "date_start": "2027-01-29T09:00:00+01:00",
+                 "description": "Policy teams present open source procurement and funding programmes."}
+    assert SearchSkill._deduplicate_events([listing, organizer]) == [organizer]
+
+
 # contract-test: direct surface=rest_api assertions=events-search.results.actionable
 def test_event_quality_filter_ranks_free_and_cheap_before_expensive() -> None:
     events = [

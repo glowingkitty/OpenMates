@@ -3663,6 +3663,7 @@ import { storageArchiveFetch } from "../config/api";
                           ? pendingAssistantResponse.serverRegion : undefined}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
+                        deferVoiceCallIdentity={!!voiceCallBridge && (msg.status === 'streaming' || msg.status === 'processing')}
                         assistantTurnActive={msg.role === 'assistant' && (
                           (!!activeAssistantTurn && (msg.id === activeAssistantTurn.taskId
                             || (!!msg.original_message?.user_message_id
@@ -3723,7 +3724,7 @@ import { storageArchiveFetch } from "../config/api";
                   messageId={pendingAssistantResponse.taskId}
                   userMessageId={pendingAssistantResponse.userMessageId}
                   loadedMemories={loadedMemoryAssociation.byAssistantId.get(pendingAssistantResponse.taskId) ?? []}
-                  containerWidth={containerWidth} isTransientResponse={true} />
+                  containerWidth={containerWidth} isTransientResponse={true} deferVoiceCallIdentity={!!voiceCallBridge} />
               </div>
             {/if}
 

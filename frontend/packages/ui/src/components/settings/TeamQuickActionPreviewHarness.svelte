@@ -18,7 +18,7 @@
     },
   ];
   let previewTeams = $derived(variant === 'noTeams' || variant === 'loadingNoTeams' ? []
-    : variant === 'singleTeam' ? [{ ...teams[0], name: 'SocialHub' }] : teams);
+    : variant === 'singleTeam' ? [{ ...teams[0], name: 'Garden Studio' }] : teams);
   let activeTeamId: string | null = $state(untrack(() => variant === 'joined' ? teams[0].team_id : null));
   let action = $state('');
 </script>

@@ -35,7 +35,7 @@ async def admitted():
     await register_active_call(cache, **base)
     await issue_message_id(cache, **base, message_id=message_id, role="user")
     message = {"voice_mode": True, "voice_call_id": base["call_id"], "voice_turn_id": message_id}
-    scope = {"voice_call_session_hash": base["session_id"]}
+    scope = {"voice_call_session_id": base["session_id"]}
     return cache, base, message_id, message, scope
 
 
@@ -48,7 +48,7 @@ async def test_canonical_admission_accepts_only_issued_user_turn_of_exact_sessio
     for changed in [
         {"user_id": "other-owner"}, {"chat_id": "another-chat"},
         {"message_id": "partial-unissued"}, {"websocket_scope": {}},
-        {"websocket_scope": {"voice_call_session_hash": "other-session"}},
+        {"websocket_scope": {"voice_call_session_id": "other-session"}},
         {"message": {**message, "voice_call_id": uuid.uuid4().hex}},
         {"message": {**message, "voice_turn_id": "different-turn"}},
         {"message": {**message, "voice_call_id": "malformed"}},

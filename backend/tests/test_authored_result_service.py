@@ -1098,10 +1098,37 @@ async def test_existing_cards_prompt_still_lists_only_authored_cards(authored_se
 
 # contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
 def test_connection_identity_compares_instants_across_offsets():
-    from backend.core.api.app.services.authored_skill_result_reuse import IDENTITY_KEYS
-
-    key = IDENTITY_KEYS["travel.connection"]
+    from backend.core.api.app.services.authored_skill_result_reuse import _connection_key as key
     assert key({"departure": "2026-11-16T20:52:00+01:00", "arrival": "2026-11-17T09:05:00+01:00"}) == key(
         {"legs": [{"departure": "2026-11-16T19:52:00Z", "arrival": "x"},
                   {"arrival": "2026-11-17T08:05:00+00:00"}]})
     assert key({"departure": "2026-11-16T20:52:00", "arrival": "2026-11-17T09:05:00+01:00"}) is None
+
+
+@pytest.mark.parametrize("kind, app, skill, embed_type, original, authored", [
+    ("events.event", "events", "search", "event",
+     {"title": "FOSDEM", "date_start": "2027-01-30", "venue_city": "Brussels",
+      "venue_address": "Avenue Franklin Roosevelt 50", "url": "https://fosdem.org/2027/"},
+     {"title": "FOSDEM 2027", "date_start": "2027-01-30", "venue": {"city": "Brussels"},
+      "url": "https://example.org/fosdem"}),
+    ("shopping.product", "shopping", "search_products", "product",
+     {"title": "Portable keyboard", "url": "https://shop.example/keyboard"},
+     {"title": "Portable keyboard", "url": "https://shop.example/keyboard"}),
+])
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
+@pytest.mark.asyncio
+async def test_researched_event_and_product_reuse_skill_children(
+    authored_service, kind, app, skill, embed_type, original, authored,
+):
+    h = authored_service
+    await h.put_reference(SKILL_CONNECTION, {
+        **original, "type": embed_type, "app_id": app, "skill_id": skill, "embed_ref": "original-abc",
+    }, parent=SKILL_SEARCH)
+    h.service.authoring_reference_index = {"original-abc": SKILL_CONNECTION}
+    carrier = await h.create()
+    assert await h.update(carrier, raw=_followup_source({
+        "id": "repeat", "kind": kind, "origin": "researched", "title": authored["title"],
+        "sources": [{"url": authored["url"]}], "details": authored,
+    }))
+    assert (await h.content(carrier))["member_ids"] == [SKILL_CONNECTION]
+    assert h.record(carrier)["embed_ids"] == []

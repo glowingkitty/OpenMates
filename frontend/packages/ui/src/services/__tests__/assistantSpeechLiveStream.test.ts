@@ -50,6 +50,31 @@ const beginAudio = async (overrides: Parameters<typeof audioEvent>[0] = {}) => {
   return media;
 };
 const sealedMember = (segment_id: string, sequence: number) => ({ segment_id, sequence, kind: "voice_prose_clause", source_version: 1 });
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.privacy
+it("reports the first reply's projected prose from the start of live playback", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  controller.setCallOwner("chat", "call");
+  const asset = "/audio/assistant-acknowledgements/system/en-US/chat_start-1.mp3";
+  mocks.handlers.get("assistant_speech_acknowledgement")?.({
+    chat_id: "chat", message_id: "message", clip_id: "system-en-US-chat_start-1", audio_url: asset,
+  });
+  await flushSpeechPromises();
+  expect(get(controller.activity)).toMatchObject({ speaking: true, text: "", clipAudioUrl: asset });
+
+  controller.registerCallSource("chat", "message", "See [the guide](https://example.org).\n\n```js\nconst x = 1;\n```");
+  controller.registerCallSource("other-chat", "message", "Unrelated reply.");
+  const track = { kind: "voice_prose_turn" as const, segment_id: "a".repeat(64), sequence: 0 };
+  await status(track);
+  await beginAudio(track);
+  expect(get(controller.activity)).toMatchObject({
+    messageId: "message", speaking: true, text: "See the guide.", clipAudioUrl: null,
+  });
+  controller.setCallOwner(null);
+  expect(get(controller.activity).text).toBe("");
+  await controller.close();
+});
+
 const seal = async (segments: unknown[], overrides: Record<string, unknown> = {}) => {
   mocks.handlers.get("assistant_speech_status")?.({ status: "sealed", voice_call_id: "call", chat_id: "chat",
     message_id: "message", source_version: 1, segments, ...overrides });

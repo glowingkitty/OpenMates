@@ -40,7 +40,7 @@ async def admit_voice_call_turn(
     """Bind a completed canonical WS turn to the authenticated call session."""
     if message.get("voice_mode") is not True:
         return VoiceCallDelivery()
-    session_id = websocket_scope.get("voice_call_session_hash")
+    session_id = websocket_scope.get("voice_call_session_id")
     call_id, turn_id = message.get("voice_call_id"), message.get("voice_turn_id")
     _identity(call_id, turn_id, message_id)
     if not isinstance(session_id, str) or not session_id:
@@ -58,7 +58,7 @@ async def require_active_voice_dispatch(cache: Any, request: Any) -> None:
     """Recheck trusted ordinary-request identities immediately before paid work.
 
     WS admission already checked the exact authenticated session. A queued
-    worker reloads that registry session instead of adding its hash to payloads.
+    worker reloads that registry session instead of adding its ID to payloads.
     Ownership, chat, issued role, and lifecycle are checked again atomically by
     require_active_call. This does not select any model or provider.
     """

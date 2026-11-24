@@ -13,10 +13,12 @@ Example (after deployment; paid inference requires explicit opt-in):
     --revision FULL_SHA --output-dir /tmp/events-question/run-1 \\
     --personal-dev-test-account --allow-paid-dev-inference
 
-Never run in CI. The spec deletes its chat.
+Use --grep "dictated conference discovery" to record the exact dictated prompt.
+Runs against dev, including on E2B. The spec deletes its chat.
 """
 from __future__ import annotations
 
+import os
 import sys
 
 from design_embroidery_web_real_test import main
@@ -24,4 +26,5 @@ from design_embroidery_web_real_test import main
 SPEC = "tests/real-inference-events-question.spec.ts"
 
 if __name__ == "__main__":
-    sys.exit(main(spec=SPEC, title="Events conference question", doc=__doc__))
+    os.environ["OPENMATES_PROOF_REAL_DEV"] = "1"
+    sys.exit(main(spec=SPEC, title="Events conference question", doc=__doc__, grep_option=True))

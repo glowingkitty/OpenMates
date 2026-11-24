@@ -127,7 +127,7 @@ vi.mock('../../utils/cookies', () => ({ getWebSocketToken: () => 'test-token' })
 vi.mock('../../utils/sessionId', () => ({ getSessionId: () => 'test-session' }));
 vi.mock('../assistantSpeechController', async () => { const { writable } = await import('svelte/store'); return { assistantSpeechController: {
   get playbackBoundary() { return heard.value; },
-  stop: vi.fn(async () => {}), setCallOwner: vi.fn(), primeForAutoplay: vi.fn(),
+  stop: vi.fn(async () => {}), setCallOwner: vi.fn(), primeForAutoplay: vi.fn(), registerCallSource: vi.fn(),
   activity: writable({ chatId:null as string|null, messageId:null as string|null,text:'',speaking:false,language:'en' }),
 } }; });
 import { assistantSpeechController } from '../assistantSpeechController';
@@ -1174,6 +1174,25 @@ describe('integrated voice call typed turns', () => {
     expect(states.at(-1)).toMatchObject({speaking:true,assistant_message_id:null,text:''});
     expect(states.every(frame=>frame.assistant_message_id===null||/^[A-Za-z0-9_-]{1,128}$/.test(frame.assistant_message_id))).toBe(true);
     expect(get(controller).status).toBe('live'); controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+  it('forwards only the bound call turn’s streaming reply to the speech player', async () => {
+    const { controller, harness } = liveController();
+    harness.bindCanonicalChat();
+    await vi.waitFor(() => expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.callTurnIds.add('call-turn');
+    const register = vi.mocked(assistantSpeechController.registerCallSource);
+    register.mockClear();
+    const detail = { chat_id: 'chat-1', user_message_id: 'call-turn', message_id: 'first-reply',
+      full_content_so_far: 'The capital of France is Paris.' };
+    for (const listener of visual.listeners) {
+      listener(new CustomEvent('aiMessageChunk', { detail: { ...detail, chat_id: 'other-chat' } }));
+      listener(new CustomEvent('aiMessageChunk', { detail: { ...detail, user_message_id: 'unrelated-turn' } }));
+      listener(new CustomEvent('aiMessageChunk', { detail }));
+    }
+    expect(register).toHaveBeenCalledExactlyOnceWith('chat-1', 'first-reply', detail.full_content_so_far);
+    controller.hangup();
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.video.source-frame-provenance,video-call.audio.complete-turn-admission

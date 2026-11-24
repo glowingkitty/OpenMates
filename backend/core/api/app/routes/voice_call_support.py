@@ -61,7 +61,7 @@ async def _authoritative_credits(websocket: WebSocket, user_id: str) -> int:
 async def _session_still_valid(websocket: WebSocket, auth_data: dict[str, Any]) -> bool:
     """Recheck the durable session authority during an open paid connection."""
     from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
-    from backend.core.api.app.services.session_security_state import get_session_state_cached
+    from backend.core.api.app.services.session_security_state import get_session_lineage_state
 
     now = int(time.time())
     for deadline in (auth_data.get("session_expires_at"), auth_data.get("pair_expires_at")):
@@ -75,20 +75,23 @@ async def _session_still_valid(websocket: WebSocket, auth_data: dict[str, Any]) 
     if not isinstance(digest, str) or not digest:
         return False
     try:
-        state = await get_session_state_cached(
+        lineage = await get_session_lineage_state(
             websocket.app.state.directus_service,
             websocket.app.state.cache_service,
             digest,
             user_id=auth_data["user_id"],
             allow_risk=False,
         )
-        if not state:
+        if lineage is None:
+            return False
+        current_hash, state = lineage
+        if state.get("logical_session_id") != auth_data.get("logical_session_id"):
             return False
         if auth_data.get("pair_expires_at") is not None:
             pair_deadline = await get_pair_deadline_hash(
                 websocket.app.state.directus_service,
                 websocket.app.state.cache_service,
-                digest,
+                current_hash,
             )
             if pair_deadline is None or pair_deadline <= now:
                 return False

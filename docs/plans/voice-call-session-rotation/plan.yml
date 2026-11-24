@@ -1,0 +1,20 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: voice-call-session-rotation
+title: Admit call turns after refresh-token rotation
+goal: "Fix the wrong rejection with a regression test, without weakening the authorization or client-side encryption."
+specification_refs:
+  - id: feature.video-call
+    version: 21
+    role: primary
+scope:
+  - Bind call admission, encrypted transcript writes and speech delivery to the server-authenticated session across refresh-token rotation.
+acceptance_criteria:
+  - id: existing-chat-turn
+    description: An existing chat accepts an issued call turn when its open chat socket predates refresh-token rotation and its call socket authenticates with the successor cookie.
+  - id: session-isolation
+    description: An independent login for the same account cannot submit a turn for that call. Owner, chat, issued-message role, lifecycle and client encryption checks still apply.
+verification:
+  - Reproduce the production registry rejection with a provider-free protocol regression and run the focused backend suites.
+  - Exercise the socket handoff and an admitted turn in isolated browser CI with speech providers stubbed.

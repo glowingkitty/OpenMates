@@ -46,6 +46,31 @@ def test_event_needs_a_title_and_date_written_on_the_page():
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
+def test_web_event_preserves_only_a_street_address_stated_on_the_page():
+    text = EVENT_PAGE + "Venue entrance: [24 rue des Fleurs, **Lyon**](https://maps.example.org/venue).\n"
+    event = {"title": "Libre Days", "date_start": "2027-01-14", "city": "Lyon"}
+    stated = rows(extraction.KIND_EVENT, [{**event, "venue_address": "24 rue des Fleurs, Lyon"}], text)
+    unstated = rows(extraction.KIND_EVENT, [{**event, "venue_address": "42 rue des Fleurs"}], text)
+    assert stated[0]["venue"] == {"city": "Lyon", "address": "24 rue des Fleurs, Lyon"}
+    assert unstated[0]["venue"] == {"city": "Lyon"}
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source,events-search.results.actionable
+def test_event_description_carries_facts_and_online_event_has_no_physical_venue():
+    description = "Free software maintainers will share packaging advice in workshops and report on community security audits."
+    common = {"title": "Libre Days", "date_start": "2027-01-14", "city": "Lyon", "country": "France"}
+    generic, rich = rows(extraction.KIND_EVENT, [
+        {**common, "description": "Open Source Conference in Lyon, France, Europe"},
+        {**common, "online": True, "description": description,
+         "image_url": "https://example.org/banner.jpg"},
+    ], EVENT_PAGE + description)
+    assert "description" not in generic
+    assert rich["description"] == description
+    assert rich["image_url"] == "https://example.org/banner.jpg"
+    assert rich["event_type"] == "online" and "venue" not in rich
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
 def test_price_link_and_picture_are_kept_only_when_the_page_states_them():
     kept = rows(extraction.KIND_PRODUCT, [
         {"title": "Quiet Mask Pro", "price_text": "189,00 €", "price_amount": 189.0, "currency": "eur",
@@ -263,3 +288,143 @@ async def test_a_named_events_official_page_is_read_before_second_pages_of_one_s
                                                    secrets_manager=None)
     assert read_urls[:3] == [top, "https://archive.example.org/2026/", "https://wiki.example.org/Conf"]
     assert len(read_urls) == extraction.MAX_PAGES and top in {row["source_page_url"] for row in outcome.results}
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source,events-search.results.actionable
+@pytest.mark.anyio
+async def test_upcoming_edition_and_linked_event_details_fit_the_page_budget(monkeypatch):
+    from datetime import date
+
+    year = date.today().year + 1
+    official = f"https://libre.example/{year}/"
+    directory = "https://directory.example/events"
+    detail = f"https://directory.example/libre-days-{year}"
+    cover = "https://directory.example/images/libre-days.jpg"
+    hits = [directory, "https://overview.example", "https://calendar.example", "https://events.example",
+            "https://more.example", official]
+    seen = []
+    mock_day = f"{year}-01-14"
+
+    async def search(*_args, **_kwargs):
+        return {"results": [{"url": url} for url in hits]}
+
+    async def read(url, **_kwargs):
+        seen.append(url)
+        return {
+            "title": f"All about Libre Days {year}" if url == detail else "Conferences",
+            "markdown": f"Libre Days {year}, January 14. 24 rue des Fleurs, Lyon. "
+                        f"[Libre Days]({detail}) [{url}]({official})",
+            "og_image": cover,
+        }
+
+    async def complete(kind, request, url, title, text, **kwargs):
+        if url not in (official, detail):
+            return [], 10, 5
+        event = {"title": f"Libre Days {year}", "date_start": mock_day, "url": official}
+        if url == official:
+            event["venue_address"] = "24 rue des Fleurs"
+        else:
+            event["description"] = "Maintainers compare security and packaging workflows in hands-on workshops."
+        return [event], 10, 5
+
+    monkeypatch.setattr(extraction, "search_web", search)
+    monkeypatch.setattr(extraction, "read_public_web_page", read)
+    monkeypatch.setattr(extraction, "complete_page", complete)
+    result = await extraction.extract_web_results(extraction.KIND_EVENT, {"query": "open source conferences"},
+                                                  secrets_manager=None)
+    assert len(seen) == extraction.MAX_PAGES
+    assert seen[0] == official and seen[-1] == detail
+    assert result.search_requests == 1
+    assert result.results[0]["venue"]["address"] == "24 rue des Fleurs"
+    assert result.results[1]["image_url"] == cover
+    assert "packaging workflows" in result.results[1]["description"]
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_directory_logo_does_not_become_the_events_cover():
+    event = {"title": "Libre Days"}
+    extraction._event_page_cover(event, {
+        "title": "All about Libre Days 2027",
+        "og_image": "https://directory.example/img/logo.png",
+    })
+    assert "image_url" not in event
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_event_detail_context_uses_same_publisher_and_edition_only():
+    official = "https://libre.example/2027/"
+    about = "https://libre.example/2027/about/"
+    assert extraction._matching_about_page([
+        "https://other.example/2027/about/",
+        "https://libre.example/2026/about/",
+        "https://libre.example/2027/about/speakers/",
+        about,
+    ], official) == about
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_named_event_detail_prioritizes_its_homepage_over_similar_titles():
+    directory = "https://directory.example/all-events"
+    nearby = "https://summit.example/"
+    named = "https://libre-week.example/"
+    previews = [
+        {"url": directory, "title": "Conference directory"},
+        {"url": nearby, "title": "Homepage - Libre Week Policy Summit"},
+        {"url": named, "title": "Home - Libre Week"},
+    ]
+    assert extraction._named_event_pages([directory, nearby, named], previews, "libre week") == [
+        named, directory, nearby,
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_structured_listing_recovers_missed_events_from_visible_dates():
+    page = """Upcoming events in 2027.
+
+[Jan 25 - Feb 1
+27](https://directory.example/ical/libre-week "Add to calendar")
+
+oss
+
+## [Libre Week](https://directory.example/libre-week)
+
+### [Open Source](https://directory.example/oss) conference in [Lyon](https://directory.example/lyon), [France](https://directory.example/fr)
+"""
+    rows = extraction.validated_rows(
+        extraction.KIND_EVENT, extraction._listed_event_facts(page), page_url="https://directory.example/oss",
+        page_title="Events", page_text=page,
+    )
+    assert [(row["title"], row["date_start"], row["date_end"], row["venue"]) for row in rows] == [
+        ("Libre Week", "2027-01-25", "2027-02-01", {"city": "Lyon", "country": "France"}),
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_named_programme_excerpt_requires_the_edition_and_dates_on_the_page():
+    request = {"named_edition": "Libre Week", "start_date": "2027-01-25", "end_date": "2027-02-01",
+               "location": "Lyon"}
+    sentence = "The programme brings together open source maintainers and public sector teams for hands-on workshops about deployment, accessibility and secure software updates."
+    page = f"25 Jan – 1 Feb\n\nLyon\n\n# LIBRE WEEK 2027\n\n{sentence}\n\n## Workshops"
+    result = extraction._named_programme_excerpt(request, page)
+    assert result["description"] == sentence
+    assert result["city"] == "Lyon"
+    assert extraction._named_programme_excerpt({**request, "start_date": "2027-01-26"}, page) is None
+    assert extraction._named_programme_excerpt({**request, "named_edition": "Other Week"}, page) is None
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_hybrid_event_with_no_published_venue_does_not_get_a_city_pin():
+    headline = "Libre Policy Summit"
+    page = "The summit takes place in Brussels and will be accessible online."
+    row = {"title": f"{headline} 2027", "venue": {"city": "Brussels", "country": "Belgium"}}
+    extraction._omit_unspecified_hybrid_venue(row, f"Homepage - {headline}", page)
+    assert "venue" not in row
+    assert "event_type" not in row
+
+    named = {**row, "venue": {"name": "Assembly Hall", "city": "Brussels"}}
+    extraction._omit_unspecified_hybrid_venue(named, f"Homepage - {headline}", page)
+    assert named["venue"]["name"] == "Assembly Hall"
+
+    unrelated = {**row, "venue": {"city": "Brussels"}}
+    extraction._omit_unspecified_hybrid_venue(unrelated, "Conference Directory", page)
+    assert unrelated["venue"]["city"] == "Brussels"

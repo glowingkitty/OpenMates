@@ -1,6 +1,5 @@
-/** Voice calls started in a chat that already holds a typed exchange, and the first call
- * of a just-signed-up account. Split from voice-call.spec.ts to keep each isolated CI job
- * inside its Playwright time limit; behaviour and assertions are unchanged.
+/** Voice turns in a chat with existing history, and the first call of a
+ * just-signed-up account. External providers are deterministic CI fixtures.
  */
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
@@ -13,6 +12,7 @@ const { withProofAudio } = require('./helpers/proof-audio');
 const test = withProofAudio(auditedTest);
 const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { withMockMarker } = require('./signup-flow-helpers');
+const { expireIsolatedAccessWindow } = require('./helpers/isolated-session-rotation');
 
 test.use({
   actionTimeout: 30_000,
@@ -37,10 +37,17 @@ test.describe('Voice mode through ordinary chat', () => {
     }
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.audio.single-owner
-  test('starts a voice call in an existing chat that already has a typed exchange (TASK-6308)',async({page},testInfo)=>{
+  // contract-test: direct surface=gui.web assertions=video-call.audio.single-owner,video-call.chat.typed-input,video-call.chat.transcripts
+  test('admits a call turn in an existing chat after the refresh cookie rotates',async({page},testInfo)=>{
     test.setTimeout(120_000);
     await installNativeVoiceInput(page);
+    let acceptedCallTurns = 0;
+    page.on('websocket', socket => {
+      if (new URL(socket.url()).pathname !== '/v1/voice-call') return;
+      socket.on('framereceived', ({ payload }) => {
+        if (typeof payload === 'string' && JSON.parse(payload).type === 'text_input.accepted') acceptedCallTurns += 1;
+      });
+    });
     await page.addInitScript(()=>{
       const sockets:string[]=[];
       Object.assign(window,{__voiceSocketPaths:sockets});
@@ -56,12 +63,47 @@ test.describe('Voice mode through ordinary chat', () => {
     await waitForAssistantMessage(page,{which:'last',logCheckpoint:()=>{}});
     const chatId=await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id');
     expect(chatId).toBeTruthy();
+    const previousReplies = await page.getByTestId('message-assistant').count();
+
+    // The chat socket stays open on its original credential. The newly opened
+    // call uses the successor cookie, as after a session refresh in another tab.
+    const refreshCookie = async () => (await page.context().cookies())
+      .find(cookie => cookie.name === 'auth_refresh_token')?.value;
+    const original = await refreshCookie();
+    if (!original) throw new Error('Authenticated refresh cookie is missing.');
+    const apiUrl = process.env.OPENMATES_E2E_API_URL;
+    if (!apiUrl) throw new Error('OPENMATES_E2E_API_URL is required.');
+    const sessionId = await page.evaluate(() => sessionStorage.getItem('session_id'));
+    expireIsolatedAccessWindow(original);
+    const rotated = await page.context().request.post(`${apiUrl}/v1/auth/session`, {
+      data: { session_id: sessionId }, headers: { Origin: new URL(page.url()).origin },
+    });
+    expect(rotated.status()).toBe(200);
+    const rotatedSession = await rotated.json();
+    expect(rotatedSession.success).toBe(true);
+    const successor = await refreshCookie();
+    expect(Boolean(successor && successor !== original),
+      'The refresh publishes a successor cookie.').toBe(true);
+    // This API request bypasses the app's refresh handler. Install the
+    // server-issued token as the handler would, keeping the chat socket open.
+    if (typeof rotatedSession.ws_token !== 'string' || !rotatedSession.ws_token) {
+      throw new Error('The refresh did not issue a signed WebSocket token.');
+    }
+    await page.evaluate((token: string) => sessionStorage.setItem('ws_token', token), rotatedSession.ws_token);
+
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
     expect(await page.evaluate(()=>(window as unknown as {__voiceSocketPaths:string[]}).__voiceSocketPaths)).toHaveLength(1);
     expect(await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id')).toBe(chatId);
     await expect(page.getByTestId('notification').filter({hasText:'Voice calling is unavailable right now'})).toHaveCount(0);
-    await page.screenshot({path:testInfo.outputPath('call-in-typed-chat-listening.png')});
+    const question = 'Can you repeat the capital?';
+    await page.getByTestId('message-editor').locator('[contenteditable="true"]').click();
+    await page.keyboard.insertText(question);
+    await page.getByTestId('composer-send-button').click();
+    await expect.poll(() => acceptedCallTurns, { message: 'The voice socket must issue the typed turn.' }).toBe(1);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(previousReplies + 1, { timeout: 45_000 });
+    await expect(page.getByTestId('message-assistant').last()).toContainText(`I received your text: ${question}`, { timeout: 30_000 });
+    await page.screenshot({path:testInfo.outputPath('call-after-session-rotation.png')});
     await page.getByTestId('voice-call-hangup').click();
   });
 });

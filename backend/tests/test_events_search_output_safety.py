@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+from backend.apps.ai.processing.main_processor import _filter_skill_results_for_llm
 from backend.shared.python_utils import app_skill_output_safety
 from backend.shared.python_utils.app_skill_output_safety import (
     APP_SKILL_SURFACE_REST,
@@ -65,5 +66,9 @@ async def test_events_search_titles_and_descriptions_are_semantically_scanned(
     assert result == payload
     assert captured["payload"] == payload
     assert {"title", "description"}.issubset(captured["always_sanitize_field_names"])
-    assert {"type", "hash", "image_url"}.issubset(captured["skip_field_names"])
-    assert "description" not in captured["skip_field_names"]
+    assert not {"title", "description"} & set(captured.get("skip_field_names") or ())
+    item = result["results"][0]["results"][0]
+    assert item["image_url"] == "https://example.com/event.png"
+    assert _filter_skill_results_for_llm([item], payload["ignore_fields_for_inference"]) == [{
+        "title": item["title"], "description": item["description"],
+    }]

@@ -12,6 +12,7 @@ from celery import Celery
 from pydantic import BaseModel, Field
 from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.apps.base_skill import BaseSkill
+from backend.apps.events.providers import fosdem as fosdem_provider
 from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.provider_aliases import PROVIDER_ALIASES, VALID_PROVIDERS
 from backend.shared.app_packages.contracts import events_search_input
@@ -20,9 +21,12 @@ from backend.apps.skill_progress import SkillProgress
 from backend.shared.app_packages.contracts import validate_events_search_result
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
 from backend.shared.app_packages.web_source import KIND_EVENT, WEB_PROVIDER_ID, run_web_source
-from backend.shared.python_utils.web_result_extraction import DEFAULT_MODEL, MODEL_REFS
+from backend.shared.python_utils.web_result_extraction import (
+    DEFAULT_MODEL, MAX_OUTPUT_TOKENS, MAX_PAGE_CHARS, MAX_PAGES, MODEL_REFS,
+)
 from backend.shared.python_utils.web_source_billing import (
-    WebSourcePrices, WebSourcePricingError, fetch_web_source_prices, group_usage,
+    RESERVED_CREDITS_PER_REQUEST, WebSourcePrices, WebSourcePricingError, fetch_web_source_prices, group_usage,
+    raw_web_credits,
 )
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS, normalize_url_for_deduplication,
@@ -418,6 +422,14 @@ class SearchSkill(BaseSkill):
         second_start = cls._event_start(second)
         if first_start is None or second_start is None:
             return False
+        if (
+            (len(str(first.get("date_start", ""))) == 10 or len(str(second.get("date_start", ""))) == 10)
+            and cls._same_dated_edition(first, second)
+        ):
+            return True
+        first_tokens = cls._title_tokens(first)
+        second_tokens = cls._title_tokens(second)
+
         second_start = cls._align_event_datetime(second_start, first_start)
         if abs((first_start - second_start).total_seconds()) > 90 * 60:
             return False
@@ -425,8 +437,6 @@ class SearchSkill(BaseSkill):
         if cls._description_urls(first) & cls._description_urls(second):
             return True
 
-        first_tokens = cls._title_tokens(first)
-        second_tokens = cls._title_tokens(second)
         if first_tokens and second_tokens:
             overlap = len(first_tokens & second_tokens) / min(len(first_tokens), len(second_tokens))
             if overlap >= 0.75:
@@ -444,14 +454,80 @@ class SearchSkill(BaseSkill):
 
 
     @classmethod
+    def _same_dated_edition(cls, first: Dict[str, Any], second: Dict[str, Any]) -> bool:
+        """Require agreement on title, starting day and any known city."""
+        first_tokens = cls._title_tokens(first)
+        if not first_tokens or first_tokens != cls._title_tokens(second):
+            return False
+        if str(first.get("date_start", ""))[:10] != str(second.get("date_start", ""))[:10]:
+            return False
+        cities = {cls._dedup_text((event.get("venue") or {}).get("city")) for event in (first, second)}
+        return len(cities - {""}) <= 1
+
+
+    @classmethod
+    def _combine_sourced_edition(cls, existing: Dict[str, Any], event: Dict[str, Any]) -> Dict[str, Any]:
+        """Prefer useful sourced details for matching editions across providers."""
+        if not cls._same_dated_edition(existing, event) or not cls._events_are_duplicates(existing, event):
+            return existing
+        if existing.get("provider_id") == event.get("provider_id") == WEB_PROVIDER_ID:
+            preferred, other = sorted((existing, event), key=cls._web_event_detail, reverse=True)
+            return cls._fill_web_event_details(preferred, other)
+        web = event if event.get("provider_id") == WEB_PROVIDER_ID else existing
+        if web.get("provider_id") != WEB_PROVIDER_ID:
+            return existing
+        other = existing if web is event else event
+        if cls._web_event_detail(web) <= cls._web_event_detail(other):
+            return other
+        enriched = dict(web)
+        for field in ("date_end", "organizer", "fee"):
+            if not enriched.get(field) and other.get(field):
+                enriched[field] = other[field]
+        return enriched
+
+
+    @classmethod
     def _deduplicate_events(cls, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Keep one stable representative for each real-world event."""
+        """Keep one representative, preferring a more complete source for web duplicates."""
         unique: List[Dict[str, Any]] = []
         for event in events:
-            if any(cls._events_are_duplicates(existing, event) for existing in unique):
-                continue
-            unique.append(event)
+            for index, existing in enumerate(unique):
+                if not cls._events_are_duplicates(existing, event):
+                    continue
+                if existing.get("provider_id") == event.get("provider_id") == WEB_PROVIDER_ID:
+                    preferred, other = existing, event
+                    if cls._web_event_detail(event) > cls._web_event_detail(existing):
+                        preferred, other = event, existing
+                    unique[index] = cls._fill_web_event_details(preferred, other)
+                elif WEB_PROVIDER_ID in (existing.get("provider_id"), event.get("provider_id")):
+                    unique[index] = cls._combine_sourced_edition(existing, event)
+                break
+            else:
+                unique.append(event)
         return unique
+
+
+    @staticmethod
+    def _fill_web_event_details(event: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
+        """Combine sourced optional fields only when both pages name the same edition."""
+        event_url = normalize_url_for_deduplication(_event_result_url(event))
+        if (not event_url or event_url != normalize_url_for_deduplication(_event_result_url(other))
+                or str(event.get("date_start", ""))[:10] != str(other.get("date_start", ""))[:10]):
+            return event
+        merged = dict(event)
+        for field in ("description", "image_url", "organizer"):
+            if not merged.get(field) and other.get(field) and other.get("source_page_url"):
+                merged[field] = other[field]
+                merged[f"{field}_source_url"] = other.get(f"{field}_source_url") or other["source_page_url"]
+        return merged
+
+
+    @staticmethod
+    def _web_event_detail(event: Dict[str, Any]) -> tuple[bool, bool, bool, bool]:
+        """Rank sourced street addresses first, then named venues and images."""
+        venue = event.get("venue") or {}
+        return (bool(venue.get("address")), bool(venue.get("name")),
+                bool(event.get("description")), bool(event.get("image_url")))
 
 
     @staticmethod
@@ -875,7 +951,8 @@ class SearchSkill(BaseSkill):
 
     async def _search_web(self, req: Dict[str, Any], secrets_manager: Any, progress: Optional[SkillProgress],
                           *, past_events: bool,
-                          prices: Optional[Dict[str, Optional[WebSourcePrices]]] = None) -> InstalledProviderOutcome:
+                          prices: Optional[Dict[str, Optional[WebSourcePrices]]] = None,
+                          page_limit: int = MAX_PAGES, event_detail: bool = False) -> InstalledProviderOutcome:
         """Events found on public web pages, as contract-valid results labelled with their source page.
 
         The web is searched only once its prices are known, so every search request and token is billable.
@@ -891,7 +968,8 @@ class SearchSkill(BaseSkill):
             if progress is not None:
                 await progress.source_done(0)
             return InstalledProviderOutcome(WEB_PROVIDER_ID, error="Web results are unavailable right now.")
-        outcome = await run_web_source(KIND_EVENT, req, secrets_manager)
+        outcome = await run_web_source(KIND_EVENT, req, secrets_manager, page_limit=page_limit,
+                                       event_detail=event_detail)
         today = datetime.now(timezone.utc).date().isoformat()
         kept: List[Dict[str, Any]] = []
         for row in outcome.results:
@@ -900,11 +978,95 @@ class SearchSkill(BaseSkill):
             if event is None or (not past_events and last_day < today):
                 continue
             kept.append({**event, **{key: row[key] for key in
-                                     ("provider", "provider_id", "source_page_url", "source_page_title")}})
+                                     ("provider", "provider_id", "source_page_url", "source_page_title")},
+                         **({"source_topic": row["source_topic"]} if row.get("source_topic") else {})})
         outcome.results = kept
         if progress is not None:
             await progress.source_done(len(kept))
         return outcome
+
+    async def _complete_organizer_editions(self, events: List[Dict[str, Any]]) -> None:
+        """Prefer corroborated organizer facts without depending on generic lookup ordering."""
+        editions = {start for event in events if (start := fosdem_provider.edition_start(event))}
+        if not editions:
+            return
+        # Keep the direct organizer lookup bounded even for an open-ended date window.
+        edition = min(editions).year
+        source = await fosdem_provider.read_edition(edition)
+        if not source or not (organizer := validate_events_search_result(source)):
+            return
+        for index, event in enumerate(events):
+            if (start := fosdem_provider.edition_start(event)) and start.isoformat() == organizer["date_start"]:
+                events[index] = {
+                    **event, **source, **organizer,
+                    "provider": "fosdem.org", "provider_id": WEB_PROVIDER_ID,
+                    "hash": self._generate_result_hash(organizer["url"]),
+                }
+
+    async def _complete_listed_edition(
+        self, events: List[Dict[str, Any]], secrets_manager: Any, *,
+        prices: Dict[str, Optional[WebSourcePrices]], usage: Dict[str, Any],
+    ) -> None:
+        """Complete a sparse conference and its surrounding programme within the search budget."""
+        # Directory rows mostly share a page. Prefer them over sparse dedicated pages
+        # where repeating a search is likely to surface the same source.
+        page_counts: Dict[str, int] = {}
+        for event in events:
+            page = event.get("source_page_url")
+            if page:
+                page_counts[page] = page_counts.get(page, 0) + 1
+        programmes = [event for event in events if "week" in self._title_tokens(event)]
+
+        def priority(item: tuple[int, Dict[str, Any]]) -> tuple[bool, bool, int]:
+            _, event = item
+            start = str(event.get("date_start", ""))[:10]
+            end = str(event.get("date_end") or start)[:10]
+            city = self._dedup_text((event.get("venue") or {}).get("city"))
+            shares_programme = bool(city) and any(
+                str(programme.get("date_start", ""))[:10] < start < str(programme.get("date_end") or "")[:10]
+                and city == self._dedup_text((programme.get("venue") or {}).get("city"))
+                for programme in programmes
+            )
+            return shares_programme and end > start, shares_programme, page_counts.get(event.get("source_page_url"), 0)
+
+        candidates = sorted(enumerate(events), key=priority, reverse=True)
+        anchor: Optional[Dict[str, Any]] = None
+        web_price = prices.get("web")
+        detail_budget = raw_web_credits({
+            "web_search_requests": 1, "input_tokens": MAX_PAGE_CHARS + 1000, "output_tokens": MAX_OUTPUT_TOKENS,
+        }, web_price)
+        for index, event in candidates:
+            venue = event.get("venue") or {}
+            if (not venue.get("city") or self._infer_result_event_type(event) == "ONLINE"
+                    or venue.get("address") or event.get("description")):
+                continue
+            start = str(event["date_start"])[:10]
+            end = str(event.get("date_end") or start)[:10]
+            # Leave room for the search and one full extraction at normal prices.
+            if not web_price or raw_web_credits(usage, web_price) + detail_budget > RESERVED_CREDITS_PER_REQUEST:
+                break
+            if anchor is not None:
+                # A nearby programme spanning this conference can also carry independent event facts.
+                anchor_day = str(anchor["date_start"])[:10]
+                anchor_city = (anchor.get("venue") or {}).get("city")
+                if not (start < anchor_day < end and self._dedup_text(venue["city"]) == self._dedup_text(anchor_city)):
+                    continue
+            detail = await self._search_web(
+                {"query": event["title"], "location": venue["city"], "start_date": start, "end_date": end},
+                secrets_manager, None, past_events=False, prices=prices, page_limit=1, event_detail=True,
+            )
+            for key in ("web_search_requests", "input_tokens", "output_tokens"):
+                usage[key] = usage.get(key, 0) + (detail.usage or {}).get(key, 0)
+            for candidate in detail.results:
+                if not self._same_dated_edition(event, candidate):
+                    continue
+                url = _event_result_url(candidate)
+                candidate = {**candidate, "type": "event_result", "hash": self._generate_result_hash(url)}
+                events[index] = self._combine_sourced_edition(events[index], candidate)
+            if anchor is not None:
+                break
+            anchor = event
+
 
     async def _process_single_search_request(self, req: Dict[str, Any], request_id: Any,
                                              secrets_manager: Any = None, progress: Optional[SkillProgress] = None,
@@ -947,7 +1109,7 @@ class SearchSkill(BaseSkill):
         criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         topic = f"Events about {query}" if query and (not conference or query.casefold() != conference.casefold()) else None
         count = max(1, min(req.get("count") or _DEFAULT_COUNT, 50))
-        target = relevance_candidate_target(count) if criteria else count
+        target = relevance_candidate_target(count) if criteria or run_web else count
         events: List[Dict[str, Any]] = []
         total = 0
         dispatched: List[str] = []
@@ -959,7 +1121,7 @@ class SearchSkill(BaseSkill):
         source_lists: List[List[Dict[str, Any]]] = []
         web_search = asyncio.create_task(self._search_web(
             {**req, "query": query}, secrets_manager, progress, past_events=bool(req.get("past_events")),
-            prices=prices,
+            prices=prices, page_limit=3 if not req.get("past_events") else MAX_PAGES,
         )) if run_web else None
         if run_builtin:
             dispatched.append(_BUILTIN_PROVIDER)
@@ -1008,6 +1170,8 @@ class SearchSkill(BaseSkill):
         results, quality = self._apply_quality_filters(
             results, event_type=req.get("event_type"), start_date=req.get("start_date"),
             end_date=req.get("end_date"), query=query)
+        if run_web and not req.get("past_events") and prices and prices.get("web"):
+            await self._complete_organizer_editions(results)
         results = self._deduplicate_events(results)
         if criteria or topic:
             results = stable_deduplicate_candidates(results, key=self._relevance_deduplication_key)[:target]
@@ -1015,7 +1179,7 @@ class SearchSkill(BaseSkill):
             ranking = await rank_search_candidates(
                 candidates=results, candidate_projections=[{
                     key: event.get(key) for key in ("title", "description", "date_start", "date_end",
-                        "event_type", "venue", "organizer", "provider", "fee", "constraint_matches", "url")
+                        "event_type", "venue", "organizer", "provider", "fee", "constraint_matches", "url", "source_topic")
                 } for event in results], relevance_criteria=criteria or topic,
                 search_parameters={"query": query, "conference": conference, "providers": dispatched,
                                    "location": req.get("location"), "start_date": req.get("start_date"),
@@ -1026,10 +1190,13 @@ class SearchSkill(BaseSkill):
             if ranking.applied and len(ranking.scores) == len(results):
                 results = [event for event, score in zip(results, ranking.scores)
                            if score >= _MIN_EVENT_RELEVANCE_SCORE]
-                if not criteria:
+                if not criteria and not run_web:
                     retained = {id(event) for event in results}
                     results = [event for event in original_order if id(event) in retained]
-        return request_id, results[:count], None, total, dispatched, failures
+        results = results[:count]
+        if run_web and not req.get("past_events") and prices and web_usage:
+            await self._complete_listed_edition(results, secrets_manager, prices=prices, usage=web_usage)
+        return request_id, results, None, total, dispatched, failures
 
 
 def _interleave_sources(source_lists: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:

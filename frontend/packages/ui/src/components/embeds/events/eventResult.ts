@@ -24,6 +24,18 @@ export interface EventResult extends Record<string, unknown> {
   cover_url?: string | null;
 }
 
+/** Display the supplied street address and only locality fields it does not already contain. */
+export function formatEventVenueAddress(venue?: EventResult['venue']): string {
+  if (!venue) return '';
+  const displayedParts = new Set(venue.address?.split(/[,\n]/).map(part =>
+    part.trim().toLowerCase().replace(/^\d+\s+/, '')
+  ));
+  const locality = [venue.city, venue.state, venue.country]
+    .filter(part => part && !displayedParts.has(part.trim().toLowerCase())).join(', ');
+  return [venue.address, locality].filter(Boolean).join('\n');
+}
+
+
 const record = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 const string = (value: unknown): string | undefined => typeof value === 'string' ? value : undefined;

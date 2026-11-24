@@ -1064,7 +1064,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
       };
       const taskChanged = (event: Event) => {
         const detail = (event as CustomEvent).detail;
-        if ((detail?.chat_id ?? detail?.chatId) !== this.state.chatId) return;
+        const chatId = this.state.chatId;
+        if (!chatId || (detail?.chat_id ?? detail?.chatId) !== chatId) return;
         if (event.type === 'aiTaskEnded') { this.publishAssistantState(); return; }
         if (!this.callTurnIds.has(detail?.user_message_id)) return;
         // A real canonical credit refusal must stop paid listening and notify
@@ -1078,6 +1079,12 @@ export class VoiceCallController implements VoiceCallControllerLike {
         if (typeof taskId === 'string' && typeof detail.message_id === 'string') {
           this.assistantMessagesByTask.set(taskId, detail.message_id);
           this.assistantTasksByMessage.set(detail.message_id, taskId);
+        }
+        if (event.type === 'aiMessageChunk' && !detail.rejection_reason &&
+            typeof detail.message_id === 'string' && typeof detail.full_content_so_far === 'string' &&
+            detail.full_content_so_far.trim()) {
+          assistantSpeechController.registerCallSource(chatId, detail.message_id, detail.full_content_so_far);
+          return; // The speech activity update publishes the new playback context.
         }
         this.publishAssistantState();
       };

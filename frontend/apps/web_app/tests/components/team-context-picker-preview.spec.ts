@@ -134,28 +134,28 @@ test.describe('Teams settings quick action preview', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context,teams.context.full-switch-local
-	test('shows SocialHub as the only team and enters it when toggled on', async ({ page }, testInfo) => {
+	test('shows Garden Studio as the only team and enters it when toggled on', async ({ page }, testInfo) => {
 		for (const width of [390, 1440]) {
 			await page.setViewportSize({ width, height: 900 });
 			await page.goto('/dev/preview/settings/TeamQuickActionPreviewHarness?chrome=0&variant=singleTeam&width=336');
 			await waitForComponentPreview(page);
 			const picker = page.getByTestId('team-quick-context-dropdown');
-			await expect(picker).toContainText('SocialHub');
+			await expect(picker).toContainText('Garden Studio');
 			await picker.hover();
 			await picker.click();
 			const menu = page.getByTestId('team-context-menu');
 			await expect(menu.getByRole('menuitemradio')).toHaveCount(1);
-			await expect(menu.getByRole('menuitemradio', { name: 'SocialHub' })).toBeVisible();
+			await expect(menu.getByRole('menuitemradio', { name: 'Garden Studio' })).toBeVisible();
 			await expect(menu.getByText('Personal', { exact: true })).toHaveCount(0);
 			await expect(menu).toBeInViewport();
 			await waitForComponentMotion(menu);
-			await attachPreviewScreenshot(page, testInfo, `socialhub-picker-${width}.png`);
+			await attachPreviewScreenshot(page, testInfo, `garden-studio-picker-${width}.png`);
 			await page.keyboard.press('Escape');
 			await expect(menu).toHaveCount(0);
 			await expect(picker).toBeFocused();
 			await page.getByTestId('settings-teams-item').getByTestId('toggle-container').click();
 			await expect(page.getByTestId('team-quick-action-result')).toHaveAttribute('data-active-team-id', 'preview-team');
-			await expect(picker).toContainText('SocialHub');
+			await expect(picker).toContainText('Garden Studio');
 		}
 	});
 

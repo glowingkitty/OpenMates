@@ -209,3 +209,70 @@ def test_settings_metadata_shows_web_search_price_and_mercury_token_price():
         "tokens": {"input": {"per_credit_unit": 3335}, "output": {"per_credit_unit": 955}},
         "tokens_model": "inception/mercury-3",
     }
+
+
+# contract-test: direct surface=rest_api assertions=events-search.results.actionable,events-search.billing.usage
+@pytest.mark.anyio
+@pytest.mark.parametrize(("listing_provider", "surrounding_programme"), [("directory", False), ("web", True)])
+async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkeypatch, listing_provider, surrounding_programme):
+    skill = object.__new__(SearchSkill)
+    listing = {
+        "title": "Libre Days 2099", "date_start": "2099-01-30", "date_end": "2099-01-31",
+        "url": "https://directory.example/libre", "venue": {"city": "Lyon"},
+        "provider": "Directory", "provider_id": listing_provider,
+        "source_page_url": "https://directory.example/conferences", "source_page_title": "Conference directory",
+    }
+    venue = {"city": "Lyon", "name": "Libre Hall", "address": "24 rue des Fleurs"}
+    official = {
+        **listing, "url": "https://libre.example/2099/", "venue": venue,
+        "description": "Maintainers present talks and run workshops on open source packaging and security.",
+        "source_page_url": "https://libre.example/2099/", "source_page_title": "Libre Days",
+        "provider": "libre.example", "provider_id": "web",
+    }
+    different_edition = {**official, "date_start": "2099-01-31", "venue": {**venue, "address": "16 rue Victor Hugo"}}
+    separate = {**listing, "title": "Earlier conference", "url": "https://directory.example/earlier",
+                "date_start": "2099-01-23", "date_end": "2099-01-24", "venue": {"city": "Paris"}}
+    programme = {**listing, "title": "Libre Week", "url": "https://directory.example/libre-week",
+                 "date_start": "2099-01-26", "date_end": "2099-02-01"}
+    programme_source = {**programme, "url": "https://libre-week.example/", "provider_id": "web",
+                        "source_page_url": "https://libre-week.example/",
+                        "description": "The community programme includes a policy roundtable and practical workshops."}
+    monkeypatch.setattr(search_skill, "_installed_provider_labels", lambda: {"directory": "Directory"})
+    monkeypatch.setattr(search_skill, "fetch_web_source_prices", AsyncMock(return_value=PRICES))
+    monkeypatch.setattr(search_skill, "run_installed_providers",
+                        AsyncMock(return_value=[InstalledProviderOutcome(
+                            "directory", results=[listing] if listing_provider == "directory" else [],
+                        )]))
+    monkeypatch.setattr(search_skill, "rank_search_candidates", AsyncMock(
+        side_effect=lambda **kwargs: SimpleNamespace(candidates=kwargs["candidates"], applied=False)))
+    discovery_usage = {**WEB_USAGE, "input_tokens": 10000, "output_tokens": 1200} if surrounding_programme else WEB_USAGE
+    web = AsyncMock(side_effect=[
+        InstalledProviderOutcome("web", results=[separate, listing, programme] if surrounding_programme else [], usage=discovery_usage),
+        InstalledProviderOutcome("web", results=[different_edition, official], usage={
+            **WEB_USAGE, "input_tokens": 3700, "output_tokens": 400,
+        }),
+        InstalledProviderOutcome("web", results=[programme_source], usage={
+            **WEB_USAGE, "input_tokens": 1000, "output_tokens": 200,
+        }),
+    ])
+    monkeypatch.setattr(search_skill, "run_web_source", web)
+    response = await skill.execute(SearchRequest(requests=[{"query": "open source conferences"}]),
+                                   secrets_manager=object())
+    group, = response.results
+    saved = next(event for event in group["results"] if event["title"] == listing["title"])
+    assert saved["venue"] == venue and saved["description"] == official["description"]
+    assert saved["source_page_url"] == official["source_page_url"]
+    assert web.await_args_list[1].kwargs["event_detail"]
+    assert web.await_args_list[1].args[1]["query"] == listing["title"]
+    if surrounding_programme:
+        week = next(event for event in group["results"] if event["title"] == programme["title"])
+        assert week["description"] == programme_source["description"]
+        assert web.await_args_list[2].args[1]["query"] == programme["title"]
+        assert group["usage"]["web_search_requests"] == 3
+        assert group["usage"]["input_tokens"] == 14700
+        assert [call.kwargs["page_limit"] for call in web.await_args_list] == [3, 1, 1]
+    else:
+        assert len(group["results"]) == 1
+        assert group["usage"]["web_search_requests"] == 2
+        assert group["usage"]["input_tokens"] == 28568
+        assert [call.kwargs["page_limit"] for call in web.await_args_list] == [3, 1]

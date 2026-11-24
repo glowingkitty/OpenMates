@@ -212,7 +212,7 @@ async def route_assistant_speech_audio(
         targets = [
             device for device, connection in manager.get_connections_for_user(owner).items()
             if isinstance(getattr(connection, "scope", None), Mapping)
-            and connection.scope.get("voice_call_session_hash") == session
+            and connection.scope.get("voice_call_session_id") == session
         ]
         if len(targets) != 1:
             return "owner_connection_unavailable"

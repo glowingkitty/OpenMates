@@ -12861,6 +12861,18 @@ async def handle_main_processing(
                         else {"source_refs": list(results_view_sources)}
                     )
                     tool_result_content_str = encode(source_metadata) + "\n" + tool_result_content_str
+                result_child_ids = [
+                    child_id for embed in source_embeds if embed.get("status", "finished") == "finished"
+                    for child_id in (embed.get("child_embed_ids") or []) if isinstance(child_id, str)
+                ]
+                if result_child_ids:
+                    tool_call_info["result_child_ids"] = result_child_ids
+                    tool_result_content_str = encode({
+                        "result_presentation": (
+                            "These search results already have cards. Reference them as returned. "
+                            "Do not author a second group of cards for these results."
+                        ),
+                    }) + "\n" + tool_result_content_str
                 tool_calls_info.append(tool_call_info)
                 logger.debug(
                     f"{log_prefix} Tracked tool call info for '{tool_name}': "

@@ -120,6 +120,7 @@ from backend.apps.ai.utils.diagram_html_fences import (
 )
 from backend.apps.ai.utils.json_content_fences import is_json_content_fence
 from backend.core.api.app.services.authored_result_progressive import drain_authored_result_background
+from backend.apps.ai.utils.authored_search_presentation import fold_reused_search_cards
 from backend.apps.ai.utils.embeds_map_view import (
     MAP_VIEW_CAPABLE_SKILLS,
     append_missing_embeds_map_view_block,
@@ -11813,6 +11814,15 @@ async def _consume_main_processing_stream(
                         f"Published response with missing embeds_map_view block repaired "
                         f"(length: {len(aggregated_response)})",
                     )
+
+    if (finalization_embed_graph is not None and aggregated_response and tool_calls_info
+            and not was_revoked_during_stream and not was_soft_limited_during_stream):
+        unified = await fold_reused_search_cards(aggregated_response, tool_calls_info, finalization_embed_graph)
+        if unified != aggregated_response:
+            aggregated_response = unified
+            final_response_chunks = [unified]
+            # The provider transcript still contains its authored presentation.
+            native_map_requires_cold_reset = True
 
     # Keep canonical app-skill identity/order in the encrypted assistant Markdown
     # so completion, reload, and reopen can reconstruct the same top group.

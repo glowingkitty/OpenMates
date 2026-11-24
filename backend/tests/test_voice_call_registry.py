@@ -41,6 +41,12 @@ async def test_registry_rejects_forged_identity_and_keeps_issued_retry() -> None
     await finalize_active_call(cache, **base, grace_seconds=30)
     retry = await require_active_call(cache, **base, message_id="transcript-1", role="assistant")
     assert retry.state == "finalizing" and retry.grace_expires_at is not None
+    # Ciphertext already issued by the older server still has its original
+    # authenticated credential binding until the existing retry grace expires.
+    upgraded = {**base, "session_id": "logical-session", "message_id": "transcript-1", "role": "assistant"}
+    assert await require_active_call(cache, **upgraded, legacy_session_hash=base["session_id"]) == retry
+    with pytest.raises(ValueError, match="not authorized"):
+        await require_active_call(cache, **upgraded, legacy_session_hash="another-login-hash")
     with pytest.raises(ValueError, match="not authorized"):
         await issue_message_id(cache, **base, message_id="late-forgery", role="assistant")
 
