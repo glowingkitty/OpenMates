@@ -12146,10 +12146,12 @@ features:
       assertions:
         passing: 4
         failing: 0
-        not_run: 7
+        not_run: 9
         missing: 20
-        counted: 31
-      key_tests: []
+        counted: 33
+      key_tests:
+      - frontend/apps/web_app/tests/components/design-editor.spec.ts
+      - frontend/apps/web_app/tests/components/design-editor-performance.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
@@ -12353,6 +12355,82 @@ features:
           counted: 14
     notes: Unreleased. Spec v2 (draft) adds Penpot, outline-first reads, budgets and export_assets; dev code implements v1
       (Figma only). Real-account check with the owner's Figma app on dev pending.
+  - id: editor-phase-0
+    name: Design editor preview
+    description: Dev preview with view mode, direct layer editing in memory, and fixed-size artboard examples.
+    assertion_ids: []
+    surfaces:
+      web:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+    notes: Developer preview with public fixture data. The product embed contract is subject to review.
 - id: diagrams
   name: Diagrams
   kind: app

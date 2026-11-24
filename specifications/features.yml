@@ -758,6 +758,8 @@ features:
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
       sdk_npm: "sdk.design facade (npm)"
       sdk_pypi: "sdk.design facade (py)"
+    key_tests:
+      web: [frontend/apps/web_app/tests/components/design-editor.spec.ts, frontend/apps/web_app/tests/components/design-editor-performance.spec.ts]
     subfeatures:
       - id: figma-get-design
         name: "Figma and Penpot designs"
@@ -765,6 +767,11 @@ features:
         assertions: ["design-figma.*"]
         surfaces: {web: in_progress, apple: planned, cli: in_progress, tui: unverified, rest_api: in_progress, sdk_npm: in_progress, sdk_pypi: in_progress}
         notes: "Unreleased. Spec v2 (draft) adds Penpot, outline-first reads, budgets and export_assets; dev code implements v1 (Figma only). Real-account check with the owner's Figma app on dev pending."
+      - id: editor-phase-0
+        name: "Design editor preview"
+        description: "Dev preview with view mode, direct layer editing in memory, and fixed-size artboard examples."
+        surfaces: {web: in_progress}
+        notes: "Developer preview with public fixture data. The product embed contract is subject to review."
   - id: diagrams
     name: "Diagrams"
     kind: app

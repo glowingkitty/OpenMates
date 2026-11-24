@@ -22,6 +22,14 @@
         "components/web-browse-embeds.spec.ts"
       ]
     },
+    "design_editor_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview with bundled design documents and images. Exercises canvas gestures, edit controls, themes and renderer performance without backend services, credentials or AI.",
+      "specs": [
+        "components/design-editor.spec.ts",
+        "components/design-editor-performance.spec.ts"
+      ]
+    },
     "design_embroidery_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare embroidery result card and opened view. Fixtures carry inline preview media; download-URL and follow-up requests are intercepted and asserted. No backend, E2B sandbox, account credentials or AI inference. The real conversion is verified separately against the sandbox template and in chat.",
