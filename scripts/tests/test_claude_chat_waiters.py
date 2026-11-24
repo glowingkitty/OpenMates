@@ -420,7 +420,7 @@ def test_the_reset_wake_reopens_a_few_chats_by_task_priority_and_results_before_
     assert len(rec.resumed) == 3  # no room left: the rest waits for a later cycle
 
 
-def test_a_timed_out_handoff_shows_as_timed_out_not_stalled_and_is_dropped_a_day_later(tmp_path):
+def test_an_unanswered_owner_wait_survives_its_deadline_and_the_next_day(tmp_path):
     state_dir = tmp_path / "state"
     key = cw.add(state_dir, CHAT, "handoff", "owner answer on the disk proposal", timeout_minutes=60, now=NOW - 2 * HOUR)
     found = cw.collect(sources(tmp_path), NOW)
@@ -429,10 +429,9 @@ def test_a_timed_out_handoff_shows_as_timed_out_not_stalled_and_is_dropped_a_day
     (entry,) = cw.status_entries(found, {}, {}, NOW)
     assert entry["timed_out"] and not entry["stalled"]
     assert cw.stalled_entries(found, {}, {}, NOW) == []
-    events: list = []
-    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS - 2) * 3600, events.append) == []  # not a full day past yet
-    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS + 1) * 3600, events.append) == [key]
-    assert events[0]["event"] == "waiter_expired" and CHAT not in cw.collect(sources(tmp_path), NOW + 26 * HOUR)
+    cw.settle_external_waits(state_dir, NOW + 26 * HOUR, {}, {CHAT})
+    (unanswered,) = cw.collect(sources(tmp_path), NOW + 26 * HOUR)[CHAT]
+    assert unanswered.key == f"reg:{key}" and not unanswered.ready
 
 
 def test_a_chat_without_a_transcript_here_is_reported_once_and_its_waiters_dropped(tmp_path):
@@ -489,3 +488,15 @@ def test_handoff_routes_registered_waiter_even_when_the_source_is_archived(tmp_p
     lc.redirect_handoff_waiters(found, {CHAT: {"successor": f"tab (codex chat {OTHER})"}}, {})
     assert CHAT not in found and found[OTHER][0].key == f"reg:{key}"
     assert found[OTHER][0].chat_id == OTHER
+
+
+def test_wake_receipts_deduplicate_an_overlapping_batch(tmp_path):
+    for key in ("benchmark", "second"):
+        cw.add(tmp_path, CHAT, "background", key, key=key, now=NOW - HOUR)
+        cw.fire(tmp_path, CHAT, key, now=NOW)
+    ready = cw.registered_waiters(tmp_path)
+    rec = Recorder()
+    rec.run({CHAT: ready}, {}, {}, tmp_path)
+    delivered, failures = rec.run({CHAT: ready[1:]}, {}, {}, tmp_path)
+    assert delivered == {ready[1].key} and not failures
+    assert len(rec.resumed) == 1

@@ -333,6 +333,16 @@ def _external_link(task: dict) -> str:
     return f"{external['provider']}:{external['id']}" if external.get("provider") and external.get("id") else ""
 
 
+def _full_task_id(task_id: str) -> str:
+    """Use the hourly index to resolve a short ID before an authoritative Task read."""
+    if not re.fullmatch(r"TASK-\d+", task_id):
+        return task_id
+    cache = _load(Path.home() / ".local/state/openmates/tasks-cache.json")
+    matches = {task["task_id"] for task in (cache.get("data") or {}).get("tasks", [])
+               if task.get("short_id") == task_id and task.get("task_id")}
+    return matches.pop() if len(matches) == 1 else task_id
+
+
 def _find_task(chat_id: str, hint: str = "") -> str:
     """Choose a Task mentioned by the waiter or the only active candidate."""
     links = task_links(chat_id)
@@ -506,11 +516,21 @@ def owner_is_stopped(root: Path, link: str) -> bool:
     directory = root / "logs" / "claude-chat-lifecycle"
     registry = _load(directory / "stopped.json")
     handed = _load(handed_off_file(root))
+    sessions = _load(root / ".claude" / "sessions.json").get("sessions") or {}
+    archived = {record.get("archived_agent_task_id") for record in sessions.values()}
     return bool(owners) and all(
-        not source_running(owner) and (owner in handed or
+        not source_running(owner) and (owner in handed or owner in archived or
         (registry.get(owner) or {}).get("state") in ("done", "stopped", "archived"))
         for owner in owners
     )
+
+
+def release_expected_link(task_id: str, owner: str) -> bool:
+    """Clear the exact filtered owner with the CLI's version-checked update."""
+    released = task_cli("release", task_id, "--external-chat", owner, timeout=60)
+    reply = _reply(released).get("task")
+    return bool(released.returncode == 0 and reply and not reply.get("external_chat")
+                and not reply.get("primary_chat_id"))
 
 
 def resume_on_codex(chat_id: str, prompt: str, *, admitted: bool = False, task_id: str = "",
@@ -539,10 +559,6 @@ def resume_on_codex(chat_id: str, prompt: str, *, admitted: bool = False, task_i
         session_id = _find_session(chat_id, include_archived=True)
         sessions = _load(root / ".claude" / "sessions.json").get("sessions") or {}
         session = sessions.get(session_id) or {}
-        successor = session.get("agent_task_id")
-        if successor not in (None, chat_id):
-            # Another chat adopted this exact worktree. Route the notification there.
-            return claude_dispatch.resume_chat(successor, prompt, admitted=admitted, force=force)
         handovers = path.with_name("pending-task-handovers.json")
         hint = str(session.get("task") or "")
         short_ids = set(re.findall(r"\bTASK-\d+\b", hint))
@@ -551,8 +567,22 @@ def resume_on_codex(chat_id: str, prompt: str, *, admitted: bool = False, task_i
             task_id = short_ids.pop()
         if not task_id:
             task_id = _find_task(chat_id, prompt)
+        successor = session.get("agent_task_id")
+        if successor not in (None, chat_id):
+            # A live successor already owns the exact worktree. Repair only an old
+            # link and send the notification there without starting another copy.
+            if task_id and source_running(successor):
+                task_id = _full_task_id(task_id)
+                current = _reply(task_cli("show", task_id)).get("task") or {}
+                owner = _external_link(current)
+                if (owner in task_links(chat_id) and current.get("status") not in ("done", "cancelled")
+                        and release_expected_link(task_id, owner)):
+                    prompt += (f"\n\nThe stopped source's link to Task {task_id} was released. "
+                               "Claim it from this chat before updating it.")
+            return claude_dispatch.resume_chat(successor, prompt, admitted=admitted, force=force)
         if not task_id:
             return "No unambiguous open Task for the stopped source"
+        task_id = _full_task_id(task_id)
         details = _reply(task_cli("show", task_id)).get("task") or {}
         if not details or details.get("status") in ("done", "cancelled") or details.get("primary_chat_id"):
             return "The linked Task is closed, unavailable or owned by an OpenMates chat"
@@ -589,6 +619,7 @@ def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
                      note_already_saved: bool = False, task: dict | None = None, force: bool = False) -> int:
     import claude_dispatch
 
+    task_id = _full_task_id(task_id)
     task = task if task is not None else _reply(task_cli("show", task_id)).get("task")
     if not task or task.get("primary_chat_id") or task.get("status") in ("done", "cancelled"):
         print("Refused: Task unavailable, closed or owned by an OpenMates chat.", file=sys.stderr)
@@ -607,14 +638,9 @@ def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
             return 2
 
     _update_state(handed_off_file(root).with_name("pending-task-handovers.json"), chat_id, lambda _: task_id)
-    if owner:
-        # This scope is part of the CLI's lookup, and its update uses the version it read.
-        # An intervening claim either no longer matches that lookup or conflicts on write.
-        released = task_cli("release", task_id, "--external-chat", owner, timeout=60)
-        reply = _reply(released).get("task")
-        if released.returncode or not reply or reply.get("external_chat") or reply.get("primary_chat_id"):
-            print("Refused: could not confirm release of the expected Task link.", file=sys.stderr)
-            return 2
+    if owner and not release_expected_link(task_id, owner):
+        print("Refused: could not confirm release of the expected Task link.", file=sys.stderr)
+        return 2
 
     def detach_session(restore: bool = False) -> bool:
         import sessions

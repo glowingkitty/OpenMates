@@ -92,7 +92,6 @@ TIMEOUT_MINUTES = {"disk": 360.0, "ci": 30.0, "handoff": 240.0, "background": 24
 REGISTERED_KINDS = ("handoff", "background", "timer")
 USAGE_AVAILABLE_BELOW = 95.0  # weekly used percent; a usage-checked timer waits while usage is at or above it
 USAGE_RETRY_SECONDS = 3600.0
-EXPIRE_HOURS = 24.0  # a handoff/background waiter nobody fired is dropped this long after its timeout
 USAGE_RESET_MARGIN_SECONDS = 300.0
 CI_WAITING_STATES = ("queued", "dispatching", "submitted", "running", "attention")
 CI_FINAL_STATES = ("success", "failure", "cancelled")
@@ -304,22 +303,6 @@ def settle_timers(state: Path, now: float, usage: Callable[[], tuple[float, date
             changed = True
         if changed:
             _write_json(path, data)
-
-
-def expire(state: Path, now: float, log=lambda event: None) -> list[str]:
-    """Drop handoff/background waiters nobody fired within EXPIRE_HOURS after their timeout."""
-    with _locked(state):
-        path = state / "registered.json"
-        data = _read_json(path)
-        gone = [key for key, entry in data.items()
-                if entry["kind"] in ("handoff", "background") and not entry.get("fired_at")
-                and now > entry["timeout_at"] + EXPIRE_HOURS * 3600]
-        for key in gone:
-            entry = data.pop(key)
-            log({"event": "waiter_expired", "session_id": entry["chat_id"], "key": key, "on": entry["on"][:120]})
-        if gone:
-            _write_json(path, data)
-    return gone
 
 
 def registered_waiters(state: Path) -> list[Waiter]:
@@ -566,6 +549,20 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
             type_into, resume, room: int, log, asks=lambda chat: False,
             priority: dict[str, int] | None = None,
             resume_archived=lambda chat_id, ready: False, live_resume: set[str] | None = None) -> tuple[set[str], list[dict]]:
+    """Serialize wakes from systemd, manual reap and admission."""
+    state.mkdir(parents=True, exist_ok=True)
+    with (state / "waiter-delivery.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return set(), []
+        return _deliver(waiters, live, registry, state, now, type_into=type_into, resume=resume, room=room,
+                        log=log, asks=asks, priority=priority, resume_archived=resume_archived, live_resume=live_resume)
+
+
+def _deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, dict], state: Path, now: float, *,
+             type_into, resume, room: int, log, asks, priority, resume_archived,
+             live_resume) -> tuple[set[str], list[dict]]:
     """Wake every chat with ready waiters once. `live` maps chat id -> lifecycle Chat.
 
     type_into(chat, text) -> bool types into a live pane chat; resume(chat_id, text) -> 'ok'
@@ -581,6 +578,9 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
     failures: list[dict] = []
     ranks = priority or {}
 
+    def receipt(waiter: Waiter) -> str:
+        return f"{waiter.key} {waiter.since:.6f}"
+
     def order(pair: tuple[str, list[Waiter]]) -> tuple:
         chat_id, items = pair
         ready = [w for w in items if w.ready] or items
@@ -588,7 +588,8 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
                 min(w.ready_at or w.since for w in ready), chat_id)
 
     for chat_id, items in sorted(waiters.items(), key=order):
-        ready = [w for w in items if w.ready]
+        delivered |= {w.key for w in items if w.ready and receipt(w) in marks}
+        ready = [w for w in items if w.ready and w.key not in delivered]
         chat = live.get(chat_id)
         if chat is not None:
             # Its own background waiter already brought the CI result if the chat was active after it.
@@ -626,12 +627,12 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
              "how": "typed" if chat is not None else "resumed", "outcome": outcome,
              "waiters": [w.key for w in ready]})
         if outcome == "ok":
-            marks[mark] = _utc(now)
+            marks.update({receipt(w): _utc(now) for w in ready})
             delivered |= {w.key for w in ready}
         elif outcome.startswith(PERMANENT_WAKE_FAILURES):
             # Retrying cannot help (the chat lives on another host or its folder is gone):
             # drop these waiters after one report instead of failing every minute.
-            marks[mark] = _utc(now)
+            marks.update({receipt(w): _utc(now) for w in ready})
             delivered |= {w.key for w in ready}
             log({"event": "waiter_dropped", "session_id": chat_id, "outcome": outcome,
                  "waiters": [w.key for w in ready]})
@@ -642,7 +643,7 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
             failures.append({"session_id": chat_id, "title": (registry.get(chat_id) or {}).get("title", ""),
                              "reason": f"wait is over but waking it failed ({outcome})",
                              "waits_on": [w.label(now) for w in ready]})
-    _write_json(state / "waiter_wakes.json", dict(sorted(marks.items())[-500:]))
+    _write_json(state / "waiter_wakes.json", dict(sorted(marks.items(), key=lambda row: row[1])[-500:]))
     _drop_delivered_registrations(state, delivered)
     return delivered, failures
 

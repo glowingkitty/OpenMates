@@ -42,6 +42,9 @@ def protected_chats(directory: Path, registered: dict, live: dict, now: float) -
     for entry in registered.values():
         if not entry.get("fired_at") and OWNER_WAIT.search(entry["on"]):
             protected.add(entry["chat_id"])
+    for chat_id, entry in lifecycle.load_registry(directory).items():
+        if entry.get("open_question") or "waits on your answer" in entry.get("reason", ""):
+            protected.add(chat_id)
     for path in lifecycle.questions_dir().glob("*.json"):
         marker = handoff._load(path)
         if lifecycle._iso(marker.get("paused_until")) > now:
@@ -74,9 +77,13 @@ def problems(directory: Path, now: float, live: dict, codex: dict, status: dict,
         silent = reason.startswith(("working,", "runs a background"))
         cases[chat_id] = {"kind": "silent" if silent else "stalled", "reason": reason}
     wip = handoff._load(worktree_wip.state_dir() / "status.json")
+    sessions = handoff._load(worktree_wip.sessions_file()).get("sessions") or {}
     for entry in wip.get("unfinished") or []:
         chat_id = entry.get("chat_id")
+        workspace = (sessions.get(entry.get("session_id")) or {}).get("worktree") or {}
         if not chat_id or entry.get("error") or entry.get("files", 0) <= 0:
+            continue
+        if workspace.get("status") == "merged":
             continue
         parked = entry.get("parked") or {}
         reason = parked.get("reason", "")
