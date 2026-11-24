@@ -214,6 +214,12 @@ async def complete_page(kind: str, request: Mapping[str, Any], page_url: str, pa
                         seconds: float = EXTRACTION_SECONDS) -> Tuple[List[Any], int, int]:
     """One model call for one page: raw (unvalidated) items plus input and output tokens."""
     system = system_prompt(kind, today or datetime.now(timezone.utc).date())
+    if kind == KIND_EVENT and request.get("named_edition"):
+        system += (
+            " Extract only the named edition itself, even if it is a programme covering several events. "
+            "The request dates identify the edition but must also appear on the page. "
+            "Do not return individual sessions or side events."
+        )
     user = user_prompt(request, page_url, page_title, page_text)
     schema = response_schema(kind)
     if model == MERCURY_MODEL:
@@ -487,6 +493,26 @@ def _event_page_cover(row: Dict[str, Any], page: Mapping[str, Any]) -> None:
         row["image_url"] = image
 
 
+def _named_event_pages(urls: Sequence[str], previews: Sequence[Any], title: str) -> list[str]:
+    """Prefer the named event page over related events and generic directories."""
+    named = set()
+    for hit in previews:
+        if not isinstance(hit, dict) or not isinstance(hit.get("title"), str):
+            continue
+        headline = re.sub(r"^(homepage|home)\s*[-–—]\s*", "", hit["title"], flags=re.IGNORECASE)
+        if _event_title_key(headline) == title:
+            named.add(hit.get("url"))
+    return sorted(urls, key=lambda url: url not in named)
+
+
+def _matching_about_page(urls: Sequence[str], event_url: str) -> Optional[str]:
+    """Find About material on the same publisher and in the same edition."""
+    event = urlsplit(event_url)
+    parent = event.path.rstrip("/")
+    return next((url for url in urls if urlsplit(url).hostname == event.hostname
+                 and urlsplit(url).path.rstrip("/") == f"{parent}/about"), None)
+
+
 async def _read_page(url: str) -> Optional[Dict[str, Any]]:
     try:
         page = await read_public_web_page(url, timeout_ms=PAGE_READ_MS)
@@ -517,7 +543,10 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
         title = _event_title_key(str(request.get("query") or "").replace('"', ''))
         city = str(request.get("location") or "").strip()
         year = str(request.get("start_date") or "")[:4]
-        query = f'"{title}" {city} {year} official venue'[:300]
+        if title.endswith(" week"):
+            query = f'"{title}" programme {city}'[:300]
+        else:
+            query = f'"{title}" {city} {year}'[:300]
     if not str(request.get("query") or "").strip():
         return outcome
     started = time.monotonic()
@@ -540,10 +569,16 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
     allowed = [url for url in found_urls if not excluded_host(url, blocked)]
     outcome.pages_excluded = len(found_urls) - len(allowed)
     if kind == KIND_EVENT:
-        allowed = _event_page_order(allowed, found.get("results") or [], today)
+        previews = found.get("results") or []
+        allowed = _event_page_order(allowed, previews, today)
+        if event_detail:
+            allowed = _named_event_pages(allowed, previews, title)
     urls = _page_budget(allowed, page_limit)
-    outcome.pages_found = len(urls)
+    # A dated organizer page and its About page often carry different facts.
+    about = _matching_about_page(allowed, urls[0]) if event_detail and urls else None
+    outcome.pages_found = len(urls) + int(about is not None)
     observed_pages: Dict[str, Dict[str, Any]] = {}
+    page_request = {**request, "named_edition": request["query"]} if event_detail else request
 
     async def page_rows(url: str) -> List[Dict[str, Any]]:
         page = await _read_page(url)
@@ -552,9 +587,14 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
         outcome.pages_read += 1
         observed_pages[url] = page
         text, title = page["markdown"][:MAX_PAGE_CHARS], str(page.get("title") or "")
+        if about and url == urls[0]:
+            about_page = await _read_page(about)
+            if about_page:
+                outcome.pages_read += 1
+                text = text[:MAX_PAGE_CHARS - 4000] + "\n\n" + about_page["markdown"][:4000]
         try:
             items, tokens_in, tokens_out = await complete_page(
-                kind, request, url, title, text, secrets_manager=secrets_manager, model=model, today=today)
+                kind, page_request, url, title, text, secrets_manager=secrets_manager, model=model, today=today)
         except (InceptionError, httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
             logger.warning("[WebResults] Extraction failed error_type=%s", type(exc).__name__)
             return []

@@ -20,9 +20,12 @@ from backend.apps.skill_progress import SkillProgress
 from backend.shared.app_packages.contracts import validate_events_search_result
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
 from backend.shared.app_packages.web_source import KIND_EVENT, WEB_PROVIDER_ID, run_web_source
-from backend.shared.python_utils.web_result_extraction import DEFAULT_MODEL, MAX_PAGES, MODEL_REFS
+from backend.shared.python_utils.web_result_extraction import (
+    DEFAULT_MODEL, MAX_OUTPUT_TOKENS, MAX_PAGE_CHARS, MAX_PAGES, MODEL_REFS,
+)
 from backend.shared.python_utils.web_source_billing import (
-    WebSourcePrices, WebSourcePricingError, fetch_web_source_prices, group_usage,
+    RESERVED_CREDITS_PER_REQUEST, WebSourcePrices, WebSourcePricingError, fetch_web_source_prices, group_usage,
+    raw_web_credits,
 )
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS, normalize_url_for_deduplication,
@@ -984,7 +987,7 @@ class SearchSkill(BaseSkill):
         self, events: List[Dict[str, Any]], secrets_manager: Any, *,
         prices: Dict[str, Optional[WebSourcePrices]], usage: Dict[str, Any],
     ) -> None:
-        """Use the remaining page read on the first sparse conference listing."""
+        """Complete a sparse conference and its surrounding programme within the search budget."""
         # Directory rows mostly share a page. Prefer them over sparse dedicated pages
         # where repeating a search is likely to surface the same source.
         page_counts: Dict[str, int] = {}
@@ -994,27 +997,42 @@ class SearchSkill(BaseSkill):
                 page_counts[page] = page_counts.get(page, 0) + 1
         candidates = sorted(enumerate(events), key=lambda item: page_counts.get(item[1].get("source_page_url"), 0),
                             reverse=True)
+        anchor: Optional[Dict[str, Any]] = None
+        web_price = prices.get("web")
+        detail_budget = raw_web_credits({
+            "web_search_requests": 1, "input_tokens": MAX_PAGE_CHARS + 1000, "output_tokens": MAX_OUTPUT_TOKENS,
+        }, web_price)
         for index, event in candidates:
             venue = event.get("venue") or {}
             if (not venue.get("city") or self._infer_result_event_type(event) == "ONLINE"
                     or venue.get("address") or event.get("description")):
                 continue
             start = str(event["date_start"])[:10]
+            end = str(event.get("date_end") or start)[:10]
+            # Leave room for the search and one full extraction at normal prices.
+            if not web_price or raw_web_credits(usage, web_price) + detail_budget > RESERVED_CREDITS_PER_REQUEST:
+                break
+            if anchor is not None:
+                # A nearby programme spanning this conference can also carry independent event facts.
+                anchor_day = str(anchor["date_start"])[:10]
+                anchor_city = (anchor.get("venue") or {}).get("city")
+                if not (start < anchor_day < end and self._dedup_text(venue["city"]) == self._dedup_text(anchor_city)):
+                    continue
             detail = await self._search_web(
-                {"query": event["title"], "location": venue["city"], "start_date": start,
-                 "end_date": str(event.get("date_end") or start)[:10]},
+                {"query": event["title"], "location": venue["city"], "start_date": start, "end_date": end},
                 secrets_manager, None, past_events=False, prices=prices, page_limit=1, event_detail=True,
             )
             for key in ("web_search_requests", "input_tokens", "output_tokens"):
                 usage[key] = usage.get(key, 0) + (detail.usage or {}).get(key, 0)
-            original = event
             for candidate in detail.results:
-                if not self._same_dated_edition(original, candidate):
+                if not self._same_dated_edition(event, candidate):
                     continue
                 url = _event_result_url(candidate)
                 candidate = {**candidate, "type": "event_result", "hash": self._generate_result_hash(url)}
                 events[index] = self._combine_sourced_edition(events[index], candidate)
-            break
+            if anchor is not None:
+                break
+            anchor = event
 
 
     async def _process_single_search_request(self, req: Dict[str, Any], request_id: Any,

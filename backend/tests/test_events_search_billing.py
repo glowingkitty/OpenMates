@@ -213,8 +213,8 @@ def test_settings_metadata_shows_web_search_price_and_mercury_token_price():
 
 # contract-test: direct surface=rest_api assertions=events-search.results.actionable,events-search.billing.usage
 @pytest.mark.anyio
-@pytest.mark.parametrize("listing_provider", ["directory", "web"])
-async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkeypatch, listing_provider):
+@pytest.mark.parametrize(("listing_provider", "surrounding_programme"), [("directory", False), ("web", True)])
+async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkeypatch, listing_provider, surrounding_programme):
     skill = object.__new__(SearchSkill)
     listing = {
         "title": "Libre Days 2099", "date_start": "2099-01-30", "date_end": "2099-01-31",
@@ -230,6 +230,11 @@ async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkey
         "provider": "libre.example", "provider_id": "web",
     }
     different_edition = {**official, "date_start": "2099-01-31", "venue": {**venue, "address": "16 rue Victor Hugo"}}
+    programme = {**listing, "title": "Libre Week", "url": "https://directory.example/libre-week",
+                 "date_start": "2099-01-26", "date_end": "2099-02-01"}
+    programme_source = {**programme, "url": "https://libre-week.example/", "provider_id": "web",
+                        "source_page_url": "https://libre-week.example/",
+                        "description": "The community programme includes a policy roundtable and practical workshops."}
     monkeypatch.setattr(search_skill, "_installed_provider_labels", lambda: {"directory": "Directory"})
     monkeypatch.setattr(search_skill, "fetch_web_source_prices", AsyncMock(return_value=PRICES))
     monkeypatch.setattr(search_skill, "run_installed_providers",
@@ -238,21 +243,33 @@ async def test_sparse_event_uses_bounded_detail_search_and_combines_usage(monkey
                         )]))
     monkeypatch.setattr(search_skill, "rank_search_candidates", AsyncMock(
         side_effect=lambda **kwargs: SimpleNamespace(candidates=kwargs["candidates"], applied=False)))
+    discovery_usage = {**WEB_USAGE, "input_tokens": 10000, "output_tokens": 1200} if surrounding_programme else WEB_USAGE
     web = AsyncMock(side_effect=[
-        InstalledProviderOutcome("web", results=[listing] if listing_provider == "web" else [], usage=WEB_USAGE),
+        InstalledProviderOutcome("web", results=[listing, programme] if surrounding_programme else [], usage=discovery_usage),
         InstalledProviderOutcome("web", results=[different_edition, official], usage={
             **WEB_USAGE, "input_tokens": 3700, "output_tokens": 400,
+        }),
+        InstalledProviderOutcome("web", results=[programme_source], usage={
+            **WEB_USAGE, "input_tokens": 1000, "output_tokens": 200,
         }),
     ])
     monkeypatch.setattr(search_skill, "run_web_source", web)
     response = await skill.execute(SearchRequest(requests=[{"query": "open source conferences"}]),
                                    secrets_manager=object())
     group, = response.results
-    saved, = group["results"]
+    saved, *rest = group["results"]
     assert saved["venue"] == venue and saved["description"] == official["description"]
     assert saved["source_page_url"] == official["source_page_url"]
-    assert group["usage"]["web_search_requests"] == 2
-    assert group["usage"]["input_tokens"] == 28568
-    assert [call.kwargs["page_limit"] for call in web.await_args_list] == [3, 1]
-    assert web.await_args_list[-1].kwargs["event_detail"]
-    assert web.await_args_list[-1].args[1]["query"] == listing["title"]
+    assert web.await_args_list[1].kwargs["event_detail"]
+    assert web.await_args_list[1].args[1]["query"] == listing["title"]
+    if surrounding_programme:
+        assert rest[0]["description"] == programme_source["description"]
+        assert web.await_args_list[2].args[1]["query"] == programme["title"]
+        assert group["usage"]["web_search_requests"] == 3
+        assert group["usage"]["input_tokens"] == 14700
+        assert [call.kwargs["page_limit"] for call in web.await_args_list] == [3, 1, 1]
+    else:
+        assert not rest
+        assert group["usage"]["web_search_requests"] == 2
+        assert group["usage"]["input_tokens"] == 28568
+        assert [call.kwargs["page_limit"] for call in web.await_args_list] == [3, 1]

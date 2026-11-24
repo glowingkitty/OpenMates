@@ -348,3 +348,30 @@ def test_directory_logo_does_not_become_the_events_cover():
         "og_image": "https://directory.example/img/logo.png",
     })
     assert "image_url" not in event
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_event_detail_context_uses_same_publisher_and_edition_only():
+    official = "https://libre.example/2027/"
+    about = "https://libre.example/2027/about/"
+    assert extraction._matching_about_page([
+        "https://other.example/2027/about/",
+        "https://libre.example/2026/about/",
+        "https://libre.example/2027/about/speakers/",
+        about,
+    ], official) == about
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_named_event_detail_prioritizes_its_homepage_over_similar_titles():
+    directory = "https://directory.example/all-events"
+    nearby = "https://summit.example/"
+    named = "https://libre-week.example/"
+    previews = [
+        {"url": directory, "title": "Conference directory"},
+        {"url": nearby, "title": "Homepage - Libre Week Policy Summit"},
+        {"url": named, "title": "Home - Libre Week"},
+    ]
+    assert extraction._named_event_pages([directory, nearby, named], previews, "libre week") == [
+        named, directory, nearby,
+    ]

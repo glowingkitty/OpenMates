@@ -35,8 +35,9 @@ logger = logging.getLogger(__name__)
 SEARCH_PROVIDER_ID = "brave"
 EVENTS_SEARCH = ("events", "search")
 # Upper bound reserved per request item before the search runs: one web search
-# request (10 credits) plus 5 pages, or two web searches and up to four
-# pages for a provider result's missing details. The charge is actual usage.
+# request (10 credits) plus 5 pages. When a sparse listing needs follow-up,
+# the discovery phase reads only 3 pages and further lookups check headroom
+# against this reservation. The charge is actual usage.
 RESERVED_CREDITS_PER_REQUEST = 50
 
 Lookup = Callable[[str], Awaitable[Optional[Dict[str, Any]]]]
