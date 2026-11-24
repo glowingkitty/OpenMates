@@ -1,6 +1,6 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { documentToTemplate, templateToDocument, outputCanonicalName, outputToken, WORKFLOW_OUTPUT_NODE } from '../workflowMessageTokens.ts';
+import { documentToTemplate, templateToDocument, outputCanonicalName, outputToken, WORKFLOW_OUTPUT_NODE } from '../workflowMessageTokens';
 
 const rain = { reference: '$nodes.weather.output.rain_summary', label: 'Weather · Rain summary' };
 const count = { reference: '$nodes.news.output.result_count', label: 'News · Number of results' };

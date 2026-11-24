@@ -214649,17 +214649,17 @@ assertions:
       surface: rest_api
     - &id27111
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 63
+      line: 62
       name: Send remains current until the canonical delivery is acknowledged
       surface: gui.web
     - &id27112
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 78
+      line: 77
       name: Send distinguishes no results and terminal delivery failure
       surface: gui.web
     - &id27113
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 89
+      line: 88
       name: a terminal run cannot leave unverified or stale nodes waiting
       surface: gui.web
     - &id27114
@@ -217240,47 +217240,47 @@ assertions:
       surface: gui.web
     - &id27401
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 32
+      line: 31
       name: orders current work before ended runs and ended runs by finish time
       surface: gui.web
     - &id27402
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 47
+      line: 46
       name: treats every pending execution state as current
       surface: gui.web
     - &id27403
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 63
+      line: 62
       name: Send remains current until the canonical delivery is acknowledged
       surface: gui.web
     - &id27404
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 78
+      line: 77
       name: Send distinguishes no results and terminal delivery failure
       surface: gui.web
     - &id27405
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 89
+      line: 88
       name: a terminal run cannot leave unverified or stale nodes waiting
       surface: gui.web
     - &id27406
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 107
+      line: 106
       name: an unselected completed run with pending Send sorts with current work
       surface: gui.web
     - &id27407
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 114
+      line: 113
       name: a failed execution stays failed even if an earlier Send is still pending
       surface: gui.web
     - &id27408
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 121
+      line: 120
       name: a transient run-detail failure retries only while that run remains selected
       surface: gui.web
     - &id27409
       path: frontend/packages/ui/src/components/workflows/__tests__/workflowRunTimeline.test.ts
-      line: 131
+      line: 130
       name: a fresh terminal delivery from either poll wins over stale selected detail
       surface: gui.web
     - &id27410

@@ -1,6 +1,6 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { workflowMentionQuery, matchesWorkflowVariableQuery } from '../workflowMentionQuery.ts';
+import { workflowMentionQuery, matchesWorkflowVariableQuery } from '../workflowMentionQuery';
 
 // contract-test: supporting surface=gui.web assertions=workflows-ui.editor.inline-action-variables
 test('partial mentions retain the complete replacement span and stop at prose boundaries', () => {
