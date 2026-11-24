@@ -17,6 +17,7 @@ Type=oneshot
 WorkingDirectory=$PROJECT_ROOT
 TimeoutStartSec=2h
 Nice=10
+Environment="PATH=%h/.npm-global/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/voice_post_update_check.py dev-watch
 UNIT
 

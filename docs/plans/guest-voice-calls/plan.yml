@@ -68,4 +68,14 @@ verification:
     - Isolated CI E2E of a guest web call (desktop and phone width) with proof audio.
     - voice-call-opening.spec.ts green with the tooltip and single-opening assertions.
     - Real dev run of the post-update voice check from the deployed commit, both callers, videos with sound.
-  evidence: ''
+  evidence: >-
+    The component preview, guest desktop and phone browser cases, opening
+    frame checks, backend metering and test-account coverage, web controller
+    tests, and Rust guest protocol tests passed in isolated CI. The final
+    guest and opening runs were 45331609148 and 45331649131. Dev c84d7749b8
+    served the guest socket and start button. The real signed-in call on that
+    build transcribed the question and played the spoken answer. The real
+    guest check reported the shared dev allowance as inactive before speech
+    could be transcribed. The dev timer is paused pending the allowance
+    decision and successful proof from both callers. Production activation
+    remains pending.
