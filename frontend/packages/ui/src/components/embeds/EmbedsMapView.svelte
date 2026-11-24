@@ -1400,7 +1400,7 @@
   {#if visualTabs.length === 0}
     <div class="map-view-list" data-testid="embeds-map-view-list">
       <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
-        {#each carouselEntries as entry}
+        {#each carouselEntries as entry (entry.ref)}
           <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-ref={entry.ref} data-entry-mapped={entry.lat != null && entry.lon != null || (entry.route?.length ?? 0) > 1 ? 'true' : 'false'} data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
             {#if entry.preview}
               {@const Component = getRenderableComponent(entry.preview.component)}
@@ -1421,7 +1421,7 @@
         {:else if carouselEntries.length === 0}
           <div class="empty-state">No mappable embeds resolved yet.</div>
         {:else}
-          {#each carouselEntries as entry}
+          {#each carouselEntries as entry (entry.ref)}
             <div
               class="map-view-card"
               class:highlighted={entry.highlighted}

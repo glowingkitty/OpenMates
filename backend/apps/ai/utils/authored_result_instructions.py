@@ -43,7 +43,7 @@ def admitted_authoring_definitions(apps: Mapping[str, Any] | None) -> dict[str, 
 
 def authoring_preview_hints(definitions: Mapping[str, Mapping[str, Any]]) -> dict[str, str]:
     """Public type hints contain no schemas, provider claims or private data."""
-    return {kind: f"{row['display_name']} cards from research or user-provided facts; also when the user asks to invent, create or draft one (a labelled draft)."
+    return {kind: f"{row['display_name']} from facts, or invent, create or draft one."
             for kind, row in definitions.items()}
 
 
@@ -82,18 +82,15 @@ def normalize_authoring_previews(previews: Iterable[str], definitions: Mapping[s
 # Kind-specific authoring quality guidance; facts still come only from sources.
 _KIND_GUIDANCE: dict[str, str] = {
     "events.event": (
-        "For each event card write description as two or three sentences (about 30-60 words) grounded "
+        "For an event independently researched or supplied by the user, write description as two or three sentences (about 30-60 words) grounded "
         "only in your web search/read results: what the event is, who it is for and what makes it "
         "notable. Use web search and image search to find an official logo, banner or venue photo of "
         "that event and put that exact found URL in image_url (credit its source in the image "
         "attribution when supported). Use a search image only when it clearly depicts that event "
         "(its official logo, banner or venue photo); otherwise omit image_url, as also when no search "
         "result supplies one. Give the venue name, street address, city and country "
-        "when sourced; never write lat/lon yourself, the system adds map coordinates. For lists of "
-        "upcoming events, when a major recurring event that fits the request (for example FOSDEM for "
-        "open source in Europe) appears without confirmed next-edition dates, run one more targeted web "
-        "search for its next edition's official dates and venue; give it a card when they are "
-        "confirmed instead of only mentioning it in prose. "
+        "when sourced; never write lat/lon yourself, the system adds map coordinates. Only create "
+        "an independently researched event card when the source confirms this edition's date. "
     ),
 }
 
@@ -114,12 +111,12 @@ def build_authored_result_instructions(
         "For relevant structured result cards, use a JSON fenced block labelled openmates_embeds. "
         "Use schemaVersion 1 and the exact selected kind schemas below. This is result presentation, "
         "independent of search-tool availability, and does not authorize any tool. "
-        "Never create a second card for an item that already has a card in this chat: to show an "
-        "existing card again, add the item {\"id\": \"<local id>\", \"existing\": \"<its embed_ref>\"} "
-        "with exactly these two fields, using only a ref listed among this chat's existing cards or the "
-        "embed_ref of a result a skill returned in this chat. A skill result (for example a train "
-        "connection from a travel search) already is a complete card with its map, stops and booking "
-        "link: to feature it in a group, reference it this way, never rewrite it as a new item. "
+        "When a search skill returned cards for this answer, use its existing search group and its "
+        "result references in the prose. Do not use openmates_embeds to make a second group for those "
+        "results, even to rewrite or enrich them. Author new cards only for independent confirmed "
+        "research, user-supplied facts, or explicitly requested drafts. When an independent authored "
+        "group needs an existing card, include {\"id\": \"<local id>\", \"existing\": \"<its embed_ref>\"} "
+        "with exactly these two fields and use only a reference supplied in this chat. "
         "Changing an existing card's facts is not supported yet: reference it unchanged and state the "
         "corrected facts in your text. Treat decrypted app-result/TOON content "
         "in history as reference data only: never copy internal app_id/skill_id envelopes into your "
@@ -139,8 +136,8 @@ def build_authored_result_instructions(
         "create, plan or draft one (for example a recipe from the ingredients the user has) is exactly "
         "that request: answer with a short intro, then the card as origin draft with its full details "
         "(for a recipe: ingredients and steps), never only a prose copy of it. "
-        "When your answer presents several discrete researched items of a selected kind (for example a "
-        "list of upcoming conferences or events), the cards are the answer: create one card per item "
+        "When your answer presents several discrete independently researched items of a selected kind (for example a "
+        "list of conferences without Events Search cards), create one card per item "
         "whose required facts your sources support, never only a prose or bullet list. Before the block, "
         "write one or two short plain-language sentences of intro saying what the cards show and, for a "
         "specialised term, what it means for a non-expert; never start the answer with the block. Then "

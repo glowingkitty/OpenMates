@@ -1084,6 +1084,7 @@ features:
       - frontend/apps/web_app/tests/components/results-calendar-sticky-axes.spec.ts
       - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
       - frontend/apps/web_app/tests/fosdem-authored-event-example.spec.ts
+      - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
       - frontend/apps/web_app/tests/travel-results-real.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/travel/__tests__/travelConnectionPoints.test.ts
@@ -1091,7 +1092,7 @@ features:
       - frontend/apps/web_app/src/routes/share/embed/sharedEmbedGraph.test.ts
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventCalendar.test.ts
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventDates.test.ts
-      unit_test_files: 24
+      unit_test_files: 25
     apple:
       status: implemented
       source: intent
@@ -6724,6 +6725,7 @@ features:
       - frontend/apps/web_app/tests/prod-smoke/prod-smoke-guest-web-send.spec.ts
       - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
       - frontend/apps/web_app/tests/real-inference-dictation-gate.spec.ts
+      - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
       - frontend/apps/web_app/tests/settings-chat-viewport.spec.ts
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
       - frontend/apps/web_app/tests/storage-message-embed-bundle.spec.ts
@@ -12877,11 +12879,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 2
+        passing: 3
         failing: 2
-        not_run: 2
-        missing: 9
-        counted: 15
+        not_run: 3
+        missing: 8
+        counted: 16
       failing_tests:
       - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts › event fullscreen forwards visible event fields
         while excluding raw and nested transport metadata
@@ -12889,12 +12891,14 @@ features:
       key_tests:
       - frontend/apps/web_app/tests/skill-events-search.spec.ts
       - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
+      - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts
       - frontend/apps/web_app/tests/components/event-reference-hydration.spec.ts
       - frontend/apps/web_app/tests/components/events-search-pricing.spec.ts
       - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
       - frontend/apps/web_app/tests/components/skill-failure-feedback.spec.ts
+      - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventResult.test.ts
@@ -12972,7 +12976,7 @@ features:
       - backend/tests/test_app_skill_processing_quality.py
       - backend/tests/test_events_provider_routing.py
       - backend/tests/test_search_relevance.py
-      unit_test_files: 9
+      unit_test_files: 10
     sdk_npm:
       status: implemented
       source: intent

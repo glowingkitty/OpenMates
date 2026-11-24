@@ -1,6 +1,12 @@
 schema_version: 1
 specification: feature.app-skill.events-search@1
 boundary_and_history:
+- id: events-search-dictated-conference-discovery
+  given: Alice dictates a request for upcoming open source conferences in Europe.
+  when: Events Search finds FOSDEM 2027 and an online summit.
+  then: FOSDEM's preview immediately shows its date, and its details show a useful description and the sourced
+    ULB Solbosch street address and pin. The online summit appears in Calendar without a venue pin.
+  assertion_ids: [events-search.results.actionable]
 - id: events-search-request-validated
   given: Alice requests a known conference schedule and separately a general event near her city.
   when: The batch is validated and routed.

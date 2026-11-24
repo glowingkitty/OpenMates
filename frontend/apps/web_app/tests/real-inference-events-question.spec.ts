@@ -16,6 +16,8 @@
  *      without the "Embed not found" server error.
  * The chat is deleted afterwards.
  */
+import path from 'node:path';
+import { proofAudioLaunchArgs, useProofMicrophone, withProofAudio } from './helpers/proof-audio';
 import type { Page } from '@playwright/test';
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -152,4 +154,103 @@ test('the largest open source conference question is answered through the Events
 	} finally {
 		await deleteActiveChat(page, log, screenshot);
 	}
+});
+
+const dictatedTest = withProofAudio(test);
+dictatedTest.use({ launchOptions: { args: proofAudioLaunchArgs({ voiceWav: null }) }, permissions: ['microphone'] });
+const DICTATION = /Are there any upcoming open[- ]source software conferences in Europe/i;
+
+dictatedTest.describe('dictated conference discovery', () => {
+	const test = dictatedTest;
+
+	// contract-test: direct surface=gui.web assertions=events-search.results.actionable,events-search.answer.states-dates,authored-results.groups.same-response-and-reuse,authored-results.presentation.standard-results-view,message-input.audio.editable-transcript
+	test('one Events result view contains the dated conferences and sourced venue details', async ({ page }, testInfo) => {
+		test.setTimeout(600_000);
+		requireRealInference('Dictated conference discovery', BASE_URL);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		const log = createSignupLogger('DICTATED_EVENTS');
+		const screenshot = createStepScreenshotter(log);
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, log, screenshot);
+		await setChatSidebarOpen(page, false, log);
+		await startNewChat(page, log);
+
+		try {
+			await useProofMicrophone(page, path.resolve(__dirname, 'fixtures/upcoming-conferences-dictation.mp3'));
+			const field = page.getByTestId('message-field').filter({ visible: true });
+			const editor = field.getByTestId('message-editor').locator('[contenteditable="true"]');
+			await field.getByTestId('record-audio-button').dispatchEvent('mousedown', { button: 0 });
+			const overlay = page.getByTestId('record-overlay');
+			await expect(overlay).toBeVisible();
+			await expect(editor).toContainText(DICTATION, { timeout: 35_000 });
+			await overlay.getByTestId('record-finish-button').click();
+			await expect(overlay).toBeHidden({ timeout: 45_000 });
+			await expect(editor).toContainText(DICTATION);
+			log('The real microphone transcript is ready in the composer.');
+			await field.locator('[data-action="send-message"]').click();
+			await expect(page.getByTestId('message-user').last()).toContainText(DICTATION);
+			log('Sent the dictated conference question.');
+			const answer = page.getByTestId('message-assistant').last();
+			await expect(answer).toBeVisible({ timeout: ANSWER_TIMEOUT_MS });
+			await waitForIdle(page);
+			await expect(answer.getByTestId('generated-by')).toContainText(/Gemini 3\.8 Flash/i);
+			await expect(answer.locator('[data-testid="assistant-skill-app-icon"][data-app-id="events"]')).toBeAttached();
+			const results = answer.getByTestId('embeds-map-view');
+			await expect(results.first()).toBeVisible({ timeout: 60_000 });
+			await testInfo.attach('conference-results', { body: await page.screenshot(), contentType: 'image/png' });
+			await expect(answer.getByTestId('authored-results-preview')).toHaveCount(0);
+			await expect(results).toHaveCount(1);
+
+			const map = results.getByRole('tab', { name: 'Map', exact: true });
+			const calendar = results.getByRole('tab', { name: 'Calendar', exact: true });
+			await expect(map).toBeVisible();
+			await expect(calendar).toBeVisible();
+			const fosdem = results.getByTestId('embeds-map-view-card').filter({ has: page.getByRole('heading', { name: /^FOSDEM(?: 2027)?$/i }) });
+			await expect(fosdem).toHaveCount(1);
+			await expect(fosdem).toHaveAttribute('data-entry-mapped', 'true');
+			const badge = fosdem.getByTestId('embed-calendar-date');
+			for (const width of [1280, 390]) {
+				await page.setViewportSize({ width, height: 900 });
+				await page.mouse.move(0, 0);
+				await fosdem.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'center' }));
+				await expect(badge).toBeVisible();
+				await expect(badge.locator('span')).toHaveText('Sat');
+				await expect(badge.locator('strong')).toHaveText('30');
+				await testInfo.attach(`fosdem-date-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+			}
+			await page.setViewportSize({ width: 1280, height: 900 });
+			await calendar.click();
+			await expect(calendar).toHaveAttribute('aria-selected', 'true');
+			await expect(results.getByRole('tabpanel', { name: 'Calendar results' })).toBeVisible();
+			await testInfo.attach('conference-calendar', { body: await page.screenshot(), contentType: 'image/png' });
+			await map.click();
+
+			const event = await openFullscreen(page, fosdem.getByTestId('embed-preview'));
+			await expect(event.getByTestId('event-venue-card')).toContainText(/Solbosch/i);
+			await expect(event.getByTestId('event-venue-card')).toContainText(/Roosevelt\s+50/i);
+			await expect(event.getByTestId('result-map')).toBeVisible();
+			const description = event.getByTestId('event-description');
+			await expect(description).toBeVisible();
+			const text = await description.innerText();
+			expect(text.trim().split(/\s+/).length).toBeGreaterThanOrEqual(15);
+			const venue = event.getByTestId('event-venue-card');
+			const latitude = Number(await venue.getAttribute('data-venue-lat'));
+			const longitude = Number(await venue.getAttribute('data-venue-lon'));
+			expect(latitude).toBeGreaterThan(50.808);
+			expect(latitude).toBeLessThan(50.818);
+			expect(longitude).toBeGreaterThan(4.375);
+			expect(longitude).toBeLessThan(4.388);
+			const image = event.getByTestId('event-source-image');
+			if (await image.count()) {
+				await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+			}
+			log(`FOSDEM description: ${text}`);
+			log(`FOSDEM venue: ${await event.getByTestId('event-venue-card').innerText()}`);
+			await testInfo.attach('fosdem-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
+			await closeFullscreen(page, event);
+		} finally {
+			await deleteActiveChat(page, log, screenshot);
+		}
+	});
 });

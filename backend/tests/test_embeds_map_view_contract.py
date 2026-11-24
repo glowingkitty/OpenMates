@@ -5,6 +5,8 @@ the AI instructions and deterministic guard aligned with the product contract in
 docs/specs/embeds-map-view/spec.yml.
 """
 
+import pytest
+
 from backend.apps.ai.utils.embeds_map_view import (
     ALLOWED_EMBEDS_MAP_VIEW_FIELDS,
     EMBEDS_MAP_VIEW_INSTRUCTION,
@@ -425,3 +427,48 @@ def test_normalizer_removes_json_like_map_blocks() -> None:
     assert "```embeds_results_view" not in normalized
     assert "Bad block" in normalized
     assert "provider" not in normalized
+
+
+# contract-test: supporting surface=gui.web assertions=authored-results.groups.same-response-and-reuse
+@pytest.mark.asyncio
+@pytest.mark.parametrize("members, expected_extra", [
+    (["fosdem-card"], None),
+    (["fosdem-card", "separately-researched-card"], "separately-researched-card"),
+])
+async def test_search_view_replaces_duplicate_authored_group(members, expected_extra):
+    from types import SimpleNamespace
+    from backend.apps.ai.utils.authored_search_presentation import fold_reused_search_cards
+
+    authored = '```json\n{"type":"authored_results","embed_id":"carrier"}\n```'
+    view = "```embeds_results_view\ntitle: Conferences\nsources: events-search-parent\n```"
+    original = f"Found these events.\n\n{authored}\n\n{view}"
+    calls = [{
+        "app_id": "events", "skill_id": "search", "embed_id": "parent",
+        "source_ref_bindings": {"events-search-parent": "parent"},
+        "result_child_ids": ["fosdem-card", "other-event"],
+    }]
+
+    async def read(embed_id):
+        assert embed_id == "carrier"
+        return SimpleNamespace(decoded={"type": "authored_results", "member_ids": members})
+
+    result = await fold_reused_search_cards(original, calls, SimpleNamespace(get=read))
+    assert authored not in result
+    assert result.count("```embeds_results_view") == 1
+    assert "sources: events-search-parent" in result
+    if expected_extra:
+        assert f"embeds: {expected_extra}" in result
+    else:
+        assert "embeds:" not in result
+    assert await fold_reused_search_cards(original, [], SimpleNamespace(get=read)) == original
+
+
+# contract-test: supporting surface=gui.web assertions=authored-results.groups.same-response-and-reuse
+def test_parent_alias_and_id_do_not_repeat_one_search_source():
+    from backend.apps.ai.utils.embeds_map_view import validate_embeds_map_view_sources
+
+    block = "```embeds_results_view\ntitle: Conferences\nsources: parent, events-search-parent\n```"
+    fixed, changed = validate_embeds_map_view_sources(
+        block, available_sources={"parent": "parent", "events-search-parent": "parent"},
+    )
+    assert changed and "sources: events-search-parent\n" in fixed

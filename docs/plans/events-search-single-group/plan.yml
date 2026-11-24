@@ -1,0 +1,35 @@
+schema_version: 2
+profile: concise
+id: events-search-single-group
+title: Present one consistent Events Search group
+status: draft
+goal: >-
+  Show one results group when the assistant answers the dictated question
+  “Are there any upcoming open source software conferences in Europe?” with
+  meaningful descriptions, correctly placed venues, available images and date
+  badges that are visible from first paint.
+task: TASK-2490
+specifications:
+  - feature.app-skill.events-search@1
+  - feature.assistant-authored-result-embeds@1
+scope:
+  in:
+    - Reuse original search cards through guidance and server-side matching across search skills.
+    - Keep sourced event facts, precise venues and images in existing encrypted event records.
+    - Verify desktop and phone date badges and record the real dictated flow on dev.
+    - Prepare the scoped ready hotfix with the verified voice changes.
+  out:
+    - Production rollout and changes to client-side encryption.
+required_checks:
+  - id: result-reuse
+    method: Backend regression tests for guidance, search-card reuse and result view finalization.
+    proves: Duplicate authored items reuse original search cards and show one results view.
+  - id: event-data
+    method: Backend extraction and venue lookup tests.
+    proves: Event facts and images are retained, and unresolved named venues and online events avoid misleading pins.
+  - id: badge-preview
+    method: Focused bare component preview at desktop and phone widths.
+    proves: Dates paint above the media before hover and stay visible.
+  - id: dictated-conferences
+    method: Real inference and dictation through the dev stack with Playwright recording including sound.
+    proves: One group switches between Map and Calendar, FOSDEM opens its sourced details and pin, and date badges remain visible.

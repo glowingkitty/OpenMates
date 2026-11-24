@@ -418,6 +418,21 @@ class SearchSkill(BaseSkill):
         second_start = cls._event_start(second)
         if first_start is None or second_start is None:
             return False
+        first_tokens = cls._title_tokens(first)
+        second_tokens = cls._title_tokens(second)
+        same_dated_listing = (
+            bool(first_tokens) and first_tokens == second_tokens
+            and first_start.date() == second_start.date()
+            and (len(str(first.get("date_start", ""))) == 10 or len(str(second.get("date_start", ""))) == 10)
+        )
+        if same_dated_listing:
+            cities = [
+                cls._dedup_text(venue.get("city"))
+                for event in (first, second) if isinstance(venue := event.get("venue"), dict)
+            ]
+            if len({city for city in cities if city}) <= 1:
+                return True
+
         second_start = cls._align_event_datetime(second_start, first_start)
         if abs((first_start - second_start).total_seconds()) > 90 * 60:
             return False
@@ -425,8 +440,6 @@ class SearchSkill(BaseSkill):
         if cls._description_urls(first) & cls._description_urls(second):
             return True
 
-        first_tokens = cls._title_tokens(first)
-        second_tokens = cls._title_tokens(second)
         if first_tokens and second_tokens:
             overlap = len(first_tokens & second_tokens) / min(len(first_tokens), len(second_tokens))
             if overlap >= 0.75:
@@ -451,9 +464,11 @@ class SearchSkill(BaseSkill):
             for index, existing in enumerate(unique):
                 if not cls._events_are_duplicates(existing, event):
                     continue
-                if (existing.get("provider_id") == event.get("provider_id") == WEB_PROVIDER_ID
-                        and cls._web_event_detail(event) > cls._web_event_detail(existing)):
-                    unique[index] = event
+                if existing.get("provider_id") == event.get("provider_id") == WEB_PROVIDER_ID:
+                    preferred, other = existing, event
+                    if cls._web_event_detail(event) > cls._web_event_detail(existing):
+                        preferred, other = event, existing
+                    unique[index] = cls._fill_web_event_details(preferred, other)
                 break
             else:
                 unique.append(event)
@@ -461,10 +476,26 @@ class SearchSkill(BaseSkill):
 
 
     @staticmethod
-    def _web_event_detail(event: Dict[str, Any]) -> tuple[bool, bool, bool]:
+    def _fill_web_event_details(event: Dict[str, Any], other: Dict[str, Any]) -> Dict[str, Any]:
+        """Combine sourced optional fields only when both pages name the same edition."""
+        event_url = normalize_url_for_deduplication(_event_result_url(event))
+        if (not event_url or event_url != normalize_url_for_deduplication(_event_result_url(other))
+                or str(event.get("date_start", ""))[:10] != str(other.get("date_start", ""))[:10]):
+            return event
+        merged = dict(event)
+        for field in ("description", "image_url", "organizer"):
+            if not merged.get(field) and other.get(field) and other.get("source_page_url"):
+                merged[field] = other[field]
+                merged[f"{field}_source_url"] = other.get(f"{field}_source_url") or other["source_page_url"]
+        return merged
+
+
+    @staticmethod
+    def _web_event_detail(event: Dict[str, Any]) -> tuple[bool, bool, bool, bool]:
         """Rank sourced street addresses first, then named venues and images."""
         venue = event.get("venue") or {}
-        return bool(venue.get("address")), bool(venue.get("name")), bool(event.get("image_url"))
+        return (bool(venue.get("address")), bool(venue.get("name")),
+                bool(event.get("description")), bool(event.get("image_url")))
 
 
     @staticmethod

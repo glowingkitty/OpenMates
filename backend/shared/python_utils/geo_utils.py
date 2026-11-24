@@ -161,7 +161,7 @@ async def geocode_address(
         if country:
             query_parts.append(country)
         query = ", ".join(p for p in query_parts if p)
-        coords = await _nominatim_query(query)
+        coords = await _nominatim_query(query, require_venue=not allow_city_fallback)
         if coords:
             return coords
 
@@ -192,7 +192,7 @@ async def geocode_address(
     return None
 
 
-async def _nominatim_query(query: str) -> Optional[Tuple[float, float]]:
+async def _nominatim_query(query: str, *, require_venue: bool = False) -> Optional[Tuple[float, float]]:
     """
     Query Nominatim (OpenStreetMap) geocoding API.
     Returns (lat, lon) of the first result, or None on failure.
@@ -218,8 +218,16 @@ async def _nominatim_query(query: str) -> Optional[Tuple[float, float]]:
             resp.raise_for_status()
             results = resp.json()
             if results:
-                lat = float(results[0]["lat"])
-                lon = float(results[0]["lon"])
+                result = results[0]
+                if require_venue and (
+                    result.get("class") == "boundary"
+                    or result.get("type") in {"city", "town", "village", "municipality", "administrative",
+                                               "suburb", "neighbourhood", "country", "state", "county"}
+                    or result.get("class") == "highway"
+                ):
+                    return None
+                lat = float(result["lat"])
+                lon = float(result["lon"])
                 logger.debug(
                     "geo_utils: Nominatim resolved %r → (%.5f, %.5f)", query, lat, lon
                 )

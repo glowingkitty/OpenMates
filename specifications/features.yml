@@ -835,7 +835,10 @@ features:
       sdk_npm: "src/generated/appSkills.ts apps.events (generic skill call)"
       sdk_pypi: "generated/app_skills.py apps.events (generic skill call)"
     key_tests:
-      web: [frontend/apps/web_app/tests/skill-events-search.spec.ts, frontend/apps/web_app/tests/real-inference-events-question.spec.ts]
+      web:
+        - frontend/apps/web_app/tests/skill-events-search.spec.ts
+        - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
+        - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
   - id: file
     name: "File"
     kind: app

@@ -52,6 +52,11 @@ def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+def _online(content: dict[str, Any], venue: dict[str, Any]) -> bool:
+    return (content.get("online") is True or venue.get("online") is True
+            or _text(content.get("event_type")).casefold() in {"online", "virtual"})
+
+
 def _venue(content: dict[str, Any]) -> dict[str, Any] | None:
     """Return the mutable venue record, creating one from a string location."""
     venue = content.get("venue")
@@ -67,14 +72,16 @@ def _venue(content: dict[str, Any]) -> dict[str, Any] | None:
 
 
 async def _venue_geocode(address: str, name: str, city: str, country: str) -> tuple[float, float] | None:
-    """Most precise first: street address, then venue/campus name, then city centre."""
+    """Resolve a named venue without substituting a city-centre point."""
     for query in dict.fromkeys(q for q in (address, name) if q):
         coords = await geocode_address(
             query, city=city or None, country=country or None, allow_city_fallback=False,
         )
         if coords:
             return coords
-    return await geocode_address(address or name or None, city=city or None, country=country or None)
+    if address or name:
+        return None
+    return await geocode_address(None, city=city or None, country=country or None)
 
 async def _cached_geocode(address: str, name: str, city: str, country: str) -> tuple[float, float] | None:
     key = (address.lower(), name.lower(), city.lower(), country.lower())
@@ -108,7 +115,7 @@ def discard_untrusted_event_coordinates(
     if embed_type not in EVENT_EMBED_TYPES or not isinstance(content, dict):
         return False
     venue = _venue(content)
-    if venue is None or content.get("online") is True or venue.get("online") is True:
+    if venue is None or _online(content, venue):
         return False
     if keep_supplied and valid_coordinates(venue.get("lat"), venue.get("lon")):
         return False
@@ -130,7 +137,7 @@ async def enrich_event_coordinates(
     if embed_type not in EVENT_EMBED_TYPES or not isinstance(content, dict):
         return content
     venue = _venue(content)
-    if venue is None or content.get("online") is True or venue.get("online") is True:
+    if venue is None or _online(content, venue):
         return content
     if trust_supplied and valid_coordinates(venue.get("lat"), venue.get("lon")):
         return content
@@ -138,8 +145,7 @@ async def enrich_event_coordinates(
     venue.pop("lon", None)
     address, name = _text(venue.get("address")), _text(venue.get("name"))
     city, country = _text(venue.get("city")), _text(venue.get("country"))
-    # Prefer the street address; a named venue (e.g. a campus) is the next most
-    # precise query. The helper falls back to the city when neither resolves.
+    # A city-only listing may have an approximate point. A named venue requires a venue match.
     if not (address or name or city):
         return content
     coords = await _cached_geocode(address, name, city, country)

@@ -198,7 +198,7 @@
 
   {#snippet resultMedia()}
     {#if eventImageUrl}
-      <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" onerror={() => failedEventImage = eventImageUrl} />
+      <img class="event-image" data-testid="event-source-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" onerror={() => failedEventImage = eventImageUrl} />
     {/if}
   {/snippet}
 <ResultEmbedFullscreen
@@ -245,7 +245,7 @@
   {#snippet identity()}
     <div class="event-identities" data-testid="event-identity-cards">
       {#if event.organizer?.name}<div class="event-identity" data-testid="event-organizer-card"><span class="clickable-icon event-icon" style:width="28px" style:height="28px" style:mask-image="var(--icon-url-user)" aria-hidden="true"></span><span><small>{$text('result_embed.event_organized_by')}</small><strong>{event.organizer.name}</strong></span></div>{/if}
-      {#if isOnline || venueAddress}<div class="event-identity" data-testid="event-venue-card"><span class="clickable-icon event-icon" style:width="28px" style:height="28px" style:mask-image="var(--icon-url-maps)" aria-hidden="true"></span><span><small>{$text('result_embed.event_at')}</small>{#if isOnline}<strong>{$text('embeds.online_event')}</strong>{:else}<strong>{event.venue?.name || $text('common.location')}</strong><span class="venue-address">{[event.venue?.address, [event.venue?.city, event.venue?.state, event.venue?.country].filter(Boolean).join(', ')].filter(Boolean).join('\n')}</span>{/if}</span></div>{/if}
+      {#if isOnline || venueAddress}<div class="event-identity" data-testid="event-venue-card" data-venue-lat={mapCenter?.lat} data-venue-lon={mapCenter?.lon}><span class="clickable-icon event-icon" style:width="28px" style:height="28px" style:mask-image="var(--icon-url-maps)" aria-hidden="true"></span><span><small>{$text('result_embed.event_at')}</small>{#if isOnline}<strong>{$text('embeds.online_event')}</strong>{:else}<strong>{event.venue?.name || $text('common.location')}</strong><span class="venue-address">{[event.venue?.address, [event.venue?.city, event.venue?.state, event.venue?.country].filter(Boolean).join(', ')].filter(Boolean).join('\n')}</span>{/if}</span></div>{/if}
     </div>
   {/snippet}
   {#snippet detailContent()}

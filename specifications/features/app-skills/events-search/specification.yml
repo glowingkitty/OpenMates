@@ -137,7 +137,10 @@ assertions:
   type: invariant
   must: Returned conference sessions and saved event cards retain nonblank titles, usable source links, dates and
     recorded venue facts. Invalid source items are omitted without inventing missing actionable URLs; groups remain
-    count-bounded.
+    count-bounded. A result preserves a sourced venue name and street address, a useful source-grounded
+    description in fullscreen, and an event image where available. A known venue uses its actual map point.
+    A city-only result may show an approximate point, while an online-only event has no physical venue or pin.
+    A dated preview displays its date as soon as the card appears at desktop and phone widths.
   depends_on:
   - examples.boundary_and_history
 - id: events-search.relevance.activation

@@ -52,15 +52,14 @@ def test_null_island_is_stripped_and_regeocoded(monkeypatch):
     content = {"venue": {"address": "Av. Franklin Roosevelt 50", "city": "Brussels", "lat": 0, "lon": 0}}
     result = asyncio.run(enrichment.enrich_event_coordinates("event", content))
     assert "lat" not in result["venue"] and "lon" not in result["venue"]
-    # Strict address attempt first, then the city-level last resort.
-    assert calls == [("Av. Franklin Roosevelt 50", "Brussels", None)] * 2
+    assert calls == [("Av. Franklin Roosevelt 50", "Brussels", None)]
 
 
 # contract-test: supporting surface=rest_api assertions=authored-results.facts.provenance-and-drafts
 def test_online_and_non_event_content_is_untouched(monkeypatch):
     calls = []
     monkeypatch.setattr(enrichment, "geocode_address", _fake_geocoder(calls))
-    online = {"online": True, "venue": {"city": "Brussels"}}
+    online = {"event_type": "online", "venue": {"city": "Brussels"}}
     other = {"venue": {"city": "Brussels"}}
     asyncio.run(enrichment.enrich_event_coordinates("event", online))
     asyncio.run(enrichment.enrich_event_coordinates("recipe", other))
@@ -92,7 +91,7 @@ def test_authored_cards_replace_model_written_coordinates_with_geocoded_venue(mo
 
 
 # contract-test: supporting surface=rest_api assertions=authored-results.facts.provenance-and-drafts
-def test_full_address_then_venue_name_are_tried_before_city_centre(monkeypatch):
+def test_full_address_then_venue_name_are_tried_without_city_fallback(monkeypatch):
     seen = []
     async def fake(address, city=None, country=None, *, allow_city_fallback=True):
         seen.append((address, allow_city_fallback))
@@ -102,3 +101,32 @@ def test_full_address_then_venue_name_are_tried_before_city_centre(monkeypatch):
     result = asyncio.run(enrichment.enrich_event_coordinates("event", {"venue": venue}, trust_supplied=False))
     assert result["venue"]["lat"] == 50.8129
     assert seen == [("Avenue Franklin Roosevelt 50", False), ("ULB Solbosch Campus", False)]
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.maps.source-faithful-geometry
+def test_city_only_result_can_use_an_approximate_point(monkeypatch):
+    calls = []
+    monkeypatch.setattr(enrichment, "geocode_address", _fake_geocoder(calls))
+    body = {"venue": {"city": "Brussels"}}
+    asyncio.run(enrichment.enrich_event_coordinates("event", body))
+    assert calls == [(None, "Brussels", None)]
+    assert body["venue"]["lat"] == 50.8129
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.maps.source-faithful-geometry
+@pytest.mark.asyncio
+async def test_geocoder_does_not_use_a_municipality_response_for_a_named_venue(monkeypatch):
+    import httpx
+
+    from backend.shared.python_utils import geo_utils
+
+    async def respond(request):
+        return httpx.Response(200, json=[{
+            "class": "boundary", "type": "administrative", "lat": "50.851", "lon": "4.352",
+        }])
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    monkeypatch.setattr(geo_utils.httpx, "AsyncClient", lambda **kwargs: client)
+    assert await geo_utils.geocode_address(
+        "Unresolved conference hall", city="Brussels", country="Belgium", allow_city_fallback=False,
+    ) is None

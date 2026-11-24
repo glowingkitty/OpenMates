@@ -55,6 +55,21 @@ def test_web_event_preserves_only_a_street_address_stated_on_the_page():
     assert unstated[0]["venue"] == {"city": "Lyon"}
 
 
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source,events-search.results.actionable
+def test_event_description_carries_facts_and_online_event_has_no_physical_venue():
+    description = "Free software maintainers will share packaging advice in workshops and report on community security audits."
+    common = {"title": "Libre Days", "date_start": "2027-01-14", "city": "Lyon", "country": "France"}
+    generic, rich = rows(extraction.KIND_EVENT, [
+        {**common, "description": "Open Source Conference in Lyon, France, Europe"},
+        {**common, "online": True, "description": description,
+         "image_url": "https://example.org/banner.jpg"},
+    ], EVENT_PAGE + description)
+    assert "description" not in generic
+    assert rich["description"] == description
+    assert rich["image_url"] == "https://example.org/banner.jpg"
+    assert rich["event_type"] == "online" and "venue" not in rich
+
+
 # contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
 def test_price_link_and_picture_are_kept_only_when_the_page_states_them():
     kept = rows(extraction.KIND_PRODUCT, [
@@ -273,3 +288,63 @@ async def test_a_named_events_official_page_is_read_before_second_pages_of_one_s
                                                    secrets_manager=None)
     assert read_urls[:3] == [top, "https://archive.example.org/2026/", "https://wiki.example.org/Conf"]
     assert len(read_urls) == extraction.MAX_PAGES and top in {row["source_page_url"] for row in outcome.results}
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source,events-search.results.actionable
+@pytest.mark.anyio
+async def test_upcoming_edition_and_linked_event_details_fit_the_page_budget(monkeypatch):
+    from datetime import date
+
+    year = date.today().year + 1
+    official = f"https://libre.example/{year}/"
+    directory = "https://directory.example/events"
+    detail = f"https://directory.example/libre-days-{year}"
+    cover = "https://directory.example/images/libre-days.jpg"
+    hits = [directory, "https://overview.example", "https://calendar.example", "https://events.example",
+            "https://more.example", official]
+    seen = []
+    mock_day = f"{year}-01-14"
+
+    async def search(*_args, **_kwargs):
+        return {"results": [{"url": url} for url in hits]}
+
+    async def read(url, **_kwargs):
+        seen.append(url)
+        return {
+            "title": f"All about Libre Days {year}" if url == detail else "Conferences",
+            "markdown": f"Libre Days {year}, January 14. 24 rue des Fleurs, Lyon. "
+                        f"[Libre Days]({detail}) [{url}]({official})",
+            "og_image": cover,
+        }
+
+    async def complete(kind, request, url, title, text, **kwargs):
+        if url not in (official, detail):
+            return [], 10, 5
+        event = {"title": f"Libre Days {year}", "date_start": mock_day, "url": official}
+        if url == official:
+            event["venue_address"] = "24 rue des Fleurs"
+        else:
+            event["description"] = "Maintainers compare security and packaging workflows in hands-on workshops."
+        return [event], 10, 5
+
+    monkeypatch.setattr(extraction, "search_web", search)
+    monkeypatch.setattr(extraction, "read_public_web_page", read)
+    monkeypatch.setattr(extraction, "complete_page", complete)
+    result = await extraction.extract_web_results(extraction.KIND_EVENT, {"query": "open source conferences"},
+                                                  secrets_manager=None)
+    assert len(seen) == extraction.MAX_PAGES
+    assert seen[0] == official and seen[-1] == detail
+    assert result.search_requests == 1
+    assert result.results[0]["venue"]["address"] == "24 rue des Fleurs"
+    assert result.results[1]["image_url"] == cover
+    assert "packaging workflows" in result.results[1]["description"]
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_directory_logo_does_not_become_the_events_cover():
+    event = {"title": "Libre Days"}
+    extraction._event_page_cover(event, {
+        "title": "All about Libre Days 2027",
+        "og_image": "https://directory.example/img/logo.png",
+    })
+    assert "image_url" not in event

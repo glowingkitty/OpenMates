@@ -36,7 +36,7 @@ _MARKETS: Dict[str, Tuple[str, str]] = {
 }
 _REQUEST_FACTS: FrozenSet[str] = frozenset({
     "query", "location", "start_date", "end_date", "event_type", "relevance_criteria", "country",
-    "min_price", "max_price", "brand",
+    "min_price", "max_price", "brand", "past_events",
 })
 
 __all__ = ["DELEGATE_WEB_KINDS", "KIND_EVENT", "KIND_PRODUCT", "WEB_PROVIDER_ID", "delegate_web_kind",

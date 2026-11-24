@@ -61,7 +61,7 @@ export function proofAudioLaunchArgs(
 }
 
 /** Supply recorded speech at the browser microphone boundary without changing the app document. */
-export async function useProofMicrophone(page: Page): Promise<void> {
+export async function useProofMicrophone(page: Page, voiceSample = TEST_VOICE_WAV): Promise<void> {
   await page.evaluate((encoded) => {
     const mediaDevices = navigator.mediaDevices;
     const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
@@ -78,7 +78,7 @@ export async function useProofMicrophone(page: Page): Promise<void> {
       speech.start(context.currentTime + 0.5);
       return output.stream;
     };
-  }, fs.readFileSync(TEST_VOICE_WAV).toString('base64'));
+  }, fs.readFileSync(voiceSample).toString('base64'));
 }
 
 /** Runs in every document before the page's own scripts (serialized by addInitScript). */
