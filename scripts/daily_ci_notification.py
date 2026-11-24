@@ -32,6 +32,7 @@ UNIT_AREAS = frozenset({"pytest", "frontend/packages/ui", "frontend/apps/web_app
 SUPPORT_AREAS = frozenset({"python-sdk-accounts", "cli-accounts", "cli-plans"})
 BROWSER_MODES = frozenset({"component", "e2e", "artifact", "selfhost"})
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts import notification_log  # noqa: E402 (repo path bootstrap)
 
 
 def canonical_root() -> Path:
@@ -556,6 +557,7 @@ def deliver_discord(root: Path, subject: str, body: str) -> dict:
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             result = json.load(response)
+        notification_log.record_request(request, "daily_ci_notification")
         return {"status": "provider_accepted", "message_id": result.get("id", "")}
     except urllib.error.HTTPError as exc:
         return {"status": "failed", "http_status": exc.code}

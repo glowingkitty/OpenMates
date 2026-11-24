@@ -33,6 +33,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from backend.shared.python_utils.notification_spool import spool_notification
+
 logger = logging.getLogger(__name__)
 
 # Discord hard limits (see https://discord.com/developers/docs/resources/webhook)
@@ -89,10 +91,12 @@ async def post_discord_message(
     if username:
         payload["username"] = username
 
+
     try:
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
             response = await client.post(webhook_url, json=payload)
         if 200 <= response.status_code < 300:
+            spool_notification(username or "backend", content or "", embeds=embeds)
             logger.info(f"Discord webhook POST succeeded (status={response.status_code})")
             return True
         logger.error(

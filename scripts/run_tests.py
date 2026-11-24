@@ -129,6 +129,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402 (repo path bootstrap)
+from scripts import notification_log  # noqa: E402 (repo path bootstrap)
 from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
@@ -4374,6 +4375,7 @@ class NotificationService:
             )
             with urllib.request.urlopen(request, timeout=30) as response:
                 response.read()
+            notification_log.record_request(request, "run_tests")
             _log("Daily Discord start posted" if started else "Daily Discord 30-minute status posted")
         except urllib.error.HTTPError as error:
             body = error.read().decode("utf-8", errors="replace") if error.fp else ""
@@ -4420,6 +4422,7 @@ class NotificationService:
             )
             with urllib.request.urlopen(request, timeout=30) as response:
                 response.read()
+            notification_log.record_request(request, "run_tests")
             _log("Daily Discord skip notification posted")
         except urllib.error.HTTPError as error:
             body = error.read().decode("utf-8", errors="replace") if error.fp else ""
@@ -4918,6 +4921,7 @@ class NotificationService:
                 )
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
+            notification_log.record_request(req, "run_tests")
             attached_note = f" (+{len(attachments)} screenshot(s))" if attachments else ""
             _log(f"Discord summary posted ({mode_label}){attached_note}")
             # Persist the new summary fingerprint so the next tick can
@@ -4989,6 +4993,7 @@ class NotificationService:
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
                 resp.read()
+            notification_log.record_request(req, "run_tests")
             _log(f"Dry-run notify posted to {env_var_name}", "OK")
             return True
         except urllib.error.HTTPError as e:
@@ -5282,6 +5287,7 @@ class NotificationService:
                 )
                 with urllib.request.urlopen(req, timeout=30) as resp:
                     raw = resp.read()
+                notification_log.record_request(req, "run_tests")
                 if return_message_id:
                     try:
                         msg = json.loads(raw.decode("utf-8")) if raw else {}
@@ -5357,6 +5363,7 @@ class NotificationService:
                 )
                 with urllib.request.urlopen(req, timeout=30) as resp:
                     resp.read()
+                notification_log.record_request(req, "run_tests")
                 return True
             except urllib.error.HTTPError as e:
                 if e.code == 429 and attempt == 0:

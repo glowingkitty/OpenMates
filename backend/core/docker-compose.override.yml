@@ -10,51 +10,73 @@ services:
       BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
       # Send recipient-held newsletter confirmations to the standalone dev website.
       NEWSLETTER_PUBLIC_WEBSITE_ORIGIN: "${NEWSLETTER_PUBLIC_WEBSITE_ORIGIN:-https://landing.dev.openmates.org}"
+      # Discord notifications are handed to the host's private notification log.
+      NOTIFICATION_SPOOL_DIR: "/app/notification-spool"
+    volumes: &development-notification-spool
+      - &notification-spool-mount
+        type: bind
+        source: /home/superdev/.openmates/notifications/spool
+        target: /app/notification-spool
 
   core-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   user-init-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   user-tasks-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   reminder-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   workflow-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   task-scheduler:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-ai-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-ai-routing-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-images-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-music-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-videos-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-pdf-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-docs-worker:
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-code-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
   app-social-media-worker:
     image: *development-celery-image
     environment: *development-worker-environment
+    volumes: *development-notification-spool
 
   api:
     environment:
@@ -65,7 +87,9 @@ services:
       # Admin "Send to Claude chat" issue handoff (dev only). The host cron
       # dispatcher scripts/claude_dispatch.py consumes this queue.
       CLAUDE_DISPATCH_QUEUE_DIR: "/app/claude-dispatch-queue"
+      NOTIFICATION_SPOOL_DIR: "/app/notification-spool"
     volumes:
+      - *notification-spool-mount
       # Identifier-only Claude chat requests for admin issue reports.
       - /home/superdev/projects/OpenMates/logs/claude-dispatch/queue:/app/claude-dispatch-queue
       # Host cron and the CI coordinator publish canonical daily aggregates here.

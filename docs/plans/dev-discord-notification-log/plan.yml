@@ -1,0 +1,18 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: dev-discord-notification-log
+title: Private dev Discord notification history
+goal: >-
+  Log every Discord notification into the private store as it is sent, expose
+  unanswered questions with their asking chat and full text to the voice
+  assistant through the dev connector, and recover tonight's earlier questions.
+scope:
+  in:
+    - Confirmed webhook sends from dev host scripts and dev backend services.
+    - Private text, source, sending chat, timestamp and attachment information.
+    - Answer status based on subsequent owner-authored turns in the asking chat.
+    - Repeatable recovery from the confirmed legacy push log.
+  out:
+    - Changes to production or self-hosted deployments.
+    - Changes to product chat encryption or public APIs.

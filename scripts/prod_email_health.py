@@ -37,6 +37,7 @@ from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts import discord_summary  # noqa: E402 (repo path bootstrap)
+from scripts import notification_log  # noqa: E402 (repo path bootstrap)
 from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 
 PROD_STATUS_URL = "https://api.openmates.org/v1/status"
@@ -193,6 +194,7 @@ def post_discord(webhook_url: str, content: str, opener: Callable[..., Any] = ur
     try:
         with opener(request, timeout=HTTP_TIMEOUT) as response:
             response.read()
+        notification_log.record_request(request, "prod_email_health")
         return True
     except (urllib.error.URLError, OSError) as exc:
         print(f"[email-health] Discord post failed: {type(exc).__name__}", file=sys.stderr)

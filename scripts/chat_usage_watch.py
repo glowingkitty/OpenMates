@@ -223,17 +223,17 @@ def notices(totals: dict[str, dict], notified: dict, now: float, *, root: Path |
     return out
 
 
-def send(text: str) -> bool:
+def send(text: str, *, chats: list[str] | None = None) -> bool:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import agent_question  # noqa: E402  (sibling script)
     import discord_webhook  # noqa: E402  (sibling script)
 
     root = canonical_root()
     url = next((value for key in WEBHOOK_KEYS if (value := agent_question.configured_value(root, key))), "")
-    return bool(url) and bool(discord_webhook.post_message(webhook_url=url, payload={"content": text}))
+    return bool(url) and bool(discord_webhook.post_message(webhook_url=url, payload={"content": text}, chats=chats))
 
 
-def run(now: float, *, dry_run: bool = False, project_dir: Path = PROJECT_DIR, post=send) -> list[str]:
+def run(now: float, *, dry_run: bool = False, project_dir: Path = PROJECT_DIR, post=None) -> list[str]:
     path = state_path()
     state = load_state(path)
     totals = scan(project_dir, state, now)
@@ -245,7 +245,8 @@ def run(now: float, *, dry_run: bool = False, project_dir: Path = PROJECT_DIR, p
     found = notices(totals, state["notified"], now, project_dir=project_dir)
     sent = []
     if found:  # one Discord message per scan, however many chats crossed
-        ok = post("\n".join(text for _, text in found))
+        text = "\n".join(line for _, line in found)
+        ok = post(text) if post is not None else send(text, chats=[chat for chat, _ in found])
         sent = [f"{chat[:8]} notified={ok}" for chat, _ in found]
         if not ok:
             for chat, _ in found:

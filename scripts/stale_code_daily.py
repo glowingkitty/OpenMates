@@ -28,6 +28,7 @@ from urllib import request
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 REPORT_DIR = PROJECT_ROOT / "logs" / "nightly-reports"
+
 CRON_BEGIN = "# BEGIN OpenMates deterministic stale-code report"
 CRON_END = "# END OpenMates deterministic stale-code report"
 CRON_SCHEDULE = "0 2 * * *"
@@ -36,6 +37,7 @@ DISCORD_ENV = "DISCORD_WEBHOOK_DEV_NIGHTLY"
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import notification_log  # noqa: E402
 from find_dead_code import format_markdown_report, scan_repository  # noqa: E402
 
 
@@ -154,6 +156,7 @@ def notify_discord(
         with opener(discord_request, timeout=15) as response:
             status = getattr(response, "status", 204)
             if 200 <= status < 300:
+                notification_log.record_request(discord_request, "stale_code_daily")
                 return "sent"
             return f"failed:http_{status}"
     except Exception as exc:

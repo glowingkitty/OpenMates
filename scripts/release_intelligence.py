@@ -31,6 +31,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+notification_log = importlib.import_module("scripts.notification_log")
+
 RESERVED_NAME = importlib.import_module("scripts.public_link_guard").RESERVED_NAME
 
 _feature_availability = importlib.import_module(
@@ -1892,6 +1894,7 @@ def post_weekly_discord_summary(artifact: dict[str, Any], *, dry_run: bool = Fal
     try:
         with request.urlopen(req, timeout=30) as response:
             response.read()
+        notification_log.record_request(req, "release_intelligence")
         print("[release-intelligence] weekly Discord summary sent", file=sys.stderr)
         return True
     except error.HTTPError as exc:

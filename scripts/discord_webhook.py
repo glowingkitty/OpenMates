@@ -17,6 +17,8 @@ from typing import Any, Callable
 import urllib.error
 import urllib.request
 
+import notification_log
+
 
 def build_multipart_body(
     payload_json: dict[str, Any],
@@ -79,6 +81,7 @@ def post_attachment(
         attachment_id = str(attachments[0].get("id") or "")
     if not message_id or not attachment_id:
         return None
+    notification_log.record_post("", payload, [(filename, content)])
     return {"message_id": message_id, "attachment_id": attachment_id}
 
 
@@ -115,6 +118,7 @@ def post_files(
     ids = [str(a.get("id") or "") for a in attachments if isinstance(a, dict)] if isinstance(attachments, list) else []
     if not message_id or len(ids) != len(files) or not all(ids):
         return None
+    notification_log.record_post("", payload, files)
     return {"message_id": message_id, "attachment_ids": ids}
 
 
@@ -122,6 +126,7 @@ def post_message(
     *,
     webhook_url: str,
     payload: dict[str, Any],
+    chats: list[str] | None = None,
     timeout: int = 30,
     opener: Callable[..., Any] = urllib.request.urlopen,
 ) -> dict[str, str] | None:
@@ -142,4 +147,7 @@ def post_message(
     except (OSError, urllib.error.HTTPError, urllib.error.URLError, UnicodeDecodeError, json.JSONDecodeError):
         return None
     message_id = str(message.get("id") or "")
-    return {"message_id": message_id} if message_id else None
+    if message_id:
+        notification_log.record_post("", payload, chats=chats)
+        return {"message_id": message_id}
+    return None

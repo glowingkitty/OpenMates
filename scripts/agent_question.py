@@ -65,6 +65,7 @@ from urllib.parse import urlparse
 
 import discord_summary
 import discord_webhook
+import notification_log
 import push_proof
 from pending_work_gate import canonical_root
 
@@ -350,7 +351,8 @@ def flush(root: Path, now: float, post: Callable[..., dict | None] = discord_web
                     files, message = prepared.files, "\n".join([message, *prepared.link_lines()])
                 except push_proof.ProofError as error:
                     message += f"\n⚠️ Proof could not be attached when the queued push went out: {error}"[:300]
-                deliver(webhook(root), message, post, sleep, files=files, post_files=post_files)
+                with notification_log.sending_chat(entry["chat_id"], entry.get("title", "")):
+                    deliver(webhook(root), message, post, sleep, files=files, post_files=post_files)
         except QuestionError as error:
             kept.append({**entry, "due": now + QUEUE_RETRY_SECONDS, "attempts": int(entry.get("attempts", 0)) + 1,
                          "last_error": str(error)[:200]})
@@ -476,7 +478,8 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
             for note in prepared.notes:
                 print(f"agent_question: {note}", file=sys.stderr)
             sent_message = "\n".join([message, *prepared.link_lines()])
-            deliver(url, sent_message, post, sleep, files=prepared.files, post_files=post_files)
+            with notification_log.sending_chat(chat_id, title):
+                deliver(url, sent_message, post, sleep, files=prepared.files, post_files=post_files)
             message = sent_message
     except QuestionError as error:
         enqueue(root, {**held, "due": now + QUEUE_RETRY_SECONDS, "attach": _durable(root, attach, chat_id, now),
