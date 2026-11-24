@@ -3214,6 +3214,7 @@ features:
       - frontend/apps/web_app/tests/components/image-result-fullscreen-proxy.spec.ts
       - frontend/apps/web_app/tests/components/image-view-preview.spec.ts
       - frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
+      - frontend/apps/web_app/tests/components/mail-search-fullscreen.spec.ts
       - frontend/apps/web_app/tests/components/map-load-recovery.spec.ts
       - frontend/apps/web_app/tests/components/map-result-deduplication.spec.ts
       - frontend/apps/web_app/tests/components/media-result-layout.spec.ts
@@ -14337,13 +14338,14 @@ features:
       assertions:
         passing: 0
         failing: 1
-        not_run: 0
+        not_run: 1
         missing: 9
-        counted: 10
+        counted: 11
       failing_tests:
       - frontend/apps/web_app/tests/skill-mail-search.spec.ts
       key_tests:
       - frontend/apps/web_app/tests/skill-mail-search.spec.ts
+      - frontend/apps/web_app/tests/components/mail-search-fullscreen.spec.ts
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0

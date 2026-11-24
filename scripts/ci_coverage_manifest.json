@@ -523,6 +523,7 @@
         "components/settings-chat-notifications.spec.ts",
         "components/maps-discovery.spec.ts",
         "components/maps-place-label.spec.ts",
+        "components/mail-search-fullscreen.spec.ts",
         "components/agent-context-message.spec.ts",
         "components/figma-connected-accounts.spec.ts",
         "components/connected-accounts-before.spec.ts",
