@@ -1,0 +1,18 @@
+schema_version: 1
+specification: feature.message-highlights@1
+selection-toolbar:
+  - id: click-event-card
+    given: An assistant answer shows text followed by a large event card.
+    when: The user clicks the event card to open it.
+    then: The event opens and no Highlight / Highlight & comment / Explain in new chat toolbar appears over the card.
+    assertion_ids: [message-highlights.selection-toolbar]
+  - id: select-answer-text
+    given: The same answer.
+    when: The user selects the words "next edition" in the answer text.
+    then: The toolbar appears above the selection and Highlight stores exactly "next edition".
+    assertion_ids: [message-highlights.selection-toolbar]
+  - id: select-across-card
+    given: The same answer.
+    when: The user drags a selection from the paragraph above the card into the paragraph below it.
+    then: A highlight keeps only the paragraph text; the card title is not part of it.
+    assertion_ids: [message-highlights.selection-toolbar]

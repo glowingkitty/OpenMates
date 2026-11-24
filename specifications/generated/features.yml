@@ -4,15 +4,15 @@ schema_version: 2
 source: specifications/features.yml
 results_as_of: '2026-11-16'
 summary:
-  features: 128
-  enabled_on_prod: 112
-  enabled_on_dev: 117
+  features: 129
+  enabled_on_prod: 113
+  enabled_on_dev: 118
   status_by_surface:
     web:
       live: 4
       partial: 20
       failing: 54
-      not_run: 11
+      not_run: 12
       implemented: 19
       not_planned: 20
     apple:
@@ -22,7 +22,7 @@ summary:
       implemented: 39
       in_progress: 6
       planned: 7
-      not_planned: 21
+      not_planned: 22
     watchos:
       tested: 7
       partial: 3
@@ -35,14 +35,14 @@ summary:
       implemented: 40
       in_progress: 2
       planned: 2
-      not_planned: 30
+      not_planned: 31
     tui:
       live: 2
       failing: 13
       not_run: 1
       implemented: 57
       in_progress: 10
-      not_planned: 45
+      not_planned: 46
     rest_api:
       live: 5
       tested: 2
@@ -51,18 +51,18 @@ summary:
       not_run: 28
       implemented: 15
       planned: 2
-      not_planned: 26
+      not_planned: 27
     sdk_npm:
       partial: 3
       not_run: 20
       implemented: 50
-      not_planned: 55
+      not_planned: 56
     sdk_pypi:
       partial: 3
       not_run: 18
       implemented: 42
       in_progress: 9
-      not_planned: 56
+      not_planned: 57
 unmapped:
   specifications: []
   apps: []
@@ -6363,6 +6363,129 @@ features:
       - frontend/packages/ui/src/demo_chats/__tests__/landingExampleCatalog.test.ts
       - frontend/packages/ui/src/services/__tests__/landingComposerDeepLink.test.ts
       unit_test_files: 4
+    apple:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+- id: message-highlights
+  name: Message Highlights and Selection Toolbar
+  kind: core
+  description: Selecting text in a chat message offers a toolbar to highlight it, highlight and comment, or explain it in
+    a new chat.
+  specifications:
+  - id: feature.message-highlights
+    status: draft
+    path: specifications/features/message-highlights
+  apps: []
+  product_features: []
+  release: unverified
+  flags:
+    ids: []
+    dev: no_flag
+    prod: no_flag
+  assertions: 1
+  surfaces:
+    web:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 1
+        missing: 0
+        counted: 1
+      key_tests: []
+      evidence: frontend/packages/ui/src/components/ChatMessage.svelte, MessageSelectionToolbar.svelte
+      e2e_tests:
+      - frontend/apps/web_app/tests/components/chat-message-selection-toolbar-embed.spec.ts
+      key_unit_tests:
+      - frontend/packages/ui/src/utils/__tests__/messageHighlights.test.ts
+      unit_test_files: 1
     apple:
       status: not_planned
       source: intent

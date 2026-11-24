@@ -27,7 +27,7 @@
   import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
   import HighlightCommentPopover from './HighlightCommentPopover.svelte';
   import MessageSelectionToolbar from './MessageSelectionToolbar.svelte';
-  import { captureHighlightAnchor } from '../utils/messageHighlights';
+  import { captureHighlightAnchor, isNodeSelectionRange } from '../utils/messageHighlights';
   import { selectHighlightsForMessage, myHighlightIdsStore } from '../stores/messageHighlightsStore';
   import {
     sendAddMessageHighlightImpl,
@@ -864,7 +864,8 @@
       _toolbarHideTimer = null;
     }
     const range = sel.getRangeAt(0);
-    if (!messageBodyElement.contains(range.commonAncestorContainer)) {
+    // A clicked embed card is a node selection, not selected text.
+    if (!messageBodyElement.contains(range.commonAncestorContainer) || isNodeSelectionRange(range)) {
       selectionToolbarVisible = false;
       return;
     }

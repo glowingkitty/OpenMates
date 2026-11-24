@@ -892,6 +892,13 @@ specifications:
     fingerprint: a22110dc61eb151c3f14c9daee6d3131f8bc5f5ecc0f3fb48e0abc21dce32166
     required_applies_to:
     - gui.web
+  feature.message-highlights:
+    version: 1
+    status: draft
+    path: features/message-highlights
+    fingerprint: 98bb0e48572c855115af7fcb78de97c0b9a344efea1268bdbfc159c72c04e087
+    required_applies_to:
+    - gui.web
   feature.message-input:
     version: 13
     status: approved
@@ -11915,6 +11922,13 @@ assertions:
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 29ad36b3a54dda5b8de018f1dd35dc42c49fd111dae4a32e90a61695cf8f35e0
+    required_applies_to:
+    - gui.web
+  message-highlights.selection-toolbar:
+    specification: feature.message-highlights@1
+    specification_id: feature.message-highlights
+    type: behavior
+    fingerprint: 9a589c10017117015ad928ed8c31329a59a25d093ca192ef6daf76a89f777f06
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:

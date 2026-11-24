@@ -14,18 +14,18 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**128 features** · enabled on prod: 112 · enabled on dev: 117
+**129 features** · enabled on prod: 113 · enabled on dev: 118
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 20 | 54 | 11 | 19 | 0 | 0 | 0 | 20 |
-| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 6 | 7 | 0 | 21 |
+| Web | 4 | 0 | 20 | 54 | 12 | 19 | 0 | 0 | 0 | 20 |
+| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 6 | 7 | 0 | 22 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 17 | 8 | 29 | 40 | 2 | 2 | 0 | 30 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 45 |
-| REST API | 5 | 2 | 34 | 16 | 28 | 15 | 0 | 2 | 0 | 26 |
-| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 55 |
-| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 56 |
+| CLI | 0 | 0 | 17 | 8 | 29 | 40 | 2 | 2 | 0 | 31 |
+| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 46 |
+| REST API | 5 | 2 | 34 | 16 | 28 | 15 | 0 | 2 | 0 | 27 |
+| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 56 |
+| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 57 |
 
 ## Core product
 
@@ -72,6 +72,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Lightweight Public Website and Scrollable Landing Page](#marketing-landing) | **FAIL** 1/16 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | v0.13.0-alpha |
 | [Live Collaboration on Documents, Sheets and Slides](#live-collaboration) | partial 1/8 | planned |  | — | — | planned | — | — | on (no flag) | on (no flag) | unverified |
 | [Memories](#app-memories) | **FAIL** 19/33 | partial 10/33 |  | **FAIL** 2/33 | impl | **FAIL** 15/33 | partial 2/33 | partial 2/33 | on (no flag) | on (no flag) | v0.7.0-alpha |
+| [Message Highlights and Selection Toolbar](#message-highlights) | not run 0/1 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Message Input](#message-input) | **FAIL** 7/25 | **FAIL** 9/25 |  | not run 0/1 | impl | not run 0/2 | — | — | on (no flag) | on (no flag) | v0.5.0-alpha |
 | &nbsp;&nbsp;↳ Dictation | **FAIL** 2/5 | ? |  | ? | ? | not run 0/1 | — | — | | | |
 | &nbsp;&nbsp;↳ Audio recording | **FAIL** 0/1 | tested 1/1 |  | ? | ? | not run 0/1 | — | — | | | |
@@ -2036,6 +2037,28 @@ Free-form memories (with when-to-use, start and expiry) that the assistant loads
 | REST API | **FAIL** 15/33 | 15 pass · 2 fail · 6 not run · 10 no test | [jev-project-context-api.spec.ts](../../frontend/apps/web_app/tests/jev-project-context-api.spec.ts)<br>[memories-public-catalog.spec.ts](../../frontend/apps/web_app/tests/memories-public-catalog.spec.ts)<br>30 unit test file(s), e.g. [test_memory_loader.py](../../backend/tests/test_memory_loader.py), [test_rule_context.py](../../backend/tests/test_rule_context.py)<br>❌ [memories-public-catalog.spec.ts › public metadata exposes reviewed app Memories separately from encrypted private types](../../frontend/apps/web_app/tests/memories-public-catalog.spec.ts › public metadata exposes reviewed app Memories separately from encrypted private types) |
 | npm SDK | partial 2/33 | 2 pass · 0 fail · 4 not run · 27 no test | [memories-public-catalog.spec.ts](../../frontend/apps/web_app/tests/memories-public-catalog.spec.ts)<br>3 unit test file(s), e.g. [accountMemories.test.ts](../../frontend/packages/openmates-cli/tests/accountMemories.test.ts), [client.test.ts](../../frontend/packages/openmates-cli/tests/client.test.ts) |
 | PyPI SDK | partial 2/33 | 2 pass · 0 fail · 0 not run · 31 no test | [memories-public-catalog.spec.ts](../../frontend/apps/web_app/tests/memories-public-catalog.spec.ts)<br>1 unit test file(s), e.g. [test_published_memories.py](../../packages/openmates-python/tests/test_published_memories.py) |
+
+</details>
+
+### Message Highlights and Selection Toolbar
+<a id="message-highlights"></a>
+
+Selecting text in a chat message offers a toolbar to highlight it, highlight and comment, or explain it in a new chat.
+
+- Specifications: [feature.message-highlights](../../specifications/features/message-highlights/specification.yml) (draft) · 1 assertion(s)
+- Flags: none · dev on (no flag) · prod on (no flag) · release unverified
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | [chat-message-selection-toolbar-embed.spec.ts](../../frontend/apps/web_app/tests/components/chat-message-selection-toolbar-embed.spec.ts)<br>1 unit test file(s), e.g. [messageHighlights.test.ts](../../frontend/packages/ui/src/utils/__tests__/messageHighlights.test.ts) |
+| Apple | — | — | — |
+| CLI | — | — | — |
+| TUI | — | — | — |
+| REST API | — | — | — |
+| npm SDK | — | — | — |
+| PyPI SDK | — | — | — |
 
 </details>
 

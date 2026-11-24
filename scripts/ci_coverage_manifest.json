@@ -325,6 +325,7 @@
         "components/apps-request-composer.spec.ts",
         "components/chat-message-expansion.spec.ts",
         "components/chat-message-copy.spec.ts",
+        "components/chat-message-selection-toolbar-embed.spec.ts",
         "components/header-mobile-layout-preview.spec.ts",
         "components/connection-status-preview.spec.ts",
         "components/embed-version-timeline.spec.ts",

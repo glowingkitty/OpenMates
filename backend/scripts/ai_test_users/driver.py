@@ -120,7 +120,9 @@ class Driver:
             args += [
                 "--use-fake-ui-for-media-stream",
                 "--use-fake-device-for-media-stream",
-                f"--use-file-for-fake-audio-capture={VOICE_FILE}",
+                # Chromium loops the clip by default; a persona that records for
+                # longer than the clip would dictate the question twice.
+                f"--use-file-for-fake-audio-capture={VOICE_FILE}%noloop",
             ]
         self.browser = await self.playwright.chromium.launch(headless=True, args=args)
         VIDEO_DIR.mkdir(parents=True, exist_ok=True)

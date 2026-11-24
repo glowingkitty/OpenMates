@@ -421,6 +421,15 @@ features:
     specifications: [feature.marketing-landing]
     release: v0.13.0-alpha
     surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: message-highlights
+    name: "Message Highlights and Selection Toolbar"
+    kind: core
+    description: "Selecting text in a chat message offers a toolbar to highlight it, highlight and comment, or explain it in a new chat."
+    specifications: [feature.message-highlights]
+    release: unverified
+    surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      web: "frontend/packages/ui/src/components/ChatMessage.svelte, MessageSelectionToolbar.svelte"
   - id: message-input
     name: "Message Input"
     kind: core
