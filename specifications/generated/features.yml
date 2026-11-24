@@ -12976,7 +12976,7 @@ features:
       - backend/tests/test_app_skill_processing_quality.py
       - backend/tests/test_events_provider_routing.py
       - backend/tests/test_search_relevance.py
-      unit_test_files: 10
+      unit_test_files: 11
     sdk_npm:
       status: implemented
       source: intent

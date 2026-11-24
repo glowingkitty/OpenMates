@@ -510,6 +510,20 @@ def _event_detail_link(
     return None
 
 
+def _omit_unspecified_hybrid_venue(row: Dict[str, Any], page_title: str, page_text: str) -> None:
+    """A city named on a hybrid event page is insufficient for an in-person venue pin."""
+    venue = row.get("venue")
+    if not venue or venue.get("name") or venue.get("address"):
+        return
+    event = _event_title_key(row["title"])
+    title = _event_title_key(page_title)
+    if f" {event} " not in f" {title} ":
+        return
+    if re.search(r"\b(?:will be accessible online|can (?:also )?be (?:attended|watched) online|hybrid event)\b",
+                 _flat(page_text)):
+        row.pop("venue", None)
+
+
 def _event_page_cover(row: Dict[str, Any], page: Mapping[str, Any]) -> None:
     """Use a source page's declared cover only when it describes this event."""
     title = _event_title_key(str(page.get("title") or ""))
@@ -686,8 +700,11 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
                     continue
                 listed = validated_rows(kind, [item], page_url=url, page_title=title, page_text=text)
                 rows.extend({**row, "source_topic": item["source_topic"]} for row in listed)
-        if kind == KIND_EVENT and len(rows) == 1:
-            _event_page_cover(rows[0], page)
+        if kind == KIND_EVENT:
+            for row in rows:
+                _omit_unspecified_hybrid_venue(row, title, text)
+            if len(rows) == 1:
+                _event_page_cover(rows[0], page)
         return rows
 
     first_wave = urls[:-1] if kind == KIND_EVENT and not event_detail and len(urls) == MAX_PAGES else urls

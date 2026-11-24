@@ -12,6 +12,7 @@ from celery import Celery
 from pydantic import BaseModel, Field
 from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.apps.base_skill import BaseSkill
+from backend.apps.events.providers import fosdem as fosdem_provider
 from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.provider_aliases import PROVIDER_ALIASES, VALID_PROVIDERS
 from backend.shared.app_packages.contracts import events_search_input
@@ -984,6 +985,24 @@ class SearchSkill(BaseSkill):
             await progress.source_done(len(kept))
         return outcome
 
+    async def _complete_organizer_editions(self, events: List[Dict[str, Any]]) -> None:
+        """Prefer corroborated organizer facts without depending on generic lookup ordering."""
+        editions = {start for event in events if (start := fosdem_provider.edition_start(event))}
+        if not editions:
+            return
+        # Keep the direct organizer lookup bounded even for an open-ended date window.
+        edition = min(editions).year
+        source = await fosdem_provider.read_edition(edition)
+        if not source or not (organizer := validate_events_search_result(source)):
+            return
+        for index, event in enumerate(events):
+            if (start := fosdem_provider.edition_start(event)) and start.isoformat() == organizer["date_start"]:
+                events[index] = {
+                    **event, **source, **organizer,
+                    "provider": "fosdem.org", "provider_id": WEB_PROVIDER_ID,
+                    "hash": self._generate_result_hash(organizer["url"]),
+                }
+
     async def _complete_listed_edition(
         self, events: List[Dict[str, Any]], secrets_manager: Any, *,
         prices: Dict[str, Optional[WebSourcePrices]], usage: Dict[str, Any],
@@ -1151,6 +1170,8 @@ class SearchSkill(BaseSkill):
         results, quality = self._apply_quality_filters(
             results, event_type=req.get("event_type"), start_date=req.get("start_date"),
             end_date=req.get("end_date"), query=query)
+        if run_web and not req.get("past_events") and prices and prices.get("web"):
+            await self._complete_organizer_editions(results)
         results = self._deduplicate_events(results)
         if criteria or topic:
             results = stable_deduplicate_candidates(results, key=self._relevance_deduplication_key)[:target]

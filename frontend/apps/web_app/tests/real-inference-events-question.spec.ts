@@ -134,7 +134,7 @@ test('the largest open source conference question is answered through the Events
 				const event = await openFullscreen(page, fosdem);
 				const date = event.getByTestId('event-date-label');
 				if (await date.count() && /Jan(?:uary)?\s+30,?\s+2027/i.test(await date.innerText())) {
-					await expect(event.getByTestId('event-venue-card')).toContainText(/Roosevelt\s+50/i);
+					await expect(event.getByTestId('event-venue-card')).toContainText(/Avenue Franklin D\. Roosevelt\s+50/i);
 					await expect(event.getByTestId('result-map')).toBeVisible();
 					await testInfo.attach('fosdem-venue-map', { body: await page.screenshot(), contentType: 'image/png' });
 				}
@@ -278,7 +278,7 @@ dictatedTest.describe('dictated conference discovery', () => {
 
 			const event = await openFullscreen(page, fosdem.getByTestId('embed-preview'));
 			await expect(event.getByTestId('event-venue-card')).toContainText(/Solbosch/i);
-			await expect(event.getByTestId('event-venue-card')).toContainText(/Roosevelt\s+50/i);
+			await expect(event.getByTestId('event-venue-card')).toContainText(/Avenue Franklin D\. Roosevelt\s+50/i);
 			await expect(event.getByTestId('result-map')).toBeVisible();
 			const description = event.getByTestId('event-description');
 			await expect(description).toBeVisible();
@@ -288,10 +288,8 @@ dictatedTest.describe('dictated conference discovery', () => {
 			expect((await venue.innerText()).match(/Brussels/gi)).toHaveLength(1);
 			const latitude = Number(await venue.getAttribute('data-venue-lat'));
 			const longitude = Number(await venue.getAttribute('data-venue-lon'));
-			expect(latitude).toBeGreaterThan(50.808);
-			expect(latitude).toBeLessThan(50.818);
-			expect(longitude).toBeGreaterThan(4.375);
-			expect(longitude).toBeLessThan(4.388);
+			expect(latitude).toBeCloseTo(50.812375, 4);
+			expect(longitude).toBeCloseTo(4.380734, 4);
 			const image = event.getByTestId('event-source-image');
 			if (await image.count()) {
 				await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);

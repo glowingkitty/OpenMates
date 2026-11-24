@@ -1517,7 +1517,7 @@ Keep saved event information.
 | Apple | partial 1/13 | 1 pass · 0 fail · 0 not run · 12 no test | 2 unit test file(s), e.g. [EmbedCardParityFixesTests.swift](../../apple/OpenMatesTests/EmbedCardParityFixesTests.swift), [SkillApplicationParityTests.swift](../../apple/OpenMatesTests/SkillApplicationParityTests.swift) |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 13 no test | — |
 | TUI | impl | — | — |
-| REST API | **FAIL** 11/13 | 11 pass · 1 fail · 1 not run · 0 no test | 10 unit test file(s), e.g. [test_events_topic_relevance.py](../../backend/tests/test_events_topic_relevance.py), [test_rest_api_events.py](../../backend/tests/test_rest_api_events.py)<br>❌ [test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned](../../backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned) |
+| REST API | **FAIL** 11/13 | 11 pass · 1 fail · 1 not run · 0 no test | 11 unit test file(s), e.g. [test_events_topic_relevance.py](../../backend/tests/test_events_topic_relevance.py), [test_rest_api_events.py](../../backend/tests/test_rest_api_events.py)<br>❌ [test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned](../../backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 13 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 13 no test | — |
 

@@ -410,3 +410,21 @@ def test_named_programme_excerpt_requires_the_edition_and_dates_on_the_page():
     assert result["city"] == "Lyon"
     assert extraction._named_programme_excerpt({**request, "start_date": "2027-01-26"}, page) is None
     assert extraction._named_programme_excerpt({**request, "named_edition": "Other Week"}, page) is None
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_hybrid_event_with_no_published_venue_does_not_get_a_city_pin():
+    headline = "Libre Policy Summit"
+    page = "The summit takes place in Brussels and will be accessible online."
+    row = {"title": f"{headline} 2027", "venue": {"city": "Brussels", "country": "Belgium"}}
+    extraction._omit_unspecified_hybrid_venue(row, f"Homepage - {headline}", page)
+    assert "venue" not in row
+    assert "event_type" not in row
+
+    named = {**row, "venue": {"name": "Assembly Hall", "city": "Brussels"}}
+    extraction._omit_unspecified_hybrid_venue(named, f"Homepage - {headline}", page)
+    assert named["venue"]["name"] == "Assembly Hall"
+
+    unrelated = {**row, "venue": {"city": "Brussels"}}
+    extraction._omit_unspecified_hybrid_venue(unrelated, "Conference Directory", page)
+    assert unrelated["venue"]["city"] == "Brussels"
