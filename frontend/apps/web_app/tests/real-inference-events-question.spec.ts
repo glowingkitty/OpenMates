@@ -257,6 +257,22 @@ dictatedTest.describe('dictated conference discovery', () => {
 			}
 			await expect(fosdemDates).toHaveText([/2027-01-30/, /2027-01-31/]);
 			await testInfo.attach('conference-calendar', { body: await page.screenshot(), contentType: 'image/png' });
+			for (const [label, name] of [
+				['open-source-week', /EU Open Source Week/i],
+				['policy-summit', /EU Open Source Policy Summit/i],
+			] as const) {
+				const listing = calendarPanel.getByRole('button', { name }).first();
+				if (!await listing.count()) continue;
+				const detail = await openFullscreen(page, listing);
+				const description = detail.getByTestId('event-description');
+				await expect(description).toBeVisible();
+				const text = await description.innerText();
+				expect(text.trim().split(/\s+/).length).toBeGreaterThanOrEqual(20);
+				if (label === 'policy-summit') await expect(detail.getByTestId('result-map')).toHaveCount(0);
+				log(`${label} description: ${text}`);
+				await testInfo.attach(label, { body: await page.screenshot(), contentType: 'image/png' });
+				await closeFullscreen(page, detail);
+			}
 			await map.click();
 
 			const event = await openFullscreen(page, fosdem.getByTestId('embed-preview'));
