@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import wave
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,20 @@ def leg_dir(tmp_path: Path, receipt: dict | None, video: bool = True) -> Path:
 
 def loud(_video):
     return -20.0
+
+
+def test_capital_question_uses_a_local_microphone_fixture(tmp_path, monkeypatch):
+    import voice_call_web_real_test as voice
+
+    def reject_provider(*_args):
+        pytest.fail("the recurring voice check must use its recorded microphone question")
+
+    monkeypatch.setattr(voice, "speak", reject_provider)
+    assert voice.generate_speech(tmp_path, "capital")["capital"] > 1
+    with wave.open(str(tmp_path / "capital.wav"), "rb") as audio:
+        assert (audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) == (1, 2, 16000)
+        assert audio.getnframes() > 90 * audio.getframerate()
+        assert any(audio.readframes(5 * audio.getframerate()))
 
 
 def test_passes_with_reply_and_audible_video(tmp_path):

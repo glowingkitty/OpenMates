@@ -37,6 +37,7 @@ from design_embroidery_web_real_test import ROOT, installed_chromium, main
 
 SPEC = "tests/voice-call-real.spec.ts"
 GENERATOR = ROOT / "backend/scripts/generate_voice_call_speaker_audio.py"
+CAPITAL_SPEECH_FIXTURE = ROOT / "scripts/fixtures/voice-call-capital.flac"
 API_CONTAINER = "api"
 # Keep in sync with SCENARIOS in the spec (slug -> spoken question).
 SCENARIOS = {
@@ -94,6 +95,15 @@ def speak(text: str, tail_seconds: float) -> tuple[bytes, float]:
 
 def generate_speech(directory: Path, slug: str) -> dict[str, float]:
     """Write <slug>.wav for the scenario (segments joined in order); returns its spoken seconds."""
+    if slug == "capital":
+        # The recurring check exercises the live provider on the reply. Use the
+        # same synthetic question each time so fixture setup cannot fail on it.
+        subprocess.run(
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(CAPITAL_SPEECH_FIXTURE),
+             str(directory / "capital.wav")],
+            check=True, timeout=30,
+        )
+        return {slug: 1.81}
     spoken = SCENARIOS[slug]
     segments = [(spoken, 90)] if isinstance(spoken, str) else spoken
     frames, params, seconds = b"", None, 0.0

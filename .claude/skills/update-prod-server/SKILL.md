@@ -446,10 +446,13 @@ active Send (never a disabled Send or Sign up in its place), sends, and waits
 for the reply. A failure there fails the update even when the API guest chat
 works: guests on the web cannot chat.
 
-Then send one signed-in chat with a production test account (the
-authenticated production smoke when it exists) and wait for its completed
-assistant answer. If no test account is available, say so in the summary: the
-signed-in path is then unproven.
+Then send one signed-in chat with a temporary production test account and wait
+for its completed assistant answer. Use
+`python3 scripts/post_update_test_account.py --target prod create --out <0600 file>`.
+The runner uses the AI test users' gift-card pool and labels the account for
+exclusion from signup and usage statistics. Keep its credentials private and
+delete the account with `--target prod delete --email <email>` after the check,
+including when it fails. Report any cleanup failure.
 
 Treat missing or incomplete guest or signed-in answers, a broken follow-up, an
 unexpectedly blocked guest, or inconsistent allowance reporting as failed
@@ -496,6 +499,12 @@ previous web app as still live and stop.
    the receipt path. A rollback or failed check fails the release; never retry
    by assigning the alias another way. Also check whether `openmates-website`
    changed; promote it only through its own configured flow.
+6. On the promoted web app, run both real voice calls with
+   `python3 scripts/voice_post_update_check.py run --target prod`. The runner
+   creates and deletes a labelled gift-card account for the signed-in call and
+   uses the existing anonymous allowance for the guest call. Report both
+   results and link their sound-on videos. A failed or unproven call fails
+   post-update verification.
 
 Permission: this command is the only one the step runs against Vercel. The
 owner must allow it once in the user settings as the Bash rule
