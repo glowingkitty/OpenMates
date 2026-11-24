@@ -296,10 +296,13 @@ test.describe('Responsive workspace homes', () => {
 			await expect(page.getByTestId('workflows-show-all')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			const signupInput = page.getByTestId('workflow-guest-signup');
+			await page.evaluate(() => window.addEventListener('openSignupInterface', () => {
+				document.documentElement.dataset.guestAccountEntry = 'signup';
+			}, { once: true }));
 			await signupInput.focus();
 			await signupInput.press('Enter');
-			await expect(page.getByTestId('workflow-signup-dialog')).toBeVisible();
-			await page.getByTestId('workflow-signup-dialog').getByRole('button', { name: 'Close' }).click();
+			await expect(page.locator('html')).toHaveAttribute('data-guest-account-entry', 'signup');
+			await signupInput.blur();
 			await expect(page.getByTestId('workflows-sort')).toHaveCount(0);
 			for (const template of guestTemplates) {
 				const card = continuation.getByTestId('workflow-landing-card').filter({ hasText: template.title });

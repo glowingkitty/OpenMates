@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { openGuestAccountEntry } from '../utils/guestAccountEntry';
     import { vibrateDevice } from '../services/eventSounds';
     import { markFirstSendStopped, isDraftChatClaimedForSend } from "../services/drafts/draftSendClaims";
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
@@ -6,6 +7,7 @@ import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     import HeaderActionMenu from './HeaderActionMenu.svelte';
+    import WorkspaceReportIssueButton from './workspace/WorkspaceReportIssueButton.svelte';
     import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
     import { recordingState } from './enter_message/recordingStore';
@@ -1111,6 +1113,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // the $effect that closes loginInterfaceOpen and transitions to the chat editor.
         // Wrapped in its own try-catch to guarantee execution even if the import above failed.
         console.debug("[ActiveChat] [2/3] Calling setAuthenticatedState");
+        if (user?.id) userProfile.update(profile => ({ ...profile, user_id: user.id }));
         try {
             const { setAuthenticatedState } = await import('../stores/authSessionActions');
             setAuthenticatedState();
@@ -2608,7 +2611,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
 
         if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 
@@ -11753,6 +11756,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Listen for event to open login interface from header button
         const handleOpenLoginInterface = () => {
             console.debug("[ActiveChat] Opening login interface from header button");
+            panelState.closeSettings();
             loginInterfaceOpen.set(true);
             // Close chats panel when opening login
             if ($panelState.isActivityHistoryOpen) {
@@ -11764,6 +11768,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Listen for event to open signup interface from message input button
         const handleOpenSignupInterface = () => {
             console.debug("[ActiveChat] Opening signup interface from message input button");
+            panelState.closeSettings();
             // Set signup state directly to the first signup step
             currentSignupStep.set(STEP_BASICS);
             isInSignupProcess.set(true);
@@ -13762,24 +13767,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
                   {/snippet}
                   {#snippet report()}
-                    <div
-                      class="new-chat-button-wrapper"
-                      data-testid="report-issue-button-shell"
-                    >
-                      <button
-                        data-testid="report-issue-button"
-                        class="header-action"
-                        aria-label={$text('header.report_issue')}
-                        onclick={handleReportIssue}
-                        use:tooltip
-                        ><span
-                          class="clickable-icon icon_bug top-button"
-                          aria-hidden="true"
-                        ></span><span class="action-label"
-                          >{$text('header.report_issue')}</span
-                        ></button
-                      >
-                    </div>
+                    <WorkspaceReportIssueButton onOpen={handleReportIssue} />
                   {/snippet}
                   {#snippet share()}
                     {#if hasActiveShareableChatSurface}

@@ -15,6 +15,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { authStore } from '../../../stores/authStore';
+  import { openGuestAccountEntry } from '../../../utils/guestAccountEntry';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import {
     buildApplicationPreviewSharedContext,
@@ -244,7 +245,7 @@
     const previewEmbedId = embedId;
     const applicationContent = dc;
     if (!$authStore.isAuthenticated) {
-      window.dispatchEvent(new CustomEvent('openSignupInterface'));
+      openGuestAccountEntry();
       return;
     }
     isBusy = true;

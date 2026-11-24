@@ -32,6 +32,7 @@
     getLastAuthMethod,
     type LastAuthMethod,
   } from "../utils/lastAuthMethod";
+  import WorkspaceAccountButton from "./workspace/WorkspaceAccountButton.svelte";
   import IconTabBar, { type IconTabItem } from "./IconTabBar.svelte";
   import { connectionFeedback } from "../stores/connectionFeedbackStore";
   import { voiceCallController } from "../services/voiceCall";
@@ -871,28 +872,12 @@
                 <span class="header-github-icon" aria-hidden="true"></span>
               </a>
             {/if}
-            <button
-              class="login-signup-button"
-              class:cta-hidden={!publicationLabel && $introBannerVisible}
-              data-testid="header-login-signup-btn"
-              onclick={(e) => {
-                e.preventDefault();
-                if (onPrimaryCta) {
-                  onPrimaryCta();
-                  return;
-                }
-                window.dispatchEvent(
-                  new CustomEvent(
-                    ctaOpensLogin
-                      ? "openLoginInterface"
-                      : "openSignupInterface",
-                  ),
-                );
-              }}
-              aria-label={primaryCtaLabel ?? loginButtonText}
-            >
-              {primaryCtaLabel ?? loginButtonText}
-            </button>
+            <WorkspaceAccountButton
+              class={!publicationLabel && $introBannerVisible ? 'cta-hidden' : ''}
+              testId="header-login-signup-btn"
+              label={primaryCtaLabel ?? loginButtonText}
+              onPress={onPrimaryCta}
+            />
           </div>
         {/if}
       </nav>
@@ -1308,33 +1293,7 @@
     mask-repeat: no-repeat;
   }
 
-  .login-signup-button {
-    border: none;
-    margin: 0;
-    min-width: 0;
-    padding: var(--spacing-4) var(--spacing-6);
-    border-radius: var(--radius-3);
-    background: var(--color-button-primary);
-    color: var(--color-font-button, white);
-    cursor: pointer;
-    max-width: 240px;
-    overflow: hidden;
-    transition: all var(--duration-normal) var(--easing-default);
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  .login-signup-button:hover {
-    transform: scale(1.02);
-  }
-
-  .login-signup-button:active {
-    background-color: var(--color-button-primary-pressed);
-    transform: scale(0.98);
-    box-shadow: none;
-  }
-
-  .login-signup-button.cta-hidden {
+  .right-section :global(.login-signup-button.cta-hidden) {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -1346,7 +1305,7 @@
 
   /* Layout measurement (fitGuestHeader) sees the CTA at its final width. The attribute is
      set from script, so it is :global to keep Svelte from pruning the rule. */
-  nav:global([data-measuring="true"]) .login-signup-button.cta-hidden {
+  nav:global([data-measuring="true"]) :global(.login-signup-button.cta-hidden) {
     max-width: none;
     padding-inline: var(--spacing-6);
     transition: none;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openGuestAccountEntry } from '../utils/guestAccountEntry';
   /**
    * DailyInspirationBanner.svelte
    *
@@ -1140,7 +1141,7 @@
 
   function openSignup(): void {
     if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent('openSignupInterface'));
+    openGuestAccountEntry();
   }
 
   /**

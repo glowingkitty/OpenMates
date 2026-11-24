@@ -13,12 +13,12 @@
     isAppsWorkspaceHandoffCurrent, appsWorkflowInstruction, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
 	import { onMount, tick, untrack } from 'svelte';
 	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
+	import { openGuestAccountEntry } from '@repo/ui/utils/guestAccountEntry';
 	import { refreshWorkflowMemorySnapshots } from '@repo/ui/services/workflowMemorySnapshotService';
 	import { derived, get } from 'svelte/store';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
 		Header,
-		Login,
 		Settings,
 		NotificationStack,
 		WorkspaceHomeShell,
@@ -26,10 +26,7 @@
 		WorkflowGraphRenderer,
 		WorkflowSidebar,
 		authStore,
-		setAuthenticatedState,
 		isInSignupProcess,
-		currentSignupStep,
-		STEP_BASICS,
 		loginInterfaceOpen,
 		chatDB,
 		chatSyncService,
@@ -65,7 +62,6 @@
 	import { WorkflowApiError } from '@repo/ui/stores/workflowWorkspaceStore.ts';
 	import { activeTeamId, setActiveTeamContext } from '@repo/ui/stores/teamStore';
 	import { advanceCompletionStartupContext, completionLinkAfterNavigation, decideCompletionPersonalContext, isWorkflowCompletionLink, preservesCompletionLinkOnTeamChange, readWorkflowCompletionLink, runConfirmsWorkflowChatTarget, type CompletionStartupContext, type HandledCompletionLink, type PersonalCompletionSwitch } from '$lib/workflowCompletionRoute';
-	import { completeWorkflowLogin, type WorkflowLoginSuccess } from '$lib/workflowCompletionAuth';
 	import type { WorkflowDetail, WorkflowGraph, WorkflowSummary } from '@repo/ui';
 	const completionGeneration = derived(workflowWorkspaceStore, (workspace) => workspace.generation);
 	let completionStartupContext: CompletionStartupContext | null =
@@ -232,13 +228,20 @@
 	let hasCompletionDestination = $derived.by(() =>
 		!!workflowHashState.workflowId && typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
 	);
+	let completionAccountOpened = false;
+	$effect(() => {
+		if (!hasCompletionDestination) completionAccountOpened = false;
+		if (routeReady && workflowsEnabled && !$authStore.isAuthenticated && hasCompletionDestination &&
+			!completionAccountOpened && window.location.pathname === '/') {
+			completionAccountOpened = true;
+			openGuestAccountEntry();
+		}
+	});
 	const DESCRIBE_AFTER_SIGNUP_KEY = 'openmates.workflows.describeAfterSignup';
 	/** Guest "Describe new workflow": open the sign-up flow at its first step and remember to reopen the describe composer afterwards. */
 	function startGuestDescribeSignup(): void {
 		sessionStorage.setItem(DESCRIBE_AFTER_SIGNUP_KEY, '1');
-		currentSignupStep.set(STEP_BASICS);
-		isInSignupProcess.set(true);
-		loginInterfaceOpen.set(true);
+		openGuestAccountEntry();
 	}
 	// Abandoned sign-up: forget the pending return so a later ordinary login stays where it is.
 	$effect(() => {
@@ -256,14 +259,6 @@
 			homeComposerFocused = true;
 		});
 	});
-	function handleWorkflowLoginSuccess(event: CustomEvent<WorkflowLoginSuccess>): void {
-		completeWorkflowLogin(event.detail, {
-			publishOwner: (userId) => userProfile.update((profile) => ({ ...profile, user_id: userId })),
-			setSignupFlow: (active) => isInSignupProcess.set(active),
-			publishSession: setAuthenticatedState,
-			closeLogin: () => loginInterfaceOpen.set(false)
-		});
-	}
 	let showManageView = $derived((canRenderWorkflowData && (isManageView || !!provisionalFullscreen)) || (!canRenderWorkflowData && !!guestTemplate));
 	// Retain the outgoing surface's data as well as its DOM until the outro finishes.
 	let outgoingGuestTemplate = $state<typeof guestTemplate>(null);
@@ -1385,14 +1380,13 @@
 		<h1>Workflows unavailable</h1>
 		<p>Workflows are disabled on this server.</p>
 	</main>
-{:else if routeReady && ($isInSignupProcess || (!$authStore.isAuthenticated && hasCompletionDestination))}
+{:else if routeReady && !$authStore.isAuthenticated && hasCompletionDestination}
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 	<main class="workflows-route-state" data-testid="workflows-auth-required">
 		{#if !$authStore.isAuthenticated}
 			<h1>Workflows</h1>
 			<p>Please log in to create, manage, and run server-side workflows.</p>
 		{/if}
-		<Login on:loginSuccess={handleWorkflowLoginSuccess} />
 	</main>
 {:else}
 	<div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
@@ -1473,7 +1467,6 @@
 							<input bind:this={workflowImportInput} type="file" accept=".workflow.yml" data-testid="workflow-import-input" onchange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void importWorkflowFile(file); input.value = ''; }} hidden />
 							<div class="workflow-import-dropzone" class:dragging={draggingWorkflowFile} role="group" aria-label={$text('workflows.builder.file_import_group')} data-testid="workflow-import-dropzone" ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); draggingWorkflowFile = true; } }} ondragleave={() => { draggingWorkflowFile = false; }} ondrop={handleWorkflowFileDrop}>
 							<div class="workflow-home-composer">
-							<div inert={!canRenderWorkflowData}>
 							<WorkspacePromptComposer
 								surface="workflows"
 								bind:value={workflowInputText}
@@ -1484,10 +1477,11 @@
 								disabled={false}
 								submitting={busy || !!pendingSaveSessionId}
 								testId="workflow-input-composer"
-								inputTestId="workflow-input-textarea"
+								inputTestId={canRenderWorkflowData ? 'workflow-input-textarea' : 'workflow-guest-signup'}
 								submitTestId="workflow-input-submit"
 								micTestId="workflow-input-mic"
 								onSubmit={submitWorkflowInput}
+								onAccountRequired={canRenderWorkflowData ? undefined : startGuestDescribeSignup}
 								onMicClick={() => { voiceTarget = 'home'; }}
 								fileImport={{ label: $text('workflows.builder.file_import_button'), testId: 'workflow-import-button', onClick: () => workflowImportInput?.click() }}
 								recording={voiceTarget === 'home'}
@@ -1495,10 +1489,6 @@
 								onUntranscribedAudio={handleWorkflowUntranscribedAudio}
 								onRecordingClose={() => { voiceTarget = null; }}
 							/>
-							</div>
-							{#if !canRenderWorkflowData}
-								<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={startGuestDescribeSignup}></button>
-							{/if}
 							</div>
 							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}
 							</div>
@@ -1544,7 +1534,7 @@
 									/>
 									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
 										<div data-testid="workflow-editor">
-											<WorkflowGraphRenderer graph={displayedGuestTemplate.graph} readOnly guestTemplate={{ onSignup: () => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); } }} onChange={() => undefined} onSave={null}/>
+											<WorkflowGraphRenderer graph={displayedGuestTemplate.graph} readOnly guestTemplate={{ onSignup: openGuestAccountEntry }} onChange={() => undefined} onSave={null}/>
 										</div>
 									</div>
 								{:else if displayedProvisionalWorkflow}
@@ -1687,8 +1677,6 @@
 
 <style>
 	.workflow-home-composer { position: relative; width: min(629px, 100%); margin: 0 auto; }
-	.workflow-guest-signup { position: absolute; inset: 0; border: 0; border-radius: var(--radius-5); background: transparent; cursor: text; }
-	.workflow-guest-signup:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:-36px 0 0;padding:36px 1rem max(12px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,var(--color-grey-10) 36px);pointer-events:none}
 	.workflow-management.composer-focused .workflow-ai-composer { background: transparent; }
 	.workflow-ai-composer :global(.workspace-prompt-composer){pointer-events:auto}

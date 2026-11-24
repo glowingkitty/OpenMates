@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openGuestAccountEntry } from '../utils/guestAccountEntry';
     import { vibrateDevice } from '../services/eventSounds';
   import type { SvelteComponent } from 'svelte';
   import { onMount, untrack } from 'svelte';
@@ -1218,7 +1219,7 @@
 
   function openAnonymousSignup(event: MouseEvent): void {
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent('openSignupInterface'));
+    openGuestAccountEntry();
   }
 
   let anonymousFeatureNotice = $derived(role === 'system' && isAnonymousFeatureNotice(systemRawContent()));

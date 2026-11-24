@@ -53,6 +53,7 @@
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { resolveHeaderSwipeNavigation } from './headerSwipeNavigation';
   import { headerBubbleFocusChildEmbedId } from './headerImageBubbleKey';
+  import WorkspaceAccountButton from './workspace/WorkspaceAccountButton.svelte';
   import WorkspaceDetailHeader from './workspace/WorkspaceDetailHeader.svelte';
   import { resolveChatDisplayTitle } from '../utils/chatDisplayTitle';
 
@@ -874,13 +875,12 @@
           {/if}
 
           {#if showSignupCta}
-            <button
-              class="banner-signup-button"
-              data-testid="banner-signup-button"
-              onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
-            >
-              {$text('signup.sign_up')} / {$text('login.login')}
-            </button>
+            <div class="banner-account-action">
+              <WorkspaceAccountButton
+                testId="banner-signup-button"
+                label={`${$text('signup.sign_up')} / ${$text('login.login')}`}
+              />
+            </div>
           {/if}
         </div>
 
@@ -1109,13 +1109,12 @@
 
           <!-- Signup CTA rendered below the preview/play affordance for non-auth intro chats. -->
           {#if showSignupCta}
-            <button
-              class="banner-signup-button"
-              data-testid="banner-signup-button"
-              onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
-            >
-              {$text('signup.sign_up')} / {$text('login.login')}
-            </button>
+            <div class="banner-account-action">
+              <WorkspaceAccountButton
+                testId="banner-signup-button"
+                label={`${$text('signup.sign_up')} / ${$text('login.login')}`}
+              />
+            </div>
           {/if}
         </div>
       {:else}
@@ -2472,31 +2471,8 @@
     max-width: calc(100% - 40px);
   }
 
-  /* Sign-up CTA rendered inside the banner below the title, for non-auth intro chats. */
-  .banner-signup-button {
-    all: unset;
+  .banner-account-action {
     margin-top: var(--spacing-2);
-    padding: var(--spacing-5) var(--spacing-10);
-    border-radius: var(--radius-3);
-    background-color: var(--color-button-primary);
-    color: white;
-    cursor: pointer;
-    font-size: var(--font-size-lg);
-    font-weight: 700;
-    white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    transition: transform var(--duration-normal) var(--easing-default), box-shadow var(--duration-normal) var(--easing-default);
     pointer-events: auto;
-  }
-
-  .banner-signup-button:hover {
-    transform: scale(1.03);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-  }
-
-  .banner-signup-button:active {
-    background-color: var(--color-button-primary-pressed);
-    transform: scale(0.97);
-    box-shadow: none;
   }
 </style>

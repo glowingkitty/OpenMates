@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openGuestAccountEntry } from '@repo/ui/utils/guestAccountEntry';
   import { fitVisualViewport } from '$lib/actions/fitVisualViewport';
   import { routeConnectedAccountOAuthReturnToOpener } from '@repo/ui/services/connectedAccountOAuthReturn';
   import { recordRecentReplayDiagnostic } from '@repo/ui/services/recentChatWindowCache';
@@ -106,7 +107,7 @@
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
 	import { declareRustChatHistorySource } from '@openmates/ui/src/services/rustCore/activeChatRustHistory';
-	import { afterNavigate, replaceState } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
 	import AppsRoute from './apps/AppsRoute.svelte';
@@ -280,6 +281,37 @@
 	// selected workspace in sync before any asynchronous deep-link work starts.
 	let workspaceHash = $state(browser ? window.location.hash : page.url.hash);
 	let workspaceHashRoute = $derived(readWorkspaceHashRoute(workspaceHash));
+	let accountReturnHash = $state<string | null>(null);
+	let retainedWorkspaceRoute = $derived(readWorkspaceHashRoute(accountReturnHash ?? workspaceHash));
+
+	onMount(() => {
+		const openAccount = (event: Event) => {
+			if (workspaceHashRoute.workspace === 'chats' || accountReturnHash) return;
+			accountReturnHash = window.location.hash;
+			const signingUp = event.type === 'openSignupInterface';
+			if (signingUp) currentSignupStep.set(getStepFromPath('signup/basics'));
+			isInSignupProcess.set(signingUp);
+			loginInterfaceOpen.set(true);
+			panelState.closeSettings();
+			panelState.closeChats();
+		};
+		window.addEventListener('openLoginInterface', openAccount);
+		window.addEventListener('openSignupInterface', openAccount);
+		return () => {
+			window.removeEventListener('openLoginInterface', openAccount);
+			window.removeEventListener('openSignupInterface', openAccount);
+		};
+	});
+
+	$effect(() => {
+		if (!accountReturnHash || $loginInterfaceOpen || $isInSignupProcess) return;
+		const returnHash = accountReturnHash;
+		accountReturnHash = null;
+		if (window.location.hash !== returnHash &&
+			readWorkspaceHashRoute(window.location.hash).workspace === 'chats') {
+			void goto(`/${returnHash}`, { replaceState: true, noScroll: true });
+		}
+	});
 	$effect(() => {
 		const navigation = pendingExampleChatNavigation;
 		const chatSurface = activeChat;
@@ -2271,9 +2303,7 @@
 					notificationStore.addNotificationWithOptions('info', {
 						message: $text('signup.gift_card_waiting_notification').replace('{credits}', 'x'),
 						actionLabel: $text('signup.gift_card_waiting_action'),
-						onAction: () => {
-							window.dispatchEvent(new CustomEvent('openSignupInterface'));
-						},
+						onAction: openGuestAccountEntry,
 						duration: 10000,
 						dismissible: true
 					});
@@ -3933,21 +3963,26 @@
 
 <svelte:window bind:innerWidth={viewportWidth} onkeydown={handleSidebarEscape} />
 
-{#if workspaceHashRoute.workspace === 'apps'}
-	<AppsRoute />
-{:else if workspaceHashRoute.workspace === 'workflows'}
+{#if retainedWorkspaceRoute.workspace !== 'chats'}
+<div hidden={!!accountReturnHash} inert={!!accountReturnHash} style:display={accountReturnHash ? 'none' : 'contents'}>
+{#if retainedWorkspaceRoute.workspace === 'apps'}
+	<AppsRoute activeHash={accountReturnHash ?? page.url.hash} />
+{:else if retainedWorkspaceRoute.workspace === 'workflows'}
 	<WorkflowsRoute />
-{:else if workspaceHashRoute.workspace === 'projects'}
+{:else if retainedWorkspaceRoute.workspace === 'projects'}
 	<ProjectsRoute />
-{:else if workspaceHashRoute.workspace === 'plan-detail'}
-	{#key workspaceHashRoute.itemId}
-		<PlanDetailRoute planId={workspaceHashRoute.itemId} />
+{:else if retainedWorkspaceRoute.workspace === 'plan-detail'}
+	{#key retainedWorkspaceRoute.itemId}
+		<PlanDetailRoute planId={retainedWorkspaceRoute.itemId} />
 	{/key}
-{:else if workspaceHashRoute.workspace === 'tasks'}
-	{#key workspaceHashRoute.itemId}
-		<TasksRoute taskId={workspaceHashRoute.itemId} />
+{:else if retainedWorkspaceRoute.workspace === 'tasks'}
+	{#key retainedWorkspaceRoute.itemId}
+		<TasksRoute taskId={retainedWorkspaceRoute.itemId} />
 	{/key}
-{:else}
+{/if}
+</div>
+{/if}
+{#if workspaceHashRoute.workspace === 'chats' || accountReturnHash}
 <!-- Accessibility: skip navigation link for keyboard users (WCAG 2.4.1) -->
 <a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
 

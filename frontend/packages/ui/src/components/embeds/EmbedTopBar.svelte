@@ -20,6 +20,7 @@
   import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
   import { tooltip } from '../../actions/tooltip';
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
+  import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { text } from '@repo/ui';
   import { headerOverlayControls } from '../../actions/headerOverlayControls';
 
@@ -227,20 +228,7 @@
 <div class="embed-top-bar" data-testid="embed-top-bar" use:headerOverlayControls>
   <HeaderActionMenu reportInMenu={reportInMore} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} responsiveAction={onEnhance ? enhanceButton : undefined} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
     {#snippet report()}
-      <!-- Report Issue (always shown) -->
-      <div class="button-wrapper">
-        <button
-          data-testid="embed-report-issue-button"
-          class="header-action"
-          use:tooltip
-          onclick={onReportIssue}
-          aria-label={$text('header.report_issue')}
-          ><span class="clickable-icon icon_bug top-button" aria-hidden="true"
-          ></span><span class="action-label"
-            >{$text('header.report_issue')}</span
-          ></button
-        >
-      </div>
+      <WorkspaceReportIssueButton testId="embed-report-issue-button" onOpen={onReportIssue} />
     {/snippet}
     {#snippet share()}
       <!-- Share -->

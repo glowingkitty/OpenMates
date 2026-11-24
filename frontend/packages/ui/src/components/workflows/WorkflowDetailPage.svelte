@@ -85,7 +85,7 @@
 
 <div class="header-toolbar" data-testid="workflow-detail-actions" use:headerOverlayControls>
     <HeaderActionMenu resetKey={props.title} hasShare={!!saved} actionCount={saved ? (saved.canRun ? 3 : 2) : 0} forceOverflow>
-      {#snippet report()}<WorkspaceReportIssueButton toolbar/>{/snippet}
+      {#snippet report()}<WorkspaceReportIssueButton />{/snippet}
       {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={() => saved?.onOpenShare()} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
       {#snippet actions()}
         {#if saved}

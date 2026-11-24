@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workspace-shell
-version: 5
+version: 6
 status: draft
 title: Workspace Shell
 summary: >
@@ -123,6 +123,10 @@ assertions:
     type: behavior
     must: The Chats, Apps, and Workflows start screens, signed in and signed out, have no Daily Inspiration banner and share one layout. A "Hey <name>" (or "Hey there") greeting with one short call to action (Apps "Explore the apps OpenMates can use") sits above one row of at most ten large cards of the same size (no compact variant on any viewport) whose first card is horizontally centred; the browse actions (Chats Show all and Search, guests Select interests and Show all, Apps Show all apps and Search, Workflows Show templates) are the row's last item, and below the row only an optional upcoming entry and the suggestions remain. On a pane too short for the whole block it scrolls instead of clipping. Projects keeps the available-space rule and compact-card fit threshold relative to the shared Chats geometry; large cards appear only when the actual content area beneath Daily Inspiration can fit the greeting, cards, browse controls, and bottom composer; otherwise previews use compact single-line cards. Container resizing, inspiration height changes, and narrow or short viewports update the decision. Browse controls remain visible above the composer, and continuation content does not overlap inspiration or cause page overflow.
     depends_on: [models.WorkspaceStartShell, examples.available_space_cards]
+  - id: workspace-shell.guest.shared-account-entry
+    type: behavior
+    must: Account-only actions in the signed-out web workspace open the same account interface as Chat in the current browser tab. A device used to log in opens Login, and a new device opens Sign up. Workspace actions use the shared composer and header controls. Matched microphone and attachment icons grow and brighten by the same amount on hover, with their surrounding buttons keeping the same background and outline.
+    depends_on: [examples.guest_account_entry]
   - id: workspace-shell.kanban.figma-controls
     type: behavior
     must: The Tasks desktop board places a compact Search link and tags at the upper inline end beside the circular filter control, omits the dashboard-style board summary, and hides Search and tags on narrow viewports while preserving the filter control and horizontal Kanban.

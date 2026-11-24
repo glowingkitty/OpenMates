@@ -1,0 +1,24 @@
+schema_version: 2
+profile: concise
+id: workspace-chrome-parity
+title: Shared workspace chrome and guest account entry
+status: implementing
+goal: >-
+  Marco (TASK-2846): Use the same account entry flow, controls and subtle hover in Chat and the other
+  web workspaces. Known devices go to Login and new devices go to Sign up. Report Issue, matching
+  header actions, file and microphone controls have the same style across Workflows, Apps,
+  Projects, Tasks, Sheets, Docs and Design.
+scope:
+  - Reuse the existing account interface and browser login history for account-only guest actions.
+  - Reuse common report, header and composer controls with consistent sizing, colors and hover.
+  - Preserve signed-in behavior and workspace return after account entry.
+contracts:
+  - message-input.attachments.quick-access
+  - message-input.signed-out-two-states
+  - workflows-ui.guest.describe-signup-return
+verification:
+  required:
+    - Component preview proves shared button styles and hover at desktop and phone widths.
+    - Isolated web CI catches workspace-specific account overlays and differences in shared control dimensions.
+    - Deployed dev recordings cover blocked guest actions on new and known devices, and desktop hover.
+    - Compare signed-out and signed-in deployed workspace chrome side by side and send the evidence.

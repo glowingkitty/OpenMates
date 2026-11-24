@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workspace-shell@5
+specification: feature.workspace-shell@6
 
 released_navigation:
   - id: released-desktop-tabs-visible
@@ -53,6 +53,15 @@ visual_parity:
     then: >-
       The regions remain aligned to the mobile Chats shell with equal Apps inline gutters and each workspace
       content preserved. Chat and Workflow detail omit nonessential movement.
+guest_account_entry:
+  - id: workspace-guest-uses-chat-account-interface
+    given: A signed-out visitor uses Chat, Workflows, Apps, Projects or Tasks to perform an account-only action.
+    when: They click the action on a new device or on a device where they previously logged in.
+    then: The current tab shows the regular Chat account interface with Sign up or Login respectively, without opening another window or starting the account-only action.
+  - id: workspace-guest-control-hover
+    given: A visitor views a workspace composer on a device with a mouse.
+    when: They hover over its microphone and file controls.
+    then: Both icons grow and brighten by the same amount while the background and outline remain stable.
 figma_board_controls:
   - id: tasks-desktop-controls
     given: A user opens the Tasks board on desktop.

@@ -115,7 +115,7 @@
 <section class="project-workspace-header" data-testid="project-workspace-header" data-header-system="workspace-detail">
   <div class="project-header-actions" data-testid="project-header-actions" use:projectHeaderControls>
     <HeaderActionMenu hasShare={false} actionCount={2} forceOverflow triggerTestId="project-more-button" resetKey={title}>
-      {#snippet report()}<WorkspaceReportIssueButton toolbar />{/snippet}
+      {#snippet report()}<WorkspaceReportIssueButton />{/snippet}
       {#snippet share()}{/snippet}
       {#snippet actions()}
         <div class="new-chat-button-wrapper">

@@ -18,6 +18,7 @@
   import { text } from '../../i18n/translations';
   import RecordAudio from '../enter_message/RecordAudio.svelte';
   import CompactSendButton from '../enter_message/CompactSendButton.svelte';
+  import ComposerIconButton from './ComposerIconButton.svelte';
   import { isDesktop } from '../../utils/platform';
   import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
   import { createTextLiveTranscript, type TextLiveTranscriptController } from '../enter_message/services/textLiveTranscript';
@@ -46,6 +47,7 @@
     micTestId = `${surface}-input-mic`,
     onSubmit,
     onMicClick,
+    onAccountRequired,
     fileImport,
     recording = false,
     onUntranscribedAudio,
@@ -67,6 +69,7 @@
     micTestId?: string;
     onSubmit: SubmitCallback;
     onMicClick: MicCallback;
+    onAccountRequired?: () => void;
     /** Attachment shortcut; `onCamera` makes it take a photo on touch devices while blurred, like the chat composer. */
     fileImport?: { label: string; testId: string; onClick: () => void; onCamera?: () => void };
     recording?: boolean;
@@ -208,7 +211,7 @@
   });
 
   function handleFocusIn(event: FocusEvent): void {
-    if (event.target === textareaElement) {
+    if (event.target === textareaElement && !onAccountRequired) {
       focusActive = true;
     }
   }
@@ -308,36 +311,43 @@
 >
   {#if fileImport}
     {@const label = quickCamera ? $text('enter_message.attachments.take_photo') : fileImport.label}
-    <button
+    <ComposerIconButton
       class="workspace-prompt-file"
-      type="button"
-      data-testid={fileImport.testId}
+      icon={quickCamera ? 'icon_camera' : 'icon_files'}
+      insetIcon
+      testId={fileImport.testId}
       data-attachment-kind={quickCamera ? 'camera' : 'files'}
       aria-label={label}
       title={label}
       disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
-      onclick={() => (quickCamera && fileImport.onCamera ? fileImport.onCamera() : fileImport.onClick())}
-    ><span class="clickable-icon" class:icon_camera={quickCamera} class:icon_files={!quickCamera} aria-hidden="true"></span></button>
+      onclick={() => (onAccountRequired ?? (quickCamera && fileImport.onCamera ? fileImport.onCamera : fileImport.onClick))()}
+    />
   {/if}
   <div class="workspace-prompt-text">
     {#if collapsed && hasText}
       <span class="workspace-prompt-preview" aria-hidden="true" data-testid={`${inputTestId}-preview`}>{firstLine}</span>
     {/if}
     <textarea
+    onclick={onAccountRequired}
+    data-testid={inputTestId}
     wrap={surface === 'workflows' && !fileImport && !hasText ? 'off' : 'soft'}
     bind:this={textareaElement}
     bind:value
     rows="1"
-    data-testid={inputTestId}
     {placeholder}
     {disabled}
-    readOnly={submitting}
+    readOnly={submitting || !!onAccountRequired}
     aria-label={placeholder}
     class:dictation-processing={dictationProcessing}
     data-dictation-processing={dictationProcessing ? 'true' : 'false'}
     oninput={() => { if (textareaElement) dictation?.live.observe(textareaElement.value); void syncTextareaHeight(); }}
-    onkeydown={handleKeydown}
+    onkeydown={(event) => {
+      if (onAccountRequired && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        onAccountRequired();
+      } else handleKeydown(event);
+    }}
   ></textarea>
   </div>
   {#if collapsible && focused && !recording}
@@ -354,15 +364,15 @@
     ><span class="clickable-icon" class:icon_minimize={expanded} class:icon_fullscreen={!expanded} aria-hidden="true"></span></button>
   {/if}
   <div class="workspace-prompt-actions" data-testid={`${inputTestId}-actions`}>
-    <button
-      class="clickable-icon icon_recordaudio workspace-prompt-mic"
-      type="button"
-      data-testid={micTestId}
+    <ComposerIconButton
+      class="workspace-prompt-mic"
+      icon="icon_recordaudio"
+      testId={micTestId}
       aria-label="Voice input"
       disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
-      onclick={() => void onMicClick()}
-    ></button>
+      onclick={() => void (onAccountRequired ?? onMicClick)()}
+    />
     {#if hasText && focused}
       <button
         class="workspace-prompt-submit"
@@ -449,7 +459,7 @@
   }
 
   .workspace-prompt-composer.recording:not(.recording-with-text) .workspace-prompt-text,
-  .workspace-prompt-composer.recording .workspace-prompt-file,
+  .workspace-prompt-composer.recording :global(.workspace-prompt-file),
   .workspace-prompt-composer.recording .workspace-prompt-actions {
     display: none;
   }
@@ -517,7 +527,7 @@
     bottom: 16px;
   }
 
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-file {
+  .workspace-prompt-composer.collapsible.focused :global(.workspace-prompt-file) {
     top: auto;
     bottom: 16px;
     transform: none;
@@ -573,10 +583,6 @@
     transform: none;
     scale: none;
     filter: none;
-  }
-
-  .workspace-prompt-composer.collapsible.focused .workspace-prompt-file:hover {
-    transform: scale(1.05);
   }
 
   .workspace-prompt-composer.collapsible textarea {
@@ -714,7 +720,7 @@
     cursor: pointer;
   }
 
-  .workspace-prompt-file {
+  .workspace-prompt-composer :global(.workspace-prompt-file) {
     position: absolute;
     top: 50%;
     left: 12px;
@@ -732,43 +738,26 @@
     filter: none;
     transform: translateY(-50%);
     cursor: pointer;
-    /* Focus moves controls into the bottom row; don't animate their old offset through the text. */
-    transition: background-color .15s ease-in-out, scale .15s ease-in-out;
   }
 
-  .workspace-prompt-file span {
-    width: 25px;
-    height: 25px;
-    background: var(--color-primary);
-  }
-
-  .workspace-prompt-file:hover {
-    transform: translateY(-50%) scale(1.05);
-  }
-
-  .workspace-prompt-file:focus-visible {
+  .workspace-prompt-composer :global(.workspace-prompt-file:focus-visible) {
     outline: 2px solid var(--color-button-primary);
     outline-offset: 2px;
   }
 
-  .workspace-prompt-file:disabled,
+  .workspace-prompt-composer :global(.workspace-prompt-file:disabled),
   .workspace-prompt-submit:disabled,
-  .workspace-prompt-mic:disabled {
+  .workspace-prompt-composer :global(.workspace-prompt-mic:disabled) {
     opacity: 0.55;
     cursor: not-allowed;
   }
 
-  .workspace-prompt-mic {
+  .workspace-prompt-composer :global(.workspace-prompt-mic) {
     position: relative;
     flex-shrink: 0;
     margin: 0;
     background: var(--color-primary);
     touch-action: none;
-    transition: background-color .15s ease-in-out, scale .15s ease-in-out;
-  }
-
-  .workspace-prompt-mic:hover {
-    transform: scale(1.05);
   }
 
   @media (max-width: 730px) {

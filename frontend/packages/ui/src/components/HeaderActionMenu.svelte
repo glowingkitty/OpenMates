@@ -346,16 +346,16 @@
   }
   /* One interaction treatment for every toolbar pill, including More. */
   .header-action-menu :global(.button-wrapper),
-  .header-action-menu :global(.new-chat-button-wrapper) {
+  .header-action-menu :global(.new-chat-button-wrapper:not(.report-issue-button-shell)) {
     transition: background-color var(--duration-normal), transform var(--duration-normal), box-shadow var(--duration-normal);
   }
   .header-action-menu :global(.button-wrapper:hover),
-  .header-action-menu :global(.new-chat-button-wrapper:hover) {
+  .header-action-menu :global(.new-chat-button-wrapper:not(.report-issue-button-shell):hover) {
     transform: scale(1.08);
     box-shadow: var(--shadow-lg);
   }
   .header-action-menu :global(.button-wrapper:active),
-  .header-action-menu :global(.new-chat-button-wrapper:active) {
+  .header-action-menu :global(.new-chat-button-wrapper:not(.report-issue-button-shell):active) {
     transform: scale(0.95);
     box-shadow: var(--shadow-xs);
   }
@@ -456,13 +456,13 @@
     overflow-wrap: anywhere;
   }
   .more-actions :global(.button-wrapper),
-  .more-actions :global(.new-chat-button-wrapper) {
+  .more-actions :global(.new-chat-button-wrapper:not(.report-issue-button-shell)) {
     max-width: 100%;
     box-sizing: border-box;
     transform-origin: left center;
   }
   .more-actions :global(.button-wrapper:hover),
-  .more-actions :global(.new-chat-button-wrapper:hover) {
+  .more-actions :global(.new-chat-button-wrapper:not(.report-issue-button-shell):hover) {
     transform: scale(var(--menu-hover-scale));
   }
   .header-action-menu :global([data-header-overlay] .action-label) {

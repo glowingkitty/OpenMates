@@ -210,18 +210,18 @@ test('keeps the returning guest Login button unobscured and clickable', async ({
   }
 });
 
-// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
-test('keeps the guest favicon and centered dropdown when all controls fit', async ({ page }: { page: Page }) => {
-  for (const label of ['Sign up', 'Login']) {
-    if (label === 'Login') await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
-    for (const width of [480, 600, 730]) {
+for (const label of ['Sign up', 'Login']) {
+  for (const width of [480, 600, 730]) {
+    // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
+    test(`keeps the guest favicon and centered dropdown with ${label} at ${width}px`, async ({ page }: { page: Page }) => {
+      if (label === 'Login') await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
       await openHeader(page, width);
       await expect(page.getByTestId('header-login-signup-btn')).toHaveText(label, { useInnerText: true });
       await expectGuestControlsFit(page, false);
       if (width === 600 && label === 'Login') await page.screenshot({ path: test.info().outputPath('guest-roomy-login.png') });
-    }
+    });
   }
-});
+}
 
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('updates guest header positioning as available width changes', async ({ page }: { page: Page }) => {
@@ -260,5 +260,9 @@ test('preserves the signed-out desktop logo and workspace tabs', async ({ page }
   await expect(page.getByTestId('workspace-mobile-select')).toBeHidden();
   await expect(page.getByTestId('chats-nav-link')).toBeVisible();
   await expect(page.getByTestId('apps-nav-link')).toBeVisible();
-  await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+  const account = page.getByTestId('header-login-signup-btn');
+  await expect(account).toHaveAttribute('data-workspace-control', 'account');
+  await account.hover();
+  await expect(account).toHaveCSS('filter', 'brightness(1.12)');
+  await expect(account).toHaveCSS('transform', 'matrix(1.05, 0, 0, 1.05, 0, 0)');
 });

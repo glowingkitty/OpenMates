@@ -1184,17 +1184,17 @@ specifications:
     - sdks.pip
     - gui.web
   feature.workflows-ui:
-    version: 12
+    version: 13
     status: approved
     path: features/workflows-ui
-    fingerprint: 13a6d9d4a314006b7d91489c57ea4e13f55f075e7d926d2af7e05bc41b189cb9
+    fingerprint: 26efcfa85566fd8428c67addc38706735cacd91118234a3b13d1b871176f74e2
     required_applies_to:
     - gui.web
   feature.workspace-shell:
-    version: 5
+    version: 6
     status: draft
     path: features/workspace-shell
-    fingerprint: 241212de947c748ae218dc066b13c78dff2bb6de1e29ea235fa9a72f68a1890c
+    fingerprint: 4eb26aee2a2e901cf93eb86f6fefc8c53f9077d3a6a122e3cc189d5958238b14
     required_applies_to:
     - gui.web
   surface.cli:
@@ -17186,322 +17186,329 @@ assertions:
     - sdks.pip
     - gui.web
   workflows-ui.website-change.composition:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: daf395c098f1bdf0855593cba72b6f57cea1b26269b7fd1c5013f3d121e50ebd
+    fingerprint: cd61f9401bb711f01ca20a32ce33acd36d948d92950e6e62dfd44f1ef1157ae7
     required_applies_to:
     - gui.web
   workflows-ui.visual-language.coherent:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 4670022d26bb5b9a85db773aadda386476dc7f32d5f40e9ba07c53826dc1d390
     required_applies_to:
     - gui.web
   workflows-ui.identity.automatic-category-icon:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: d0cf7dc9b71159edaf6ce42560b4a07ff9cf481002ca1e586589e73338e7e53a
     required_applies_to:
     - gui.web
   workflows-ui.workspace.recommendation-led-composition:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: d87826cb653239bddd9f46071843d2d2f78d39d442cbf5ad67a254068d8e24a4
     required_applies_to:
     - gui.web
   workflows-ui.workspace.continue-priority:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 61451a8ade331b277c2491225cc94aa0457fc8bbe500ab208028be1b3bf81b62
     required_applies_to:
     - gui.web
   workflows-ui.workspace.owned-library-and-templates:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 65e40c6dfff0313901f0718cecb2dbd031714b1cd34eaa0217ec846c799ec5b8
     required_applies_to:
     - gui.web
   workflows-ui.workspace.guest-template-preview:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: be6bab7a5dd5b73a03169fa458d8f28719e6d3a0b617d8126e208926be2921e1
+    fingerprint: 15f545fa56989f3658750a314d6fbd2d8f282049deb6d4336fa4f3081a781f40
     required_applies_to:
     - gui.web
   workflows-ui.home.prompt-suggestions:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 9d722232e71cc48aa76e448a35927495e903e9faadadfdc25a3ee69a7de2d963
+    fingerprint: ff8cb99d8a937a897aa1c9fde6af2ff8b36fbc3d5e53479be21ac88fbfeacb85
     required_applies_to:
     - gui.web
   workflows-ui.guest.describe-signup-return:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: e9a27fe0badfe7874cea97a31c1cc7144f24180a7567f9e14a3facc10f94d633
+    fingerprint: c2f6d50a590d12541df4ee54b33e57475f9eb95df08d0626ab1986624171188c
     required_applies_to:
     - gui.web
   workflows-ui.detail-header.description-clamp:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 88112b8db465b16b420d66057496e592db6b125f53afb494fefa79bead73b2fb
+    fingerprint: 57cb5370facf3e95dbef82449e960f787aea5e64e1bda82aa92f64adb2bfe530
     required_applies_to:
     - gui.web
   workflows-ui.canvas.node-label-clamp:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 1e4d6486be4782cc056c46906945e7a897ef7af021393ea751256dedd277201f
+    fingerprint: 3acc353e8db42402035ae587bfddc88d8856fe51abccb05eaa815fd2bf15fc07
     required_applies_to:
     - gui.web
   workflows-ui.workspace.title-first-draft:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: a5cffbe41176baa43f00a608c4cecb49dcbbad43cd689a4bc9a4ec80ca0997a0
     required_applies_to:
     - gui.web
   workflows-ui.detail.stable-visual-header:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 86bf768238c71e4a4616aecb37ff069b2329d02ca5ff23f184baf543e8455e26
     required_applies_to:
     - gui.web
   workflows-ui.detail.shared-template-runs-tabs:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: c09b0c0bb74cb4d64dbeb46401a354af9cbdec7aa2cd3ffa93e4d8aca4e7a3bf
     required_applies_to:
     - gui.web
   workflows-ui.files.more-export:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: f6c0f4e76a093299697a5aee68ce2d47d56d74c431ae1a613427bd52cdfb268d
     required_applies_to:
     - gui.web
   workflows-ui.files.project-upload-import:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: bfd8a76f3d353b2bbc2c3aa6273621d3a153aa814b1cd9840a93f6757ad11937
     required_applies_to:
     - gui.web
   workflows-ui.files.composer-drop-import:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: f77c0a0078136c7f6053f8a90775d42a6f593cf537f19130ef84dcb990738882
     required_applies_to:
     - gui.web
   workflows-ui.detail.fullscreen-route-motion:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 20536eaebf78aa4b9026a268380d97f4cd225a82d668cd1719670eb9377bcec9
     required_applies_to:
     - gui.web
   workflows-ui.template.centered-in-place-editor:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: ff2533f169233dcf00141343506d4ec280f108201df5de6b01608070206c7676
     required_applies_to:
     - gui.web
   workflows-ui.template.node-scale-and-chevron:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 464bed72bb8579f07dad0d266499ca870640dc99fb98fa96ba02bb54ea2cb1c8
     required_applies_to:
     - gui.web
   workflows-ui.template.explicit-guarded-save:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: invariant
     fingerprint: 4d206a54ab58222085d718a9790675bd04316eb402d17ad5423aba817f52bd10
     required_applies_to:
     - gui.web
   workflows-ui.versions.timeline-readonly-restore-new:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: dd6ff20c5faba2e77ab1e8058b5fdc3cb286606c71d1b19ced87ece0af346eda
     required_applies_to:
     - gui.web
   workflows-ui.runs.timeline-execution-detail:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 24c3c42f62cf8d25b6682669abc2d2c42ab44a071050821eb457e71221ed43d2
     required_applies_to:
     - gui.web
   workflows-ui.responsive-accessible-reachable:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: d76bc989533327ab3eeca71f55f2d95709b2d12bfffdc978d05830a95d92e6e2
     required_applies_to:
     - gui.web
   workflows-ui.mvp.authoring:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 95c4e1ecf871319914d4ab3a0c96b01e9161a4ae01aa8dab6957a6cc75fed07c
     required_applies_to:
     - gui.web
   workflows-ui.authoring.composer-and-preview:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 5218e67801e190ddcdbdc105f7259411f065dc256c7683deed44c0e75af0e880
     required_applies_to:
     - gui.web
   workflows-ui.authoring.edit-control-and-undo:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: d5f2f4146b282ecadbe620753cc0466b10435056f3f24d4bcb71fd5b984e579e
     required_applies_to:
     - gui.web
   workflows-ui.mvp.ask-ai:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: ab4a68186047706a5cd5eb41e231c5d02b9dca96d9c320452e1b72cf51e5725d
     required_applies_to:
     - gui.web
   workflows-ui.if-editor.authored-conditions:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 23fed8c77773faa99573295317b5d9d1db5c44272ca7177d1784698514671b27
     required_applies_to:
     - gui.web
   workflows-ui.schedule.preview:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 6d08c1e10da8a09a979004119d4d533ef11abac8d0cde74d58fb59d17f6f9c04
     required_applies_to:
     - gui.web
   workflows-ui.message-and-budget:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 56663cb258e8a3180a329c5f682f83c36a0daa23abbd0cecfecc5946502f2c8e
     required_applies_to:
     - gui.web
   workflows-ui.editor.inline-action-variables:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 2c668063b0f0ce764226704f37aa96539d6c882d90cfddd3e951a0955a312be1
     required_applies_to:
     - gui.web
   workflows-ui.run-deletion-forgetting:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: a06e6f1bbfdcb4670bc16b6decc8da4f0b2a403a398b7d487d8044a14d4e4411
     required_applies_to:
     - gui.web
   workflows-ui.check.options:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: f39a9e0aaca851ceb0224d982df591b085bccc4413f736be09613f4c951c1767
     required_applies_to:
     - gui.web
   workflows-ui.for-each:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: b1f75437e707ba661f60023ce0851b7e89d0c98914aae5616b903ba8e1995a43
     required_applies_to:
     - gui.web
   workflows-ui.chat-owned:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 129e7aae003c80402c99fc3ae4bc8c924f9dd110da0fabe1b759cd91926750af
     required_applies_to:
     - gui.web
   workflows-ui.chat-pane.regular-editor:
-    specification: feature.workflows-ui@12
+    specification: feature.workflows-ui@13
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 141f0d8b3c1dfdeb4d9f040f6d98417f1835abf0b26336e2d83dcd1c9024fde8
     required_applies_to:
     - gui.web
   workspace-shell.nav.released-surfaces-visible:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: fbe67b0cdc183a5daa8d1d9ed5ef7eb06e79be5d938383be6195f9a3792f50f4
     required_applies_to:
     - gui.web
   workspace-shell.nav.compact-picker-appearance:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: a3b42ba683278c560e8417a5927052262cdc6907d8fe3d6e96a5ccc779e42099
     required_applies_to:
     - gui.web
   workspace-shell.nav.compact-picker-dismissal:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: fcf3e56c91b2e19831ce8e72b4576662ccfdc6df06d25fcc3c9736ace25b21c0
     required_applies_to:
     - gui.web
   workspace-shell.start.shared-affordances:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: 7ce5c67ce9b6971e8bfb58f1f5e8fdf62cbea1c26e2ebb9317fa83c0e509446c
     required_applies_to:
     - gui.web
   workspace-shell.start.chat-visual-parity:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: 4cce6b2aeabbb8d0fd236b6617ddf4d215e2156bc1b5fd427da26dc2eda462e7
     required_applies_to:
     - gui.web
   workspace-shell.start.available-space-cards:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: 1e87cbd399774a35c2f81c9c3f663d21ad8a2947e17977b9fa81bf216f19875c
     required_applies_to:
     - gui.web
+  workspace-shell.guest.shared-account-entry:
+    specification: feature.workspace-shell@6
+    specification_id: feature.workspace-shell
+    type: behavior
+    fingerprint: 146ddcc07a380695e7d57b572e56b3f1aecedff622e57ccd708505da5078943f
+    required_applies_to:
+    - gui.web
   workspace-shell.kanban.figma-controls:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: c51084ef8182611c6ba477a636b185ff84ab9b41939e8cd384a4d6b1d7cceb6d
     required_applies_to:
     - gui.web
   workspace-shell.kanban.scroll-containment:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: 92ff9fa777f36f965d8a14b6a2026294f40c7b25c26f75463532522364abdb6c
     required_applies_to:
     - gui.web
   workspace-shell.tasks.plan-integration:
-    specification: feature.workspace-shell@5
+    specification: feature.workspace-shell@6
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: 89ada967b78aa559ece89d5d79d50ae76030c2c0d39fe8cfd909e9d362edf9d4

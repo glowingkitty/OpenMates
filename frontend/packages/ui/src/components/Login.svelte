@@ -2,6 +2,7 @@
     import { fade, scale } from 'svelte/transition';
     import { text } from '@repo/ui';
     import AccountSuspended from './safety/AccountSuspended.svelte';
+    import WorkspaceReportIssueButton from './workspace/WorkspaceReportIssueButton.svelte';
     import { accountSuspension, captureAccountSuspension } from '../stores/accountSuspension';
     import { submitAppeal } from '../services/safetyAppealApi';
     import AppIconGrid from './AppIconGrid.svelte';
@@ -2295,15 +2296,7 @@
     <div class="login-container" data-testid={$isInSignupProcess ? 'signup-modal' : 'login-modal'} bind:this={loginContainer} in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
         <!-- Report issue button - fixed to top left for easy access during login/signup -->
         <div class="report-issue-button-wrapper">
-            <button
-                class="report-issue-button"
-                aria-label={$text('header.report_issue')}
-                onclick={handleReportIssue}
-                data-testid="report-issue-button"
-            >
-                <span class="clickable-icon icon_bug report-issue-icon"></span>
-                <span class="report-issue-label">{$text('header.report_issue')}</span>
-            </button>
+            <WorkspaceReportIssueButton showLabel={showDesktopGrids} onOpen={handleReportIssue} />
         </div>
         
         {#if showDesktopGrids && gridsReady}
@@ -2965,64 +2958,12 @@
         z-index: var(--z-index-dropdown); /* Above app icon grids */
     }
 
-    .report-issue-button {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-6);
-        background-color: var(--color-grey-10);
-        border: none;
-        border-radius: 40px;
-        padding: var(--spacing-6) var(--spacing-10) var(--spacing-6) var(--spacing-6);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        cursor: pointer;
-        white-space: nowrap;
-        overflow: hidden;
-        transition: transform var(--duration-fast) var(--easing-in-out),
-                    box-shadow var(--duration-fast) var(--easing-in-out),
-                    padding var(--duration-normal) var(--easing-in-out);
-    }
-
-    .report-issue-button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-
-    .report-issue-button:active {
-        transform: scale(0.95);
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .report-issue-icon {
-        flex-shrink: 0;
-    }
-
-    .report-issue-label {
-        font-size: var(--font-size-sm);
-        font-weight: 500;
-        color: var(--color-grey-80);
-        line-height: 1;
-        overflow: hidden;
-        max-width: 200px;
-        opacity: 1;
-        transition: max-width var(--duration-normal) var(--easing-in-out),
-                    opacity var(--duration-normal) var(--easing-in-out);
-    }
-
-    /* On mobile: collapse to icon-only with smooth transition */
     @media (max-width: 600px) {
         .report-issue-button-wrapper {
             top: 10px;
             left: 10px;
         }
 
-        .report-issue-button {
-            padding: var(--spacing-4);
-        }
-
-        .report-issue-label {
-            max-width: 0;
-            opacity: 0;
-        }
     }
 
 </style>

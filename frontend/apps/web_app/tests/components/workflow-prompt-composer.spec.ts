@@ -38,6 +38,36 @@ async function expectFullWidthCancel(page: Page, formTestId: string, inputTestId
 }
 
 test.describe('Workflow prompt composer', () => {
+  // contract-test: direct surface=gui.web assertions=workspace-shell.guest.shared-account-entry
+  test('file and microphone glyphs use the same ring-free hover', async ({ page }: { page: Page }) => {
+    await page.setViewportSize({ width: 1000, height: 800 });
+    await page.goto(preview(680));
+    await waitForComponentPreview(page);
+    const file = page.getByTestId('workflow-import-button');
+    const microphone = page.getByTestId('workflows-input-mic');
+    for (const button of [file, microphone]) {
+      await expect(button).toBeVisible();
+      await expect(button).toHaveAttribute('data-workspace-control', 'composer-icon');
+      const readStyle = () => button.evaluate(element => {
+        const glyph = element.querySelector('[aria-hidden="true"]') ?? element;
+        const iconStyle = getComputedStyle(glyph);
+        const buttonStyle = getComputedStyle(element);
+        return {
+          scale: iconStyle.scale, filter: iconStyle.filter,
+          hitAreaScale: glyph === element ? null : buttonStyle.scale,
+          background: buttonStyle.background, shadow: buttonStyle.boxShadow, outline: buttonStyle.outlineStyle,
+        };
+      });
+      const initial = await readStyle();
+      await button.hover();
+      await expect.poll(readStyle).toEqual({ ...initial, scale: '1.05', filter: 'brightness(1.12)' });
+      await test.info().attach(`${await button.getAttribute('data-testid')}-hover`, {
+        body: await page.getByTestId('workflows-input-composer').screenshot(),
+        contentType: 'image/png',
+      });
+    }
+  });
+
   for (const [width, theme] of [[320, 'light'], [390, 'dark'], [1024, 'light']] as const) {
     // contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable
     test(`edit placeholder stays on one line at ${width}px in ${theme} mode and entered instructions expand`, async ({ page }: { page: Page }) => {

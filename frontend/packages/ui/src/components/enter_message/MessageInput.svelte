@@ -69,6 +69,7 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import CompactSendButton from './CompactSendButton.svelte';
+    import ComposerIconButton from '../workspace/ComposerIconButton.svelte';
     import GuestAccessReason from './GuestAccessReason.svelte';
     import { loadGuestAccessPhase, resolveGuestComposerState, type GuestAccessPhase } from './guestComposerState';
     import MapsView from './MapsView.svelte';
@@ -103,6 +104,7 @@
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
+    import { openGuestAccountEntry } from '../../utils/guestAccountEntry';
     import { AnonymousTranscriptionUsageError, type AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
     import { createLiveTranscriptController, LIVE_TRANSCRIPT_META, type LiveTranscriptController } from './services/liveTranscriptInsertion';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
@@ -5661,7 +5663,7 @@
                 actionLabel: $text('signup.sign_up'),
                 duration: 10000,
                 dedupeKey: 'anonymous-daily-credits-exhausted',
-                onAction: () => window.dispatchEvent(new CustomEvent('openSignupInterface')),
+                onAction: openGuestAccountEntry,
             });
         } else {
             notificationStore.error($text('common.try_again'));
@@ -6576,13 +6578,11 @@
     }
 
     async function handleSignUpClick() {
-        const authEvent = guestComposerState?.kind === 'account' && guestComposerState.action === 'login'
-            ? 'openLoginInterface' : 'openSignupInterface';
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
             // Still open the auth interface even if draft can't be saved.
             setPendingAnonymousFileAttachment(false);
-            window.dispatchEvent(new CustomEvent(authEvent));
+            openGuestAccountEntry();
             return;
         }
 
@@ -6631,7 +6631,7 @@
         
         console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
 
-        window.dispatchEvent(new CustomEvent(authEvent));
+        openGuestAccountEntry();
     }
 
     function _handleInsertSpace() {
@@ -7827,23 +7827,24 @@
         {/if}
 
         {#if showEmptyInputAffordances && !callOwnsAudio}
-			<button
+			<ComposerIconButton
                 class="empty-input-attachment-button"
-                type="button"
-                data-testid="composer-attachment-shortcut"
+                testId="composer-attachment-shortcut"
+                icon={quickAttachmentUsesCamera ? 'icon_camera' : 'icon_files'}
+                insetIcon
                 aria-label={$text(quickAttachmentUsesCamera ? 'enter_message.attachments.take_photo' : 'enter_message.attachments.attach_files')}
                 onpointerdown={(event) => event.preventDefault()}
                 onclick={handleQuickAttachment}
-            ><span class="clickable-icon {quickAttachmentUsesCamera ? 'icon_camera' : 'icon_files'}" aria-hidden="true"></span></button>
-			<button
-				class="clickable-icon icon_recordaudio empty-input-mic-button"
-				type="button"
-				data-testid="guest-cta-mic-button"
+            />
+			<ComposerIconButton
+				class="empty-input-mic-button"
+				icon="icon_recordaudio"
+				testId="guest-cta-mic-button"
 				data-record-audio-trigger="true"
 				aria-label={$text('enter_message.attachments.record_audio')}
 				onmousedown={(event) => onRecordMouseDown(new CustomEvent('recordMouseDown', { detail: { originalEvent: event } }))}
 				ontouchstart={(event) => onRecordTouchStart(new CustomEvent('recordTouchStart', { detail: { originalEvent: event } }))}
-			></button>
+			/>
 		{/if}
 
         <!-- Focus mode pill: shown when a focus mode is active.
@@ -8284,7 +8285,7 @@
         line-height: 48px;
     }
 
-    .empty-input-attachment-button {
+    .message-field :global(.empty-input-attachment-button) {
         position: absolute;
         top: 50%;
         left: 14px;
@@ -8306,22 +8307,12 @@
         cursor: pointer;
     }
 
-    .empty-input-attachment-button span {
-        width: 24px;
-        height: 24px;
-        /* Use the shared clickable-icon gradient, matching the microphone. */
-    }
-
-    .empty-input-attachment-button:hover {
-        background: var(--color-grey-10);
-    }
-
-    .empty-input-attachment-button:focus-visible {
+    .message-field :global(.empty-input-attachment-button:focus-visible) {
         outline: 2px solid var(--color-primary);
         outline-offset: 2px;
     }
 
-	.empty-input-mic-button {
+	.message-field :global(.empty-input-mic-button) {
 		position: absolute;
 		top: 50%;
 		right: 24px;
@@ -8329,10 +8320,6 @@
 		transform: translateY(-50%);
 		touch-action: none;
 		background: var(--color-primary);
-	}
-
-	.empty-input-mic-button:hover {
-		transform: translateY(-50%) scale(1.05);
 	}
 
     /* Edit message banner — shown above the editor when editing a previous message */
