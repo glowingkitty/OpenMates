@@ -640,7 +640,10 @@
         "cli-tui-team-direct-chat.spec.ts",
         "newsletter-flow.spec.ts",
         "voice-call.spec.ts",
+        "voice-call-existing-chat.spec.ts",
         "voice-call-ambient-sounds.spec.ts",
+        "voice-call-opening.spec.ts",
+        "voice-call-guest.spec.ts",
         "voice-call-screen-share.spec.ts",
         "authored-results-media.spec.ts",
         "real-inference-image-model.spec.ts"
@@ -738,6 +741,7 @@
         "chat-interrupted-followup.spec.ts",
         "workflow-metadata-warmup.spec.ts",
         "voice-call.spec.ts",
+        "voice-call-existing-chat.spec.ts",
         "cli-recovery-fixtures.spec.ts",
         "rust-core-browser-session.spec.ts",
         "rust-core-browser-password-entry.spec.ts",
@@ -881,7 +885,8 @@
         "account-retirement-reads.spec.ts",
         "teams-direct-chat.spec.ts",
         "cli-tui-team-direct-chat.spec.ts",
-        "voice-call.spec.ts"
+        "voice-call.spec.ts",
+        "voice-call-existing-chat.spec.ts"
       ]
     },
     "storage_accountability_integration": {

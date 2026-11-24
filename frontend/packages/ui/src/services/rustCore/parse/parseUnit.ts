@@ -40,6 +40,7 @@ export function createParseHandlers(binding: ParseBinding): UnitHandlers<ParseUn
 			return call(() => binding.parse_normalize_plan(text(p.plan)));
 		},
 		stripVoiceCues: (payload) => binding.parse_strip_voice_cues(text(record(payload).markdown)),
+		guestVoice: (payload) => binding.parse_guest_voice(text(record(payload).input)),
 		imageRecoveryParents: (payload) => {
 			const p = record(payload);
 			return call(() => binding.parse_image_recovery_parents(text(p.source)));

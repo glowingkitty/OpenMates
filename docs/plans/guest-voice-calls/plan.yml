@@ -1,0 +1,71 @@
+schema_version: 2
+profile: concise
+id: guest-voice-calls
+title: Voice calls for signed-out visitors and voice post-update checks
+status: implementing
+goal: >-
+  Marco, 23 Nov 2026 (TASK-442): a signed-out visitor on web and mobile web can
+  start a full voice call (not only composer dictation), speak and hear a spoken
+  reply. The existing free usage allowance for signed-out users applies to calls,
+  counted against the same allowance as guest chat, with no separate budget.
+  After every dev deploy and every production update the standard checks run a
+  real voice call for a temporary signed-in test user and for a signed-out
+  visitor, recorded with sound; a failure fails the update and pushes Marco.
+  Same branch, owner receipt 19e77e24b6199903: the Start button tooltip shows only
+  "Start voice call", and the call strip opens exactly once without flicker.
+scope:
+  - >-
+    Backend guest call socket (new module beside voice_call.py, which stays
+    account-only): credential-free first-party connection with allowed Origin and
+    the client anonymous id; admission, Voxtral STT minutes and the completion
+    check reserve and settle against AnonymousFreeUsageService exactly like guest
+    dictation (identity/IP and shared daily, weekly and monthly limits); a
+    per-identity call lock; no Directus chat, user, credits or call registry.
+  - >-
+    Guest spoken reply: a first-party anonymous speech route turns the guest
+    reply text into Eleven v4 Turbo audio, metered on the same anonymous
+    allowance by characters (reserve before dispatch, settle after); no audio or
+    text is stored server-side.
+  - >-
+    Web: the call button is offered to guests on new and guest chats; the guest
+    controller drives the same call bar. The Rust core owns wire messages and
+    speech request preparation. The web shell sends finished turns through the guest
+    chat stream (/v1/anonymous/chat/stream, local-only chat), plays the spoken
+    reply and ends the call with the sign-up message when the allowance is used.
+  - >-
+    Post-update voice check (Playwright, with proof audio): signed-in throwaway
+    account plus signed-out visitor, each starts a call, speaks a sentence and
+    waits for spoken reply audio; runs after dev deploys and in the
+    update-prod-server checks from the next release; failure pushes Marco;
+    throwaway accounts are deleted afterwards. Production creates them through
+    the AI test users' gift-card signup and excludes them from user and usage
+    statistics.
+contracts:
+  - video-call.chat.call-strip-opening
+  - video-call.guest-calls
+  - billing.anonymous.hard-capped-provider-metering
+decisions:
+  - >-
+    Owner, 23 Nov 2026: guest calls use the existing anonymous free allowance,
+    with no separate budget; ask only genuinely important cost or privacy
+    architecture questions in one push.
+  - >-
+    Guests have no account, so the first-call provider notice is accepted per
+    browser; the acknowledgement stays in that browser's local storage and the
+    guest call socket refuses a start without it. Signed-in accounts keep the
+    profile acknowledgement.
+  - >-
+    Guest calls are bounded like guest dictation (call length, idle timeout,
+    one call per identity) in addition to the allowance, so one visitor cannot
+    hold a provider connection open; the allowance ends the call first when it
+    is lower.
+  - >-
+    Guest call chats stay local-only like guest chats: no Directus chat,
+    message or embed records, and no server-side transcript or audio retention.
+verification:
+  required:
+    - Backend pytest for guest call admission, metering, refusal and settlement; guest speech metering.
+    - Isolated CI E2E of a guest web call (desktop and phone width) with proof audio.
+    - voice-call-opening.spec.ts green with the tooltip and single-opening assertions.
+    - Real dev run of the post-update voice check from the deployed commit, both callers, videos with sound.
+  evidence: ''

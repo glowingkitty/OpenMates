@@ -28,6 +28,12 @@ pub fn parse_strip_voice_cues(markdown: &str) -> String {
     voice_cues::strip_voice_cues(markdown)
 }
 
+/// Marshals the shared core's guest voice protocol for the browser worker.
+#[wasm_bindgen]
+pub fn parse_guest_voice(input: &str) -> Result<String, JsValue> {
+    openmates_sdk::guest_voice::plan_json(input).map_err(JsValue::from_str)
+}
+
 /// Semantic summary of a compiled plan (`blocks::normalize_json`).
 #[wasm_bindgen]
 pub fn parse_normalize_plan(plan_json: &str) -> Result<String, JsValue> {
