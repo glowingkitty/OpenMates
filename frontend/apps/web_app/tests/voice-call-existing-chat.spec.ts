@@ -79,10 +79,17 @@ test.describe('Voice mode through ordinary chat', () => {
       data: { session_id: sessionId }, headers: { Origin: new URL(page.url()).origin },
     });
     expect(rotated.status()).toBe(200);
-    expect((await rotated.json()).success).toBe(true);
+    const rotatedSession = await rotated.json();
+    expect(rotatedSession.success).toBe(true);
     const successor = await refreshCookie();
     expect(Boolean(successor && successor !== original),
       'The refresh publishes a successor cookie.').toBe(true);
+    // This API request bypasses the app's refresh handler. Install the
+    // server-issued token as the handler would, keeping the chat socket open.
+    if (typeof rotatedSession.ws_token !== 'string' || !rotatedSession.ws_token) {
+      throw new Error('The refresh did not issue a signed WebSocket token.');
+    }
+    await page.evaluate((token: string) => sessionStorage.setItem('ws_token', token), rotatedSession.ws_token);
 
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});

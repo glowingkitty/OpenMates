@@ -201855,7 +201855,7 @@ assertions:
       surface: gui.web
     - &id25506
       path: frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts
-      line: 112
+      line: 119
       name: starts the first voice call right after password signup without reload
       surface: gui.web
     - &id25507
