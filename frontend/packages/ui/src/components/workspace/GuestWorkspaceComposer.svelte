@@ -8,7 +8,7 @@
 </script>
 
 <div class="guest-workspace">
-  <WorkspaceHomeShell {surface} {heading} showReportIssue testId={`${surface}-guest-composer`}>
+  <WorkspaceHomeShell {surface} {heading} showReportIssue testId={`${surface}-guest-composer`} onStartInspiration={openGuestAccountEntry}>
     <svelte:fragment slot="composer">
       <WorkspacePromptComposer
         {surface}

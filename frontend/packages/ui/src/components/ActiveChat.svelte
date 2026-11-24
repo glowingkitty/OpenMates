@@ -8436,13 +8436,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 (inspiration.feature?.requires_authentication === true && settingsPath !== 'privacy/hide-personal-data') ||
                 AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS.has(inspiration.feature?.feature_id ?? '')
             )) {
-                console.debug('[ActiveChat] Guest clicked authenticated-only feature inspiration – opening signup interface');
-                currentSignupStep.set(STEP_BASICS);
-                isInSignupProcess.set(true);
-                loginInterfaceOpen.set(true);
-                if ($panelState.isActivityHistoryOpen) {
-                    panelState.toggleChats();
-                }
+                openGuestAccountEntry();
                 return;
             }
             settingsMenuVisible.set(true);
@@ -8461,17 +8455,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        // Unauthenticated users: open the signup screen (basics step) so they
-        // can register and then start using inspirations.
-        // Same pattern as handleOpenSignupInterface (message-input signup button).
         if (!$authStore.isAuthenticated) {
-            console.debug('[ActiveChat] Guest clicked inspiration banner – opening signup interface');
-            currentSignupStep.set(STEP_BASICS);
-            isInSignupProcess.set(true);
-            loginInterfaceOpen.set(true);
-            if ($panelState.isActivityHistoryOpen) {
-                panelState.toggleChats();
-            }
+            openGuestAccountEntry();
             return;
         }
 

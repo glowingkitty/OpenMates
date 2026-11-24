@@ -2088,8 +2088,13 @@
 		if (!authSessionValidated || $forcedLogoutInProgress) return;
 		if ($authStore.isAuthenticated) {
 			if (!pendingDeepLinkLoginRequested) void replayPendingDeepLinkIfAuthenticated();
-		} else if (pendingDeepLinkLoginRequested) {
-			loginInterfaceOpen.set(true);
+		} else if (pendingDeepLinkLoginRequested && !get(loginInterfaceOpen)) {
+			const destination = parseDeepLink(sessionStorage.getItem('pendingDeepLink') ?? '');
+			if (destination?.type === 'settings') {
+				openGuestAccountEntry();
+			} else {
+				loginInterfaceOpen.set(true);
+			}
 		}
 	});
 

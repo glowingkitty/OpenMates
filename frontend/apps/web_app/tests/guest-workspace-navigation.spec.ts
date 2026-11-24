@@ -170,3 +170,17 @@ test.describe('Guest Describe new workflow', () => {
     }
   }
 });
+
+test.describe('Guest account-only Settings links', () => {
+  for (const known of [false, true]) {
+    // contract-test: direct surface=gui.web assertions=workspace-shell.guest.shared-account-entry
+    test(`protected Settings opens the chat account interface on a ${known ? 'known' : 'new'} device`, async ({ page }: { page: Page }) => {
+      if (known) await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
+      await page.goto(getE2EDebugUrl('/#settings/privacy'), { waitUntil: 'domcontentloaded' });
+      const account = page.getByTestId('login-wrapper');
+      await expect(account.getByTestId(known ? 'login-modal' : 'signup-modal')).toBeVisible({ timeout: 30_000 });
+      await expect(account).toHaveCount(1);
+      expect(await page.evaluate(() => sessionStorage.getItem('pendingDeepLink'))).toContain('settings/privacy');
+    });
+  }
+});
