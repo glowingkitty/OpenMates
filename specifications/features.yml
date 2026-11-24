@@ -443,7 +443,7 @@ features:
     subfeatures:
       - id: dictation
         name: "Dictation"
-        description: "Realtime transcription, editable transcript, guest admission, workspace dictation"
+        description: "Realtime transcription, gated correction, editable transcript, guest admission, workspace dictation"
         assertions: ["message-input.audio.*"]
       - id: audio-recording
         name: "Audio recording"

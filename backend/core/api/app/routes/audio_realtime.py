@@ -16,6 +16,7 @@ import os
 import struct
 import uuid
 from typing import Any, Optional, Callable
+from urllib.request import getproxies, proxy_bypass
 
 import aiohttp
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect, status
@@ -60,11 +61,13 @@ from backend.shared.providers.transcript_correction import (
     correct_transcript,
     mercury_correction_enabled,
 )
+from backend.shared.providers.transcript_correction_gate import should_skip_transcript_correction
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/apps/audio")
 
 MISTRAL_REALTIME_URL = "wss://api.mistral.ai/v1/audio/transcriptions/realtime"
+MISTRAL_REALTIME_HOST = "api.mistral.ai"
 MISTRAL_REALTIME_MODEL = "voxtral-mini-transcribe-realtime-3-0"
 # Dictation favors accuracy over aggressive endpointing. Keep the existing
 # one-second preview delay; turn detection is for calls, not manually ended input.
@@ -77,6 +80,7 @@ LOCK_TTL_SECONDS = MAX_AUDIO_SECONDS + 120
 REALTIME_CREDITS_PER_MINUTE = REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE
 REALTIME_USAGE_TYPE = "realtime_transcription"
 INTERRUPTED_REALTIME_USAGE_TYPE = "realtime_transcription_interrupted"
+DICTATION_CORRECTION_CONTEXT = "dictation"
 
 
 def _origin_is_allowed(websocket: WebSocket) -> bool:
@@ -223,13 +227,22 @@ async def _correct_segment(
     raw_transcript: str,
     language: Optional[str],
     context: Optional[str] = None,
-) -> dict[str, str]:
+) -> dict[str, str] | None:
     """Correct one bounded batch through the established provider policy."""
     workflow_context = context == "workflow"
     first_workflow_model = _initial_correction_model(language, context)
     result: dict[str, str] | None = None
     correction_model = GEMINI_CORRECTION_MODEL
-    if not workflow_context:
+    if context == DICTATION_CORRECTION_CONTEXT:
+        if await should_skip_transcript_correction(
+            raw_transcript, language, websocket.app.state.secrets_manager
+        ):
+            return None
+        result = await correct_transcript(
+            raw_transcript, websocket.app.state.secrets_manager, language, include_title=False
+        )
+        correction_model = result["model"]
+    elif not workflow_context:
         result = await correct_transcript(
             raw_transcript, websocket.app.state.secrets_manager, language
         )
@@ -283,13 +296,17 @@ async def _correct_segment(
             raw_transcript, google_key, language
         )
     corrected = sanitize_text_simple(
-        result["corrected_transcript"], log_prefix="[AudioRealtime][Correction] "
+        result["corrected_transcript"], log_prefix="[AudioRealtime][Correction] ",
+        log_hidden_ascii=False,
     )
     if not corrected.strip():
         raise RuntimeError("Transcript correction returned empty text")
+    if context == DICTATION_CORRECTION_CONTEXT:
+        return {"transcript": corrected, "correction_model": correction_model}
     title = clean_transcript_title(
         sanitize_text_simple(
-            result.get("title", ""), log_prefix="[AudioRealtime][Correction title] "
+            result.get("title", ""), log_prefix="[AudioRealtime][Correction title] ",
+            log_hidden_ascii=False,
         )
     )
     return {"title": title, "transcript": corrected, "correction_model": correction_model}
@@ -308,9 +325,10 @@ async def _correct_and_send(
             {"type": "correction.skipped", "transcript": raw_transcript}
         )
         return
-    await websocket.send_json(
-        {"type": "correction.started", "model": _initial_correction_model(language, context)}
-    )
+    started = {"type": "correction.started"}
+    if context != DICTATION_CORRECTION_CONTEXT:
+        started["model"] = _initial_correction_model(language, context)
+    await websocket.send_json(started)
     try:
         result = (
             await streaming_correction.finish(raw_transcript, language)
@@ -319,7 +337,10 @@ async def _correct_and_send(
         )
         if success_guard is not None:
             success_guard()
-        await websocket.send_json({"type": "correction.done", **result})
+        if result is None:
+            await websocket.send_json({"type": "correction.skipped", "transcript": raw_transcript})
+        else:
+            await websocket.send_json({"type": "correction.done", **result})
     except Exception as exc:
         # Both correction completion frames resolve the browser's pending draft.
         # Propagate guest admission/accounting failures before either can permit
@@ -448,15 +469,14 @@ async def realtime_transcription(
     provider_done = False
     billing_task: Optional[asyncio.Task[None]] = None
     chat_id = (websocket.query_params.get("chat_id") or None) if not guest else None
-    correction_context = (
-        "workflow"
-        if not guest and websocket.query_params.get("correction_context") == "workflow"
-        else None
-    )
+    requested_context = websocket.query_params.get("correction_context")
+    correction_context = None
+    if requested_context == DICTATION_CORRECTION_CONTEXT or (not guest and requested_context == "workflow"):
+        correction_context = requested_context
     # First-party stream: account billing or guest atomic reservations guard
     # the audio and every background correction provider attempt.
     # Audio, raw text and corrected batches stay ephemeral in this connection.
-    async def correct_batch(text: str, language: Optional[str]) -> dict[str, str]:
+    async def correct_batch(text: str, language: Optional[str]) -> dict[str, str] | None:
         nonlocal guest_correction_error
         token = correction_accountant.set(guest) if guest else None
         try:
@@ -497,12 +517,15 @@ async def realtime_transcription(
 
         timeout = aiohttp.ClientTimeout(total=None, sock_connect=10, sock_read=GUEST_IDLE_SECONDS if guest else 90)
         provider_url = f"{MISTRAL_REALTIME_URL}?model={MISTRAL_REALTIME_MODEL}"
+        # Respect the configured TLS egress proxy for secure WebSockets too.
+        proxies = getproxies() if not proxy_bypass(MISTRAL_REALTIME_HOST) else {}
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.ws_connect(
                 provider_url,
                 headers={"Authorization": f"Bearer {mistral_key}"},
                 heartbeat=20,
                 max_msg_size=2 * 1024 * 1024,
+                proxy=proxies.get("wss") or proxies.get("https"),
             ) as provider:
                 async def receive_setup_event() -> dict[str, Any]:
                     if not guest:
@@ -655,6 +678,7 @@ async def realtime_transcription(
                                 delta = sanitize_text_simple(
                                     str(event.get("text") or ""),
                                     log_prefix="[AudioRealtime][Mistral delta] ",
+                                    log_hidden_ascii=False,
                                 )
                                 if guest and not guest_forwarded_bytes:
                                     delta = ""
@@ -671,6 +695,7 @@ async def realtime_transcription(
                                 provider_final_text = sanitize_text_simple(
                                     str(event.get("text") or "").strip(),
                                     log_prefix="[AudioRealtime][Mistral] ",
+                                    log_hidden_ascii=False,
                                 )
                                 # Realtime text is delivered through deltas. The
                                 # done payload can contain only the final window;

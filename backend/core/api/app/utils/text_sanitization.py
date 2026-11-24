@@ -212,7 +212,9 @@ def _decode_unicode_tags(text: str) -> Optional[str]:
 def sanitize_text_for_ascii_smuggling(
     text: str,
     log_prefix: str = "",
-    include_stats: bool = False
+    include_stats: bool = False,
+    *,
+    log_hidden_ascii: bool = True,
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Sanitize text to remove ASCII smuggling attack vectors.
@@ -221,7 +223,7 @@ def sanitize_text_for_ascii_smuggling(
     to embed hidden instructions in text while preserving legitimate content.
     
     PROCESSING STEPS:
-    1. Detect and log any hidden Unicode Tags content (for security monitoring)
+    1. Detect hidden Unicode Tags content and log the detection for security monitoring
     2. Remove all Unicode Tags characters (U+E0000-U+E007F)
     3. Remove all Variant Selectors
     4. Remove Zero-Width characters
@@ -234,6 +236,7 @@ def sanitize_text_for_ascii_smuggling(
         text: The input text to sanitize
         log_prefix: Optional prefix for log messages (e.g., task_id, request_id)
         include_stats: Whether to include detailed statistics in the result
+        log_hidden_ascii: Whether to include the decoded hidden text in the detection log
     
     Returns:
         Tuple of:
@@ -283,12 +286,11 @@ def sanitize_text_for_ascii_smuggling(
     # This helps identify potential attacks even though we remove the characters
     hidden_ascii = _decode_unicode_tags(text)
     if hidden_ascii:
-        # Log the detected hidden content for security analysis
-        # This is critical for identifying attack patterns
         logger.warning(
-            f"{log_prefix}[ASCII SMUGGLING DETECTED] Found hidden Unicode Tags content: "
-            f"'{hidden_ascii[:500]}{'...' if len(hidden_ascii) > 500 else ''}' "
-            f"(length: {len(hidden_ascii)} chars)"
+            "%s[ASCII SMUGGLING DETECTED] Found hidden Unicode Tags (length: %d chars)%s",
+            log_prefix,
+            len(hidden_ascii),
+            f": {hidden_ascii[:500]!r}" if log_hidden_ascii else "",
         )
     
     # Step 2-7: Remove all invisible characters
@@ -363,7 +365,9 @@ def sanitize_text_for_ascii_smuggling(
     return sanitized_text, stats
 
 
-def sanitize_text_simple(text: str, log_prefix: str = "") -> str:
+def sanitize_text_simple(
+    text: str, log_prefix: str = "", *, log_hidden_ascii: bool = True
+) -> str:
     """
     Simple wrapper that returns only the sanitized text.
     
@@ -372,11 +376,14 @@ def sanitize_text_simple(text: str, log_prefix: str = "") -> str:
     Args:
         text: The input text to sanitize
         log_prefix: Optional prefix for log messages
+        log_hidden_ascii: Whether to include the decoded hidden text in the detection log
     
     Returns:
         The sanitized text with all invisible characters removed
     """
-    sanitized, _ = sanitize_text_for_ascii_smuggling(text, log_prefix, include_stats=False)
+    sanitized, _ = sanitize_text_for_ascii_smuggling(
+        text, log_prefix, include_stats=False, log_hidden_ascii=log_hidden_ascii,
+    )
     return sanitized
 
 

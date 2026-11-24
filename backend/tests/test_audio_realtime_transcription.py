@@ -5,6 +5,7 @@ import base64
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 import yaml
@@ -19,6 +20,9 @@ from backend.apps.audio.pricing import (
 )
 from backend.apps.audio.skills.transcribe_skill import VOXTRAL_MODEL
 from backend.core.api.app.routes import audio_realtime
+from backend.shared.providers import transcript_correction_gate as gate
+from backend.shared.providers.typesafe.client import DecisionResponseInvalid
+from backend.shared.providers.typesafe.models import NoulAnswer
 
 
 class _FakeWebSocket:
@@ -700,6 +704,56 @@ async def test_realtime_mercury_correction_reports_model_and_sanitizes_text(monk
         {"type": "correction.started", "model": "mercury-3"},
         {"type": "correction.done", "title": "Grüne Boxen", "transcript": "Grüne Boxen unter 50 Euro.", "correction_model": "mercury-3"},
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "raw,decision,skipped",
+    [
+        ("Please close the window.", 0.99, True),
+        ("I will bring 50 copies.", 0.99, False),
+        ("Maya, eigentlich morgen, please.", 0.08, False),
+        ("Could you um close the window?", 0.79, False),
+        ("Please close the window.", None, False),
+    ],
+)
+# contract-test: supporting surface=gui.web assertions=message-input.audio.correction-gate
+async def test_dictation_gate_skips_only_confident_batches_and_falls_back(
+    monkeypatch, caplog, raw, decision, skipped
+):
+    sent = []
+    evaluate = AsyncMock()
+    if decision is None:
+        evaluate.side_effect = DecisionResponseInvalid(raw)
+    else:
+        evaluate.return_value = SimpleNamespace(
+            answers={gate.READY_QUESTION: NoulAnswer(type="noul", noul=decision)}
+        )
+    monkeypatch.setattr(gate.JevDecisionClient, "evaluate", evaluate)
+    hidden = "".join(chr(0xE0000 + ord(character)) for character in "private-marker")
+    correct = AsyncMock(return_value={"corrected_transcript": f"Corrected text.{hidden}", "model": "model"})
+    monkeypatch.setattr(audio_realtime, "correct_transcript", correct)
+
+    class Socket(_FakeWebSocket):
+        async def send_json(self, message):
+            sent.append(message)
+
+    socket = Socket()
+    manager = socket.app.state.secrets_manager = SimpleNamespace()
+    with caplog.at_level("INFO", logger=gate.__name__):
+        await audio_realtime._correct_and_send(socket, raw, None, "dictation")
+    evaluate.assert_awaited_once()
+    assert raw not in caplog.text
+    assert "private-marker" not in caplog.text
+    assert sent[0] == {"type": "correction.started"}
+    if skipped:
+        correct.assert_not_awaited()
+        assert sent[1] == {"type": "correction.skipped", "transcript": raw}
+    else:
+        correct.assert_awaited_once_with(raw, manager, None, include_title=False)
+        assert sent[1] == {
+            "type": "correction.done", "transcript": "Corrected text.", "correction_model": "model",
+        }
 
 
 # contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring

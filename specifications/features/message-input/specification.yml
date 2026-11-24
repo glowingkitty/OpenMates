@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 13
+version: 14
 status: approved
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -432,6 +432,15 @@ assertions:
   type: behavior
   must: Web microphone dictation streams through the first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Display the existing ten-credit-per-minute realtime transcription rate, but charge proportionally to measured audio seconds, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation. Official-cloud guests may use the same pipeline under the guest admission and metering requirements.
   depends_on: [examples.voxtral3_dictation]
+- id: message-input.audio.correction-gate
+  type: behavior
+  must: For text-only dictation in the shared web composer, a fast Jev decision checks each transcript part.
+    If it confidently needs no correction, insert the original words and skip the correction model.
+    Obvious errors, names, numbers, mixed languages and uncertainty require the existing correction.
+    A gate failure falls back to correction, subject to existing admission limits.
+    Dictation correction generates no recording title. Saved audio recordings keep their title behavior.
+    Gate logs contain decisions and timing without transcript text.
+  depends_on: [examples.dictation_correction_gate]
 - id: message-input.audio.guest-admission
   type: security
   must: Official-cloud guests can dictate without an account session while their existing anonymous identity/IP and shared daily, weekly and monthly budgets have room. Require an allowed first-party Origin, bounded session duration and idle time, and identity/IP rate and concurrency admission. Every transcription and correction provider operation, including fallback attempts, must have a conservative atomic reservation before dispatch; denial dispatches no provider work and shows existing usage-limit or signup guidance. Completion, cancellation, disconnect and failure settle known work idempotently and retain ambiguous dispatched work without storing audio or transcript content. Invalid supplied account credentials must not silently become guest access. Guest access cannot authorize account-owned chat state or workflow actions, and exhausting guest allowance does not affect authenticated users with credits.

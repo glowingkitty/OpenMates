@@ -6616,7 +6616,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 25
+  assertions: 26
   surfaces:
     web:
       status: failing
@@ -6625,9 +6625,9 @@ features:
       assertions:
         passing: 7
         failing: 13
-        not_run: 4
+        not_run: 5
         missing: 1
-        counted: 25
+        counted: 26
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -6723,6 +6723,7 @@ features:
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
       - frontend/apps/web_app/tests/prod-smoke/prod-smoke-guest-web-send.spec.ts
       - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
+      - frontend/apps/web_app/tests/real-inference-dictation-gate.spec.ts
       - frontend/apps/web_app/tests/settings-chat-viewport.spec.ts
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
       - frontend/apps/web_app/tests/storage-message-embed-bundle.spec.ts
@@ -6733,8 +6734,8 @@ features:
       - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
       - frontend/apps/web_app/tests/workflows-input.spec.ts
       key_unit_tests:
-      - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
       - backend/tests/test_audio_realtime_transcription.py
+      - frontend/packages/ui/src/components/enter_message/__tests__/RecordAudio.test.ts
       - backend/tests/test_streaming_transcript_correction.py
       - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
       - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
@@ -6744,11 +6745,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 10
         failing: 1
         not_run: 1
         missing: 14
-        counted: 25
+        counted: 26
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
       key_tests: []
@@ -6780,8 +6781,8 @@ features:
       - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
       - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
       - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
-      - apple/OpenMatesTests/APIClientUploadTransportTests.swift
       - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+      - apple/OpenMatesTests/APIClientUploadTransportTests.swift
       unit_test_files: 33
       platforms:
       - ios
@@ -6864,8 +6865,9 @@ features:
   subfeatures:
   - id: dictation
     name: Dictation
-    description: Realtime transcription, editable transcript, guest admission, workspace dictation
+    description: Realtime transcription, gated correction, editable transcript, guest admission, workspace dictation
     assertion_ids:
+    - message-input.audio.correction-gate
     - message-input.audio.editable-transcript
     - message-input.audio.guest-admission
     - message-input.audio.live-editor-transcript
@@ -6879,24 +6881,24 @@ features:
         assertions:
           passing: 2
           failing: 2
-          not_run: 1
+          not_run: 2
           missing: 0
-          counted: 5
+          counted: 6
         failing_tests:
         - frontend/apps/web_app/tests/audio-recording.spec.ts › Escape cancels pending correction without changing the existing
           draft
         - frontend/apps/web_app/tests/workflows-input.spec.ts › streams raw workflow voice requests, recovers transcription
           failures, and clarifies an edit
       apple:
-        status: unverified
-        source: intent
+        status: partial
+        source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
           not_run: 0
           missing: 5
-          counted: 5
+          counted: 6
       cli:
         status: unverified
         source: intent

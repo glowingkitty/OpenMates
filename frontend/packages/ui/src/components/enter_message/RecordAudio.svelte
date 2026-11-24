@@ -70,7 +70,7 @@
         /** Direct Send keeps processing visible through composer submission. */
         retainUntilSend?: boolean;
         compact?: boolean;
-        correctionContext?: 'workflow';
+        correctionContext?: 'dictation' | 'workflow';
         recordingGeneration?: number;
         /** Only composers that handle sendrequested offer direct submission. */
         allowSend?: boolean;
@@ -322,7 +322,7 @@
                     anonymous,
                     onTranscript: setLiveTranscript,
                     onStatus: (value) => { realtimeStatus = value; },
-                    correctionContext,
+                    correctionContext: correctionContext ?? (transcriptInEditor ? 'dictation' : undefined),
                     purpose,
                     onLimitReached: () => {
                         if (isCancelled || stopIntent) return;
@@ -885,12 +885,16 @@
 <style>
     /* Full overlay that covers the entire .message-field */
     .record-overlay {
+        --record-overlay-radius: 24px;
+        --record-overlay-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --record-timer-background: #ff4444;
+        --record-muted-text: color-mix(in srgb, var(--color-font-button) 72%, transparent);
         position: absolute;
         inset: 0;
         container-type: inline-size;
         min-height: 220px;
-        border-radius: 24px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: var(--record-overlay-radius);
+        background: var(--record-overlay-gradient);
         z-index: var(--z-index-sticky);
         display: flex;
         flex-direction: column;
@@ -1084,7 +1088,7 @@
     }
 
     .record-shortcuts {
-        color: rgba(255, 255, 255, 0.72);
+        color: var(--record-muted-text);
         font-size: var(--font-size-xs);
         font-weight: 500;
     }
@@ -1114,7 +1118,7 @@
     }
 
     .live-transcript-placeholder {
-        color: rgba(255, 255, 255, 0.72);
+        color: var(--record-muted-text);
         letter-spacing: 0.18em;
     }
 
@@ -1130,7 +1134,7 @@
 
     .timer-pill {
         align-self: center;
-        background-color: #ff4444;
+        background-color: var(--record-timer-background);
         color: white;
         padding: 6px 14px;
         border-radius: var(--radius-8);

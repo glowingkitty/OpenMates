@@ -12,7 +12,7 @@ CORRECTION_INTERVAL_SECONDS = 15.0
 CORRECTION_BATCH_CHARACTERS = 800
 CORRECTION_TIMEOUT_SECONDS = 35.0
 
-Correction = Callable[[str, str | None], Awaitable[dict[str, str]]]
+Correction = Callable[[str, str | None], Awaitable[dict[str, str] | None]]
 Progress = Callable[[int], Awaitable[None]]
 
 
@@ -44,6 +44,7 @@ class StreamingTranscriptCorrection:
         self._result: dict[str, str] | None = None
         self._language: str | None = None
         self._models: list[str] = []
+        self._batch_failed = False
         self._changed = asyncio.Event()
         self._pending_since = asyncio.get_running_loop().time()
         self._finishing = False
@@ -64,7 +65,7 @@ class StreamingTranscriptCorrection:
         if self._task is None:
             self._task = asyncio.create_task(self._run())
 
-    async def finish(self, transcript: str, language: str | None) -> dict[str, str]:
+    async def finish(self, transcript: str, language: str | None) -> dict[str, str] | None:
         """Finish pending batches and combine them with already corrected text."""
         # The provider may extend the last delta in its final event. The route
         # preserves the streamed prefix; normalize outer whitespace consistently.
@@ -80,7 +81,9 @@ class StreamingTranscriptCorrection:
             self._task = asyncio.create_task(self._run())
         await self._task
         if self._result is None:
-            raise RuntimeError("No transcript batch could be corrected")
+            if self._batch_failed:
+                raise RuntimeError("No transcript batch could be corrected")
+            return None
         return {
             **self._result,
             "transcript": "".join(self._parts).strip(),
@@ -134,17 +137,21 @@ class StreamingTranscriptCorrection:
             try:
                 async with asyncio.timeout(CORRECTION_TIMEOUT_SECONDS):
                     result = await self._correct(raw, self._language)
-                corrected = result["transcript"].strip()
-                if not corrected:
+                if result is not None and not result["transcript"].strip():
                     raise ValueError("Transcript correction returned empty text")
             except Exception as exc:
+                self._batch_failed = True
                 logger.warning(
                     "Streaming transcript batch correction failed: %s",
                     type(exc).__name__,
                 )
                 self._parts.append(raw + separator)
             else:
-                self._parts.append(corrected + separator)
+                if result is None:
+                    self._parts.append(batch)
+                    await self._on_progress(self._offset)
+                    continue
+                self._parts.append(result["transcript"].strip() + separator)
                 model = result["correction_model"]
                 if model not in self._models:
                     self._models.append(model)

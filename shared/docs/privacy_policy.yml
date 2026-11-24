@@ -542,11 +542,13 @@ provider_groups:
           - direct request-safety, response-safety, and prompt-injection classification
           - direct optional relevance ranking for supported public search results
           - direct optional shopping visual matching, only when reference images are provided
+          - deciding whether text-only composer dictation needs transcript correction
           - caller-requested ai.decide judgments over supplied state, questions, and optional inline PNG/JPEG images
           - PDF processing: deciding whether a page's text layer is complete, scoring each page's text for hidden prompt-injection instructions, ranking search results inside a PDF, finding the contents page, and judging whether PDF page images are safe to show
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
           - External text being checked for prompt injection, without OpenMates user identifiers
+          - Short raw transcript parts and the detected language when available, without the recording audio or OpenMates user identifiers. Transcript parts can contain personal data. The dictation check uses TypeSafe directly.
           - User-stated relevance criteria, search parameters, and minimized public result metadata, without OpenMates user identifiers
           - Caller-supplied ai.decide state, instructions, criteria, and inline image content; send only information needed for the decision, since image bytes and raw API inputs are not protected by typed-message placeholder substitution
           - These inline decisions create no saved chat, embed, or stored upload in OpenMates; transient processing does not promise zero retention by TypeSafe

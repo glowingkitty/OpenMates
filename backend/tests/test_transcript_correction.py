@@ -110,7 +110,7 @@ async def test_mercury_failure_falls_back_and_reports_gemini(monkeypatch, caplog
     result = await correction.correct_transcript("um green boxes", secrets, "en")
     assert result["model"] == correction.GEMINI_CORRECTION_MODEL
     assert "PRIVATE TRANSCRIPT" not in caplog.text
-    google.assert_awaited_once_with("um green boxes", "google-key", "en")
+    google.assert_awaited_once_with("um green boxes", "google-key", "en", include_title=True)
 
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
@@ -135,7 +135,7 @@ async def test_mercury_credential_lookup_shares_total_deadline_and_is_cancelled(
     result = await asyncio.wait_for(correction.correct_transcript("um green boxes", secrets, "en"), 1)
     assert cancelled.is_set()
     mercury.assert_not_awaited()
-    google.assert_awaited_once_with("um green boxes", "google-key", "en")
+    google.assert_awaited_once_with("um green boxes", "google-key", "en", include_title=True)
     assert result["model"] == "gemini-3.8-flash"
 
 

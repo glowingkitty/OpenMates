@@ -60,6 +60,27 @@ export function proofAudioLaunchArgs(
   ];
 }
 
+/** Supply recorded speech at the browser microphone boundary without changing the app document. */
+export async function useProofMicrophone(page: Page): Promise<void> {
+  await page.evaluate((encoded) => {
+    const mediaDevices = navigator.mediaDevices;
+    const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
+    mediaDevices.getUserMedia = async (constraints) => {
+      if (!constraints?.audio || constraints.video) return getUserMedia(constraints);
+      const bytes = Uint8Array.from(atob(encoded), (value) => value.charCodeAt(0));
+      const context = new AudioContext();
+      const output = context.createMediaStreamDestination();
+      const speech = context.createBufferSource();
+      speech.buffer = await context.decodeAudioData(bytes.buffer);
+      speech.connect(output);
+      speech.connect(context.destination);
+      await context.resume();
+      speech.start(context.currentTime + 0.5);
+      return output.stream;
+    };
+  }, fs.readFileSync(TEST_VOICE_WAV).toString('base64'));
+}
+
 /** Runs in every document before the page's own scripts (serialized by addInitScript). */
 function inPageRecorder(binding: string): void {
   const w = window as any;

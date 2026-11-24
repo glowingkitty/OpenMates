@@ -478,7 +478,8 @@ async def test_guest_correction_accounts_each_fallback_and_finalizes_ambiguous_a
 
     monkeypatch.setattr(correction, "InceptionClient", Mercury)
 
-    async def gemini(text, key, language):
+    async def gemini(text, key, language, *, include_title):
+        assert include_title is True
         async with admitted_correction(
             correction.GEMINI_CORRECTION_MODEL, 9000, 2048
         ) as op:
@@ -537,6 +538,7 @@ async def test_guest_correction_real_catalogue_quotes_and_signed_in_output_defau
     from backend.shared.providers.transcript_correction_accounting import (
         correction_output_limit,
     )
+    from backend.shared.providers.typesafe.client import TYPESAFE_MODEL
 
     root = Path(__file__).resolve().parents[1]
     monkeypatch.setattr(
@@ -553,11 +555,12 @@ async def test_guest_correction_real_catalogue_quotes_and_signed_in_output_defau
     for model in [
         correction.MERCURY_CORRECTION_MODEL,
         correction.GEMINI_CORRECTION_MODEL,
+        TYPESAFE_MODEL,
     ]:
         operation = await meter.reserve_correction(model, 12_000, 2048)
         assert operation.quote > 0
         await operation.settle(300, 100)
-    assert len([e for e in meter.service.events if e[0] == "settle"]) == 2
+    assert len([e for e in meter.service.events if e[0] == "settle"]) == 3
     assert correction_output_limit(8192) == 8192
     token = correction_accountant.set(meter)
     try:

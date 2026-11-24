@@ -35,7 +35,7 @@ interface StartOptions {
   anonymous?: boolean;
   onTranscript?: (transcript: string) => void;
   onStatus?: (status: 'connecting' | 'listening' | 'correcting' | 'failed') => void;
-  correctionContext?: 'workflow';
+  correctionContext?: 'dictation' | 'workflow';
   /** Free, server-capped Report Issue dictation (signed-in users only). */
   purpose?: 'report_issue';
   /**
@@ -61,7 +61,7 @@ export class AnonymousTranscriptionUsageError extends Error {
   }
 }
 
-function websocketUrl(token: string | null, correctionContext?: 'workflow', anonymousId?: string,
+function websocketUrl(token: string | null, correctionContext?: StartOptions['correctionContext'], anonymousId?: string,
   purpose?: 'report_issue'): string {
   const url = new URL(
     getApiUrl().replace(/^http/, 'ws') + '/v1/apps/audio/realtime-transcription',
@@ -69,7 +69,9 @@ function websocketUrl(token: string | null, correctionContext?: 'workflow', anon
   url.searchParams.set('sessionId', getSessionId());
   if (token) url.searchParams.set('token', token);
   if (anonymousId) url.searchParams.set('anonymous_id', anonymousId);
-  else if (correctionContext) url.searchParams.set('correction_context', correctionContext);
+  if (correctionContext === 'dictation' || (correctionContext && !anonymousId)) {
+    url.searchParams.set('correction_context', correctionContext);
+  }
   if (purpose && !anonymousId) url.searchParams.set('purpose', purpose);
   return url.toString();
 }

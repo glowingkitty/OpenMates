@@ -194,10 +194,12 @@ class GuestTranscriptionMeter:
         from backend.shared.providers.transcript_correction import (
             MERCURY_CORRECTION_MODEL,
         )
+        from backend.shared.providers.typesafe.client import DEFAULT_JEV_MODEL, TYPESAFE_MODEL
 
         providers = {
-            GEMINI_CORRECTION_MODEL: "google",
-            MERCURY_CORRECTION_MODEL: "inception",
+            GEMINI_CORRECTION_MODEL: ("google", GEMINI_CORRECTION_MODEL),
+            MERCURY_CORRECTION_MODEL: ("inception", MERCURY_CORRECTION_MODEL),
+            TYPESAFE_MODEL: ("typesafe", DEFAULT_JEV_MODEL.split("/", 1)[1]),
         }
         if (
             model not in providers
@@ -208,7 +210,7 @@ class GuestTranscriptionMeter:
         config = (
             getattr(self.websocket.app.state, "config_manager", None) or ConfigManager()
         )
-        pricing = config.get_model_pricing(providers[model], model)
+        pricing = config.get_model_pricing(*providers[model])
         if not pricing or not pricing.get(
             "tokens", pricing.get("pricing", {}).get("tokens")
         ):
