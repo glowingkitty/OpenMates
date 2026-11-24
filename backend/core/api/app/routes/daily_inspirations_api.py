@@ -14,7 +14,8 @@
 #   - Video embeds are stored in the standard embeds collection separately
 #   - This collection tracks metadata needed to restore the carousel on login
 #
-# Authentication: required (session cookie)
+# First-party session-cookie API. All reads and writes are scoped to the
+# authenticated user. These routes do not consume credits.
 #
 # See: docs/architecture/daily_inspiration_persistence.md
 
@@ -30,11 +31,13 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.apps.ai.daily_inspiration.schemas import (
+    DAILY_INSPIRATION_SET_SIZE,
     drop_unsupported_inspirations,
     has_complete_daily_inspiration_set,
 )
 
 logger = logging.getLogger(__name__)
+MAX_RETAINED_INSPIRATIONS = 30
 
 router = APIRouter(
     prefix="/v1",
@@ -158,11 +161,9 @@ async def sync_daily_inspirations(
         user_id[:8],
     )
 
-    # Enforce cap of 30 records per user — roughly 3 days of 10 inspirations/day.
-    # This prevents unbounded accumulation and ensures cross-device sync
-    # always returns a consistent set of the 3 newest inspirations.
+    # Retain a bounded history so recovery can skip retired legacy records.
     deleted = await directus_service.user_daily_inspiration.enforce_max_records(
-        user_id=user_id, max_count=30
+        user_id=user_id, max_count=MAX_RETAINED_INSPIRATIONS
     )
     if deleted > 0:
         logger.info(
@@ -192,17 +193,18 @@ async def get_daily_inspirations(
     Query params:
       since (optional): Unix timestamp — only return inspirations generated at or after this time.
 
-    Returns a list of inspiration records (encrypted content included).
+    Returns the newest complete six-card set (encrypted content included).
     """
     user_id = current_user.id
     inspirations = await directus_service.user_daily_inspiration.get_user_inspirations(
         user_id=user_id,
         since_timestamp=since,
-        limit=10,  # Max 10 (3 per day × ~3 days)
+        limit=MAX_RETAINED_INSPIRATIONS,
     )
 
-    # Retired legacy feature cards are never delivered to clients.
-    inspirations = drop_unsupported_inspirations(inspirations)
+    # Directus returns newest first. Legacy features and older supported rows
+    # must not occupy slots in the set checked for the current contract.
+    inspirations = drop_unsupported_inspirations(inspirations)[:DAILY_INSPIRATION_SET_SIZE]
     if inspirations and not has_complete_daily_inspiration_set(inspirations):
         logger.info(
             "[daily_inspirations_api] Ignoring incomplete legacy inspiration set for user %s…",
