@@ -12,7 +12,11 @@ test.use({
   permissions: ['microphone'],
 });
 
-async function openRecording(page: Page, width: number, variant: string, options: { draftText?: string; imageDraft?: boolean } = {}) {
+async function openRecording(page: Page, width: number, variant: string, options: {
+  draftText?: string;
+  imageDraft?: boolean;
+  lateTranscript?: boolean;
+} = {}) {
   await allowFixtureMicrophone(page, /\/dev\/preview\/enter_message\/MessageInput(?:RecordingDraftPreviewHarness)?(?:\?|$)/);
   await page.setViewportSize({ width: width < 400 ? 390 : 1280, height: 844 });
   await page.addInitScript(() => sessionStorage.setItem('ws_token', 'synthetic-preview-token'));
@@ -24,14 +28,20 @@ async function openRecording(page: Page, width: number, variant: string, options
     let hasTranscript = false;
     socket.onMessage(rawMessage => {
       const message = JSON.parse(String(rawMessage));
-      if (message.type === 'input_audio.append' && !hasTranscript) {
+      if (message.type === 'input_audio.append' && !hasTranscript && !options.lateTranscript) {
         hasTranscript = true;
         socket.send(JSON.stringify({ type: 'transcription.text.delta', text: RAW_TRANSCRIPT }));
       }
       if (message.type !== 'input_audio.end') return;
-      socket.send(JSON.stringify({ type: 'transcription.done', model: 'synthetic-realtime' }));
-      socket.send(JSON.stringify({ type: 'correction.started', model: 'synthetic-correction' }));
-      releaseCorrection = () => socket.send(JSON.stringify({ type: 'correction.done', transcript: CORRECTED_TRANSCRIPT }));
+      const startCorrection = () => {
+        socket.send(JSON.stringify({ type: 'transcription.done', model: 'synthetic-realtime' }));
+        socket.send(JSON.stringify({ type: 'correction.started', model: 'synthetic-correction' }));
+      };
+      if (!options.lateTranscript) startCorrection();
+      releaseCorrection = () => {
+        if (options.lateTranscript) startCorrection();
+        socket.send(JSON.stringify({ type: 'correction.done', transcript: CORRECTED_TRANSCRIPT }));
+      };
     });
   });
   const params = new URLSearchParams({ variant, width: String(width), theme: width < 400 ? 'dark' : 'light', background: '#dbeafe', chrome: '0' });
@@ -57,7 +67,8 @@ async function openRecording(page: Page, width: number, variant: string, options
   }
   const overlay = page.getByTestId('record-overlay');
   // Dictation streams into the editor itself; the compact overlay shows no text preview.
-  await expect(editor).toContainText(RAW_TRANSCRIPT);
+  if (options.lateTranscript) await expect(overlay.getByTestId('record-finish-button')).toBeEnabled();
+  else await expect(editor).toContainText(RAW_TRANSCRIPT);
   await expect(overlay.getByTestId('recording-live-transcript')).toHaveCount(0);
   return { field, editor, overlay, emit: (text: string) => emitDelta!(text), release: async () => {
     await expect.poll(() => releaseCorrection !== null).toBe(true);
@@ -175,24 +186,29 @@ for (const { width, variant, compactHeight, phase } of [
   });
 }
 
-for (const { width, variant, height } of [
+for (const { width, variant, height, lateTranscript = false } of [
   { width: 330, variant: 'recordingInline', height: 48 },
   { width: 680, variant: 'recording', height: 60 },
+  { width: 680, variant: 'recording', height: 60, lateTranscript: true },
 ]) {
   // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.audio.live-editor-transcript,message-input.layout.responsive-parity,message-input.recording.lifecycle
-  test(`Finish on the ${width}px composer returns the editor while correction is pending`, async ({ page }, testInfo) => {
+  test(`Finish on the ${width}px composer returns the editor while correction is pending${lateTranscript ? ' when the first words arrive late' : ''}`, async ({ page }, testInfo) => {
     test.setTimeout(60000);
-    const { field, editor, overlay, emit, release } = await openRecording(page, width, variant);
+    const { field, editor, overlay, emit, release } = await openRecording(page, width, variant, { lateTranscript });
     await expect(field).toHaveCSS('height', '180px');
     await expect(overlay).toHaveCSS('height', `${height}px`);
     await expect(editor).toBeVisible();
-    await expect(editor).toHaveText(`Existing notes. ${RAW_TRANSCRIPT}`);
+    await expect(editor).toHaveText(lateTranscript ? 'Existing notes.' : `Existing notes. ${RAW_TRANSCRIPT}`);
     const finish = overlay.getByTestId('record-finish-button');
     await finish.hover();
     await finish.focus();
     await expect(finish).toBeFocused();
     await finish.press('Enter');
     await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
+    if (lateTranscript) {
+      await expect(editor).not.toBeFocused();
+      emit(RAW_TRANSCRIPT);
+    }
     await expect(field).toHaveCSS('height', '180px');
     await expectCentered(overlay, overlay.getByTestId('recording-processing-text'));
     await expect(editor.getByTestId('recording-transcript-processing')).toHaveText(RAW_TRANSCRIPT);

@@ -147891,24 +147891,24 @@ assertions:
       surface: gui.web
     - &id18815
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 96
+      line: 107
       name: recording and Send during ${phase} show dictation above the ${compactHeight}px
         ${width}px controls
       surface: gui.web
     - &id18816
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 183
-      name: Finish on the ${width}px composer returns the editor while correction
-        is pending
+      line: 195
+      name: 'Finish on the ${width}px composer returns the editor while correction
+        is pending${lateTranscript ? '
       surface: gui.web
     - &id18817
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 234
+      line: 250
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id18818
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 290
+      line: 306
       name: moving the caret while recording inserts the next words there and Enter
         in the editor finishes
       surface: gui.web
@@ -149253,7 +149253,7 @@ assertions:
       surface: gui.apple
     - &id18917
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 234
+      line: 250
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id18918
@@ -150974,19 +150974,19 @@ assertions:
       surface: gui.web
     - &id19174
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 96
+      line: 107
       name: recording and Send during ${phase} show dictation above the ${compactHeight}px
         ${width}px controls
       surface: gui.web
     - &id19175
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 183
-      name: Finish on the ${width}px composer returns the editor while correction
-        is pending
+      line: 195
+      name: 'Finish on the ${width}px composer returns the editor while correction
+        is pending${lateTranscript ? '
       surface: gui.web
     - &id19176
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 234
+      line: 250
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id19177
@@ -151508,19 +151508,19 @@ assertions:
       surface: gui.web
     - &id19216
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 96
+      line: 107
       name: recording and Send during ${phase} show dictation above the ${compactHeight}px
         ${width}px controls
       surface: gui.web
     - &id19217
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 183
-      name: Finish on the ${width}px composer returns the editor while correction
-        is pending
+      line: 195
+      name: 'Finish on the ${width}px composer returns the editor while correction
+        is pending${lateTranscript ? '
       surface: gui.web
     - &id19218
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 234
+      line: 250
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id19219
@@ -152210,25 +152210,25 @@ assertions:
       surface: gui.apple
     - &id19287
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 96
+      line: 107
       name: recording and Send during ${phase} show dictation above the ${compactHeight}px
         ${width}px controls
       surface: gui.web
     - &id19288
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 183
-      name: Finish on the ${width}px composer returns the editor while correction
-        is pending
+      line: 195
+      name: 'Finish on the ${width}px composer returns the editor while correction
+        is pending${lateTranscript ? '
       surface: gui.web
     - &id19289
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 290
+      line: 306
       name: moving the caret while recording inserts the next words there and Enter
         in the editor finishes
       surface: gui.web
     - &id19290
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 317
+      line: 333
       name: dictated private data is highlighted live and fades out recording Send
         until reviewed
       surface: gui.web
@@ -158757,7 +158757,7 @@ assertions:
       surface: gui.web
     - &id20114
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 317
+      line: 333
       name: dictated private data is highlighted live and fades out recording Send
         until reviewed
       surface: gui.web

@@ -5469,12 +5469,26 @@
         return current;
     }
 
+    function returnEditorAfterRecording(context: NonNullable<typeof recordingContext>) {
+        if (context.editorReturned || !context.realtime || context.sendRequested ||
+            !$authStore.isAuthenticated || !context.live.hasText()) return;
+        // Once there is a draft to edit, keep trailing words at their original
+        // dictated range and return control of the caret to the user.
+        context.editorReturned = true;
+        isMessageFieldFocused = true;
+        isFocused = true;
+        void tick().then(() => {
+            if (isCurrentRecordingContext(context) && !context.sendRequested) context.editor.view.focus();
+        });
+    }
+
     // contract-test: direct surface=gui.web assertions=message-input.audio.live-editor-transcript
     function handleLiveTranscript(event: CustomEvent<{ transcript: string }>) {
         const context = recordingContext;
         if (!context || !isCurrentRecordingContext(context)) return;
         if (!context.live.apply(event.detail.transcript, !context.editorReturned)) return;
         recordingHasLiveText = true;
+        returnEditorAfterRecording(context);
         scheduleLivePIIDetection(context.editor);
     }
 
@@ -5549,15 +5563,7 @@
         }
 
         try {
-            if ($authStore.isAuthenticated && !context.sendRequested && context.live.hasText()) {
-                // Return the caret to the user. The provider's remaining words
-                // can reconcile the dictated range but must no longer follow it.
-                context.editorReturned = true;
-                isMessageFieldFocused = true;
-                isFocused = true;
-                await tick();
-                if (isCurrentRecordingContext(context)) context.editor.view.focus();
-            }
+            returnEditorAfterRecording(context);
             const result = await realtime.correction;
             recordRecordingDiagnostic('correction-arrived', context);
             if (!isCurrentRecordingContext(context)) return;
