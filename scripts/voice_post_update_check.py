@@ -12,8 +12,8 @@ Prod signed-in leg: a labelled gift-card signup from scripts/post_update_test_ac
 is created, tests/voice-call-real.spec.ts runs against production with its
 credentials, and the account is always deleted afterwards (a failed cleanup is a
 warning). A leg passes when its receipt says passed, a reply was played and a
-*-with-audio.webm with audible sound (> -50 dB) exists. Any failed leg exits 1 and
-pushes the owner (unless --no-push).
+*-with-audio.webm with audible sound (> -50 dB) exists. The dev timer retries
+unresolved legs once and reports a remaining gap after the retry window.
 
   python3 scripts/voice_post_update_check.py run --target dev
   python3 scripts/voice_post_update_check.py run --target prod --legs guest
@@ -49,6 +49,11 @@ GUEST_SPEC = "tests/voice-call-guest-real.spec.ts"
 SIGNED_IN_SPEC = "tests/voice-call-real.spec.ts"
 SCENARIO = "capital"
 AUDIO_GLOB = "*with-audio.webm"
+DEV_API_HEALTH = "https://api.dev.openmates.org/health"
+RETRY_DELAY = 5 * 60
+RETRY_WINDOW = 2 * 60 * 60
+SETUP_ERRORS = {"lease_unavailable", "lease_renewal_failed", "heavy_slot_unavailable", "no_test_passed",
+                "deployed_runtime_revision_mismatch", "deployed_frontend_revision_mismatch"}
 
 
 class CheckError(RuntimeError):
@@ -93,12 +98,24 @@ def evaluate_leg(out: Path, loudness=_loudness) -> dict:
     """Judge a leg from its receipt.json and videos; returns {status, video, error}."""
     path = out / "receipt.json"
     if not path.is_file():
-        return {"status": "failed", "video": None, "error": "no receipt written"}
+        return {"status": "blocked", "video": None, "error": "no receipt written", "reason": "setup"}
     receipt = json.loads(path.read_text())
     video = find_video(out, receipt)
-    error = None
+    status, reason, error = "passed", "", None
     if receipt.get("status") != "passed":
-        error = f"receipt status {receipt.get('status')}: {receipt.get('error_code', 'no reason')}"
+        code = receipt.get("error_code") or "no reason"
+        error = f"receipt status {receipt.get('status')}: {code}"
+        raw_error = str(receipt.get("error") or "")
+        if (receipt.get("status") == "blocked" or code in SETUP_ERRORS
+                or ("deployed_revision" in receipt and "playwright_exit_code" not in receipt)):
+            status, reason = "blocked", "setup"
+            detail = str(receipt.get("error_detail") or "").lower()
+            if code == "lease_unavailable" and "docker exec api" in detail and "is not running" in detail:
+                reason = "dev_api_unavailable"
+        elif "message-user" in raw_error and "toBeVisible" in raw_error:
+            status, reason = "failed", "message_missing"
+        else:
+            status, reason = "failed", "call_flow"
     elif not (receipt.get("played_audio") or receipt.get("speech_status") == 200):
         error = "no spoken reply was played"
     elif video is None:
@@ -111,7 +128,11 @@ def evaluate_leg(out: Path, loudness=_loudness) -> dict:
         else:
             if level <= MIN_LOUDNESS_DB:
                 error = f"video is silent ({level:.1f} dB)"
-    return {"status": "failed" if error else "passed", "video": str(video) if video else None, "error": error}
+    if error and status == "passed":
+        status, reason = ("blocked", "proof_missing") if (
+            receipt.get("played_audio") or receipt.get("speech_status") == 200
+        ) else ("failed", "reply_missing")
+    return {"status": status, "video": str(video) if video else None, "error": error, "reason": reason}
 
 
 # --- playwright / runner launches -----------------------------------------------------
@@ -170,7 +191,7 @@ def run_guest(base_url: str, out: Path) -> None:
            "VOICE_CALL_REAL_DEV": "1", "PLAYWRIGHT_TEST_BASE_URL": base_url}
     code = run_playwright(GUEST_SPEC, out, env, list(env))
     if code != 0 and not (out / "receipt.json").is_file():
-        _write_receipt(out, "failed", error_code=f"playwright exit {code}")
+        _write_receipt(out, "blocked", error_code=f"playwright exit {code}")
 
 
 def run_signed_in_dev(revision: str, out: Path) -> None:
@@ -253,23 +274,58 @@ def run_leg(name: str, target: str, base_url: str, revision: str, out: Path) -> 
             run_signed_in_prod(base_url, out)
         return evaluate_leg(out)
     except (CheckError, subprocess.SubprocessError, OSError, SystemExit, KeyError, ValueError) as exc:
-        return {"status": "failed", "video": None, "error": f"{type(exc).__name__}: {exc}"[:300]}
+        return {"status": "blocked", "video": None, "error": f"{type(exc).__name__}: {exc}"[:300], "reason": "setup"}
+
+
+def failure_message(target: str, summary: dict) -> str:
+    """Format a phone preview and one combined report without exposing runner output."""
+    environment = "dev" if target == "dev" else "production"
+    legs = summary["legs"]
+    labels = {"signed_in": "signed-in", "guest": "guest"}
+    failed = [name for name, leg in legs.items() if leg["status"] == "failed"]
+    if any(leg["status"] == "blocked" for leg in legs.values()):
+        first = f"The {environment} voice check is incomplete after the update."
+    else:
+        subject = f" {labels[failed[0]]}" if len(failed) == 1 else ""
+        result = "still fails after a retry" if summary.get("retried") else "failed after the update"
+        first = f"The {environment}{subject} voice check {result}."
+    phrases = {
+        "dev_api_unavailable": "could not start while the dev API was unavailable",
+        "proof_missing": "played a reply, but the recording could not verify the result",
+        "message_missing": "timed out waiting for the user's message",
+        "reply_missing": "did not play a spoken reply",
+    }
+    statuses = {"passed": "passed", "blocked": "could not start or finish verification",
+                "failed": "ran but did not pass"}
+    details = [
+        f"The {labels[name]} call check {phrases.get(leg.get('reason'), statuses[leg['status']])}."
+        for name, leg in legs.items()
+    ]
+    if summary.get("retried"):
+        details.append("The checker retried the unresolved checks.")
+    elif summary.get("retry_expired"):
+        details.append("The checker waited for the service to be ready, and the retry window ended.")
+    details.append("A voice outage is unconfirmed.")
+    if target == "prod":
+        details.append("Verify calls on production now.")
+    elif failed:
+        details.append("Hold the next production rollout until the dev voice check passes.")
+    else:
+        details.append("Nothing needed from you. The incomplete check is recorded for follow-up.")
+    return first + "\n" + " ".join(details)
 
 
 def push_failure(target: str, summary: dict) -> None:
-    """One short plain push naming the first failed leg."""
+    """Send the combined voice check result as one alert."""
     import agent_question
     import discord_webhook
     from pending_work_gate import canonical_root
 
-    name, leg = next((n, leg) for n, leg in summary["legs"].items() if leg["status"] != "passed")
-    label = "guest" if name == "guest" else "signed-in"
-    reason = (leg.get("error") or "unknown").split(":")[-1].strip()[:40]
-    when = "after deploy" if target == "dev" else "after update"
-    message = f"{target.capitalize()} voice check failed {when}: {label} call, {reason}."[:108]
+    message = failure_message(target, summary)
     root = canonical_root()
     agent_question.deliver(agent_question.webhook(root), message, discord_webhook.post_message)
-    agent_question.record_push(root, message, time.time(), title="Voice check", source=PUSH_SOURCE)
+    agent_question.record_push(root, message, time.time(), title="Voice check", asks=message.splitlines()[0],
+                               source=PUSH_SOURCE)
 
 
 def run_check(target: str, base_url: str | None, revision: str | None, out: Path | None,
@@ -305,14 +361,87 @@ def dev_runtime_ready(revision: str) -> bool:
 
     try:
         require_runtime_revision(revision)
-    except ProofError:
+        with urllib.request.urlopen(DEV_API_HEALTH, timeout=10) as response:
+            return response.status == 200
+    except (ProofError, OSError, subprocess.SubprocessError):
         return False
-    return True
+
+
+def _write_state(path: Path, state: dict) -> None:
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state))
+    temporary.replace(path)
+
+
+def _send_pending_alert(path: Path, state: dict, pusher) -> int:
+    summary = state["alert_pending"]
+    pusher("dev", summary)
+    state["last_alert_legs"] = summary["legs"]
+    state.pop("alert_pending")
+    _write_state(path, state)
+    return 1
+
+
+def _notice_summary(summary: dict) -> dict:
+    """Persist only the information used to decide whether and what to alert."""
+    return {
+        "passed": summary["passed"],
+        "legs": {name: {"status": leg["status"], "reason": leg.get("reason")}
+                 for name, leg in summary["legs"].items()},
+        "retried": bool(summary.get("retried")),
+        "retry_expired": bool(summary.get("retry_expired")),
+    }
+
+
+def _record_watch_result(path: Path, state: dict, summary: dict) -> None:
+    report = _notice_summary(summary)
+    state["last_result"] = {"passed": report["passed"],
+                            "legs": {name: leg["status"] for name, leg in report["legs"].items()}}
+    if report["passed"]:
+        state.pop("last_alert_legs", None)
+    elif state.get("last_alert_legs") != report["legs"]:
+        state["alert_pending"] = report
+    _write_state(path, state)
+
+
+def _retry_watch(path: Path, state: dict, revision: str, base_url: str, now: float,
+                 runtime_ready, checker, revision_fetcher) -> None:
+    retry = state["retry"]
+    if now < retry["due_at"]:
+        return
+    before = retry["summary"]
+    if now >= retry["deadline_at"]:
+        state.pop("retry")
+        _record_watch_result(path, state, {**before, "retry_expired": True})
+        return
+    if not runtime_ready(revision):
+        return
+    unresolved = [name for name, leg in before["legs"].items() if leg["status"] != "passed"]
+    state.pop("retry")
+    state["last_result"] = {"status": "retry_started"}
+    _write_state(path, state)
+    result = checker("dev", base_url, revision, None, unresolved, False)
+    legs = {**before["legs"], **result["legs"]}
+    summary = {**result, "legs": legs, "retried": True,
+               "passed": all(leg["status"] == "passed" for leg in legs.values())}
+    try:
+        served = revision_fetcher(base_url)
+    except CheckError:
+        if not summary["passed"]:
+            # A later timer can send the result only if this is still the served revision.
+            _record_watch_result(path, state, summary)
+        raise
+    if served != revision:
+        state["last_result"] = {"status": "superseded"}
+        _write_state(path, state)
+    else:
+        _record_watch_result(path, state, summary)
 
 
 def dev_watch(state_path: Path = STATE_FILE, now=time.time, revision_fetcher=fetch_revision,
-              checker=run_check, base_url: str = BASE_URLS["dev"], runtime_ready=dev_runtime_ready) -> int:
-    """Attempt the dev check at most once for each served revision."""
+              checker=run_check, base_url: str = BASE_URLS["dev"], runtime_ready=dev_runtime_ready,
+              pusher=push_failure) -> int:
+    """Run each new revision and retry only unresolved legs while it is still served."""
     state_path.parent.mkdir(parents=True, exist_ok=True)
     with (state_path.parent / "lock").open("w") as lock:
         try:
@@ -322,26 +451,37 @@ def dev_watch(state_path: Path = STATE_FILE, now=time.time, revision_fetcher=fet
         revision = revision_fetcher(base_url)
         state = _load_state(state_path)
         checked = set(state.get("checked_revisions", []))
-        if prior := state.get("last_revision"):
+        prior = state.get("last_revision")
+        if prior:
             checked.add(prior)
-        if revision in checked:
-            return 0
-        if not runtime_ready(revision):
+        if prior != revision and ("retry" in state or "alert_pending" in state):
+            state.pop("retry", None)
+            state.pop("alert_pending", None)
+            state["last_result"] = {"status": "superseded"}
+            _write_state(state_path, state)
+        if "retry" in state:
+            _retry_watch(state_path, state, revision, base_url, now(), runtime_ready, checker, revision_fetcher)
+        if "alert_pending" in state:
+            return _send_pending_alert(state_path, state, pusher)
+        if revision in checked or not runtime_ready(revision):
             return 0
         checked.add(revision)
-        state = {"checked_revisions": sorted(checked), "last_revision": revision,
-                 "last_run_at": now(), "last_result": {"status": "started"}}
+        state.update(checked_revisions=sorted(checked), last_revision=revision,
+                     last_run_at=now(), last_result={"status": "started"})
         # Claim before spending provider credits. A killed run or a rollback
-        # to a previously served revision must not start the same calls again.
-        state_tmp = state_path.with_suffix(".tmp")
-        state_tmp.write_text(json.dumps(state))
-        state_tmp.replace(state_path)
-        summary = checker("dev", base_url, revision, None, list(LEGS))
-        legs = {name: leg["status"] for name, leg in summary["legs"].items()}
-        state["last_result"] = {"passed": summary["passed"], "legs": legs}
-        state_tmp.write_text(json.dumps(state))
-        state_tmp.replace(state_path)
-        return 0 if summary["passed"] else 1
+        # to a previously served revision must not repeat the same paid attempt.
+        _write_state(state_path, state)
+        summary = checker("dev", base_url, revision, None, list(LEGS), False)
+        if summary["passed"]:
+            _record_watch_result(state_path, state, summary)
+            return 0
+        finished = now()
+        state["last_result"] = {"passed": False, "status": "waiting_to_retry",
+                                "legs": {name: leg["status"] for name, leg in summary["legs"].items()}}
+        state["retry"] = {"summary": _notice_summary(summary), "due_at": finished + RETRY_DELAY,
+                          "deadline_at": finished + RETRY_WINDOW}
+        _write_state(state_path, state)
+        return 0
 
 
 def main(argv: list[str] | None = None) -> int:

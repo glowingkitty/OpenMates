@@ -47,16 +47,16 @@ def test_passes_with_reply_and_audible_video(tmp_path):
     assert check.evaluate_leg(out, loud)["status"] == "passed"
 
 
-@pytest.mark.parametrize("receipt,video,loudness,fragment", [
-    (None, True, loud, "no receipt"),
-    ({"status": "failed", "error_code": "boom"}, True, loud, "boom"),
-    ({"status": "passed", "played_audio": []}, True, loud, "no spoken reply"),
-    ({"status": "passed", "played_audio": ["a"]}, False, loud, "no with-audio video"),
-    ({"status": "passed", "played_audio": ["a"]}, True, lambda v: -80.0, "silent"),
+@pytest.mark.parametrize("receipt,video,loudness,status,fragment", [
+    (None, True, loud, "blocked", "no receipt"),
+    ({"status": "failed", "error_code": "boom"}, True, loud, "failed", "boom"),
+    ({"status": "passed", "played_audio": []}, True, loud, "failed", "no spoken reply"),
+    ({"status": "passed", "played_audio": ["a"]}, False, loud, "blocked", "no with-audio video"),
+    ({"status": "passed", "played_audio": ["a"]}, True, lambda v: -80.0, "blocked", "silent"),
 ])
-def test_failures(tmp_path, receipt, video, loudness, fragment):
+def test_failures(tmp_path, receipt, video, loudness, status, fragment):
     result = check.evaluate_leg(leg_dir(tmp_path, receipt, video), loudness)
-    assert result["status"] == "failed" and fragment in result["error"]
+    assert result["status"] == status and fragment in result["error"]
 
 
 def test_guest_receipt_with_speech_status(tmp_path):
@@ -144,11 +144,156 @@ def test_dev_watch_defers_when_backend_is_behind(tmp_path):
     assert calls == ["r"]
 
 
-def test_dev_watch_records_failure(tmp_path):
+def test_dev_watch_records_failure_after_retry_and_sends_once(tmp_path):
     state = tmp_path / "state.json"
-    code = check.dev_watch(state, lambda: 1e6, lambda _u: "r1", lambda *a: fake_summary(False),
-                           runtime_ready=lambda _rev: True)
-    assert code == 1 and json.loads(state.read_text())["last_result"]["passed"] is False
+    clock = [10_000]
+    calls, pushes = [], []
+
+    def checker(target, base, revision, out, legs, push):
+        assert not push
+        calls.append(legs)
+        return fake_summary(False)
+
+    def run():
+        return check.dev_watch(state, lambda: clock[0], lambda _u: "r1", checker,
+                               runtime_ready=lambda _rev: True, pusher=lambda t, s: pushes.append(s))
+
+    assert run() == 0 and not pushes
+    clock[0] += check.RETRY_DELAY - 1
+    assert run() == 0 and not pushes
+    clock[0] += 1
+    assert run() == 1 and len(pushes) == 1
+    assert run() == 0 and len(pushes) == 1
+    assert calls == [list(check.LEGS), ["guest"]]
+    assert pushes[0]["retried"] and not json.loads(state.read_text())["last_result"]["passed"]
+
+
+def test_incident_combines_blocked_sign_in_and_guest_timeout_after_retry(tmp_path):
+    signed_dir = tmp_path / "signed"
+    guest_dir = tmp_path / "guest"
+    signed_dir.mkdir()
+    guest_dir.mkdir()
+    signed_in = check.evaluate_leg(leg_dir(signed_dir, {
+        "status": "failed", "error_code": "lease_unavailable",
+        "error_detail": "docker exec api failed: container 123456789abcdef is not running",
+    }, video=False))
+    guest = check.evaluate_leg(leg_dir(guest_dir, {
+        "status": "failed", "error": "expect toBeVisible timed out for getByTestId('message-user')",
+    }, video=False))
+    assert (signed_in["status"], guest["status"]) == ("blocked", "failed")
+    state = tmp_path / "state.json"
+    clock = [10_000]
+    calls, pushes = [], []
+
+    def checker(*args):
+        calls.append(args[4])
+        return {"passed": False, "legs": {"signed_in": signed_in, "guest": guest}}
+
+    def run(ready):
+        return check.dev_watch(state, lambda: clock[0], lambda _u: "r1", checker,
+                               runtime_ready=lambda _rev: ready,
+                               pusher=lambda target, summary: pushes.append(check.failure_message(target, summary)))
+
+    assert run(True) == 0 and not pushes
+    clock[0] += check.RETRY_DELAY
+    assert run(False) == 0 and len(calls) == 1 and not pushes
+    assert run(True) == 1 and len(calls) == 2 and len(pushes) == 1
+    preview, detail = pushes[0].splitlines()
+    assert preview == "The dev voice check is incomplete after the update."
+    assert "The signed-in call check could not start while the dev API was unavailable." in detail
+    assert "The guest call check timed out waiting for the user's message." in detail
+    assert "The checker retried the unresolved checks." in detail
+    assert "A voice outage is unconfirmed." in detail
+    assert "Hold the next production rollout" in detail
+    assert "lease_unavailable" not in pushes[0] and "123456789abcdef" not in pushes[0]
+    assert run(True) == 0 and len(pushes) == 1
+
+
+def test_retry_success_sends_nothing_and_keeps_first_passing_leg(tmp_path):
+    state = tmp_path / "state.json"
+    clock = [10_000]
+    found = []
+
+    def checker(*args):
+        found.append(args[4])
+        if len(found) == 1:
+            return {"passed": False, "legs": {"signed_in": {"status": "passed"},
+                                             "guest": {"status": "blocked"}}}
+        return fake_summary(True)
+
+    def run():
+        return check.dev_watch(state, lambda: clock[0], lambda _u: "r1", checker,
+                               runtime_ready=lambda _rev: True, pusher=lambda *_: pytest.fail("unexpected alert"))
+
+    assert run() == 0
+    clock[0] += check.RETRY_DELAY
+    assert run() == 0
+    assert found == [list(check.LEGS), ["guest"]]
+    assert json.loads(state.read_text())["last_result"] == {
+        "passed": True, "legs": {"signed_in": "passed", "guest": "passed"},
+    }
+
+
+def test_retry_expires_while_prerequisite_is_still_unavailable(tmp_path):
+    state = tmp_path / "state.json"
+    clock = [10_000]
+    calls, pushes = [], []
+
+    def checker(*args):
+        calls.append(args[4])
+        return {"passed": False, "legs": {"guest": {"status": "blocked"}}}
+
+    def run(ready):
+        return check.dev_watch(state, lambda: clock[0], lambda _u: "r1", checker,
+                               runtime_ready=lambda _rev: ready,
+                               pusher=lambda target, summary: pushes.append(check.failure_message(target, summary)))
+
+    assert run(True) == 0
+    clock[0] += check.RETRY_WINDOW - 1
+    assert run(False) == 0 and not pushes
+    clock[0] += 1
+    assert run(False) == 1 and len(calls) == 1
+    assert "the retry window ended" in pushes[0] and "Nothing needed from you" in pushes[0]
+    assert run(False) == 0 and len(pushes) == 1
+
+
+def test_new_revision_supersedes_waiting_retry_even_if_not_yet_ready(tmp_path):
+    state = tmp_path / "state.json"
+    calls = []
+
+    def checker(*args):
+        calls.append(args[2])
+        return fake_summary(False)
+
+    def run(revision, ready):
+        return check.dev_watch(state, lambda: 10, lambda _u: revision, checker,
+                               runtime_ready=lambda _rev: ready, pusher=lambda *_: pytest.fail("unexpected alert"))
+
+    assert run("r1", True) == 0
+    assert run("r2", False) == 0
+    assert "retry" not in json.loads(state.read_text())
+    assert run("r1", True) == 0 and calls == ["r1"]
+
+
+def test_unchanged_failure_across_revisions_alerts_only_after_recovery(tmp_path):
+    state = tmp_path / "state.json"
+    clock = [10_000]
+    pushes = []
+
+    def run(revision, passes=False):
+        return check.dev_watch(state, lambda: clock[0], lambda _u: revision, lambda *a: fake_summary(passes),
+                               runtime_ready=lambda _rev: True, pusher=lambda t, s: pushes.append(s))
+
+    assert run("first") == 0
+    clock[0] += check.RETRY_DELAY
+    assert run("first") == 1 and len(pushes) == 1
+    assert run("second") == 0
+    clock[0] += check.RETRY_DELAY
+    assert run("second") == 0 and len(pushes) == 1
+    assert run("recovered", passes=True) == 0
+    assert run("new-failure") == 0
+    clock[0] += check.RETRY_DELAY
+    assert run("new-failure") == 1 and len(pushes) == 2
 
 
 def test_prod_leg_always_deletes_account(tmp_path, monkeypatch):
@@ -206,10 +351,10 @@ def test_production_uses_one_test_gift_card_and_cleans_up(tmp_path, monkeypatch,
     assert accounts.load_secret(email) is None
 
 
-def test_run_leg_turns_launch_failure_into_failed_result(tmp_path, monkeypatch):
+def test_run_leg_turns_launch_failure_into_blocked_result(tmp_path, monkeypatch):
     def no_slot(*a):
         raise check.CheckError("no slot")
 
     monkeypatch.setattr(check, "run_guest", no_slot)
     result = check.run_leg("guest", "dev", "https://x", "abc", tmp_path)
-    assert result["status"] == "failed" and "no slot" in result["error"]
+    assert result["status"] == "blocked" and "no slot" in result["error"]
