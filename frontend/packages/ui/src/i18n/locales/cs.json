@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Vytvořit úkol",
-          "description": {
-            "text": "Vytvářejte úkoly s názvy, popisy a odpovědnými osobami."
-          }
-        },
         "search": {
           "text": "Hledat úkoly",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Příklad chatu"
+      },
+      "sub_chat": {
+        "text": "Podchat"
       },
       "shared_chat": {
         "text": "Sdílený chat"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "Sbalit {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Úkol"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "Vyzkoušet zdarma"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Hovory používají přepis Mistral, hlas ElevenLabs v4 Turbo, běžné směrování AI OpenMates a účtování podle využití."
-    },
     "privacy_description": {
       "text": "Mistral přepisuje zvuk mikrofonu; ElevenLabs v4 Turbo vytváří hlas asistenta z textu odpovědi a nastavení hlasu. Konverzace používá běžné směrování AI a dovednosti OpenMates. Poskytovatelé mohou uchovávat údaje požadavků podle svých zásad."
     },

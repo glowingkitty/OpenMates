@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Taak maken",
-          "description": {
-            "text": "Maak taken met titels, beschrijvingen en verantwoordelijken."
-          }
-        },
         "search": {
           "text": "Taken zoeken",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Voorbeeldchat"
+      },
+      "sub_chat": {
+        "text": "Subchat"
       },
       "shared_chat": {
         "text": "Gedeelde chat"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "{label} samenvouwen"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Taak"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "Gratis testen"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Gesprekken gebruiken Mistral-transcriptie, ElevenLabs v4 Turbo-spraak, normale OpenMates AI-routering en facturering op basis van gebruik."
-    },
     "privacy_description": {
       "text": "Mistral transcribeert je microfoonaudio; ElevenLabs v4 Turbo maakt de assistentstem op basis van antwoordtekst en steminstellingen. Het gesprek gebruikt de normale AI-routering en vaardigheden van OpenMates. Aanbieders kunnen aanvraaggegevens bewaren volgens hun eigen beleid."
     },

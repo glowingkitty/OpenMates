@@ -10,6 +10,7 @@ reported as warnings unless CODE_QUALITY_GUARD_STRICT=1 is set.
 from __future__ import annotations
 
 import ast
+import json
 import os
 import re
 import subprocess
@@ -83,6 +84,17 @@ WARN_PATTERNS = {
 
 def _git(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=check)
+
+
+def _verified_generated_locale(path: str) -> bool:
+    try:
+        expected = json.loads(os.environ.get("OPENMATES_DEPLOY_GENERATED_LOCALES", "{}")).get(path)
+    except (AttributeError, ValueError):
+        return False
+    if not expected:
+        return False
+    staged = _git(["rev-parse", f":{path}"], check=False)
+    return staged.returncode == 0 and staged.stdout.strip() == expected
 
 
 def _staged_files() -> list[str]:
@@ -453,7 +465,8 @@ def main() -> int:
             blocks.append(f"{path}: reported issue findings are local-only; use scripts/issues.py findings and keep notes untracked")
             continue
         if re.search(r"frontend/packages/ui/src/i18n/locales/.*\.json$", path):
-            blocks.append(f"{path}: generated translation JSON must not be committed directly; edit YAML sources instead")
+            if not _verified_generated_locale(path):
+                blocks.append(f"{path}: generated translation JSON must not be committed directly; edit YAML sources instead")
             continue
         if suffix not in SOURCE_EXTENSIONS or path in GENERATED_SOURCE_PATHS:
             continue

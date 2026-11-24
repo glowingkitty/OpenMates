@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "إنشاء مهمة",
-          "description": {
-            "text": "أنشئ مهامًا بعناوين وأوصاف ومكلفين."
-          }
-        },
         "search": {
           "text": "البحث في المهام",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "محادثة نموذجية"
+      },
+      "sub_chat": {
+        "text": "محادثة فرعية"
       },
       "shared_chat": {
         "text": "دردشة مشتركة"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "طي {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "مهمة"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "جرّب مجانًا"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "نطاق البريد الإلكتروني غير مسموح به."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "تستخدم المكالمات نسخ Mistral وصوت ElevenLabs v4 Turbo وتوجيه الذكاء الاصطناعي المعتاد في OpenMates والفوترة حسب الاستخدام."
-    },
     "privacy_description": {
       "text": "تُحوّل Mistral صوت الميكروفون إلى نص؛ وتُنشئ ElevenLabs v4 Turbo صوت المساعد من نص الرد وإعدادات الصوت. تستخدم المحادثة توجيه الذكاء الاصطناعي ومهارات OpenMates المعتادة. قد يحتفظ المزوّدون ببيانات الطلبات وفق سياساتهم."
     },

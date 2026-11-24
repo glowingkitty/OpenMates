@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Buat tugas",
-          "description": {
-            "text": "Buat tugas dengan judul, deskripsi, dan penanggung jawab."
-          }
-        },
         "search": {
           "text": "Cari tugas",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Obrolan contoh"
+      },
+      "sub_chat": {
+        "text": "Sub-chat"
       },
       "shared_chat": {
         "text": "Chat bersama"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "Ciutkan {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Tugas"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "Coba gratis"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Panggilan memakai transkripsi Mistral, suara ElevenLabs v4 Turbo, perutean AI OpenMates biasa, dan penagihan berdasarkan penggunaan."
-    },
     "privacy_description": {
       "text": "Mistral mentranskripsikan audio mikrofonmu; ElevenLabs v4 Turbo menghasilkan suara asisten dari teks balasan dan pengaturan suara. Percakapan memakai perutean AI dan keterampilan OpenMates seperti biasa. Penyedia dapat menyimpan data permintaan sesuai kebijakan mereka."
     },

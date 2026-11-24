@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Créer une tâche",
-          "description": {
-            "text": "Créez des tâches avec des titres, des descriptions et des responsables."
-          }
-        },
         "search": {
           "text": "Rechercher des tâches",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Chat d'exemple"
+      },
+      "sub_chat": {
+        "text": "Sous-discussion"
       },
       "shared_chat": {
         "text": "Chat partagé"
@@ -7134,6 +7131,11 @@
       },
       "collapse": {
         "text": "Réduire {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Tâche"
       }
     },
     "diagrams": {
@@ -21140,7 +21142,7 @@
       "text": "Tester gratuitement"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Domaine e-mail non autorisé."
@@ -21934,9 +21936,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Les appels utilisent la transcription Mistral, la voix ElevenLabs v4 Turbo, le routage IA habituel d’OpenMates et une facturation à l’usage."
-    },
     "privacy_description": {
       "text": "Mistral transcrit le son de ton microphone ; ElevenLabs v4 Turbo génère la voix de l’assistant à partir du texte de réponse et des réglages vocaux. La conversation utilise le routage IA et les compétences habituels d’OpenMates. Les fournisseurs peuvent conserver les données des requêtes selon leurs politiques."
     },

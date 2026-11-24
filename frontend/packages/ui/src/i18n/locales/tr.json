@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Görev oluştur",
-          "description": {
-            "text": "Başlıklar, açıklamalar ve sorumlularla görevler oluşturun."
-          }
-        },
         "search": {
           "text": "Görev ara",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Örnek sohbet"
+      },
+      "sub_chat": {
+        "text": "Alt sohbet"
       },
       "shared_chat": {
         "text": "Paylaşılan sohbet"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "{label} öğesini daralt"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Görev"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "Ücretsiz dene"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Sesli aramalar Mistral transkripsiyonu, ElevenLabs v4 Turbo sesi, OpenMates’in normal yapay zekâ yönlendirmesi ve kullanıma dayalı ücretlendirme kullanır."
-    },
     "privacy_description": {
       "text": "Mistral mikrofon sesini yazıya döker; ElevenLabs v4 Turbo yanıt metni ve ses ayarlarından asistan sesini üretir. Görüşme, OpenMates’in normal yapay zekâ yönlendirmesini ve becerilerini kullanır. Sağlayıcılar istek verilerini kendi politikalarına göre saklayabilir."
     },

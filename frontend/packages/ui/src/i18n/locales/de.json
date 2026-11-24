@@ -1727,12 +1727,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Aufgabe erstellen",
-          "description": {
-            "text": "Erstelle Aufgaben mit Titeln, Beschreibungen und Zuständigen."
-          }
-        },
         "search": {
           "text": "Aufgaben suchen",
           "description": {
@@ -2443,6 +2437,12 @@
       "text": "Design",
       "description": {
         "text": "Finde Icons und visuelle Assets fürs Produktdesign."
+      }
+    },
+    "sheets": {
+      "text": "Tabellen",
+      "description": {
+        "text": "Erstelle und formatiere Tabellen."
       }
     },
     "docs": {
@@ -3814,6 +3814,9 @@
       },
       "example_chat": {
         "text": "Beispiel-Chat"
+      },
+      "sub_chat": {
+        "text": "Sub-Chat"
       },
       "shared_chat": {
         "text": "Geteilter Chat"
@@ -7748,6 +7751,63 @@
     },
     "header_saving": {
       "text": "Wird gespeichert…"
+    },
+    "task_due": {
+      "text": "Fällig {date}"
+    },
+    "task_not_created": {
+      "text": "Diese Aufgabe konnte nicht erstellt werden"
+    },
+    "task_restore_failed": {
+      "text": "Die Aufgabe konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
+    },
+    "live_status_saved": {
+      "text": "Gespeichert"
+    },
+    "live_status_saving": {
+      "text": "Wird gespeichert…"
+    },
+    "live_status_offline": {
+      "text": "Warte auf Verbindung"
+    },
+    "live_status_read_only": {
+      "text": "Nur Ansicht"
+    },
+    "live_status_access_revoked": {
+      "text": "Zugriff entfernt"
+    },
+    "live_peers_label": {
+      "text": "Gerade anwesend"
+    },
+    "live_editing_here": {
+      "text": "{name} bearbeitet hier"
+    },
+    "live_suggestion_accept": {
+      "text": "Vorschlag annehmen"
+    },
+    "live_suggestion_dismiss": {
+      "text": "Vorschlag verwerfen"
+    },
+    "live_sheet_label": {
+      "text": "Gemeinsame Tabelle"
+    },
+    "live_sheet_insert_row": {
+      "text": "Zeile darunter einfügen"
+    },
+    "live_sheet_delete_row": {
+      "text": "Zeile löschen"
+    },
+    "live_sheet_insert_col": {
+      "text": "Spalte rechts einfügen"
+    },
+    "live_sheet_delete_col": {
+      "text": "Spalte löschen"
+    },
+    "live_private_copy_ready": {
+      "text": "Dein Zugriff wurde entfernt. Du kannst eine private Kopie deiner ungesendeten Änderungen herunterladen."
+    },
+    "live_private_copy_download": {
+      "text": "Private Kopie herunterladen"
     }
   },
   "embeds": {
@@ -9003,6 +9063,11 @@
         "text": "{label} einklappen"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Aufgabe"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid-Diagramm"
@@ -9989,6 +10054,160 @@
       },
       "partial": {
         "text": "Teilweise geprüft – nicht bestätigt: {fields}"
+      }
+    },
+    "sheets": {
+      "sheet": {
+        "download_csv": {
+          "text": "CSV herunterladen"
+        },
+        "downloaded": {
+          "text": "Tabelle heruntergeladen"
+        },
+        "download_failed": {
+          "text": "Die Tabelle konnte nicht heruntergeladen werden"
+        },
+        "formatting_failed": {
+          "text": "Die Tabellenformatierung konnte nicht angewendet werden."
+        },
+        "invalid_formatting": {
+          "text": "Diese Tabelle enthält eine ungültige Formatierung. Bitte den Assistenten, sie erneut zu erstellen."
+        },
+        "formatting_toolbar": {
+          "text": "Tabellenformatierung"
+        },
+        "selection": {
+          "text": "Ausgewählte Zellen"
+        },
+        "strikethrough": {
+          "text": "Durchgestrichen"
+        },
+        "wrap": {
+          "text": "Text umbrechen"
+        },
+        "cell_format": {
+          "text": "Zellenformat"
+        },
+        "font_family": {
+          "text": "Schriftart"
+        },
+        "font_size": {
+          "text": "Schriftgröße"
+        },
+        "text_color": {
+          "text": "Textfarbe"
+        },
+        "fill_color": {
+          "text": "Füllfarbe"
+        },
+        "horizontal_align": {
+          "text": "Horizontale Ausrichtung"
+        },
+        "vertical_align": {
+          "text": "Vertikale Ausrichtung"
+        },
+        "default": {
+          "text": "Standard"
+        },
+        "left": {
+          "text": "Links"
+        },
+        "center": {
+          "text": "Zentriert"
+        },
+        "right": {
+          "text": "Rechts"
+        },
+        "top": {
+          "text": "Oben"
+        },
+        "middle": {
+          "text": "Mittig"
+        },
+        "bottom": {
+          "text": "Unten"
+        },
+        "number_format": {
+          "text": "Zahlenformat"
+        },
+        "number": {
+          "text": "Zahl"
+        },
+        "percent": {
+          "text": "Prozent"
+        },
+        "currency": {
+          "text": "Währung"
+        },
+        "date": {
+          "text": "Datum"
+        },
+        "decimals": {
+          "text": "Dezimalstellen"
+        },
+        "currency_code": {
+          "text": "Währungscode"
+        },
+        "date_pattern": {
+          "text": "Datumsformat"
+        },
+        "border_side": {
+          "text": "Rahmenseite"
+        },
+        "border_style": {
+          "text": "Rahmenstil"
+        },
+        "thin": {
+          "text": "Dünn"
+        },
+        "medium": {
+          "text": "Mittel"
+        },
+        "thick": {
+          "text": "Dick"
+        },
+        "dashed": {
+          "text": "Gestrichelt"
+        },
+        "dotted": {
+          "text": "Gepunktet"
+        },
+        "double": {
+          "text": "Doppelt"
+        },
+        "border_color": {
+          "text": "Rahmenfarbe"
+        },
+        "reset_colors": {
+          "text": "Farben zurücksetzen"
+        },
+        "layout": {
+          "text": "Tabellenlayout"
+        },
+        "column_width": {
+          "text": "Spaltenbreite (px)"
+        },
+        "row_height": {
+          "text": "Zeilenhöhe (px)"
+        },
+        "frozen_rows": {
+          "text": "Fixierte Zeilen"
+        },
+        "frozen_columns": {
+          "text": "Fixierte Spalten"
+        },
+        "merge": {
+          "text": "Zellen verbinden"
+        },
+        "select_merge_end": {
+          "text": "Wähle die letzte Zelle zum Verbinden aus."
+        },
+        "undo_formatting": {
+          "text": "Formatierung rückgängig machen"
+        },
+        "unmerge": {
+          "text": "Zellverbindung aufheben"
+        }
       }
     },
     "authoring": {
@@ -14846,7 +15065,7 @@
               "text": "TypeSafe Jev (USA)"
             },
             "description": {
-              "text": "OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten. Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection. Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter und minimierte Daten möglicher Treffer. Für den optionalen visuellen Produktvergleich erhält TypeSafe nur dann Bilder, wenn Referenzbilder angegeben werden: bis zu drei autorisierte, von Nutzern hochgeladene oder vom Assistenten erzeugte Referenzbilder sowie eine begrenzte Auswahl öffentlicher Produktfotos. Die Bilder werden auf höchstens 336 Pixel in der längsten Abmessung verkleinert und ohne Metadaten in JPEG umgewandelt; sichtbare Bildinhalte können weiterhin personenbezogene Daten enthalten. Diese internen Entscheidungsanfragen enthalten keine OpenMates-Nutzerkennungen. Jev gibt typisierte Entscheidungen statt erzeugter Chattexte zurück. Wenn du ai.decide aufrufst, erhält TypeSafe den von dir übergebenen Zustand, die Anweisungen, Kriterien und gegebenenfalls direkt mitgesendete PNG-/JPEG-Bildinhalte; übergib nur die für die Entscheidung nötigen Angaben. Rohe API-Eingaben und Bildbytes werden nicht durch die Platzhalterersetzung getippter Nachrichten geschützt. OpenMates legt für diese direkten Entscheidungen keinen gespeicherten Chat, kein Embed und keinen gespeicherten Upload an. Die vorübergehende Verarbeitung durch OpenMates garantiert jedoch keine speicherfreie Verarbeitung bei TypeSafe. OpenRouter wird nur für reine Textanfragen als Ausweichanbieter verwendet, wenn direkte Zugangsdaten fehlen oder Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auftreten; es erhält dieselben minimierten Entscheidungseingaben und leitet sie an TypeSafe Jev weiter. Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung und werden niemals ersatzweise über OpenRouter geleitet."
+              "text": "OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten. Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection. Beim Diktieren im Texteingabefeld prüft TypeSafe kurze Transkriptabschnitte auf Korrekturbedarf. TypeSafe erhält den Rohtext, der personenbezogene Daten enthalten kann, und die erkannte Sprache, sofern verfügbar. Die Audiodaten und OpenMates-Nutzerkennungen werden dabei nicht übermittelt. Diese Prüfung läuft direkt über TypeSafe. Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter und minimierte Daten möglicher Treffer. Für den optionalen visuellen Produktvergleich erhält TypeSafe nur dann Bilder, wenn Referenzbilder angegeben werden: bis zu drei autorisierte, von Nutzern hochgeladene oder vom Assistenten erzeugte Referenzbilder sowie eine begrenzte Auswahl öffentlicher Produktfotos. Die Bilder werden auf höchstens 336 Pixel in der längsten Abmessung verkleinert und ohne Metadaten in JPEG umgewandelt; sichtbare Bildinhalte können weiterhin personenbezogene Daten enthalten. Diese internen Entscheidungsanfragen enthalten keine OpenMates-Nutzerkennungen. Jev gibt typisierte Entscheidungen statt erzeugter Chattexte zurück. Wenn du ai.decide aufrufst, erhält TypeSafe den von dir übergebenen Zustand, die Anweisungen, Kriterien und gegebenenfalls direkt mitgesendete PNG-/JPEG-Bildinhalte; übergib nur die für die Entscheidung nötigen Angaben. Rohe API-Eingaben und Bildbytes werden nicht durch die Platzhalterersetzung getippter Nachrichten geschützt. OpenMates legt für diese direkten Entscheidungen keinen gespeicherten Chat, kein Embed und keinen gespeicherten Upload an. Die vorübergehende Verarbeitung durch OpenMates garantiert jedoch keine speicherfreie Verarbeitung bei TypeSafe. OpenRouter wird nur für reine Textanfragen als Ausweichanbieter verwendet, wenn direkte Zugangsdaten fehlen oder Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auftreten; es erhält dieselben minimierten Entscheidungseingaben und leitet sie an TypeSafe Jev weiter. Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung und werden niemals ersatzweise über OpenRouter geleitet."
             },
             "data_handling": {
               "text": "TypeSafe erklärt, eingereichte Inhalte nicht zum Training oder zur Feinabstimmung von Modellen zu verwenden. Die [Verarbeitungsbedingungen]({data_processing_url}) richten die Aufbewahrung nach dem Verarbeitungszweck und geltendem Recht aus, ohne eine feste maximale Aufbewahrungsfrist zu nennen. [Zero Data Retention]({legal_url}) wird Unternehmenskunden gesondert angeboten; OpenMates garantiert auf dem regulären TypeSafe-Weg keine Verarbeitung ohne anschließende Aufbewahrung. Ein Ausschluss des Modelltrainings bedeutet nicht, dass die Daten sofort gelöscht werden."
@@ -17566,7 +17785,7 @@
         "text": "{count} warten auf Bestätigung"
       },
       "assumptions_open": {
-        "text": "{count} offene Annahmen"
+        "text": "Offene Annahmen: {count}"
       },
       "assumptions_clear": {
         "text": "Alle Annahmen bestätigt"
@@ -17611,8 +17830,11 @@
       "works_on": {
         "text": "Arbeitet an: {title}"
       },
-      "back": {
-        "text": "Zurück zum Haupt-Chat"
+      "created_as": {
+        "text": "Als Sub-Chat von {name} erstellt"
+      },
+      "parent_fallback": {
+        "text": "dem Haupt-Chat"
       }
     },
     "plan": {
@@ -19919,6 +20141,9 @@
           },
           "permissions_for_app": {
             "text": "Berechtigungen für {app}"
+          },
+          "cap_read_mail": {
+            "text": "E-Mails lesen"
           },
           "cap_draft": {
             "text": "Entwürfe erstellen"
@@ -26233,7 +26458,7 @@
       "text": "Kostenlos testen"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."
@@ -27910,9 +28135,6 @@
     },
     "close_chat": {
       "text": "Chat schließen"
-    },
-    "start_hint": {
-      "text": "Sprachanrufe nutzen Mistral zur Transkription, ElevenLabs v4 Turbo für die Stimme, die normale KI-Auswahl von OpenMates und eine nutzungsabhängige Abrechnung."
     },
     "retry": {
       "text": "Erneut versuchen"

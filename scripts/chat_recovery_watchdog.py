@@ -32,9 +32,10 @@ WAKE_GRACE = 120
 ORDINARY_WAKE_GRACE = 300
 MAX_WAKE_ATTEMPTS = 2
 RELEASE_STALL = 10 * 60
-USER_PAUSE = re.compile(r"owner(?:-requested)? pause|paused by (?:marco|owner)|owner authoriz|three-failure", re.I)
+USER_PAUSE = re.compile(r"owner(?:-requested)? pause|(?:paused|withdrawn) by (?:marco|owner)|owner authoriz|three-failure", re.I)
 PROMPT = ("The dev-host watchdog found unfinished work in this chat. Verify the current Task and worktree. "
-          "Continue the authorized dev work and preserve any pending owner decisions.")
+          "Continue the authorized dev work and preserve any pending owner decisions. "
+          "If this session is clean and has no work left, reply: This session has no unfinished work.")
 
 
 def cached_tasks(now: float) -> list[dict]:
@@ -87,7 +88,8 @@ def transcript_step(rows: list[dict]) -> tuple[float, float, str]:
                 if event.endswith("_call"):
                     command = str(payload.get("arguments") or payload.get("action") or payload.get("input") or "")
         elif kind == "event_msg" and payload.get("type") == "user_message":
-            prompt = max(prompt, at)
+            if not str(payload.get("message") or "").startswith("The dev-host watchdog found"):
+                prompt = max(prompt, at)
         elif kind == "assistant":
             step = max(step, at)
             content = (row.get("message") or {}).get("content")
@@ -97,7 +99,7 @@ def transcript_step(rows: list[dict]) -> tuple[float, float, str]:
         elif kind == "user":
             if row.get("isMeta") or row.get("toolUseResult") is not None:
                 step = max(step, at)
-            else:
+            elif not lifecycle._text(row).startswith("The dev-host watchdog found"):
                 prompt = max(prompt, at)
     label = "the current turn"
     if re.search(r"\binstall(?:er|ing)?\b|[_-]install\b", command, re.I):
@@ -244,6 +246,147 @@ def problems(directory: Path, now: float, live: dict, codex: dict, status: dict,
 
 
 
+def task_scope(directory: Path, tasks: list[dict]) -> tuple[dict, dict, dict]:
+    """Associate continuation chats and workspace owners using recorded bindings."""
+    sessions = handoff._load(worktree_wip.sessions_file()).get("sessions") or {}
+    handed = handoff._load(directory / "handed_off.json")
+    pending = handoff._load(directory / "pending-task-handovers.json")
+    records = {row["chat_id"]: row for row in codex_chats.records()}
+    threads = {row["thread_id"]: cid for cid, row in records.items() if row.get("thread_id")}
+    ids = set(records) | set(handed) | set(pending)
+    edges: dict[str, set[str]] = {}
+    owners: dict[str, set[str]] = {}
+    short_ids: dict[str, set[str]] = {}
+    for task in tasks:
+        if task.get("task_id") and task.get("short_id"):
+            short_ids.setdefault(task["short_id"], set()).add(task["task_id"])
+
+    def link(first, second):
+        if first and second and first != second:
+            edges.setdefault(first, set()).add(second)
+            edges.setdefault(second, set()).add(first)
+
+    def own(task_id, cid):
+        if task_id and cid:
+            owners.setdefault(task_id, set()).add(cid)
+            ids.add(cid)
+
+    for task in tasks:
+        binding = task.get("external_chat") or {}
+        cid = binding.get("id")
+        own(task.get("task_id"), threads.get(cid, cid))
+    for source, value in pending.items():
+        if isinstance(value, str):
+            own(value, source)
+    for session in sessions.values():
+        cid = session.get("agent_task_id")
+        old = session.get("archived_agent_task_id")
+        link(cid, old)
+        label = str(session.get("task") or "")
+        matches = set(re.findall(r"\bTASK-\d+\b", label))
+        if len(matches) == 1:
+            task_ids = short_ids.get(next(iter(matches)), set())
+            if len(task_ids) == 1:
+                task_id = next(iter(task_ids))
+                own(task_id, cid)
+                own(task_id, old)
+    for source, entry in handed.items():
+        destination = re.search(r"\(codex chat ([0-9a-f-]{36})\)$", str(entry.get("successor") or ""))
+        if destination:
+            link(source, destination[1])
+            ids.add(destination[1])
+    prefixes: dict[str, set[str]] = {}
+    for cid in ids:
+        prefixes.setdefault(cid[:8], set()).add(cid)
+    for cid, row in records.items():
+        for prefix in re.findall(r"· continuation ([0-9a-f]{8})\b", str(row.get("title") or "")):
+            matches = prefixes.get(prefix, set())
+            if len(matches) == 1:
+                link(cid, next(iter(matches)))
+    return edges, owners, records
+
+
+def connected(start: set[str], edges: dict) -> set[str]:
+    group = set(start)
+    pending = list(start)
+    while pending:
+        members = edges.get(pending.pop(), set()) - group
+        group.update(members)
+        pending.extend(members)
+    return group
+
+
+def progress(chat_id: str, records: dict, live: dict, registry: dict) -> tuple[float, bool]:
+    record = records.get(chat_id) or {}
+    chat = live.get(chat_id)
+    native = codex_chats.rollout_path(record["thread_id"]) if record.get("thread_id") else None
+    path = native or (Path(chat.transcript) if chat and chat.transcript else None)
+    if not path:
+        path = next((Path.home() / ".claude" / "projects").glob(f"*/{chat_id}.jsonl"), None)
+    rows = lifecycle._tail_records(path) if path else []
+    step, prompt, _ = transcript_step(rows)
+    reply = ""
+    if native:
+        for row in reversed(rows):
+            payload = row.get("payload") or {}
+            if payload.get("type") == "task_complete" and payload.get("last_agent_message"):
+                reply = str(payload["last_agent_message"])
+                break
+            if payload.get("type") == "user_message":
+                break
+    else:
+        speaker, text = lifecycle.last_turn(rows)
+        if speaker == "assistant":
+            reply = text
+    complete = bool(re.search(r"\bthis session has no unfinished work\b", reply, re.I) or (
+        re.search(r"\bsession.{0,32}\bis clean\b", reply, re.I)
+        and re.search(r"\b(?:fix|change|work).{0,40}\b(?:live on dev|deployed)\b", reply, re.I)))
+    marker = lifecycle.pushed(chat_id, prompt)
+    complete = complete or bool(lifecycle.pushed_done(marker))
+    observed = max(step, prompt, lifecycle._iso((registry.get(chat_id) or {}).get("last_activity")))
+    return observed, complete
+
+
+def current_cases(cases: dict, directory: Path, now: float, live: dict, status: dict, protected: set[str],
+                  tasks: list[dict], registry: dict) -> dict:
+    edges, owners, records = task_scope(directory, tasks)
+    task_rows = {task["task_id"]: task for task in tasks if task.get("task_id")}
+    active_ci = {row["session_id"] for row in status.get("waiting") or []
+                 if any(reason.startswith("ci:") and re.search(r"\((?:running|queued|preparing)\)", reason)
+                        for reason in row.get("waits_on") or [])}
+    observed = {}
+    current = {}
+    for cid, incident in cases.items():
+        group = connected({cid}, edges)
+        related = {tid for tid, chats in owners.items() if group & chats}
+        direct = {tid for tid in related if cid in owners[tid]}
+        choices = direct or related
+        open_choices = {tid for tid in choices if task_rows.get(tid, {}).get("status")
+                        not in (None, "done", "cancelled", "blocked")}
+        if choices and not open_choices:
+            continue
+        task_id = next(iter(open_choices)) if len(open_choices) == 1 else ""
+        if task_id:
+            group = connected(group | owners[task_id], edges)
+        for member in group:
+            if member not in observed:
+                observed[member] = progress(member, records, live, registry)
+        if observed[cid][1] or group & (protected | active_ci):
+            continue
+        latest = max((observed[chat][0] for chat in group), default=0)
+        latest = max(latest, incident.get("since") or 0)
+        delay = RELEASE_STALL if incident.get("release") else lifecycle.STALLED_MINUTES * 60
+        if latest and now - latest < delay and incident["kind"] != "unseen_delivery":
+            continue
+        case = {**incident, "task": task_id, "task_title": task_rows.get(task_id, {}).get("title"),
+                "scope_step": latest, "alertable": bool(task_id and latest and now - latest >= delay)}
+        key = task_id or cid
+        previous = current.get(key)
+        if previous is None or observed[cid][0] > observed[previous[0]][0]:
+            current[key] = (cid, case)
+    return dict(current.values())
+
+
 def attempt(chat_id: str, incident: dict, live: dict, codex: dict) -> str:
     prompt = PROMPT
     if incident.get("fresh_context"):
@@ -289,12 +432,12 @@ def display_title(title: str) -> str:
 
 
 def alert_text(incident: dict, mark: dict) -> str:
-    title = display_title(incident.get("title") or "")
+    title = display_title(incident.get("task_title") or incident.get("title") or "")
     reason = friendly_reason(incident)
     result = "got no new step" if mark.get("outcome") == "ok" else "could not reach it safely"
     action = ("Check with the release team before continuing the rollout."
-              if incident.get("release") else "Open the chat to continue the work when you can.")
-    affected = "The rollout may be delayed." if incident.get("release") else "The chat's work is waiting."
+              if incident.get("release") else "Nothing needed unless this Task should take priority.")
+    affected = "The rollout may be delayed." if incident.get("release") else "The Task has no new recorded step."
     first = f"{title} is still stalled after two recovery attempts."
     if incident["kind"] == "unseen_delivery":
         first = f"{title} still has an unread message about {incident['topic']}."
@@ -328,10 +471,11 @@ def cycle(directory: Path, now: float, *, dry_run: bool = False, notify: bool = 
                 short_ids.setdefault(task["short_id"], []).append(task["status"])
         task_status.update({key: states[0] for key, states in short_ids.items() if len(states) == 1})
         waiters.settle_external_waits(directory, now, task_status, protected)
+    registry = lifecycle.load_registry(directory)
     cases = problems(directory, now, live, codex, status, protected, tasks)
+    cases = current_cases(cases, directory, now, live, status, protected, tasks, registry)
     if dry_run:
         return cases
-    registry = lifecycle.load_registry(directory)
     task_titles = {}
     for task in tasks:
         link = task.get("external_chat") or {}
@@ -340,8 +484,10 @@ def cycle(directory: Path, now: float, *, dry_run: bool = False, notify: bool = 
     marks_path = directory / "watchdog-incidents.json"
     old = handoff._load(marks_path)
     marks = dict(old)
-    order = sorted(cases, key=lambda cid: (not cases[cid].get("release"), old.get(cid, {}).get("attempted_at", 0), cid))
+    order = sorted(cases, key=lambda cid: (not cases[cid].get("release"),
+                   old.get(cases[cid].get("task") or cid, {}).get("attempted_at", 0), cid))
     attempted = 0
+    seen = set()
     for chat_id in order:
         incident = cases[chat_id]
         linked = task_titles.get(chat_id, [])
@@ -352,13 +498,16 @@ def cycle(directory: Path, now: float, *, dry_run: bool = False, notify: bool = 
             chat = live.get(chat_id)
             incident["title"] = (native or (chat.title if chat else "") or (registry.get(chat_id) or {}).get("title")
                                  or (linked[0].get("title") if len(linked) == 1 else "") or "A work chat")
-        mark = dict(old.get(chat_id) or {})
+        mark_key = incident.get("task") or chat_id
+        seen.add(mark_key)
+        mark = dict(old.get(mark_key) or {})
         if not mark or "attempts" not in mark:
             mark = {"kind": incident["kind"], "since": incident.get("since")}
-        if (incident["kind"] == mark.get("kind") == "active_stall"
-                and mark.get("since") != incident.get("since")):
-            mark = {"kind": incident["kind"], "since": incident.get("since")}
-        marks[chat_id] = mark
+        if (mark.get("kind") != incident["kind"] or mark.get("scope_step") != incident["scope_step"]
+                or mark.get("task") != incident.get("task")):
+            mark = {"kind": incident["kind"], "since": incident.get("since"),
+                    "scope_step": incident["scope_step"], "task": incident.get("task")}
+        marks[mark_key] = mark
         grace = WAKE_GRACE if incident.get("release") else ORDINARY_WAKE_GRACE
         last = mark.get("attempted_at")
         if last is not None and now - last < grace:
@@ -367,9 +516,14 @@ def cycle(directory: Path, now: float, *, dry_run: bool = False, notify: bool = 
         count = mark.get("attempts", 0)
         if count >= MAX_WAKE_ATTEMPTS:
             incident["outcome"] = "Still stalled after two attempts"
-            if notify and not mark.get("alerted"):
-                mark["alerted"] = chat_usage_watch.send(alert_text(incident, mark), chats=[chat_id])
+            if notify and incident["alertable"] and not mark.get("alerted"):
+                message = alert_text(incident, mark)
+                mark["alerted"] = chat_usage_watch.send(message, chats=[chat_id])
                 waiters._write_json(marks_path, marks)
+                if mark["alerted"]:
+                    agent_question.record_push(lifecycle.canonical_root(), message, now, chat_id=chat_id,
+                                               title=incident["task_title"] or incident["title"],
+                                               task_id=incident["task"], source="chat-recovery-watchdog")
             continue
         if attempted >= 4:
             incident["outcome"] = "Recovery scheduled for the next check"
@@ -384,7 +538,7 @@ def cycle(directory: Path, now: float, *, dry_run: bool = False, notify: bool = 
             outcome = f"Recovery failed ({type(error).__name__})"
         incident["outcome"] = mark["outcome"] = outcome
         waiters._write_json(marks_path, marks)
-    waiters._write_json(marks_path, {chat: marks[chat] for chat in cases})
+    waiters._write_json(marks_path, {key: marks[key] for key in sorted(seen)})
     daily_list(directory, now, cases, protected, status)
     return cases
 

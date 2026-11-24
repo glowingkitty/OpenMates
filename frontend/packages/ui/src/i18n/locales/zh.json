@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "创建任务",
-          "description": {
-            "text": "创建包含标题、描述和负责人的任务。"
-          }
-        },
         "search": {
           "text": "搜索任务",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "示例聊天"
+      },
+      "sub_chat": {
+        "text": "子聊天"
       },
       "shared_chat": {
         "text": "共享聊天"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "折叠 {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "任务"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "免费测试"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "不允许的电子邮件域名。"
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "语音通话使用 Mistral 转录、ElevenLabs v4 Turbo 语音、OpenMates 常规 AI 路由和按用量计费。"
-    },
     "privacy_description": {
       "text": "Mistral 转录你的麦克风音频；ElevenLabs v4 Turbo 根据回复文本和语音设置生成助手语音。对话使用 OpenMates 的常规 AI 路由和技能。提供商可能根据各自政策保留请求数据。"
     },

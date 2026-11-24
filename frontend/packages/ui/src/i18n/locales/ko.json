@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "작업 만들기",
-          "description": {
-            "text": "제목, 설명, 담당자가 포함된 작업을 만듭니다."
-          }
-        },
         "search": {
           "text": "작업 검색",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "예시 채팅"
+      },
+      "sub_chat": {
+        "text": "하위 채팅"
       },
       "shared_chat": {
         "text": "공유 채팅"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "{label} 접기"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "작업"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "무료로 테스트"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "이메일 도메인이 허용되지 않습니다."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "음성 통화는 Mistral 전사, ElevenLabs v4 Turbo 음성, 일반 OpenMates AI 라우팅 및 사용량 기반 청구를 사용합니다."
-    },
     "privacy_description": {
       "text": "Mistral은 마이크 오디오를 전사하고, ElevenLabs v4 Turbo는 응답 텍스트와 음성 설정으로 어시스턴트 음성을 생성합니다. 대화에는 일반 OpenMates AI 라우팅과 스킬이 사용됩니다. 제공업체는 각자의 정책에 따라 요청 데이터를 보관할 수 있습니다."
     },

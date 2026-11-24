@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "יצירת משימה",
-          "description": {
-            "text": "צרו משימות עם כותרות, תיאורים ואחראים."
-          }
-        },
         "search": {
           "text": "חיפוש משימות",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "צ'אט לדוגמה"
+      },
+      "sub_chat": {
+        "text": "תת-צ'אט"
       },
       "shared_chat": {
         "text": "צ'אט משותף"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "כווץ את {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "משימה"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "נסו בחינם"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "דומיין האימייל אינו מורשה."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "שיחות משתמשות בתמלול Mistral, בקול ElevenLabs v4 Turbo, בניתוב ה-AI הרגיל של OpenMates ובחיוב לפי שימוש."
-    },
     "privacy_description": {
       "text": "Mistral מתמללת את שמע המיקרופון; ElevenLabs v4 Turbo יוצרת את קול העוזר מטקסט התשובה ומהגדרות הקול. השיחה משתמשת בניתוב ה-AI ובמיומנויות הרגילים של OpenMates. ספקים עשויים לשמור נתוני בקשות בהתאם למדיניות שלהם."
     },

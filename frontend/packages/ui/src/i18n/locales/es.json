@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Crear tarea",
-          "description": {
-            "text": "Crea tareas con títulos, descripciones y responsables."
-          }
-        },
         "search": {
           "text": "Buscar tareas",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Chat de ejemplo"
+      },
+      "sub_chat": {
+        "text": "Subchat"
       },
       "shared_chat": {
         "text": "Chat compartido"
@@ -7134,6 +7131,11 @@
       },
       "collapse": {
         "text": "Contraer {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Tarea"
       }
     },
     "diagrams": {
@@ -21140,7 +21142,7 @@
       "text": "Probar gratis"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Dominio de correo electrónico no permitido."
@@ -21934,9 +21936,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Las llamadas usan transcripción de Mistral, voz de ElevenLabs v4 Turbo, enrutamiento de IA habitual de OpenMates y facturación por uso."
-    },
     "privacy_description": {
       "text": "Mistral transcribe el audio de tu micrófono; ElevenLabs v4 Turbo genera la voz del asistente a partir del texto de respuesta y los ajustes de voz. La conversación usa el enrutamiento de IA y las habilidades habituales de OpenMates. Los proveedores pueden conservar datos de las solicitudes según sus políticas."
     },

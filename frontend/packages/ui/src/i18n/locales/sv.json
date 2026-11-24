@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Skapa uppgift",
-          "description": {
-            "text": "Skapa uppgifter med titlar, beskrivningar och ansvariga."
-          }
-        },
         "search": {
           "text": "Sök uppgifter",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Exempelchatt"
+      },
+      "sub_chat": {
+        "text": "Underchatt"
       },
       "shared_chat": {
         "text": "Delad chatt"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "Fäll ihop {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Uppgift"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "Testa gratis"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-postdomän är inte tillåten."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Samtal använder Mistral-transkribering, ElevenLabs v4 Turbo-röst, OpenMates vanliga AI-routning och användningsbaserad debitering."
-    },
     "privacy_description": {
       "text": "Mistral transkriberar mikrofonljudet; ElevenLabs v4 Turbo skapar assistentens röst från svarstext och röstinställningar. Samtalet använder OpenMates vanliga AI-routning och färdigheter. Leverantörer kan spara förfrågningsdata enligt sina egna policyer."
     },

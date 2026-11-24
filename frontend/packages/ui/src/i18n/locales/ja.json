@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "タスクを作成",
-          "description": {
-            "text": "タイトル、説明、担当者付きのタスクを作成します。"
-          }
-        },
         "search": {
           "text": "タスクを検索",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "チャットの例"
+      },
+      "sub_chat": {
+        "text": "サブチャット"
       },
       "shared_chat": {
         "text": "共有チャット"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "{label} を折りたたむ"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "タスク"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "無料で試す"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "メールドメインが許可されていません。"
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "音声通話は Mistral の文字起こし、ElevenLabs v4 Turbo の音声、通常の OpenMates AI ルーティング、従量課金を使用します。"
-    },
     "privacy_description": {
       "text": "Mistral がマイク音声を文字起こしし、ElevenLabs v4 Turbo が回答テキストと音声設定からアシスタントの音声を生成します。会話には通常の OpenMates AI ルーティングとスキルが使われます。各プロバイダーは自身のポリシーに従ってリクエストデータを保持する場合があります。"
     },

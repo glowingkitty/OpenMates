@@ -12184,6 +12184,73 @@ def _fast_forward_control_plane(commit_hash: str) -> None:
         )
 
 
+def _generated_locale_path(path: str) -> bool:
+    return bool(re.fullmatch(r"frontend/packages/ui/src/i18n/locales/[a-z]{2}(?:-[A-Za-z0-9]+)?\.json", path))
+
+
+def _disposable_deploy_output(path: str) -> bool:
+    return (_generated_locale_path(path) or path in SPECIFICATION_GENERATED_ARTIFACTS
+            or path in RUST_MIGRATION_GENERATED_ARTIFACTS or path == "AGENTS.md")
+
+
+def _save_and_reset_generated_root(dirty: str) -> bool:
+    """Preserve and clear deploy-generated files only, while holding the deploy lock."""
+    lines = dirty.splitlines()
+    if not lines or any(not re.match(r"^[ MD]{2} ", line) for line in lines):
+        return False
+    paths = [line[3:] for line in lines]
+    if not all(_disposable_deploy_output(path) for path in paths):
+        return False
+    root = CONTROL_PLANE_ROOT
+    recovery = root / ".git" / "generated-deploy-recovery"
+    recovery.mkdir(mode=0o700, parents=True, exist_ok=True)
+    folder = Path(tempfile.mkdtemp(prefix="generated-", dir=recovery))
+    for path in paths:
+        source = root / path
+        if source.is_symlink() or (source.exists() and not source.is_file()):
+            return False
+        if source.is_file():
+            destination = folder / "files" / path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+    for name, revisions in (("worktree", ["HEAD"]), ("index", ["--cached"])):
+        result = subprocess.run(["git", "diff", "--binary", *revisions, "--", *paths],
+                                cwd=root, capture_output=True, check=True, timeout=30)
+        (folder / f"{name}.patch").write_bytes(result.stdout)
+    (folder / "status.txt").write_text(dirty, encoding="utf-8")
+    for path in paths:
+        source, saved = root / path, folder / "files" / path
+        if source.is_file() != saved.is_file() or (saved.is_file() and _file_sha256(source) != _file_sha256(saved)):
+            return False
+    rc, _, stderr = _run_cmd(["git", "restore", "--source=HEAD", "--staged", "--worktree", "--", *paths],
+                             cwd=str(root), timeout=30)
+    if rc:
+        raise RuntimeError(f"Could not restore generated outputs after saving them at {folder}: {stderr}")
+    print(f"Saved and reset {len(paths)} generated outputs. Recovery copy: {folder}")
+    return True
+
+
+def _stage_generated_locales(checkout: Path) -> dict[str, str]:
+    """Stage locale bytes after the translation build and validation have passed."""
+    rc, output, stderr = _run_cmd(["git", "diff", "HEAD", "--name-only", "--",
+                                   "frontend/packages/ui/src/i18n/locales"], cwd=str(checkout))
+    if rc:
+        raise RuntimeError(f"Could not inspect generated locales: {stderr}")
+    files = [path for path in output.splitlines() if _generated_locale_path(path)]
+    if not files:
+        return {}
+    rc, _, stderr = _run_cmd(["git", "add", "--", *files], cwd=str(checkout))
+    if rc:
+        raise RuntimeError(f"Could not stage generated locales: {stderr}")
+    staged = {}
+    for path in files:
+        rc, oid, stderr = _run_cmd(["git", "rev-parse", f":{path}"], cwd=str(checkout))
+        if rc:
+            raise RuntimeError(f"Could not verify staged locale {path}: {stderr}")
+        staged[path] = oid.strip()
+    return staged
+
+
 def _enforce_control_plane_sync_ready(expected_base: str) -> None:
     """Make canonical dev a clean tracked mirror of the locked deploy base."""
     rc, branch, stderr = _run_cmd(
@@ -12195,13 +12262,14 @@ def _enforce_control_plane_sync_ready(expected_base: str) -> None:
             "Canonical checkout must have local dev checked out before deploy: "
             f"{stderr or branch or 'branch could not be resolved'}"
         )
-    rc, dirty, stderr = _run_cmd(
+    status = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=no"],
-        cwd=str(CONTROL_PLANE_ROOT),
+        cwd=CONTROL_PLANE_ROOT, capture_output=True, text=True, timeout=30,
     )
-    if rc != 0:
-        raise RuntimeError(f"Could not validate canonical checkout cleanliness: {stderr}")
-    if dirty.strip():
+    if status.returncode != 0:
+        raise RuntimeError(f"Could not validate canonical checkout cleanliness: {status.stderr.strip()}")
+    dirty = status.stdout
+    if dirty.strip() and not _save_and_reset_generated_root(dirty):
         raise RuntimeError(
             "Canonical checkout has tracked changes, so local dev cannot be kept synchronized safely. "
             "Recover or import those root changes before retrying the deploy."
@@ -12594,6 +12662,8 @@ def _deploy_native_worktree(
                 require_parity=require_parity,
                 session_id=sid,
             )
+            generated_locales = _stage_generated_locales(checkout_root) if _has_frontend_files(commit_files) else {}
+            commit_files = sorted(set(commit_files) | generated_locales.keys())
 
             _wait_and_acquire_session_lock(
                 "vercel_deploy",
@@ -12644,10 +12714,13 @@ def _deploy_native_worktree(
             if no_verify:
                 commit_cmd.append("--no-verify")
             os.environ["OPENMATES_SKIP_PRECOMMIT_LOCALES"] = "1"
+            if generated_locales:
+                os.environ["OPENMATES_DEPLOY_GENERATED_LOCALES"] = json.dumps(generated_locales)
             try:
                 rc, _stdout, stderr = _run_cmd(commit_cmd, cwd=str(checkout_root), timeout=300)
             finally:
                 os.environ.pop("OPENMATES_SKIP_PRECOMMIT_LOCALES", None)
+                os.environ.pop("OPENMATES_DEPLOY_GENERATED_LOCALES", None)
             if rc != 0:
                 raise RuntimeError(f"git commit failed in integration worktree: {stderr}")
 

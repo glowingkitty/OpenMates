@@ -81,6 +81,44 @@ def advance_dev(root: Path, relative_path: str, content: str) -> str:
     return git(root, "rev-parse", "HEAD")
 
 
+def test_generated_only_root_dirt_is_backed_up_and_never_blocks(lane_env):
+    sessions, root, _, _, _ = lane_env
+    locale = "frontend/packages/ui/src/i18n/locales/en.json"
+    path = root / locale
+    path.parent.mkdir(parents=True)
+    base = advance_dev(root, locale, '{"x":"base"}\n')
+    path.write_text('{"x":"staged"}\n')
+    git(root, "add", locale)
+    path.write_text('{"x":"worktree"}\n')
+    (root / "docs/migration/rust/overview.yml").write_text("generated drift\n")
+    sessions._enforce_control_plane_sync_ready(base)
+    assert git(root, "status", "--porcelain", "--untracked-files=no") == ""
+    assert path.read_text() == '{"x":"base"}\n'
+    backup, = (root / ".git/generated-deploy-recovery").iterdir()
+    assert (backup / "files" / locale).read_text() == '{"x":"worktree"}\n'
+    assert '{"x":"staged"}' in (backup / "index.patch").read_text()
+
+
+def test_source_edits_are_preserved_when_generated_files_are_also_dirty(lane_env):
+    sessions, root, _, base, _ = lane_env
+    (root / "docs/migration/rust/overview.yml").write_text("generated drift\n")
+    (root / "changed.txt").write_text("unfinished source\n")
+    with pytest.raises(RuntimeError, match="Canonical checkout has tracked changes"):
+        sessions._enforce_control_plane_sync_ready(base)
+    assert (root / "changed.txt").read_text() == "unfinished source\n"
+    assert (root / "docs/migration/rust/overview.yml").read_text() == "generated drift\n"
+
+
+def test_generated_locale_stage_manifest_matches_git_index(lane_env):
+    sessions, root, _, _, _ = lane_env
+    locale = "frontend/packages/ui/src/i18n/locales/en.json"
+    path = root / locale
+    path.parent.mkdir(parents=True)
+    advance_dev(root, locale, '{"x":"base"}\n')
+    path.write_text('{"x":"generated"}\n')
+    assert sessions._stage_generated_locales(root) == {locale: git(root, "rev-parse", f":{locale}")}
+
+
 @pytest.fixture
 def lane_env(monkeypatch, tmp_path):
     sessions = load_sessions_module()

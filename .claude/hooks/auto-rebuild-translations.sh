@@ -23,8 +23,11 @@ case "$FILE" in
   *) exit 0 ;;
 esac
 
-PROJECT_DIR="/home/superdev/projects/OpenMates"
+PROJECT_DIR=$(git -C "$(dirname "$FILE")" rev-parse --show-toplevel) || exit 1
 UI_DIR="$PROJECT_DIR/frontend/packages/ui"
+COMMON_DIR=$(git -C "$PROJECT_DIR" rev-parse --path-format=absolute --git-common-dir) || exit 1
+SHARED_UI="$(dirname "$COMMON_DIR")/frontend/packages/ui"
+export NODE_PATH="$SHARED_UI/node_modules${NODE_PATH:+:$NODE_PATH}"
 LOG="/tmp/openmates-i18n-build-$$.log"
 
 # Rebuild translations, capturing combined output

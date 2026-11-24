@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "สร้างงาน",
-          "description": {
-            "text": "สร้างงานพร้อมชื่อ คำอธิบาย และผู้รับผิดชอบ"
-          }
-        },
         "search": {
           "text": "ค้นหางาน",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "แชทตัวอย่าง"
+      },
+      "sub_chat": {
+        "text": "แชตย่อย"
       },
       "shared_chat": {
         "text": "แชทที่แชร์"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "ยุบ {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "งาน"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "ทดลองฟรี"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "ไม่อนุญาตโดเมนอีเมล"
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "การโทรใช้การถอดเสียง Mistral เสียง ElevenLabs v4 Turbo การเลือกเส้นทาง AI ตามปกติของ OpenMates และคิดค่าบริการตามการใช้งาน"
-    },
     "privacy_description": {
       "text": "Mistral ถอดเสียงจากไมโครโฟนของคุณ ส่วน ElevenLabs v4 Turbo สร้างเสียงผู้ช่วยจากข้อความตอบกลับและการตั้งค่าเสียง การสนทนาใช้การเลือกเส้นทาง AI และทักษะตามปกติของ OpenMates ผู้ให้บริการอาจเก็บข้อมูลคำขอตามนโยบายของตน"
     },

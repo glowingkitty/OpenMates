@@ -11,15 +11,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import chat_recovery_watchdog as watchdog  # noqa: E402
 
 CHAT = "a0533bd1-70ce-4f30-bf68-51b9781c1219"
+NEXT_CHAT = "a6643bd1-70ce-4f30-bf68-51b9781c1219"
+TASK = "29897543-0d79-447f-b810-82cbd0531ed4"
+
+
+def task(title, chat=CHAT):
+    return {"task_id": TASK, "title": title, "status": "in_progress", "short_id": "TASK-99",
+            "external_chat": {"provider": "claude", "id": chat}}
+
+
+@pytest.fixture(autouse=True)
+def local_state(tmp_path, monkeypatch):
+    monkeypatch.setattr(watchdog.agent_question, "record_push", lambda *a, **k: None)
+    monkeypatch.setattr(watchdog.codex_chats, "records", lambda: [])
+    monkeypatch.setattr(watchdog.worktree_wip, "sessions_file", lambda: tmp_path / "sessions.json")
 
 
 def test_same_refusal_alerts_once_after_two_attempts(tmp_path, monkeypatch):
     monkeypatch.setattr(watchdog.lifecycle, "live_chats", lambda *a, **k: [])
     monkeypatch.setattr(watchdog.codex_chats, "live", lambda: {})
     monkeypatch.setattr(watchdog, "protected_chats", lambda *a: set())
-    monkeypatch.setattr(watchdog, "cached_tasks", lambda _: [])
+    monkeypatch.setattr(watchdog, "cached_tasks", lambda _: [task("Workspace work")])
     monkeypatch.setattr(watchdog, "problems", lambda *a: {
-        CHAT: {"kind": "handoff", "title": "Workspace work", "reason": "Task transfer failed"}})
+        CHAT: {"kind": "handoff", "title": "Workspace work", "reason": "Task transfer failed", "since": 100}})
     messages, attempts = [], []
     monkeypatch.setattr(watchdog.chat_usage_watch, "send", lambda text, **kw: messages.append(text) or True)
 
@@ -28,10 +42,10 @@ def test_same_refusal_alerts_once_after_two_attempts(tmp_path, monkeypatch):
         return "Task transfer could not be confirmed"
 
     monkeypatch.setattr(watchdog, "attempt", attempt)
-    for timestamp in (1000, 1300):
+    for timestamp in (1900, 2200):
         watchdog.cycle(tmp_path, timestamp)
     assert messages == []
-    for timestamp in (1600, 1900):
+    for timestamp in (2500, 2800):
         watchdog.cycle(tmp_path, timestamp)
     assert attempts == [(CHAT, False), (CHAT, True)]
     assert len(messages) == 1 and messages[0].startswith("Workspace work is still stalled")
@@ -48,7 +62,8 @@ def fake_release(tmp_path, monkeypatch):
     monkeypatch.setattr(watchdog.lifecycle, "live_chats", lambda *a, **k: [])
     monkeypatch.setattr(watchdog.lifecycle, "questions_dir", lambda: tmp_path / "questions")
     monkeypatch.setattr(watchdog.lifecycle, "pushed", lambda *a: {})
-    monkeypatch.setattr(watchdog, "cached_tasks", lambda _: [])
+    monkeypatch.setattr(watchdog, "cached_tasks", lambda _: [task(meta["title"])])
+    monkeypatch.setattr(watchdog.codex_chats, "records", lambda: [{"chat_id": CHAT, **meta}])
     monkeypatch.setattr(watchdog.codex_chats, "live", lambda: {CHAT: {}})
     monkeypatch.setattr(watchdog.codex_chats, "load", lambda _: meta)
     monkeypatch.setattr(watchdog.codex_chats, "rollout_path", lambda _: rollout)
@@ -144,7 +159,7 @@ def test_unseen_delivery_recovers_once_without_exposing_message(tmp_path, fake_r
     assert len(wakes) == 1 and not messages
     watchdog.cycle(tmp_path, START + 900)
     assert len(wakes) == 2 and not messages
-    watchdog.cycle(tmp_path, START + 1200)
+    watchdog.cycle(tmp_path, START + 1800)
     assert len(messages) == 1 and "ten minutes" in messages[0]
     assert messages[0].splitlines()[0] == "Collaboration still has an unread message about remote-access live editing."
     assert "private draft material" not in messages[0]
@@ -163,3 +178,41 @@ def test_completed_chat_with_old_open_task_cache_stays_quiet(tmp_path, fake_rele
     }])
     assert not watchdog.cycle(tmp_path, START + 5000)
     assert not messages and not wakes
+
+
+
+def test_queued_continuation_and_followup_worktree_reset_stale_alert(tmp_path, monkeypatch):
+    (tmp_path / "handed_off.json").write_text(json.dumps({CHAT: {"successor": "queued, not started yet"}}))
+    (tmp_path / "sessions.json").write_text(json.dumps({"sessions": {
+        "previous": {"agent_task_id": NEXT_CHAT, "archived_agent_task_id": CHAT},
+        "followup": {"agent_task_id": CHAT, "task": "Workspace parity (TASK-99)"},
+    }}))
+    monkeypatch.setattr(watchdog.codex_chats, "records", lambda: [
+        {"chat_id": NEXT_CHAT, "title": f"Original work · continuation {CHAT[:8]}"},
+    ])
+    monkeypatch.setattr(watchdog, "progress", lambda cid, *_: (START if cid == CHAT else START + 1799, False))
+    cases = {CHAT: {"kind": "stalled", "since": START}}
+    assert watchdog.current_cases(cases, tmp_path, START + 1800, {}, {}, set(), [task("Parity", NEXT_CHAT)], {}) == {}
+
+
+def test_clean_reply_closes_stale_workspace_incident(tmp_path, fake_release, monkeypatch):
+    messages, wakes, _, _ = fake_release
+    path = tmp_path / "rollout.jsonl"
+    with path.open("a") as stream:
+        stream.write(json.dumps({"timestamp": watchdog.lifecycle._utc(START + 30), "type": "event_msg",
+                                 "payload": {"type": "task_complete", "last_agent_message": (
+                                     "Session d262 is clean, and the composer fix is live on dev.")}}) + "\n")
+    monkeypatch.setattr(watchdog, "problems", lambda *a: {CHAT: {"kind": "parked", "since": START}})
+    assert watchdog.cycle(tmp_path, START + 3600) == {}
+    assert not messages and not wakes
+
+
+def test_live_ci_for_task_member_suppresses_old_collaboration_alert(tmp_path, monkeypatch):
+    (tmp_path / "handed_off.json").write_text(json.dumps({
+        CHAT: {"successor": f"claude/Live collaboration (codex chat {NEXT_CHAT})"},
+    }))
+    monkeypatch.setattr(watchdog, "progress", lambda *_: (START, False))
+    waiting = {"waiting": [{"session_id": NEXT_CHAT, "waits_on": ["ci: CI e2e job (running)"]}]}
+    cases = {CHAT: {"kind": "parked", "since": START}}
+    assert watchdog.current_cases(cases, tmp_path, START + 3600, {}, waiting, set(),
+                                  [task("Live collaboration", NEXT_CHAT)], {}) == {}

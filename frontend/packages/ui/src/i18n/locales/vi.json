@@ -1671,12 +1671,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Tạo nhiệm vụ",
-          "description": {
-            "text": "Tạo nhiệm vụ với tiêu đề, mô tả và người phụ trách."
-          }
-        },
         "search": {
           "text": "Tìm nhiệm vụ",
           "description": {
@@ -3037,6 +3031,9 @@
       },
       "example_chat": {
         "text": "Trò chuyện mẫu"
+      },
+      "sub_chat": {
+        "text": "Cuộc trò chuyện con"
       },
       "shared_chat": {
         "text": "Trò chuyện được chia sẻ"
@@ -7107,6 +7104,11 @@
       },
       "collapse": {
         "text": "Thu gọn {label}"
+      }
+    },
+    "tasks": {
+      "task": {
+        "text": "Nhiệm vụ"
       }
     },
     "diagrams": {
@@ -21113,7 +21115,7 @@
       "text": "Dùng thử miễn phí"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Tên miền e-mail không được phép."
@@ -21907,9 +21909,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Cuộc gọi dùng phiên âm Mistral, giọng ElevenLabs v4 Turbo, định tuyến AI thông thường của OpenMates và tính phí theo mức sử dụng."
-    },
     "privacy_description": {
       "text": "Mistral chuyển âm thanh micrô của bạn thành văn bản; ElevenLabs v4 Turbo tạo giọng trợ lý từ văn bản trả lời và cài đặt giọng nói. Cuộc trò chuyện dùng cơ chế định tuyến AI và kỹ năng thông thường của OpenMates. Nhà cung cấp có thể lưu dữ liệu yêu cầu theo chính sách của họ."
     },
