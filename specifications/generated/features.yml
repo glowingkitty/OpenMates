@@ -12170,6 +12170,9 @@ features:
   - id: feature.app-skills.design-figma
     status: draft
     path: specifications/features/app-skills/design-figma
+  - id: feature.design-editor
+    status: approved
+    path: specifications/features/design-editor
   apps:
   - design
   product_features: []
@@ -12179,7 +12182,7 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 32
+  assertions: 34
   surfaces:
     web:
       status: partial
@@ -12188,16 +12191,20 @@ features:
       assertions:
         passing: 5
         failing: 0
-        not_run: 9
+        not_run: 13
         missing: 20
-        counted: 34
+        counted: 38
       key_tests:
       - frontend/apps/web_app/tests/components/design-editor.spec.ts
       - frontend/apps/web_app/tests/components/design-editor-performance.spec.ts
+      - frontend/apps/web_app/tests/components/design-document.spec.ts
+      - frontend/apps/web_app/tests/design-document-view.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/content-image-gestures.spec.ts
+      - frontend/apps/web_app/tests/components/design-document.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
+      - frontend/apps/web_app/tests/design-document-view.spec.ts
       - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_design_embroidery_skill.py
@@ -12474,6 +12481,83 @@ features:
           missing: 0
           counted: 0
     notes: Developer preview with public fixture data. The product embed contract is subject to review.
+  - id: editor-view
+    name: View a saved design
+    description: Read-only Canvas artboards and page navigation for a client-side encrypted Design embed.
+    assertion_ids:
+    - design-editor.view.client-side-encrypted
+    - design-editor.view.validated-scene
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 2
+          missing: 0
+          counted: 2
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
 - id: diagrams
   name: Diagrams
   kind: app

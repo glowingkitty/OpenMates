@@ -1,0 +1,18 @@
+schema_version: 1
+specification: feature.design-editor@1
+view:
+  - id: multipage-design
+    assertion_ids: [design-editor.view.validated-scene]
+    given: A saved app mockup with three pages named Explore, Saved and Profile.
+    when: An authorized viewer opens the embed and selects Saved.
+    then: The artboard for Saved appears and the page chooser follows the document order.
+  - id: oversized-scene
+    assertion_ids: [design-editor.view.validated-scene]
+    given: A scene with 251 layers on its first page.
+    when: The viewer attempts to open it.
+    then: The page is refused before any layer is rendered.
+  - id: layout-access
+    assertion_ids: [design-editor.view.client-side-encrypted]
+    given: A client-side encrypted collage contains a private photo.
+    when: The owner opens the embed after reload and another user without access requests the embed.
+    then: The owner sees the collage and its photo. The other user receives no readable scene or photo.

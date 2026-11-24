@@ -13,9 +13,10 @@
     onCommit: (layer: DesignLayer) => void;
     onDoubleClick: (id: string) => void;
     zoom: number;
+    readImage?: (id: string) => Promise<ImageBitmap | null>;
   }
 
-  let { page, editing, selection, onSelect, onCommit, onDoubleClick, zoom = $bindable(1) }: Props = $props();
+  let { page, editing, selection, onSelect, onCommit, onDoubleClick, readImage, zoom = $bindable(1) }: Props = $props();
   let element: HTMLCanvasElement;
   let width = $state(0);
   let height = $state(0);
@@ -61,6 +62,10 @@
 
   $effect(() => {
     const id = page.id;
+    if (readImage) {
+      decodedPage = id;
+      return;
+    }
     const layers = page.layers;
     const imageLayers = layers.filter((layer) => layer.kind === 'image');
     if (!imageLayers.length) {
@@ -79,6 +84,59 @@
     return () => { live = false; };
   });
   let imagesForPage: DecodedImages = new Map();
+
+  $effect(() => {
+    const loader = readImage;
+    if (!loader) return;
+    const ids = [...new Set(page.layers.flatMap((layer) => layer.kind === 'image' && layer.assetId ? [layer.assetId] : []))];
+    const bitmaps = new Map<string, ImageBitmap>();
+    const waiting = ids.values();
+    let active = true;
+    let unavailable = false;
+    let pixels = 0;
+    assetsReady = ids.length === 0;
+    const load = async () => {
+      for (const id of waiting) {
+        let bitmap: ImageBitmap | null;
+        try {
+          bitmap = await loader(id);
+        } catch {
+          bitmap = null;
+        }
+        if (!active) {
+          bitmap?.close();
+          return;
+        }
+        if (!bitmap) {
+          unavailable = true;
+          continue;
+        }
+        const size = bitmap.width * bitmap.height;
+        if (pixels + size > 16 * 1024 * 1024) {
+          bitmap.close();
+          unavailable = true;
+          continue;
+        }
+        pixels += size;
+        bitmaps.set(id, bitmap);
+      }
+    };
+    void Promise.all(Array.from({ length: Math.min(4, ids.length) }, load)).then(() => {
+      if (!active) return;
+      images = new Map(bitmaps);
+      missingAssets = unavailable;
+      assetsReady = true;
+    });
+    return () => {
+      active = false;
+      for (const bitmap of bitmaps.values()) bitmap.close();
+      images = new Map();
+      missingAssets = false;
+      assetsReady = false;
+    };
+  });
+  let missingAssets = $state(false);
+  let assetsReady = $state(false);
 
   onMount(() => {
     const styles = getComputedStyle(element);
@@ -264,7 +322,7 @@
 </script>
 
 <div class="stage" bind:clientWidth={width} bind:clientHeight={height}>
-  <canvas bind:this={element} use:wheel data-testid="design-canvas" data-scale={zoom}
+  <canvas bind:this={element} use:wheel data-testid="design-canvas" data-assets-ready={assetsReady || undefined} data-missing-assets={missingAssets || undefined} data-scale={zoom}
     aria-label={`${page.name}, ${page.width} by ${page.height}, ${page.layers.length} layers`} tabindex="0"
     class:editing
     onpointerdown={pointerDown} onpointermove={pointerMove}

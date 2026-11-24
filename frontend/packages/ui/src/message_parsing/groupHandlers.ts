@@ -1108,6 +1108,7 @@ export class GroupHandlerRegistry {
     this.register(new BaseGroupHandler("tasks-task", [
       "id", "type", "status", "contentRef", "title", "task_id", "short_id", "due_date", "validation", "project_name",
     ]));
+    this.register(new BaseGroupHandler("design-document", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("slides-deck", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("slides-template", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("tv-movie", ["id", "type", "status", "contentRef", "title"]));

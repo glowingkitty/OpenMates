@@ -72,7 +72,7 @@ import { renderShoppingSearch, renderShoppingProduct } from '../components/embed
 import { renderJobsSearch, renderJobResult } from '../components/embeds/jobs/jobsEmbedText';
 import { renderHostingSearch, renderHostingDomain } from '../components/embeds/hosting/hostingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
-import { renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
+import { renderDesignDocument, renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
@@ -237,6 +237,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:hosting:search_domains': renderHostingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
 	'app:design:search_icons': renderDesignIconSearch,
+	'app:design:get_design': renderGenericAppSkill,
 	'app:design:embroidery': renderGenericAppSkill,
 	'app:nutrition:search_recipes': renderNutritionSearch,
 	'app:events:search': renderEventsSearch,
@@ -329,6 +330,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'code-test-result': renderTestResult,
 	'file-file': renderFile,
 	'docs-doc': renderDoc,
+	'design-document': renderDesignDocument,
 	'slides-deck': renderSlidesDeck,
 	'slides-template': renderSlidesTemplate,
 	'sheets-sheet': renderSheet,

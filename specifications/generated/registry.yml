@@ -776,6 +776,13 @@ specifications:
     - rest_api
     - gui.web
     - gui.apple
+  feature.design-editor:
+    version: 1
+    status: approved
+    path: features/design-editor
+    fingerprint: a9b814fb48dfe4fc11a0600086986a1f85e56b6993922fa3d31fe45757a343c5
+    required_applies_to:
+    - gui.web
   feature.doc-editor:
     version: 1
     status: draft
@@ -10673,6 +10680,20 @@ assertions:
     - rest_api
     - gui.web
     - gui.apple
+  design-editor.view.validated-scene:
+    specification: feature.design-editor@1
+    specification_id: feature.design-editor
+    type: behavior
+    fingerprint: 3d2c6fdb2c6e3882da5b28fa06c383f9e01030895ee0dbca63fcdf7bb5980d0a
+    required_applies_to:
+    - gui.web
+  design-editor.view.client-side-encrypted:
+    specification: feature.design-editor@1
+    specification_id: feature.design-editor
+    type: security
+    fingerprint: 3ed06377d9a3047234a75c315132736936d761078e1360a7520fa960266d4ab7
+    required_applies_to:
+    - gui.web
   doc-editor.edit.rich-text:
     specification: feature.doc-editor@1
     specification_id: feature.doc-editor

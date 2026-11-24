@@ -1234,6 +1234,16 @@ resolvers.set("document", docsResolver); // legacy server type
 // App-skill route for docs app
 resolvers.set("app:docs:doc", docsResolver);
 
+// Saved Design scenes use the same Worker validator as the fullscreen viewer.
+resolvers.set("design-document", async ({ embedId, embedData, decodedContent, onFullscreen }) => {
+  const [{ default: component }, { readDesignView }] = await Promise.all([
+    import("../components/embeds/design/DesignDocumentEmbedPreview.svelte"),
+    import("../components/embeds/design/editor/designView"),
+  ]);
+  const design = await readDesignView(decodedContent, embedData.content);
+  return { component, props: { id: embedId, design, status: design ? "finished" : "error", onFullscreen } };
+});
+
 // ── Direct: slides (slides_markup deck) ──────────────────────────────────────
 
 const slidesDeckResolver: PreviewResolver = async ({

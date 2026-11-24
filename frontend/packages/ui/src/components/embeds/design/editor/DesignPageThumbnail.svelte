@@ -3,9 +3,10 @@
   import type { DesignPage } from './designDocument';
   import { decodeImages, drawDesignPage } from './designRenderer';
 
-  let { page }: { page: DesignPage } = $props();
+  let { page, card = false }: { page: DesignPage; card?: boolean } = $props();
   let canvas: HTMLCanvasElement;
-  const scale = $derived(Math.min(112 / page.width, 112 / page.height));
+  const maxPixels = $derived(card ? 320 : 112);
+  const scale = $derived(Math.min(maxPixels / page.width, maxPixels / page.height));
   $effect(() => {
     const designPage = page;
     const zoom = scale;
@@ -21,8 +22,9 @@
   });
 </script>
 
-<canvas bind:this={canvas} width={Math.ceil(page.width * scale)} height={Math.ceil(page.height * scale)} aria-hidden="true"></canvas>
+<canvas class:card bind:this={canvas} width={Math.ceil(page.width * scale)} height={Math.ceil(page.height * scale)} aria-hidden="true"></canvas>
 
 <style>
+  canvas.card { width: 100%; height: 100%; min-height: 0; max-width: none; }
   canvas { height: 64px; max-width: 72px; object-fit: contain; }
 </style>

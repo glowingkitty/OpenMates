@@ -751,7 +751,7 @@ features:
     name: "Design"
     kind: app
     description: "Find icons and visual assets, and read your Figma or Penpot designs to build them."
-    specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma]
+    specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma, feature.design-editor]
     apps: [design]
     release: v0.19.0
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
@@ -762,7 +762,7 @@ features:
       sdk_npm: "sdk.design facade (npm)"
       sdk_pypi: "sdk.design facade (py)"
     key_tests:
-      web: [frontend/apps/web_app/tests/components/design-editor.spec.ts, frontend/apps/web_app/tests/components/design-editor-performance.spec.ts]
+      web: [frontend/apps/web_app/tests/components/design-editor.spec.ts, frontend/apps/web_app/tests/components/design-editor-performance.spec.ts, frontend/apps/web_app/tests/components/design-document.spec.ts, frontend/apps/web_app/tests/design-document-view.spec.ts]
     subfeatures:
       - id: figma-get-design
         name: "Figma and Penpot designs"
@@ -775,6 +775,11 @@ features:
         description: "Dev preview with view mode, direct layer editing in memory, and fixed-size artboard examples."
         surfaces: {web: in_progress}
         notes: "Developer preview with public fixture data. The product embed contract is subject to review."
+      - id: editor-view
+        name: "View a saved design"
+        description: "Read-only Canvas artboards and page navigation for a client-side encrypted Design embed."
+        assertions: ["design-editor.view.*"]
+        surfaces: {web: in_progress, apple: planned}
   - id: diagrams
     name: "Diagrams"
     kind: app

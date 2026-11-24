@@ -7656,6 +7656,7 @@
             "client.embed_write_read.OpenedEmbedFields.text_preview",
             "client.embed_write_read.open_fields",
             "client.embed_write_read.open_row_fields",
+            "client.embed_write_read.validate_design_scene",
             "client.embed_write_ref_index.EmbedRefIndex",
             "client.embed_write_ref_index.EmbedRefIndex.clear",
             "client.embed_write_ref_index.EmbedRefIndex.new",

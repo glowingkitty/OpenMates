@@ -19,7 +19,7 @@ interface LayerBase extends Box {
 export type DesignLayer = LayerBase & (
   | { kind: 'shape'; shape: 'rectangle' | 'ellipse'; color: string; radius?: number }
   | { kind: 'text'; text: string; font: DesignFont; fontSize: number; weight: number; color: string }
-  | { kind: 'image'; src: string }
+  | { kind: 'image'; src: string; assetId?: string }
   | { kind: 'path'; path: string; viewWidth: number; viewHeight: number; color: string }
 );
 

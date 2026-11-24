@@ -94,3 +94,27 @@ async fn non_object_rows_are_refused() {
     let key = NativeAead.import_key(&[1u8; 32]).await.unwrap();
     assert!(open_row_fields(key.as_ref(), &json!("row")).await.is_err());
 }
+
+#[tokio::test]
+async fn design_scene_is_validated_after_the_existing_embed_key_opens_it() {
+    let key = [9u8; 32];
+    let scene = json!({
+        "schemaVersion": 1, "title": "Studio floor plan", "pages": [
+            {"id": "studio", "name": "Studio", "width": 640, "height": 480,
+             "background": "#fffeee", "layers": []}
+        ]
+    });
+    let body = scene.to_string();
+    let row = |content: &str| json!({
+        "encrypted_content": seal(content, &key),
+        "encrypted_type": seal("design-document", &key),
+        "encrypted_text_preview": seal("Studio floor plan", &key),
+    });
+    let opened = open(&key, &row(&body)).await;
+    assert_eq!(opened.content.as_deref(), Some(body.as_str()));
+    assert!(!opened.content_failed);
+    let invalid = open(&key, &row(r#"{"schemaVersion":9}"#)).await;
+    assert!(invalid.content_failed && invalid.content.is_none() && invalid.text_preview.is_none());
+    let locked = open(&[7u8; 32], &row(&body)).await;
+    assert!(locked.content_failed && locked.content.is_none());
+}

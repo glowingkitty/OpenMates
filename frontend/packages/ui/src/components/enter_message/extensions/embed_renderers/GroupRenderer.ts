@@ -440,6 +440,8 @@ export class GroupRenderer implements EmbedRenderer {
         (item, embedData, decodedContent, content) =>
           this.renderDocsComponent(item, embedData, decodedContent, content),
       ],
+      ["design-document", (item, embedData, decodedContent, content) =>
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       [
         "slides-deck",
         (item, embedData, decodedContent, content) =>

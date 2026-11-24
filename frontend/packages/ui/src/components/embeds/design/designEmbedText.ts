@@ -1,4 +1,5 @@
 // frontend/packages/ui/src/components/embeds/design/designEmbedText.ts
+// figma-visual-proof: not-required. This module formats plain-text transcripts.
 //
 // Plain-text renderers for Design app embeds.
 // Used by copy/export flows and CLI output so new design embed types remain
@@ -7,6 +8,18 @@
 // Architecture: docs/architecture/embeds.md
 
 import { resolveResultCount, str } from '../../../data/embedTextRenderers';
+
+/** Plain text for a saved design in chat copy and transcript exports. */
+export function renderDesignDocument(content: Record<string, unknown>): string {
+  const title = str(content.title) ?? 'Design';
+  const pages = Array.isArray(content.pages) ? content.pages : [];
+  const names = pages.flatMap((page: unknown) => {
+    if (typeof page !== 'object' || page === null || !('name' in page)) return [];
+    const name = str(page.name);
+    return name ? [name] : [];
+  });
+  return [`**${title}**`, ...names].join('\n');
+}
 
 export function renderDesignIconSearch(content: Record<string, unknown>): string {
 	const query = str(content.query) ?? 'Icon search';

@@ -61,6 +61,7 @@ PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
 # parent may remain manifest-only or action-only.
 PARENT_PREVIEW_METADATA_EXEMPTIONS: dict[str, str] = {
     "code:create_application": "Application parents store a manifest of file refs; live previews run only on explicit action.",
+    "design:embroidery": "Conversion parent groups generated stitch files and their previews under output children.",
     "images:generate": "Generation parent contains one produced asset child, not a search result list.",
     "images:generate_draft": "Generation parent contains one produced asset child, not a search result list.",
     "images:vectorize": "Vectorization parent contains one produced asset child, not a search result list.",

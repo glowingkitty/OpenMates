@@ -66,6 +66,7 @@ mod context;
 mod project_memories;
 mod project_memory_request;
 mod send_project_binding;
+mod design_scene;
 mod direct;
 pub(crate) use direct::{previous_team_keys, refuse_sealed_team_key};
 mod docs;

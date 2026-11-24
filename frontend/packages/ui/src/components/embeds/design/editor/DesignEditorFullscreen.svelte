@@ -12,13 +12,15 @@
 
   interface Props {
     document: DesignDocument;
+    readOnly?: boolean;
+    readImage?: (id: string) => Promise<ImageBitmap | null>;
     initialMode?: 'view' | 'edit';
     onClose: () => void;
   }
 
-  let { document: initialDocument, initialMode = 'view', onClose }: Props = $props();
+  let { document: initialDocument, initialMode = 'view', readOnly = false, readImage, onClose }: Props = $props();
   let document = $state.raw(untrack(() => initialDocument));
-  let editing = $state(untrack(() => initialMode === 'edit'));
+  let editing = $state(untrack(() => !readOnly && initialMode === 'edit'));
   let pageIndex = $state(0);
   let selectedId = $state<string | null>(null);
   let mobilePanel = $state<'layers' | 'properties' | null>(null);
@@ -174,7 +176,7 @@
 
 <UnifiedEmbedFullscreen appId="design" {onClose} showShare={false} closeOnChatSelection={false}
   testId="design-fullscreen" contentLayout="app-home"
-  onEdit={toggleMode} editActive={editing} editToggleOnly editPlacement="close" editTestId="design-mode" reportInMore
+  onEdit={readOnly ? undefined : toggleMode} editActive={editing} editToggleOnly editPlacement="close" editTestId="design-mode" reportInMore
   editLabel={editing ? 'View design' : 'Edit design'} escapeScope={{ consume: escape }}>
   {#snippet embedHeaderContent()}
     <header class="design-header">
@@ -204,7 +206,7 @@
       <div class="canvas-area">
         {#key activePage.id}
           <DesignCanvas bind:this={canvas} page={activePage} {editing} selection={selected} bind:zoom
-            onSelect={select} onCommit={changeLayer} onDoubleClick={editText} />
+            onSelect={select} onCommit={changeLayer} onDoubleClick={editText} {readImage} />
         {/key}
 
         {#if document.pages.length > 1}

@@ -47,6 +47,7 @@ export interface OpenedEmbedFields {
 export type EmbedFieldsResult = { ok: true; fields: OpenedEmbedFields } | { ok: false; code: string };
 
 export type EmbedDataProtocol = {
+	validateDesignScene: { request: { scene: string }; response: boolean };
 	openFields: { request: { items: EmbedFieldsRequest[] }; response: EmbedFieldsResult[] };
 	/** Rust TOON decode (non-strict, as `@toon-format/toon` `decode(text, {strict:false})`):
 	 * JSON text per input, or null where TOON refused it (`toon_decode_failed`). */

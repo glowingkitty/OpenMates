@@ -26,6 +26,7 @@
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare preview with bundled design documents and images. Exercises canvas gestures, edit controls, themes and renderer performance without backend services, credentials or AI.",
       "specs": [
+        "components/design-document.spec.ts",
         "components/design-editor.spec.ts",
         "components/design-editor-performance.spec.ts"
       ]
@@ -190,6 +191,7 @@
         "wiki-learning-flow.spec.ts",
         "embed-preview-backfill-replay.spec.ts",
         "embed-catalog-hyphen-roundtrip.spec.ts",
+        "design-document-view.spec.ts",
         "historical-image-child-recovery.spec.ts"
       ]
     },

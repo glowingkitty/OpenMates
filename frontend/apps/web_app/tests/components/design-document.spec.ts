@@ -1,0 +1,57 @@
+// playwright-account: not_required reason=isolated_component_preview
+import { test, expect } from '../helpers/cookie-audit';
+import { waitForComponentPreview } from '../helpers/component-preview';
+
+function path(component: 'Fullscreen' | 'Preview', width: number, variant = '') {
+  const query = new URLSearchParams({ width: String(width), chrome: '0', theme: 'light', background: '#dbeafe', variant });
+  return `/dev/preview/embeds/design/DesignDocumentEmbed${component}?${query}`;
+}
+
+// contract-test: supporting surface=gui.web assertions=design-editor.view.validated-scene
+test('previews the first Design artboard within the result card', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto(path('Preview', 1280));
+  await waitForComponentPreview(page);
+  const preview = page.getByTestId('embed-preview');
+  await expect(preview).toContainText('Trail Club');
+  const canvas = page.getByTestId('design-embed-thumbnail').locator('canvas');
+  await expect(canvas).toBeVisible();
+  await expect.poll(async () => (await canvas.boundingBox())?.height ?? 0).toBeGreaterThan(100);
+  await info.attach('design-preview-desktop', { body: await preview.screenshot(), contentType: 'image/png' });
+});
+
+for (const profile of [{ width: 1280, height: 860 }, { width: 390, height: 844 }]) {
+  // contract-test: supporting surface=gui.web assertions=design-editor.view.validated-scene
+  test(`reads and navigates a validated scene at ${profile.width}px`, async ({ page }, info) => {
+    await page.setViewportSize(profile);
+    await page.goto(path('Fullscreen', profile.width));
+    await waitForComponentPreview(page);
+    const canvas = page.getByTestId('design-canvas');
+    await expect(canvas).toHaveAttribute('data-painted-page', 'explore');
+    await expect(page.getByTestId('design-mode')).toHaveCount(0);
+    const chooser = page.getByTestId('design-page-chooser');
+    await chooser.click();
+    const menu = page.getByLabel('Design pages');
+    await expect(menu.getByRole('button')).toHaveText(['Explore', 'Saved', 'Profile']);
+    await expect(menu.getByRole('button', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
+    await info.attach(`design-pages-${profile.width}`, { body: await page.screenshot(), contentType: 'image/png' });
+    await menu.getByRole('button', { name: 'Saved' }).click();
+    await expect(canvas).toHaveAttribute('data-painted-page', 'saved');
+    const initialScale = Number(await canvas.getAttribute('data-scale'));
+    await page.getByTestId('design-zoom-in').click();
+    await expect.poll(async () => Number(await canvas.getAttribute('data-scale'))).toBeGreaterThan(initialScale);
+    await page.getByTestId('design-fit').click();
+    await expect.poll(async () => Number(await canvas.getAttribute('data-scale'))).toBeCloseTo(initialScale, 3);
+    await info.attach(`design-saved-${profile.width}`, { body: await page.screenshot(), contentType: 'image/png' });
+  });
+}
+
+// contract-test: supporting surface=gui.web assertions=design-editor.view.validated-scene
+test('shows a load error before rendering an unsupported version', async ({ page }, info) => {
+  await page.goto(path('Fullscreen', 1280, 'unsupported'));
+  await waitForComponentPreview(page);
+  const error = page.getByTestId('embed-fullscreen-load-error');
+  await expect(error).toBeVisible();
+  await expect(page.getByTestId('design-canvas')).toHaveCount(0);
+  await info.attach('design-unsupported-version', { body: await error.screenshot(), contentType: 'image/png' });
+});

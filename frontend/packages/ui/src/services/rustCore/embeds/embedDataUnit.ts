@@ -32,6 +32,7 @@ export interface EmbedDataBinding extends Partial<EmbedReadBinding> {
 	): Promise<unknown>;
 	/** Rust `toon_decode::decode_to_json_text`; throws `toon_decode_failed` for refused TOON. */
 	toon_decode(text: string): string;
+	embed_validate_design_scene?(scene: string): void;
 }
 
 const CODE = /^[a-z][a-z0-9_]{0,63}$/;
@@ -72,6 +73,17 @@ export function createEmbedDataHandlers(binding: EmbedDataBinding): UnitHandlers
 	const text = (value: string | null) => value ?? undefined;
 	return {
 		...createEmbedReadHandlers(binding),
+		validateDesignScene(payload) {
+			if (typeof payload?.scene !== 'string') throw new UnitRefusal('embed_data_bad_request');
+			if (!binding.embed_validate_design_scene) throw new UnitRefusal('unavailable');
+			try {
+				binding.embed_validate_design_scene(payload.scene);
+				return true;
+			} catch (error) {
+				if (error === 'design_scene_invalid') return false;
+				throw new UnitRefusal(rejection(error));
+			}
+		},
 		async openFields(payload) {
 			const items = (payload as { items?: unknown } | null)?.items;
 			if (!Array.isArray(items) || items.length > EMBED_DATA_MAX_ITEMS || !items.every(validItem)) {

@@ -16,6 +16,34 @@ category: creative
 last_updated: "2026-11-10"
 expose_in_api: true
 embed_types:
+  - id: document
+    category: direct
+    frontend_type: design-document
+    backend_type: design-document
+    has_children: false
+    groupable: true
+    preview_component: design/DesignDocumentEmbedPreview.svelte
+    fullscreen_component: design/DesignDocumentEmbedFullscreen.svelte
+    icon: design
+    gradient_var: "--color-app-design"
+    content_fields:
+      - name: schemaVersion
+        type: number
+        required: true
+      - name: title
+        type: string
+        required: true
+      - name: pages
+        type: array
+        required: true
+  - id: get_design
+    category: app-skill-use
+    skill_id: get_design
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: design
+    gradient_var: "--color-app-design"
   - id: search_icons
     category: app-skill-use
     skill_id: search_icons
@@ -401,6 +429,9 @@ skills:
     providers:
       - name: Figma
         no_api_key: true
+    pricing:
+      # Declare the existing minimum charge used by chat billing.
+      fixed: 1
     preprocessor_hint: >
       Read a Figma design from a Figma file URL or file key through the user's connected
       Figma account: pages, frames, layout, colors, text styles, components, optional

@@ -69,6 +69,17 @@ export class EmbedDataClient {
 		});
 	}
 
+	/** Validate a Design scene locally in the core before Canvas receives it. */
+	async validateDesignScene(scene: string): Promise<boolean> {
+		const release = this.core.hold();
+		try {
+			const { unit } = await this.open();
+			return await unit.request('validateDesignScene', { scene }) === true;
+		} finally {
+			release();
+		}
+	}
+
 	/** Rust replay of one legacy version patch; rejects with `version_patch_refused` where Rust refuses it. */
 	async applyVersionPatch(content: string, patch: string): Promise<string> {
 		const release = this.core.hold();

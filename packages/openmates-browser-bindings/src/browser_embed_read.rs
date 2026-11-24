@@ -58,3 +58,16 @@ pub fn embed_sender_decide(op: &str, input: &str) -> Result<String, JsValue> {
         .map_err(|_| JsValue::from_str("unavailable"))?;
     embed_read::run_json(op, input).map_err(|reason| JsValue::from_str(&format!("embed_sender:{reason}")))
 }
+
+/// Validates a locally read Design scene inside the shared Worker.
+///
+/// # Errors
+/// Returns `design_scene_invalid` for invalid scenes or `unavailable` outside a Worker.
+#[wasm_bindgen]
+pub fn embed_validate_design_scene(content: &str) -> Result<(), JsValue> {
+    js_sys::global()
+        .dyn_into::<web_sys::DedicatedWorkerGlobalScope>()
+        .map_err(|_| JsValue::from_str("unavailable"))?;
+    openmates_sdk::client::embed_write::read::validate_design_scene(content)
+        .map_err(|_| JsValue::from_str("design_scene_invalid"))
+}
