@@ -221,6 +221,21 @@ function whenPageVisible(action: () => void): void {
   document.addEventListener('visibilitychange', onVisible);
 }
 
+const SPEECH_STOP_TIMEOUT_MS = 5_000;
+
+/** Waits for the speech teardown, but never lets a stalled cancel send block the call start. */
+async function boundedSpeechStop(stopping: Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<'timeout'>((resolve) => { timer = setTimeout(() => resolve('timeout'), SPEECH_STOP_TIMEOUT_MS); });
+  try {
+    if (await Promise.race([stopping.then(() => 'done' as const), timedOut]) === 'timeout') {
+      console.warn('[VoiceCall] Assistant speech stop timed out; continuing the call start');
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export class VoiceCallController implements VoiceCallControllerLike {
   private cleanupAttempt: NewCallCleanupAttempt | null = null;
   private store = writable<VoiceCallState>({ ...initialVoiceCallState });
@@ -531,7 +546,11 @@ export class VoiceCallController implements VoiceCallControllerLike {
       if (generation !== this.generation) return;
       this.update({ chatId: prepared.chatId, mateCategory: prepared.mateCategory });
       onBound?.(prepared.chatId);
-      await assistantSpeechController.stop();
+      // The stop sends a best-effort speech cancel over the app socket; on a
+      // stale socket that send waits for a reconnect with no deadline of its
+      // own, which would stall the call before /v1/voice-call is opened.
+      await boundedSpeechStop(assistantSpeechController.stop());
+      if (generation !== this.generation) return;
       assistantSpeechController.setCallOwner(prepared.chatId);
       let token = getWebSocketToken();
       if (websocketTokenNeedsRefresh(token)) {

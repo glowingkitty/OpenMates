@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { text } from '../../../i18n/translations';
   import { BrowseHttpError, type BrowseClient, type BrowseCommand, type BrowseInput, type BrowseSession } from '../../../services/webBrowseService';
+  import { browseTakeoverActive } from '../../../stores/browseTakeoverStore';
   import { browsePhaseKey, browseStatusKey, browseStepKey, browseStepShowsLabel } from './browseContent';
   interface Props {
     sessionId: string;
@@ -30,6 +31,13 @@
   let starting = $derived(session?.phase === 'starting' && !terminal && !ending);
   let stepList = $state<HTMLOListElement | null>(null);
   // Newest step stays in view; the list scrolls inside the viewer, never the page.
+  // Held-back toasts (software update) must not cover the browser while the user drives it.
+  $effect(() => {
+    const active = session?.status === 'user' && !ending;
+    browseTakeoverActive.set(active);
+    document.documentElement.toggleAttribute('data-browse-takeover', active);
+    return () => { browseTakeoverActive.set(false); document.documentElement.removeAttribute('data-browse-takeover'); };
+  });
   $effect(() => { void steps.length; if (stepList) stepList.scrollTop = stepList.scrollHeight; });
   function clearFrame() {
     if (frame) URL.revokeObjectURL(frame);

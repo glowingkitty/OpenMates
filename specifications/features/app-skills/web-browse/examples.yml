@@ -90,6 +90,10 @@ form_with_user:
     given: The user typed the hidden email through take control and pressed "Let AI continue".
     when: The assistant continues.
     then: Browse first observes the same session again without a new start address, the reply says the email is now filled and asks the next question.
+  - id: summary-after-user-typed
+    given: The user typed the hidden email through take control, the assistant observed the page again and the email field shows as filled.
+    when: The assistant shows the summary before submit.
+    then: The email is listed as filled by the user (value hidden), not as "you type this"; only a field still empty on the observed page says the user must type it.
   - id: cap-for-the-whole-form
     given: The form session started with a 1000-credit cap and the user answers the ninth question.
     when: The assistant fills that answer.

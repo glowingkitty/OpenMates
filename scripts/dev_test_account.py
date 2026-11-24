@@ -49,6 +49,9 @@ BACKUPS = HOME / "test-chat-backups"
 API_URL = "https://api.dev.openmates.org"
 CMS_URL = "http://localhost:8055"
 GIFTED_CREDITS = 20000  # dev-only credits; enough for image/video real runs
+# A run that must prove behaviour on a low balance (e.g. a paid skill holding
+# only what the user can afford) sets OPENMATES_THROWAWAY_CREDITS below that.
+THROWAWAY_CREDITS_ENV = "OPENMATES_THROWAWAY_CREDITS"
 # Owner rule: a dev test account that runs low is topped up automatically before
 # a real run, never replaced by a throwaway account for that reason.
 PERSONAL_MINIMUM_CREDITS = 20000
@@ -218,9 +221,19 @@ call('/items/invite_codes', {'code': code, 'remaining_uses': 1, 'is_admin': Fals
 """
 
 
+def throwaway_credits() -> int:
+    """Credits a new throwaway account starts with: GIFTED_CREDITS unless the run asks for fewer."""
+    raw = os.environ.get(THROWAWAY_CREDITS_ENV, "").strip()
+    if not raw:
+        return GIFTED_CREDITS
+    if not raw.isdigit() or not 0 < int(raw) <= GIFTED_CREDITS:
+        raise ThrowawayAccountError(f"{THROWAWAY_CREDITS_ENV} must be an integer from 1 to {GIFTED_CREDITS}")
+    return int(raw)
+
+
 def _create_invite(code: str) -> None:
     """Create a single-use gifted-credit invite from inside the API container (admin auth stays there)."""
-    _docker("exec", "api", "python3", "-c", _INVITE_PROGRAM, code, str(GIFTED_CREDITS), timeout=60)
+    _docker("exec", "api", "python3", "-c", _INVITE_PROGRAM, code, str(throwaway_credits()), timeout=60)
 
 
 def _cache_password() -> str:
@@ -360,15 +373,16 @@ def top_up_personal_account(environment: dict[str, str]) -> str:
 
 
 def grant_credits(credentials: dict[str, str]) -> None:
-    """Top the new account up to GIFTED_CREDITS with the operator script inside the API container.
+    """Top the new account up to its starting credits with the operator script inside the API container.
 
     Dev does not require invite codes, so signup ignores the invite's gifted
     credits; the operator top-up reuses the app's own encrypted-balance path.
     """
     email = credentials["OPENMATES_TEST_ACCOUNT_EMAIL"]
+    credits = throwaway_credits()
     _docker(
         "exec", "-i", "api", "python", "/app/backend/scripts/top_up_test_account_credits.py",
-        "--accounts-json", "-", "--minimum", str(GIFTED_CREDITS), "--target", str(GIFTED_CREDITS),
+        "--accounts-json", "-", "--minimum", str(credits), "--target", str(credits),
         stdin=json.dumps([{"email": email}]), timeout=120,
     )
 

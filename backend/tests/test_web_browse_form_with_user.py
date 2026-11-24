@@ -193,3 +193,14 @@ def test_saved_browse_embed_reaches_history_without_screenshot_bytes():
     view = browse_embed_for_model(saved)
     assert view["embed_ref"] == "browse-form-abc"
     assert view["results"] == [{"status": "completed", "data_json": "{}", "observations_form": FORM}]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_form_instruction_summary_follows_latest_observed_field_state():
+    from pathlib import Path
+
+    text = (
+        Path(__file__).resolve().parents[1] / "apps" / "web" / "app.yml"
+    ).read_text()
+    assert "only while the latest observation still shows it empty" in text
+    assert "filled by the user" in text

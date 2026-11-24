@@ -10185,9 +10185,9 @@ features:
       assertions:
         passing: 33
         failing: 6
-        not_run: 9
+        not_run: 10
         missing: 11
-        counted: 59
+        counted: 60
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10203,6 +10203,7 @@ features:
         without saving
       key_tests:
       - frontend/apps/web_app/tests/voice-call.spec.ts
+      - frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
@@ -10230,6 +10231,7 @@ features:
       - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-waiting.spec.ts
       - frontend/apps/web_app/tests/voice-call-ambient-sounds.spec.ts
+      - frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts
       - frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
       - frontend/apps/web_app/tests/voice-call-real.spec.ts
       - frontend/apps/web_app/tests/voice-call-screen-share.spec.ts
@@ -19266,7 +19268,7 @@ features:
       - backend/apps/ai/tests/test_search_skill_reliability.py
       - backend/tests/test_web_browse_dispatch.py
       - backend/tests/test_grouped_bare_embed_refs.py
-      unit_test_files: 16
+      unit_test_files: 17
     apple:
       status: partial
       source: tests

@@ -2157,3 +2157,78 @@ async def test_a_wallet_that_cannot_hold_a_useful_window_still_refuses(service):
         await run(service)
     assert exc.value.status_code == 402
     assert reserve_calls(service) == [250]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.truthful-completion
+@pytest.mark.asyncio
+@pytest.mark.parametrize("confirmed", [True, False])
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.truthful-completion
+async def test_fill_only_turn_completes_only_when_the_review_confirms_the_entry(
+    service, confirmed
+):
+    field = {"id": "1", "kind": "type", "role": "textbox", "label": "Colour"}
+    service.driver.observation = shop_page(1, "Colour: Teal", [field])
+    reviews = []
+
+    class Filling(Models):
+        plans = [
+            action_plan({"kind": "type", "target": "1", "text": "Teal"}),
+            done_plan(),
+        ]
+        verified = False
+        extracted = {"data": None}
+        reviewed = {
+            "grounded": confirmed,
+            "answer_complete": True,
+            "interaction_complete": confirmed,
+        }
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.reviews = reviews
+
+    service.models_factory = Filling
+    result = await run(
+        service,
+        BrowseRequest(
+            task="Type 'Teal' into the colour field", start_url="https://shop.example/"
+        ),
+    )
+    assert len(reviews) == 1
+    assert result.status == ("completed" if confirmed else "needs_user")
+    assert result.data is None
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+async def test_reading_turn_without_schema_keeps_its_answer_after_steps(service):
+    field = {"id": "1", "kind": "click", "role": "button", "label": "Show colour"}
+    service.driver.observation = shop_page(1, "Colour: Teal", [field])
+
+    class Reading(Models):
+        plans = [action_plan({"kind": "click", "target": "1"}), done_plan()]
+        verified = False
+        extracted = {"data": {"colour": "Teal"}}
+        reviewed = {"grounded": True, "answer_complete": True, "interaction_complete": True}
+
+    service.models_factory = Reading
+    result = await run(
+        service,
+        BrowseRequest(task="Which colour does the page show?", start_url="https://shop.example/"),
+    )
+    assert result.status == "completed"
+    assert result.data == {"colour": "Teal"}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data
+async def test_data_task_without_matching_data_still_needs_the_user(service):
+    class NoData(Models):
+        verified = False
+        extracted = {"data": None}
+
+    service.models_factory = NoData
+    result = await run(service, arguments(output_schema=SHOP_SCHEMA))
+    assert result.status == "needs_user"

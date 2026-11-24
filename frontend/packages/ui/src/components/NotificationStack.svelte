@@ -16,6 +16,7 @@
         notificationStore,
         type NotificationType,
     } from '../stores/notificationStore';
+    import { browseTakeoverActive, notificationsForTakeover } from '../stores/browseTakeoverStore';
     import { activeChatStore } from '../stores/activeChatStore';
     import { chatNotificationIdsForVisibleChat, getVisibleHashChatId } from '../services/chatNotificationVisibility';
 
@@ -44,7 +45,7 @@
     };
 
     let visibleNotifications = $derived(
-        $notificationStore.notifications.slice(-MAX_VISIBLE_NOTIFICATIONS).reverse(),
+        notificationsForTakeover($notificationStore.notifications, $browseTakeoverActive).slice(-MAX_VISIBLE_NOTIFICATIONS).reverse(),
     );
 
     // The chat the user is looking at (URL hash, the visibility source of truth).

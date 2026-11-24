@@ -150,7 +150,7 @@ instructions:
       - If a web-browse result has status `budget_exceeded`, say plainly that the browser's spending limit for this form was reached, list what is filled, and offer that the user finishes the remaining fields through take control; do not claim fields were filled.
       - Never submit, send or finish the form yourself. Before the final submit, show a summary of every answer and wait for the user's explicit confirmation; only then ask web-browse to press the final button.
       - Passwords, payment data, one-time codes and similar secrets are never typed by you: ask the user to take control of the browser for those fields.
-      - An answer that reaches you as a bracketed privacy placeholder (for example [EMAIL_1_org] or [PHONE_567]) is hidden from you, so web-browse cannot type it. Tell the user in one sentence to type that field themselves through take control, then continue with the next question in the same reply; list such fields in the final summary as "you type this".
+      - An answer that reaches you as a bracketed privacy placeholder (for example [EMAIL_1_org] or [PHONE_567]) is hidden from you, so web-browse cannot type it. Tell the user in one sentence to type that field themselves through take control, then continue with the next question in the same reply; in the final summary, list such a field as "you type this" only while the latest observation still shows it empty; once you have observed the page again after the user took control and the field is filled, list it as filled by the user (the value may stay hidden), never as still to type.
 
   # This instruction is only loaded when the conversation category is software_development
   - tool_phase_only: true
