@@ -54,23 +54,42 @@ async def main():
         config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
     bucket = REQUEST["bucket"]
+    created = False
     try:
         client.head_bucket(Bucket=bucket)
     except ClientError as exc:
         if exc.response.get("Error", {}).get("Code") not in {"404", "NoSuchBucket"}:
             raise
         client.create_bucket(Bucket=bucket)
+        created = True
         time.sleep(2)
-    client.put_bucket_acl(Bucket=bucket, ACL="private")
-    client.put_bucket_lifecycle_configuration(
-        Bucket=bucket,
-        LifecycleConfiguration={"Rules": [{
-            "ID": "ExpireCiCandidatesAfterTwoDays",
-            "Status": "Enabled",
-            "Filter": {"Prefix": "candidates/"},
-            "Expiration": {"Days": int(REQUEST["lifecycle_days"])},
-        }]},
-    )
+    # Hetzner creates buckets private by default. Verify privacy without
+    # requiring permission to rewrite the bucket ACL for every candidate.
+    acl = client.get_bucket_acl(Bucket=bucket)
+    owner = acl["Owner"]["ID"]
+    if not acl["Grants"] or any(
+        grant["Grantee"].get("Type") != "CanonicalUser" or grant["Grantee"].get("ID") != owner
+        for grant in acl["Grants"]
+    ):
+        raise RuntimeError("CI candidate bucket ACL must grant access only to its owner")
+    try:
+        client.get_bucket_policy(Bucket=bucket)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "NoSuchBucketPolicy":
+            raise
+    else:
+        raise RuntimeError("CI candidate bucket must not have a bucket policy")
+    expiry_rule = {
+        "ID": "ExpireCiCandidatesAfterTwoDays",
+        "Status": "Enabled",
+        "Filter": {"Prefix": "candidates/"},
+        "Expiration": {"Days": int(REQUEST["lifecycle_days"])},
+    }
+    if created:
+        client.put_bucket_lifecycle_configuration(Bucket=bucket, LifecycleConfiguration={"Rules": [expiry_rule]})
+    rules = client.get_bucket_lifecycle_configuration(Bucket=bucket)["Rules"]
+    if expiry_rule not in rules:
+        raise RuntimeError("CI candidate bucket must have the enabled two-day expiry rule")
     content = Path(REQUEST["container_path"]).read_bytes()
     client.put_object(
         Bucket=bucket,

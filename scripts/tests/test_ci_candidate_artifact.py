@@ -3,10 +3,61 @@
 
 import datetime as dt
 import hashlib
+import json
+import sys
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from scripts import ci_candidate_artifact as artifact
+
+
+@pytest.mark.parametrize("bucket_access", ["owner", "public_acl", "policy", "missing_expiry"])
+def test_container_checks_privacy_without_rewriting_acl(tmp_path, monkeypatch, bucket_access, capsys):
+    class StorageError(Exception):
+        response = {"Error": {"Code": "NoSuchBucketPolicy"}}
+
+    patch = tmp_path / "candidate.patch"
+    patch.write_bytes(b"synthetic patch")
+    client = Mock()
+    grants = [{"Grantee": {"Type": "CanonicalUser", "ID": "owner"}, "Permission": "FULL_CONTROL"}]
+    if bucket_access == "public_acl":
+        grants.append({"Grantee": {"Type": "Group"}, "Permission": "READ"})
+    client.get_bucket_acl.return_value = {"Owner": {"ID": "owner"}, "Grants": grants}
+    if bucket_access != "policy":
+        client.get_bucket_policy.side_effect = StorageError()
+    client.get_bucket_lifecycle_configuration.return_value = {
+        "Rules": [] if bucket_access == "missing_expiry" else [{
+            "ID": "ExpireCiCandidatesAfterTwoDays",
+            "Status": "Enabled",
+            "Filter": {"Prefix": "candidates/"},
+            "Expiration": {"Days": 2},
+        }],
+    }
+    client.generate_presigned_url.return_value = "https://nbg1.your-objectstorage.com/?X-Amz-Signature=test"
+    manager = SimpleNamespace(initialize=AsyncMock(), get_secret=AsyncMock(return_value="test"))
+    monkeypatch.setitem(sys.modules, "boto3", SimpleNamespace(client=Mock(return_value=client)))
+    monkeypatch.setitem(sys.modules, "botocore.config", SimpleNamespace(Config=Mock()))
+    monkeypatch.setitem(sys.modules, "botocore.exceptions", SimpleNamespace(ClientError=StorageError))
+    monkeypatch.setitem(
+        sys.modules, "backend.core.api.app.utils.secrets_manager",
+        SimpleNamespace(SecretsManager=lambda: manager),
+    )
+    monkeypatch.setenv("OPENMATES_CI_CANDIDATE_REQUEST", json.dumps({
+        "bucket": artifact.BUCKET_NAME, "container_path": str(patch), "key": "candidates/test.patch",
+        "source": "a" * 40, "sha256": "b" * 64, "lifecycle_days": 2, "expires_in": 3600,
+    }))
+    if bucket_access == "owner":
+        exec(artifact.INNER_UPLOAD_CODE, {})
+        assert client.put_object.call_args.kwargs["ACL"] == "private"
+        assert "X-Amz-Signature" in capsys.readouterr().out
+    else:
+        with pytest.raises(RuntimeError, match="CI candidate bucket"):
+            exec(artifact.INNER_UPLOAD_CODE, {})
+        client.put_object.assert_not_called()
+    client.put_bucket_acl.assert_not_called()
+    client.put_bucket_lifecycle_configuration.assert_not_called()
 
 
 def test_upload_is_private_expiring_and_digest_bound(tmp_path, monkeypatch):
