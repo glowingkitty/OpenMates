@@ -67,6 +67,7 @@ import discord_summary
 import discord_webhook
 import notification_log
 import push_proof
+import push_decision_guard
 from pending_work_gate import canonical_root
 
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_AGENT_QUESTIONS", "DISCORD_WEBHOOK_DAILY_MEETING",
@@ -238,12 +239,15 @@ def done_asks_user(text: str) -> bool:
 def short_title(title: str) -> str:
     return discord_summary.short_title(scrub(title))
 
-def build_body(kind: str, text: str, recommendation: str = "", paused_until: str = "", title: str = "") -> str:
+def build_body(kind: str, text: str, recommendation: str = "", paused_until: str = "", title: str = "",
+               options: list[str] | None = None) -> str:
     """The cleaned, scrubbed text after the title: the result, or 'question? Recommendation: …'."""
     body = discord_summary.clean_text(scrub(text), title).rstrip()
     end = "" if body.endswith((".", "?", "!", "…")) else "."
     if kind == ASK and recommendation:
         body = f"{body}{end} Recommendation: {discord_summary.clean_text(scrub(recommendation))}"
+    if kind == ASK and not recommendation and options:
+        body = f"{body}{end} Options: {' or '.join(discord_summary.clean_text(scrub(option)) for option in options)}"
     if kind == DONE and paused_until:
         body = f"{body}{end} Paused until {scrub(paused_until)}."
     return body
@@ -342,6 +346,26 @@ def flush(root: Path, now: float, post: Callable[..., dict | None] = discord_web
             kept.append(entry)
             continue
         message = entry["message"]
+        try:
+            expected = {"done": DONE, "ask": ASK}.get(entry.get("kind"))
+            first = message.splitlines()[0]
+            prefix = f"{expected} {short_title(entry.get('title', ''))}: "
+            if not expected or not first.startswith(prefix):
+                raise QuestionError("The queued icon or title does not match its push type.")
+            validate_push(root, entry["chat_id"], now, entry["kind"], entry.get("asks", ""),
+                          entry.get("recommendation", ""), entry.get("options") or [],
+                          entry.get("task", ""), entry.get("title", ""))
+            validate_rendered(entry["kind"], first.removeprefix(prefix))
+        except (QuestionError, IndexError) as error:
+            print(f"agent_question: skipped an invalid or answered queued push: {error}", file=sys.stderr)
+            marker = marker_path(root, entry["chat_id"])
+            try:
+                recorded = json.loads(marker.read_text())
+                if recorded.get("ts") == entry.get("queued_at") and recorded.get("question") == scrub(entry.get("asks", "")):
+                    marker.unlink(missing_ok=True)
+            except (OSError, ValueError):
+                pass
+            continue
         files: list[tuple[str, bytes]] = []
         try:
             with push_proof.temporary_workdir() as work:
@@ -408,6 +432,40 @@ def record_push(root: Path, message: str, now: float, *, chat_id: str = "", titl
         handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
     return path
 
+
+def validate_push(root: Path, chat_id: str, now: float, kind: str, text: str, recommendation: str,
+                  options: list[str], task: str, title: str = "") -> None:
+    """Validate original intent before preparing proof, posting or recording a wait."""
+    if kind == "done":
+        if done_asks_user(text):
+            raise QuestionError("A ✅ push must not ask the user anything. Send the decision separately.")
+        return
+    if kind != "ask":
+        raise QuestionError("Chat pushes must be marked as done or ask.")
+    if problem := push_decision_guard.shape_error(
+        _URL.sub("", discord_summary.clean_text(scrub(text), title)).strip(),
+        discord_summary.clean_text(scrub(recommendation)),
+        [option for raw in options if (option := discord_summary.clean_text(scrub(raw)))],
+    ):
+        raise QuestionError(problem)
+    if chat_id and push_decision_guard.already_answered(root, chat_id, text, task, now, PUSH_LOG):
+        raise QuestionError("Marco already answered or authorized this work. Use the existing decision.")
+
+
+def validate_rendered(kind: str, body: str) -> None:
+    """A shortened or queued push still has to preserve its icon's meaning."""
+    if kind == "done" and done_asks_user(body):
+        raise QuestionError("A ✅ push must not ask the user anything. Rewrite the summary.")
+    if kind == "ask":
+        question, _, answer = body.partition(" Recommendation: ")
+        options = []
+        if not answer:
+            question, _, choices = question.partition(" Options: ")
+            options = choices.split(" or ") if choices else []
+        if push_decision_guard.shape_error(_URL.sub("", question).strip(), answer, options):
+            raise QuestionError("Rewrite the ask as a short decision with a recommendation or options.")
+
+
 def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
          post: Callable[..., dict | None] = discord_webhook.post_message,
          sleep: Callable[[float], None] = time.sleep,
@@ -420,12 +478,9 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     _, task_text = session_info(root, chat_id)
     title = os.environ.get("CLAUDE_CHAT_TITLE") or task_text
     limit = discord_summary.SUMMARY_MAX if kind == DONE else discord_summary.ASK_MAX
-    body = build_body(kind, text, recommendation, getattr(args, "paused_until", None) or "", title)
-    if kind == DONE and done_asks_user(text):
-        raise QuestionError(
-            "a ✅ push must not ask the user anything: the user reads ✅ as nothing to do and misses it. "
-            "Send the question as its own push (agent_question.py ask --question '...' --recommendation "
-            "'...') and write the ✅ text without it, or wait with the ✅ until the answer is in.")
+    options = getattr(args, "option", None) or []
+    validate_push(root, chat_id, now, args.command, text, recommendation, options, args.task or "", title)
+    body = build_body(kind, text, recommendation, getattr(args, "paused_until", None) or "", title, options)
     rejections = rejection_count(root, chat_id, kind) if chat_id else discord_summary.MAX_REJECTIONS
     try:
         body = discord_summary.fit(
@@ -436,6 +491,7 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
         if chat_id and not args.dry_run:
             write_rejections(root, chat_id, kind, rejections + 1)
         raise
+    validate_rendered(args.command, body)
     message = build_message(kind, title, body)
     attach, links = getattr(args, "attach", None) or [], getattr(args, "link", None) or []
     no_proof = (getattr(args, "no_proof", None) or "").strip()
