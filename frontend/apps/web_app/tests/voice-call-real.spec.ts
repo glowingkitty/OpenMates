@@ -357,10 +357,26 @@ for (const scenario of SCENARIOS) {
           }
 
           // The spoken question gets its own new reply (the form chat already has one).
-          await expect.poll(async () => page.getByTestId('message-assistant').count(), { timeout: 240_000 })
+          const assistantReplies = page.getByTestId('message-assistant');
+          await expect.poll(() => assistantReplies.count(), { timeout: 240_000 })
             .toBeGreaterThan(repliesBeforeCall);
-          const reply = page.getByTestId('message-assistant').last();
-          await expect(reply).toContainText(scenario.answer, { timeout: 240_000 });
+          let completedBrowse = 0;
+          if (scenario.form) {
+            // The first reply can announce an in-flight Browse action. Wait until
+            // the action finishes before checking the answer and its playback.
+            await expect.poll(async () => {
+              await expandActivity(page);
+              const responses = (await assistantReplies.all()).slice(repliesBeforeCall);
+              const completed = await Promise.all(responses.map((response) => (
+                response.locator(BROWSE_EMBED).filter({ hasText: 'Completed' }).count()
+              )));
+              completedBrowse = completed.reduce((total, count) => total + count, 0);
+              return completedBrowse;
+            }, { timeout: 240_000, message: 'the spoken answer is filled through Browse in the same chat' }).toBeGreaterThan(0);
+          }
+          const reply = assistantReplies.last();
+          const answerBody = scenario.form ? reply.getByTestId('message-content').last() : reply;
+          await expect(answerBody).toContainText(scenario.answer, { timeout: 240_000 });
           if (scenario.projectsDisabled) {
             // The turn really met production's answer: the core asked for the Project focus and got 404.
             log(`project requests answered FEATURE_DISABLED: ${projectRequests.join(', ')}`);
@@ -384,6 +400,10 @@ for (const scenario of SCENARIOS) {
             { timeout: 90_000, message: 'reply words must be dimmed until spoken' }).toBe(true);
           await snap(page, testInfo, `${scenario.slug}-04-speaking`);
           if (scenario.memory) await expectIncludedMemoryTitles(page, log, 'while spoken');
+          await expect.poll(async () => {
+            const { played } = await recorded(page);
+            return played.some((entry) => entry.playing && !entry.src.includes(ACK_ROOT) && entry.maxTime > 1.5);
+          }, { timeout: 90_000, message: 'reply audio really advances' }).toBe(true);
           await expect.poll(async () => {
             const samples = (await recorded(page)).unspoken;
             return samples.length > 30 && samples.slice(-20).every((chars) => chars === 0);
@@ -432,29 +452,17 @@ for (const scenario of SCENARIOS) {
           } else {
             expect(mateClips, 'no guessed Mate waiting clip').toHaveLength(0);
           }
-          const speech = played.filter((entry) => !entry.src.includes(ACK_ROOT));
-          expect(speech.length, 'the reply is played as audio').toBeGreaterThan(0);
-          expect(Math.max(...speech.map((entry) => entry.maxTime)), 'reply audio really advances').toBeGreaterThan(1.5);
-
           const timerNow = await timerSeconds(page);
           log(`call duration: ${timerAtStart}s -> ${timerNow}s`);
           expect(timerNow, 'call duration counter runs').toBeGreaterThan(timerAtStart + 5);
           if (scenario.form) {
-            let browse = 0;
-            await expect.poll(async () => {
-              await expandActivity(page);
-              const responses = (await page.getByTestId('message-assistant').all()).slice(repliesBeforeCall);
-              const completed = await Promise.all(responses.map((response) => (
-                response.locator(BROWSE_EMBED).filter({ hasText: 'Completed' }).count()
-              )));
-              browse = completed.reduce((total, count) => total + count, 0);
-              return browse;
-            }, { timeout: 240_000, message: 'the spoken answer is filled through Browse in the same chat' }).toBeGreaterThan(0);
-            const spokenReply = await reply.getByTestId('message-content').last().innerText();
+            await expect(reply).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+            const spokenReply = (await reply.getByTestId('message-content').allTextContents()).join('\n');
             // Punctuation in a quoted form label belongs to the website.
             const questions = (spokenReply.replace(/“[^”]*”|"[^"]*"/g, '').match(/\?/g) || []).length;
-            log(`form voice reply: browse embeds ${browse}; question marks ${questions}`);
+            log(`form voice reply: browse embeds ${completedBrowse}; question marks ${questions}`);
             expect(questions, 'one question per spoken turn').toBe(1);
+            await reply.scrollIntoViewIfNeeded();
           }
           const generatedBy = reply.getByTestId('generated-by');
           if (scenario.form && FORM_VOICE_MODEL) await expect(generatedBy).toContainText(FORM_VOICE_MODEL);
@@ -479,6 +487,10 @@ for (const scenario of SCENARIOS) {
           await snap(page, testInfo, `${scenario.slug}-06-ended`);
         } catch (error) {
           await snap(page, testInfo, `${scenario.slug}-failed`).catch(() => undefined);
+          if (scenario.form) {
+            const browsePreviews = await page.locator(BROWSE_EMBED).allTextContents().catch(() => []);
+            log(`Browse previews at failure: ${JSON.stringify(browsePreviews.map((text) => text.trim().slice(0, 180)))}`);
+          }
           log(`browser console before the failure:\n${consoleTail.join('\n')}`);
           throw error;
         } finally {
