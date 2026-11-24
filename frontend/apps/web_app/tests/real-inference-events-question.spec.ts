@@ -53,14 +53,18 @@ async function waitForIdle(page: Page): Promise<void> {
 		.toBe(true);
 }
 
-async function askWithGemini(page: Page, log: any): Promise<void> {
-	const editor = page.getByTestId('message-editor');
-	await focusMessageEditor(editor);
+async function selectGeminiMention(page: Page): Promise<void> {
 	await page.keyboard.insertText('@Gemini-3.8-Flash');
 	const dropdown = page.getByTestId('mention-dropdown');
 	await expect(dropdown.getByTestId('mention-result-name').filter({ hasText: /Gemini 3\.8 Flash/i }).first()).toBeVisible({ timeout: 10_000 });
 	await page.keyboard.press('Tab');
 	await expect(dropdown).toBeHidden({ timeout: 5_000 });
+}
+
+async function askWithGemini(page: Page, log: any): Promise<void> {
+	const editor = page.getByTestId('message-editor');
+	await focusMessageEditor(editor);
+	await selectGeminiMention(page);
 	await page.keyboard.type(QUESTION);
 	await page.locator('[data-action="send-message"]').click();
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 20_000 });
@@ -180,14 +184,23 @@ dictatedTest.describe('dictated conference discovery', () => {
 			await useProofMicrophone(page, path.resolve(__dirname, 'fixtures/upcoming-conferences-dictation.mp3'));
 			const field = page.getByTestId('message-field').filter({ visible: true });
 			const editor = field.getByTestId('message-editor').locator('[contenteditable="true"]');
-			await field.getByTestId('record-audio-button').dispatchEvent('mousedown', { button: 0 });
+			const microphone = page.locator(
+				'[data-record-audio-trigger="true"]:visible, [data-testid="record-audio-button"]:visible'
+			).first();
+			await expect(microphone).toBeVisible({ timeout: 15_000 });
+			await microphone.dispatchEvent('mousedown', { button: 0 }, { timeout: 15_000 });
 			const overlay = page.getByTestId('record-overlay');
-			await expect(overlay).toBeVisible();
+			await expect(overlay).toBeVisible({ timeout: 15_000 });
+			log('The new-chat microphone is recording.');
 			await expect(editor).toContainText(DICTATION, { timeout: 35_000 });
 			await overlay.getByTestId('record-finish-button').click();
 			await expect(overlay).toBeHidden({ timeout: 45_000 });
 			await expect(editor).toContainText(DICTATION);
 			log('The real microphone transcript is ready in the composer.');
+			await editor.press('Control+Home');
+			await selectGeminiMention(page);
+			await expect(editor).toContainText(DICTATION);
+			log('Selected the per-message Gemini 3.8 Flash route, matching the reported reply.');
 			await field.locator('[data-action="send-message"]').click();
 			await expect(page.getByTestId('message-user').last()).toContainText(DICTATION);
 			log('Sent the dictated conference question.');

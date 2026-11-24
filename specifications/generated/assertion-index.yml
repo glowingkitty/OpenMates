@@ -30408,7 +30408,7 @@ assertions:
     direct_tests:
     - &id3899
       path: frontend/apps/web_app/tests/real-inference-events-question.spec.ts
-      line: 71
+      line: 75
       name: the largest open source conference question is answered through the Events
         app, with web search only as fallback
       surface: gui.web
@@ -46826,7 +46826,7 @@ assertions:
       surface: rest_api
     - &id5860
       path: frontend/apps/web_app/tests/real-inference-events-question.spec.ts
-      line: 167
+      line: 171
       name: one Events result view contains the dated conferences and sourced venue
         details
       surface: gui.web
@@ -46892,7 +46892,7 @@ assertions:
       surface: rest_api
     - &id5872
       path: frontend/apps/web_app/tests/real-inference-events-question.spec.ts
-      line: 167
+      line: 171
       name: one Events result view contains the dated conferences and sourced venue
         details
       surface: gui.web
@@ -76466,7 +76466,7 @@ assertions:
       surface: sdks.pip
     - &id9557
       path: frontend/apps/web_app/tests/real-inference-events-question.spec.ts
-      line: 167
+      line: 171
       name: one Events result view contains the dated conferences and sourced venue
         details
       surface: gui.web
@@ -76820,7 +76820,7 @@ assertions:
       surface: gui.web
     - &id9580
       path: frontend/apps/web_app/tests/real-inference-events-question.spec.ts
-      line: 167
+      line: 171
       name: one Events result view contains the dated conferences and sourced venue
         details
       surface: gui.web
@@ -151552,7 +151552,7 @@ assertions:
       surface: gui.web
     - &id19226
       path: frontend/apps/web_app/tests/real-inference-events-question.spec.ts
-      line: 167
+      line: 171
       name: one Events result view contains the dated conferences and sourced venue
         details
       surface: gui.web
