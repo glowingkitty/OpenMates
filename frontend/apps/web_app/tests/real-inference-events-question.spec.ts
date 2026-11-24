@@ -270,7 +270,7 @@ dictatedTest.describe('dictated conference discovery', () => {
 				expect(text.trim().split(/\s+/).length).toBeGreaterThanOrEqual(20);
 				if (label === 'policy-summit') await expect(detail.getByTestId('result-map')).toHaveCount(0);
 				log(`${label} description: ${text}`);
-				await description.scrollIntoViewIfNeeded();
+				await description.evaluate(element => element.scrollIntoView({ block: 'center' }));
 				await testInfo.attach(label, { body: await page.screenshot(), contentType: 'image/png' });
 				await closeFullscreen(page, detail);
 			}
@@ -285,6 +285,7 @@ dictatedTest.describe('dictated conference discovery', () => {
 			const text = await description.innerText();
 			expect(text.trim().split(/\s+/).length).toBeGreaterThanOrEqual(15);
 			const venue = event.getByTestId('event-venue-card');
+			expect((await venue.innerText()).match(/Brussels/gi)).toHaveLength(1);
 			const latitude = Number(await venue.getAttribute('data-venue-lat'));
 			const longitude = Number(await venue.getAttribute('data-venue-lon'));
 			expect(latitude).toBeGreaterThan(50.808);
@@ -297,7 +298,7 @@ dictatedTest.describe('dictated conference discovery', () => {
 			}
 			log(`FOSDEM description: ${text}`);
 			log(`FOSDEM venue: ${await event.getByTestId('event-venue-card').innerText()}`);
-			await description.scrollIntoViewIfNeeded();
+			await description.evaluate(element => element.scrollIntoView({ block: 'center' }));
 			await testInfo.attach('fosdem-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
 			await closeFullscreen(page, event);
 		} finally {

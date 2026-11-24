@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventResultSourceDomain, normalizeEventResult, ownEventContent, projectVisibleEventResult, validEventCoordinates } from '../eventResult';
+import { eventResultSourceDomain, formatEventVenueAddress, normalizeEventResult, ownEventContent, projectVisibleEventResult, validEventCoordinates } from '../eventResult';
 
 // contract-test: supporting surface=gui.web assertions=events-search.surface-parity
 describe('event serialization normalization', () => {
@@ -127,4 +127,17 @@ describe('own event content inside a parent fullscreen', () => {
     expect(ownEventContent({ authoring, content: authored }, own)).toBe(authored);
     expect(ownEventContent(undefined, own)).toBe(own);
   });
+});
+
+
+// contract-test: supporting surface=gui.web assertions=events-search.results.actionable
+it('displays a fully sourced street address without repeating its locality', () => {
+  const city = 'Brussels', country = 'Belgium';
+  const address = 'Av. F. D. Roosevelt 50, 1050 Brussels, Belgium';
+  expect(formatEventVenueAddress({ address, city, country })).toBe(address);
+  expect(formatEventVenueAddress({ address: 'Av. F. D. Roosevelt 50', city, country }))
+    .toBe('Av. F. D. Roosevelt 50\nBrussels, Belgium');
+  expect(formatEventVenueAddress({ address: 'Brussels Road 50', city, country }))
+    .toBe('Brussels Road 50\nBrussels, Belgium');
+  expect(formatEventVenueAddress({ city, country })).toBe('Brussels, Belgium');
 });
