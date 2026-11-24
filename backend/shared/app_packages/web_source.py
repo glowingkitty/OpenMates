@@ -17,7 +17,7 @@ from typing import Any, Dict, FrozenSet, Mapping, Optional, Tuple
 
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome
 from backend.shared.python_utils.web_result_extraction import (
-    KIND_EVENT, KIND_PRODUCT, WEB_PROVIDER_ID, WebExtraction, extract_web_results,
+    KIND_EVENT, KIND_PRODUCT, MAX_PAGES, WEB_PROVIDER_ID, WebExtraction, extract_web_results,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,8 @@ def web_market(country: Any) -> Tuple[str, str]:
 
 
 async def run_web_source(kind: str, request_item: Mapping[str, Any], secrets_manager: Any, *,
-                         limit: int = WEB_RESULT_LIMIT) -> InstalledProviderOutcome:
+                         limit: int = WEB_RESULT_LIMIT, page_limit: int = MAX_PAGES,
+                         event_detail: bool = False) -> InstalledProviderOutcome:
     """Search the web for one request item; only search facts leave the server."""
     facts = {key: request_item[key] for key in _REQUEST_FACTS if request_item.get(key) not in (None, "", [], {})}
     country, language = web_market(request_item.get("country"))
@@ -64,7 +65,8 @@ async def run_web_source(kind: str, request_item: Mapping[str, Any], secrets_man
     try:
         async with asyncio.timeout(WEB_SOURCE_SECONDS):
             await extract_web_results(kind, facts, secrets_manager=secrets_manager, limit=limit,
-                                      country=country, language=language, outcome=extraction)
+                                      country=country, language=language, outcome=extraction,
+                                      page_limit=page_limit, event_detail=event_detail)
     except TimeoutError:
         logger.warning("[WebResults] Web source timed out kind=%s", kind)
         return InstalledProviderOutcome(WEB_PROVIDER_ID, error="Web results did not arrive in time.",

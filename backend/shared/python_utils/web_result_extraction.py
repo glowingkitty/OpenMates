@@ -145,7 +145,8 @@ def system_prompt(kind: str, today: date) -> str:
         "leave description null. Use the actual named venue and copy its street address as written, "
         "including the house number. Put postcode, city and country in their own fields where supported; "
         "never substitute the city, organizer address or a guessed address. "
-        "An online-only event has no physical venue; a hybrid event can keep the venue. "
+        "An online-only event has no physical venue. For a hybrid event, include location fields only if "
+        "the page identifies where in-person attendees can go. "
         "Choose an image only when its caption or surrounding text associates it with this event. "
     ) if kind == KIND_EVENT else ""
     return (
@@ -400,7 +401,7 @@ def search_query(kind: str, request: Mapping[str, Any], today: date) -> str:
     return " ".join(part for part in parts if part)[:300]
 
 
-def _page_budget(urls: Sequence[str]) -> List[str]:
+def _page_budget(urls: Sequence[str], page_limit: int = MAX_PAGES) -> List[str]:
     """The pages to read: one page per site first, in search order, then more pages of the same sites.
 
     The reader serves one site at a time, one second apart, so several pages of one site (an event's
@@ -415,7 +416,7 @@ def _page_budget(urls: Sequence[str]) -> List[str]:
             rest.append(url)
         else:
             first[site] = url
-    return [*first.values(), *rest][:MAX_PAGES]
+    return [*first.values(), *rest][:page_limit]
 
 
 def _event_page_order(urls: list[str], previews: Sequence[Any], today: date) -> list[str]:
@@ -499,7 +500,8 @@ async def _read_page(url: str) -> Optional[Dict[str, Any]]:
 async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_manager: Any, limit: int = 20,
                               country: str = "us", language: str = "en",
                               model: str = DEFAULT_MODEL,
-                              outcome: Optional[WebExtraction] = None) -> WebExtraction:
+                              outcome: Optional[WebExtraction] = None,
+                              page_limit: int = MAX_PAGES, event_detail: bool = False) -> WebExtraction:
     """Search the web for ``request`` and return validated result rows of ``kind``.
 
     ``request`` holds only search facts (query, location, dates, criteria); it is
@@ -511,6 +513,11 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
     outcome.model = MODEL_REFS[model]
     today = datetime.now(timezone.utc).date()
     query = search_query(kind, request, today)
+    if event_detail:
+        title = _event_title_key(str(request.get("query") or "").replace('"', ''))
+        city = str(request.get("location") or "").strip()
+        year = str(request.get("start_date") or "")[:4]
+        query = f'"{title}" {city} {year} official venue'[:300]
     if not str(request.get("query") or "").strip():
         return outcome
     started = time.monotonic()
@@ -534,7 +541,7 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
     outcome.pages_excluded = len(found_urls) - len(allowed)
     if kind == KIND_EVENT:
         allowed = _event_page_order(allowed, found.get("results") or [], today)
-    urls = _page_budget(allowed)
+    urls = _page_budget(allowed, page_limit)
     outcome.pages_found = len(urls)
     observed_pages: Dict[str, Dict[str, Any]] = {}
 
@@ -558,7 +565,7 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
             _event_page_cover(rows[0], page)
         return rows
 
-    first_wave = urls[:-1] if kind == KIND_EVENT and len(urls) == MAX_PAGES else urls
+    first_wave = urls[:-1] if kind == KIND_EVENT and not event_detail and len(urls) == MAX_PAGES else urls
     pages = await asyncio.gather(*(page_rows(url) for url in first_wave))
     if len(first_wave) < len(urls):
         detail = _event_detail_link(
