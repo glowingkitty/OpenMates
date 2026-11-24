@@ -372,11 +372,19 @@ test('chat settings presents an individual download for each machine format', as
   for (const format of FORMATS) {
     await expect(rows.filter({ hasText: `fox-patch.${format}` })).toBeVisible();
   }
+  await page.evaluate(() => {
+    document.addEventListener('click', (event) => {
+      if (event.target instanceof HTMLAnchorElement && event.target.download) {
+        document.documentElement.dataset.downloadClickBubbled = 'true';
+      }
+    });
+  });
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     rows.filter({ hasText: 'fox-patch.pes' }).click(),
   ]);
   expect(download.suggestedFilename()).toBe('fox-patch.pes');
   expect(await download.failure()).toBeNull();
+  await expect(page.locator('html')).not.toHaveAttribute('data-download-click-bubbled', 'true');
   await testInfo.attach('chat-settings-embroidery-files-phone', { body: await files.screenshot(), contentType: 'image/png' });
 });

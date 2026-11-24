@@ -247,7 +247,8 @@ async function expectEmbroideryResult(page: any, overlay: any, log: any, screens
 async function expectChatSettingsMachineFiles(page: any, overlay: any, screenshot: any) {
 	await overlay.getByTestId('embed-minimize').click();
 	await expect(overlay).toBeHidden();
-	await page.getByTestId('chat-details-button').click();
+	await page.getByTestId('chat-more-button').click({ timeout: 10_000 });
+	await page.getByTestId('chat-details-button').click({ timeout: 10_000 });
 	const settings = page.getByTestId('settings-menu');
 	await settings.getByTestId('chat-settings-tab-files').click();
 	const files = settings.getByTestId('chat-settings-tabpanel-files');
@@ -265,10 +266,11 @@ async function expectChatSettingsMachineFiles(page: any, overlay: any, screensho
 	expect(pes.suggestedFilename()).toMatch(/\.pes$/i);
 	const pesBytes = fs.readFileSync(await pes.path());
 	expect(pesBytes.subarray(0, 4).toString()).toBe('#PES');
+	await expect(files).toBeVisible();
 
 	const [bundle] = await Promise.all([
 		page.waitForEvent('download', { timeout: 90_000 }),
-		files.getByTestId('chat-settings-download-files').click(),
+		files.getByTestId('chat-settings-download-files').click({ timeout: 10_000 }),
 	]);
 	expect(await bundle.failure()).toBeNull();
 	expect(bundle.suggestedFilename()).toMatch(/\.zip$/i);
