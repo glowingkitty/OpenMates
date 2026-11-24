@@ -12,7 +12,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOOKS_DIR="$REPO_ROOT/.git/hooks"
+HOOKS_DIR="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir)/hooks"
 SCRIPTS_DIR="$REPO_ROOT/scripts"
 
 if [ ! -d "$HOOKS_DIR" ]; then
@@ -47,7 +47,7 @@ if [ ! -f "$UI_DIR/package.json" ]; then
     exit 0
 fi
 
-echo "🔍 [pre-commit] Checking $text() translation keys..."
+echo '🔍 [pre-commit] Checking $text() translation keys...'
 
 # Run validate:locales and capture output
 OUTPUT="$(cd "$UI_DIR" && npm run validate:locales 2>&1)"

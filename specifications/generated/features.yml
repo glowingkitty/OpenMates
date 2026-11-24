@@ -10789,18 +10789,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 8
+  assertions: 9
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 4
         not_run: 0
         missing: 3
-        counted: 10
+        counted: 11
       failing_tests:
       - frontend/apps/web_app/tests/apps-workspace.spec.ts › Show all replaces the home with the shared searchable grid and
         restores it after app close

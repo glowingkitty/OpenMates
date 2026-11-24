@@ -309,20 +309,58 @@
   let activeWorkspaceHref = $derived(activeWorkspaceTab?.href ?? "/");
   const pickerId = $props.id();
   let pickerTrigger = $state<HTMLButtonElement>();
-  let pickerPanel = $state<HTMLElement>();
+  let pickerDialog = $state<HTMLDialogElement>();
   let pickerOpen = $state(false);
+  let pickerAnimation: Animation | undefined;
+  let pickerClosing = false;
 
-  function fitWorkspacePicker(event: ToggleEvent) {
-    pickerOpen = event.newState === "open";
-    if (!pickerOpen || !pickerTrigger || !pickerPanel) return;
+  function openWorkspacePicker() {
+    if (!pickerTrigger || !pickerDialog || pickerDialog.open) return;
     const trigger = pickerTrigger.getBoundingClientRect();
-    pickerPanel.style.setProperty("--picker-top", `${trigger.top}px`);
-    pickerPanel.style.setProperty("--picker-center", `${trigger.left + trigger.width / 2}px`);
+    pickerDialog.style.setProperty("--picker-top", `${trigger.top}px`);
+    pickerDialog.style.setProperty("--picker-center", `${trigger.left + trigger.width / 2}px`);
+    pickerDialog.showModal();
+    pickerOpen = true;
+    pickerDialog.querySelector<HTMLButtonElement>(".workspace-picker-close")?.focus();
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      pickerAnimation = pickerDialog.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 180,
+        easing: "ease-in-out",
+      });
+    }
   }
 
-  function closeWorkspacePicker() {
-    if (pickerOpen) pickerPanel?.hidePopover();
+  async function closeWorkspacePicker() {
+    const dialog = pickerDialog;
+    if (!dialog?.open || pickerClosing) return;
+    pickerClosing = true;
+    const opacity = getComputedStyle(dialog).opacity;
+    pickerAnimation?.cancel();
+    // Keep the modal in the top layer so the background remains inert during the fade.
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      pickerAnimation = dialog.animate([{ opacity }, { opacity: 0 }], {
+        duration: 140,
+        easing: "ease-in-out",
+        fill: "forwards",
+      });
+      await pickerAnimation.finished.catch(() => undefined);
+    }
+    dialog.close();
+    pickerAnimation?.cancel();
+    pickerOpen = false;
+    pickerClosing = false;
+    pickerTrigger?.focus({ preventScroll: true });
   }
+
+  $effect(() => {
+    const trigger = pickerTrigger;
+    if (!pickerOpen || !trigger) return;
+    const observer = new ResizeObserver(() => {
+      if (!trigger.getClientRects().length) void closeWorkspacePicker();
+    });
+    observer.observe(trigger);
+    return () => observer.disconnect();
+  });
 
   const prefetchWorkspaceIfReady = (href: string) => {
     if (
@@ -744,7 +782,8 @@
               bind:this={pickerTrigger}
               type="button"
               class="workspace-trigger"
-              popovertarget={pickerId}
+              onclick={openWorkspacePicker}
+              aria-controls={pickerId}
               aria-label={`Workspace switcher, ${activeLabel}`}
               aria-expanded={pickerOpen}
               data-testid="workspace-mobile-select"
@@ -753,51 +792,60 @@
               <span class={`workspace-select-icon ${activeIcon}`} aria-hidden="true"></span>
               <span class="workspace-select-icon workspace-select-chevron" aria-hidden="true"></span>
             </button>
-            <div
-              role="navigation"
-              bind:this={pickerPanel}
+            <dialog
+              bind:this={pickerDialog}
               id={pickerId}
-              class="workspace-picker-panel"
-              popover="auto"
-              onbeforetoggle={fitWorkspacePicker}
-              ontoggle={() => { if (pickerOpen) pickerPanel?.querySelector("button")?.focus(); }}
+              class="workspace-picker-dialog"
               aria-label="Workspaces"
-              data-testid="workspace-picker-panel"
+              data-testid="workspace-picker-dialog"
+              oncancel={(event) => {
+                event.preventDefault();
+                void closeWorkspacePicker();
+              }}
             >
               <button
                 type="button"
-                class="workspace-trigger workspace-picker-close"
-                popovertarget={pickerId}
-                popovertargetaction="hide"
-                data-testid="workspace-picker-close"
-                aria-label={`Close workspace switcher, ${activeLabel}`}
-              >
-                <span class={`workspace-select-icon ${activeIcon}`} aria-hidden="true"></span>
-                <span>{activeLabel}</span>
-                <span class="workspace-select-icon workspace-select-chevron" aria-hidden="true"></span>
-              </button>
-              <div class="workspace-picker-options">
-                {#each webappWorkspaceTabs as item (item.id)}
-                  <a
-                    href={item.href}
-                    aria-current={item.href === activeWorkspaceHref ? "page" : undefined}
-                    data-testid="workspace-picker-option"
-                    onfocus={() => handleWorkspaceIntent(item)}
-                    onpointerenter={() => handleWorkspaceIntent(item)}
-                    onclick={(event) => {
-                      closeWorkspacePicker();
-                      void handleClick(event, item.href);
-                    }}
-                  >
-                    <span class={`workspace-select-icon ${item.iconClass}`} aria-hidden="true" data-testid="workspace-option-icon"></span>
-                    <span class="workspace-option-label">{item.label}</span>
-                    {#if item.href === activeWorkspaceHref}
-                      <span class="workspace-select-icon workspace-option-check" aria-hidden="true" data-testid="workspace-option-check"></span>
-                    {/if}
-                  </a>
-                {/each}
+                class="workspace-picker-backdrop"
+                tabindex="-1"
+                onclick={closeWorkspacePicker}
+                aria-label="Dismiss workspace picker"
+                data-testid="workspace-picker-backdrop"
+              ></button>
+              <div role="navigation" class="workspace-picker-panel" aria-label="Workspaces" data-testid="workspace-picker-panel">
+                <button
+                  type="button"
+                  class="workspace-trigger workspace-picker-close"
+                  onclick={closeWorkspacePicker}
+                  data-testid="workspace-picker-close"
+                  aria-label={`Close workspace switcher, ${activeLabel}`}
+                >
+                  <span class={`workspace-select-icon ${activeIcon}`} aria-hidden="true"></span>
+                  <span>{activeLabel}</span>
+                  <span class="workspace-select-icon workspace-select-chevron" aria-hidden="true"></span>
+                </button>
+                <div class="workspace-picker-options">
+                  {#each webappWorkspaceTabs as item (item.id)}
+                    <a
+                      href={item.href}
+                      aria-current={item.href === activeWorkspaceHref ? "page" : undefined}
+                      data-testid="workspace-picker-option"
+                      onfocus={() => handleWorkspaceIntent(item)}
+                      onpointerenter={() => handleWorkspaceIntent(item)}
+                      onclick={(event) => {
+                        void closeWorkspacePicker();
+                        void handleClick(event, item.href);
+                      }}
+                    >
+                      <span class={`workspace-select-icon ${item.iconClass}`} aria-hidden="true" data-testid="workspace-option-icon"></span>
+                      <span class="workspace-option-label">{item.label}</span>
+                      {#if item.href === activeWorkspaceHref}
+                        <span class="workspace-select-icon workspace-option-check" aria-hidden="true" data-testid="workspace-option-check"></span>
+                      {/if}
+                    </a>
+                  {/each}
+                </div>
               </div>
-            </div>
+            </dialog>
           </div>
         {/if}
 
@@ -1437,10 +1485,39 @@
     mask-image: url("@openmates/ui/static/icons/check.svg");
   }
 
-  .workspace-picker-panel {
+  .workspace-picker-dialog {
     --picker-gutter: var(--spacing-10);
     --picker-width: min(17.5rem, calc(100vw - 2 * var(--picker-gutter)));
     position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .workspace-picker-dialog::backdrop {
+    background: transparent;
+  }
+
+  .workspace-picker-dialog .workspace-picker-backdrop {
+    all: unset;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: color-mix(in srgb, black 72%, transparent);
+  }
+
+  .workspace-picker-panel {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
     inset: var(--picker-top, 0) auto auto
       clamp(var(--picker-gutter), calc(var(--picker-center, 50vw) - var(--picker-width) / 2),
         calc(100vw - var(--picker-width) - var(--picker-gutter)));
@@ -1456,15 +1533,6 @@
     color: white;
     box-shadow: var(--shadow-xs);
     overflow: hidden;
-  }
-
-  .workspace-picker-panel:popover-open {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .workspace-picker-panel::backdrop {
-    background: color-mix(in srgb, black 72%, transparent);
   }
 
   .workspace-picker-close {

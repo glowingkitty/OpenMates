@@ -101,6 +101,86 @@ test('compact workspace picker matches the native panel in light and dark', asyn
   await testInfo.attach('workspace-tabs-dark-1280', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
+for (const { width, touch } of [{ width: 390, touch: true }, { width: 640, touch: false }]) {
+  test.describe(touch ? 'phone picker motion' : 'narrow desktop picker motion', () => {
+    test.use({ hasTouch: touch, isMobile: touch, viewport: { width, height: 844 } });
+
+    // contract-test: direct surface=gui.web assertions=workspace-shell.nav.compact-picker-dismissal
+    test('fades the picker and backdrop and dismisses without activating the background control', async ({ page }, testInfo) => {
+      await page.goto(`/dev/preview/Header?chrome=0&theme=light&background=%23dbeafe&width=${width}&variant=guestCtaToggle`);
+      await waitForComponentPreview(page);
+      const behindId = touch ? 'header-login-signup-btn' : 'sidebar-toggle';
+      const behind = page.getByTestId(behindId);
+      const signup = page.getByTestId('header-login-signup-btn');
+      const trigger = page.getByTestId('workspace-mobile-select');
+      const dialog = page.getByTestId('workspace-picker-dialog');
+      const backdrop = page.getByTestId('workspace-picker-backdrop');
+      await expect(signup).toBeVisible();
+      const point = await behind.evaluate((button, rightEdge) => {
+        const { left, right, top, height } = button.getBoundingClientRect();
+        return { x: rightEdge ? right - 3 : left + 3, y: top + height / 2 };
+      }, touch);
+      const hitTarget = () => page.evaluate(({ x, y }) =>
+        document.elementFromPoint(x, y)?.closest('[data-testid]')?.getAttribute('data-testid'), point);
+      expect(await hitTarget()).toBe(behindId);
+      await behind.evaluate(button => {
+        button.addEventListener('click', () => button.setAttribute('data-activated', 'true'));
+      });
+
+      async function watchFade(control: string, phase: 'opening' | 'closing') {
+        await dialog.evaluate((element, { control, phase, point }) => {
+          document.querySelector(`[data-testid="${control}"]`)?.addEventListener('click', () => {
+            requestAnimationFrame(() => {
+              const animation = element.getAnimations()[0];
+              const effect = animation?.effect as KeyframeEffect | undefined;
+              const keyframes = effect?.getKeyframes() ?? [];
+              const opacity = keyframes.map(frame => Number(frame.opacity));
+              const duration = Number(effect?.getTiming().duration);
+              const hitsBackdrop = document.elementFromPoint(point.x, point.y)?.getAttribute('data-testid') ===
+                'workspace-picker-backdrop';
+              const fading = duration > 0 && opacity.length === 2 &&
+                (phase === 'opening' ? opacity[0] === 0 && opacity[1] === 1 :
+                  opacity[0] > 0 && opacity[1] === 0);
+              element.setAttribute(`data-fade-${phase}`, String(fading && hitsBackdrop));
+            });
+          }, { once: true });
+        }, { control, phase, point });
+      }
+
+      await watchFade('workspace-mobile-select', 'opening');
+      if (touch) await trigger.tap();
+      else await trigger.click();
+      await expect(dialog).toHaveAttribute('data-fade-opening', 'true');
+      await expect(dialog).toHaveCSS('opacity', '1');
+      await expect(backdrop).toBeVisible();
+      await testInfo.attach(`picker-backdrop-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+      await watchFade('workspace-picker-backdrop', 'closing');
+      if (touch) await page.touchscreen.tap(point.x, point.y);
+      else await page.mouse.click(point.x, point.y);
+      await expect(dialog).toHaveAttribute('data-fade-closing', 'true');
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await expect(signup).toBeVisible();
+      expect(await behind.getAttribute('data-activated')).toBeNull();
+      expect(await hitTarget()).toBe(behindId);
+    });
+  });
+}
+
+// contract-test: direct surface=gui.web assertions=workspace-shell.nav.compact-picker-dismissal
+test('dismisses immediately with reduced motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openHeader(page, 640, true);
+  const trigger = page.getByTestId('workspace-mobile-select');
+  const dialog = page.getByTestId('workspace-picker-dialog');
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate(element => element.getAnimations().length)).toBe(0);
+  await page.mouse.click(5, 600);
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('keeps the signed-out Sign up button unobscured at compact widths', async ({ page }: { page: Page }) => {
   for (const width of [320, 390]) {

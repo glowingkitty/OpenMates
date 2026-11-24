@@ -105,6 +105,12 @@ assertions:
       gradient, white workspace icons and labels, generous row spacing, and active-workspace checkmark in both
       light and dark themes.
     depends_on: [examples.compact_picker]
+  - id: workspace-shell.nav.compact-picker-dismissal
+    type: behavior
+    must: On phones and narrow desktop windows, the compact web picker and its dimmed backdrop animate smoothly
+      when opening and closing, with animation skipped for reduced motion. Clicking or tapping the backdrop
+      dismisses the picker. The backdrop blocks actions behind it until dismissal finishes.
+    depends_on: [examples.compact_picker_dismissal]
   - id: workspace-shell.start.shared-affordances
     type: behavior
     must: Apps, Projects, Workflows, and Tasks start shells render a decorative background identity icon and a bottom-mounted surface-specific composer without importing chat message persistence or post-send chat processing ownership. Projects and Tasks also render a surface-specific Daily Inspiration area; Apps and Workflows render none, and their start content is vertically centred in the freed space.

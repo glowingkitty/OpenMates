@@ -59,6 +59,32 @@ test('the compact workspace picker switches the real app and keeps the active wo
   await expect(panel).toBeHidden();
 });
 
+// contract-test: direct surface=gui.web assertions=workspace-shell.nav.compact-picker-dismissal
+test('clicking the dimmed chat sidebar button closes only the workspace picker', async ({ page }: { page: Page }) => {
+  await page.setViewportSize({ width: 640, height: 800 });
+  await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+  const sidebar = page.getByTestId('chat-sidebar');
+  const sidebarButton = page.getByTestId('sidebar-toggle');
+  const picker = page.getByTestId('workspace-mobile-select');
+  const dialog = page.getByTestId('workspace-picker-dialog');
+  await expect(sidebar).toHaveClass(/\bclosed\b/);
+  await expect(sidebarButton).toBeVisible();
+  const button = (await sidebarButton.boundingBox())!;
+  const point = { x: button.x + button.width / 2, y: button.y + button.height / 2 };
+  const hitTarget = () => page.evaluate(({ x, y }) =>
+    document.elementFromPoint(x, y)?.closest('[data-testid]')?.getAttribute('data-testid'), point);
+  expect(await hitTarget()).toBe('sidebar-toggle');
+
+  await picker.click();
+  await expect(dialog).toBeVisible();
+  await expect.poll(hitTarget).toBe('workspace-picker-backdrop');
+  await page.mouse.click(point.x, point.y);
+  await expect(dialog).toBeHidden();
+  await expect(picker).toBeFocused();
+  await expect(sidebar).toHaveClass(/\bclosed\b/);
+  expect(await hitTarget()).toBe('sidebar-toggle');
+});
+
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('returning guests can open Login from the 320px app header', async ({ page }: { page: Page }) => {
   await expectGuestHeaderLogin(page, 320);

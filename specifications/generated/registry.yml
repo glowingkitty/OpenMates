@@ -1172,7 +1172,7 @@ specifications:
     version: 5
     status: draft
     path: features/workspace-shell
-    fingerprint: 45b4bd39daeb95771a3b97997896c4d2d0fda2db69546abffe878feee3c37285
+    fingerprint: 241212de947c748ae218dc066b13c78dff2bb6de1e29ea235fa9a72f68a1890c
     required_applies_to:
     - gui.web
   surface.cli:
@@ -17253,6 +17253,13 @@ assertions:
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: a3b42ba683278c560e8417a5927052262cdc6907d8fe3d6e96a5ccc779e42099
+    required_applies_to:
+    - gui.web
+  workspace-shell.nav.compact-picker-dismissal:
+    specification: feature.workspace-shell@5
+    specification_id: feature.workspace-shell
+    type: behavior
+    fingerprint: fcf3e56c91b2e19831ce8e72b4576662ccfdc6df06d25fcc3c9736ace25b21c0
     required_applies_to:
     - gui.web
   workspace-shell.start.shared-affordances:
