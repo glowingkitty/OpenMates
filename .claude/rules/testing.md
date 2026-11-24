@@ -60,6 +60,10 @@ paths:
     daily spend, the credit balance (an estimate: E2B has no balance API) and
     the runway, and pushes "Feedback needed" below 30 days of runway. At the cap, cargo/vitest/Playwright
     runs wait in the E2B queue; the translation build runs locally instead.
+    `scripts/e2b_repo_run.py --repo PATH --sandbox-root DIR
+    [--revision REV] [--timeout S] -- CMD` runs CMD on one committed revision of any
+    local git repository in the same template, slot and budget and exits with
+    its status (no GitHub Actions, no host fallback).
     Remote-eligible runs never wait for host memory; real-inference browser
     proofs against the dev stack (`design_embroidery_web_real_test.py` and the
     real tests built on it) run there too, with the lease and draft guard on

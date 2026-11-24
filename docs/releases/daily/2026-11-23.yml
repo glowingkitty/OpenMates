@@ -945,7 +945,6 @@ sections:
     changed_paths:
     - scripts/claude_idle_chats.py
     - scripts/claude_idle_nudge.py
-    - scripts/socialhub_e2b.py
     - scripts/tests/test_claude_chat_continue.py
     - scripts/tests/test_claude_idle_chats.py
     - scripts/tests/test_claude_idle_nudge.py
@@ -3028,7 +3027,6 @@ sources:
     changed_paths:
     - scripts/claude_idle_chats.py
     - scripts/claude_idle_nudge.py
-    - scripts/socialhub_e2b.py
     - scripts/tests/test_claude_chat_continue.py
     - scripts/tests/test_claude_idle_chats.py
     - scripts/tests/test_claude_idle_nudge.py

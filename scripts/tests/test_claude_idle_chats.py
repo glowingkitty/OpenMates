@@ -564,16 +564,16 @@ def test_dead_panes_empty_tabs_and_the_link_plugin_are_closed_but_live_panes_nev
     """2026-11-20: 58 dead panes, 57 empty tabs and the link plugin kept the claude zellij server at 110% CPU."""
     link = {"id": 0, "is_plugin": True, "plugin_url": "zellij:link", "tab_id": 0}
     fake = FakeZellij({"claude": [link, term(1, 0), term(2, 1), term(3, 2), term(9, 2)],
-                       "socialhub": [term(4, 0, is_held=True)]},
-                      {"claude": [0, 1, 2, 5], "socialhub": [0]})
-    owners = {"claude": {"1", "9"}, "socialhub": {"4"}}
-    first = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW, owners, fake)
+                       "partner": [term(4, 0, is_held=True)]},
+                      {"claude": [0, 1, 2, 5], "partner": [0]})
+    owners = {"claude": {"1", "9"}, "partner": {"4"}}
+    first = lc.close_dead_panes(["claude", "partner"], tmp_path, NOW, owners, fake)
     assert first == ["claude plugin_0 (zellij:link)"]  # dead panes and empty tabs wait for a second sighting
-    assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + 30, owners, fake) == [
+    assert lc.close_dead_panes(["claude", "partner"], tmp_path, NOW + 30, owners, fake) == [
         "claude plugin_0 (zellij:link)"]  # too soon
-    closed = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + lc.DEAD_PANE_SECONDS, owners, fake)
+    closed = lc.close_dead_panes(["claude", "partner"], tmp_path, NOW + lc.DEAD_PANE_SECONDS, owners, fake)
     assert "claude empty tab 5" in closed
-    assert "claude terminal_2" in closed and "claude terminal_3" in closed and "socialhub terminal_4" in closed
+    assert "claude terminal_2" in closed and "claude terminal_3" in closed and "partner terminal_4" in closed
     assert ("claude", "close-tab", "1") in fake.closed  # its only pane: the tab goes with it
     assert ("claude", "close-pane", "terminal_3") in fake.closed  # tab 2 keeps its live pane 9
     assert not any(target in ("terminal_1", "terminal_9") for _, _, target in fake.closed)
@@ -688,7 +688,7 @@ def test_wake_does_not_submit_into_new_session_composer(monkeypatch):
     calls = []
     screen = BOX.format("describe a task for a new session")
     monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [screen]))
-    assert not lc.wake(chat(pane_id="7", zellij_session="socialhub"), "Continue")
+    assert not lc.wake(chat(pane_id="7", zellij_session="partner"), "Continue")
     assert calls == [("dump-screen", "--pane-id", "terminal_7")]
 
 

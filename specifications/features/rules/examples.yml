@@ -13,7 +13,7 @@ encrypted_custom:
 - id: project-custom-rule
   assertion_ids:
   - rules.ownership.encrypted-custom
-  given: Alice creates a custom SocialHub coding-practices guide in the Project workspace.
+  given: Alice creates a custom Harbor coding-practices guide in the Project workspace.
   when: Its content is saved and a later chat considers using it before and after Project activation.
   then: The durable document is client-encrypted. Its private body loads only after authoritative activation
     and current permission; CLI editing observes the same ownership/version guards.

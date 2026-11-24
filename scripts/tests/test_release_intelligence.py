@@ -990,6 +990,22 @@ def test_newsletter_include_commits_from_weekly_source_uses_daily_candidates() -
     assert newsletter_include_commits_from_source(source) == {"abc1234"}
 
 
+def test_collect_commits_omits_reserved_historical_paths(monkeypatch) -> None:
+    def fake_git_output(command, check=True):
+        if command[0] == "log":
+            return "\x1eabc1234\x1fabc1234\x1f2026-11-23T18:22:33+00:00\x1fchore: rename runner\x1fVerify the tracked path."
+        assert command[0] == "diff-tree"
+        return f"scripts/{_release_intelligence.RESERVED_NAME.upper()}_e2b.py\nscripts/e2b_repo_run.py\n"
+
+    monkeypatch.setattr(_release_intelligence, "git_output", fake_git_output)
+    commits = _release_intelligence.collect_commits(
+        since=None, until=None, from_ref="origin/main", to_ref="origin/dev",
+        main_ref="origin/main", dev_ref="origin/dev",
+    )
+
+    assert [commit.changed_paths for commit in commits] == [["scripts/e2b_repo_run.py"]]
+
+
 def test_collect_commits_keeps_date_bounds_with_from_ref(monkeypatch) -> None:
     logged_commands = []
 

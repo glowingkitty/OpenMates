@@ -261,7 +261,7 @@ agreed_behavior:
       not show a second active Work on Project indicator.
     title_format: Project name | Specialized focus name
     title_examples:
-    - SocialHub | Debugging
+    - Harbor | Debugging
     - OpenMates | Add new app skill
     narrow_layout: Render the combined title shortened when space is insufficient, retaining the full Project/focus
       identity in state.
@@ -496,7 +496,7 @@ agreed_behavior:
       follow-up.
     reliability: Bind recommendations/jobs to Project, chat and revisions; deduplicate unchanged recommendations
       and clicks/retries. Revoked/deleted targets and failed/conflicting saves produce no success notification.
-    example: SocialHub release planning can shortlist the inactive Release preparation Focus for full assessment.
+    example: Harbor release planning can shortlist the inactive Release preparation Focus for full assessment.
       A missing reusable release process can justify Create directly from catalog assessment.
   project_memory_scope:
     status: Deferred by the user in round ten.
@@ -557,7 +557,7 @@ discussion:
     question: After Project activation, how should a specialized focus such as UI implementation combine with Work
       on Storefront?
     answer: 'Keep the Project base plus one specialized focus as recommended. The user sees only the specialized
-      focus active, whose title includes the Project name, for example SocialHub | Debugging or OpenMates | Add
+      focus active, whose title includes the Project name, for example Harbor | Debugging or OpenMates | Add
       new app skill. Render it shortened if the UI has insufficient space. Clarify step four further with concrete
       examples and questions about processing/Jev requests.
 
@@ -720,8 +720,8 @@ flow_proposals:
     change.
 - id: FLOW-2
   status: illustrates_agreed_post_activation_reselection
-  user_request: SocialHub publishes the same scheduled post twice. Find and fix the cause.
-  starting_state: Work on SocialHub has activated through the agreed Project countdown; detailed Project selection
+  user_request: Harbor publishes the same scheduled post twice. Find and fix the cause.
+  starting_state: Work on Harbor has activated through the agreed Project countdown; detailed Project selection
     can now begin.
   recommended_order:
   - step: J-2 specialized-focus shortlisting
@@ -734,7 +734,7 @@ flow_proposals:
     output: Existing focus IDs and relevance answers; a shortlist rather than activation.
   - step: Main processor chooses specialist
     action: Choose Debugging, establish its current investigation phase through the focus lifecycle, and present
-      SocialHub | Debugging while retaining the Project base.
+      Harbor | Debugging while retaining the Project base.
   - step: J-3 context selection
     state: Current goal, effective activated specialist/current phase and bounded catalogs for eligible app skills,
       existing executable workflows, Specifications/conditional rules, Plans, related tasks and source/folder descriptions.
@@ -795,15 +795,15 @@ flow_proposals:
     phase authority.
 - id: FLOW-5
   status: active_recent_cross_project_direction_recorded_details_proposed
-  user_request: Fix duplicate scheduled posts in SocialHub.
-  active_focus: SocialHub | Debugging
+  user_request: Fix duplicate scheduled posts in Harbor.
+  active_focus: Harbor | Debugging
   candidate_tasks:
-  - project: SocialHub
+  - project: Harbor
     task: Change scheduler retry logic
     context: Another chat is modifying the worker that handles scheduled posts.
   - project: Shared infrastructure
     task: Migrate the shared Redis queue
-    context: Another chat is changing the queue used by the SocialHub scheduler.
+    context: Another chat is changing the queue used by the Harbor scheduler.
   - project: Personal travel
     task: Plan a holiday
     context: Unrelated work with no task dependency or shared resource relevant to this bug.
@@ -824,9 +824,9 @@ flow_proposals:
     and no-active-Project loading remain to be specified.
 - id: FLOW-6
   status: context_driven_direction_and_llm_correction_agreed_details_pending
-  user_request: Fix duplicate scheduled posts in SocialHub and verify the change.
+  user_request: Fix duplicate scheduled posts in Harbor and verify the change.
   proposed_processing:
-  - An assistant links a Plan and Tasks for identifying, fixing and verifying duplicate scheduled posts in SocialHub.
+  - An assistant links a Plan and Tasks for identifying, fixing and verifying duplicate scheduled posts in Harbor.
   - Build bounded Jev state from the user's goal and clarifications, accepted Plan summary, open Tasks and recent
     work; do not use the evolving Task list as the sole authority for the goal.
   - A newly discovered retry-worker race can be classified as justified_related_discovery when its causal relevance
@@ -847,11 +847,11 @@ flow_proposals:
     persistence.
 - id: FLOW-7
   status: rule_ownership_format_and_transparency_agreed_runtime_details_pending
-  user_request: Fix the SocialHub settings page, a Svelte/TypeScript implementation task.
+  user_request: Fix the Harbor settings page, a Svelte/TypeScript implementation task.
   proposed_processing:
   - Preprocessing sees bounded eligible Rule metadata and the user goal, then Jev selects relevant app-provided
     best-practice Rules.
-  - Select/load private SocialHub Rules only after its Project focus activates and the authorized client prepares
+  - Select/load private Harbor Rules only after its Project focus activates and the authorized client prepares
     permitted context.
   - Inject selected Rule definitions alongside active Focus guidance and governing Specifications; rules do not
     change the goal or create a workflow.
@@ -868,7 +868,7 @@ flow_proposals:
     behavior.
 - id: FLOW-8
   status: deterministic_authority_and_jev_review_escalation_agreed_details_pending
-  user_request: Run relevant terminal commands while fixing the SocialHub scheduler.
+  user_request: Run relevant terminal commands while fixing the Harbor scheduler.
   proposed_processing:
   - Deterministically validate current Project/chat/source authority, requested argv/cwd/resources, protected paths,
     confinement and exact user grants; denied requests remain denied.
@@ -890,7 +890,7 @@ flow_proposals:
     contexts.
 - id: FLOW-9
   status: Project_only_two_stage_recommendation_and_click_authoring_agreed
-  user_request: Continue investigating the SocialHub scheduling bug under its Debugging Focus.
+  user_request: Continue investigating the Harbor scheduling bug under its Debugging Focus.
   proposed_processing:
   - 'J-F1: After a response, provide chat context and eligible Project Focus IDs/titles/summaries, including inactive
     definitions; select candidates for inspection and/or recommend a non-overlapping new Focus.'
@@ -907,11 +907,11 @@ flow_proposals:
   - Next active-Focus follow-up resolves the saved revision and refreshes effective instructions/phase/context.
     In-flight responses retain their snapshot.
   - Without an authorized Project, skip this flow. Never suggest improvements to public/app Focuses.
-  example: SocialHub release planning may improve inactive Release preparation after full assessment; a missing
+  example: Harbor release planning may improve inactive Release preparation after full assessment; a missing
     recurring process can justify first-pass Create.
 - id: FLOW-10
   status: Project_memory_model_deferred
-  user_request: Remember that SocialHub's sandbox workspace is Demo Team for later work.
+  user_request: Remember that Harbor's sandbox workspace is Demo Team for later work.
   proposed_processing:
   - Keep this factual context separate from Specs, development Rule guides and Focus instruction phases.
   - Use authorized existing encrypted Project fact documents after activation; no new Project-memory model.
@@ -919,7 +919,7 @@ flow_proposals:
     rules.
 - id: FLOW-11
   status: Project_Workflow_update_flow_agreed
-  user_request: Continue work on SocialHub release preparation; a saved Release checklist Workflow can benefit from
+  user_request: Continue work on Harbor release preparation; a saved Release checklist Workflow can benefit from
     repeated user guidance.
   proposed_processing:
   - 'J-W1: After a response, provide authorized chat context and current-Project saved Workflow titles/summaries,
@@ -973,13 +973,13 @@ scenarios:
 - id: S-4
   title: Project base and specialist compose with one visible title
   given:
-  - Work on SocialHub is active and the main processor activates its Debugging specialist.
+  - Work on Harbor is active and the main processor activates its Debugging specialist.
   when:
   - An assistant turn uses the specialist
   - or the focus title is rendered in a narrow UI.
   then:
   - The Project base and specialized instructions both apply
-  - and the single active indicator reads SocialHub | Debugging
+  - and the single active indicator reads Harbor | Debugging
   - shortened visually as needed without changing identity.
 - id: S-5
   title: Any activated focus refreshes useful capabilities and context
@@ -1003,7 +1003,7 @@ scenarios:
 - id: S-7
   title: Related-work relevance includes active and recent cross-Project context
   given:
-  - SocialHub debugging overlaps an active scheduler Task and a recently changed shared-queue Task
+  - Harbor debugging overlaps an active scheduler Task and a recently changed shared-queue Task
   - alongside unrelated active work.
   when:
   - Authorized bounded candidates are filtered and evaluated by Jev against the current request.

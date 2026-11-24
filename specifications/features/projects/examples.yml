@@ -716,8 +716,8 @@ focus_auto_selection:
 - id: manual-only-project
   assertion_ids:
   - projects.focus.auto-selection-setting
-  given: SocialHub has the default enabled setting, and Alice turns it off in web Project settings.
-  when: A later CLI/chat request discusses SocialHub without mentioning it, then Alice explicitly selects @SocialHub.
+  given: Harbor has the default enabled setting, and Alice turns it off in web Project settings.
+  when: A later CLI/chat request discusses Harbor without mentioning it, then Alice explicitly selects @Harbor.
   then: No automatic proposal is made while disabled. The setting is visible in CLI settings and the explicit mention activates
     its permitted Project Focus.
 - id: three-project-modes

@@ -95133,7 +95133,7 @@ assertions:
     current_direct_proof: false
   chat-awareness.project-focus.metadata-awareness:
     specification: feature.chat-awareness@1
-    fingerprint: 7552c2419c4203e2cb6f3afad8c56e95783e978239a5c670070197df46294d5b
+    fingerprint: 94680fe37ee58894b6b2b8cfaf6d77fa7ab59cb5676e862ceac04b691639e669
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -124081,7 +124081,7 @@ assertions:
     current_direct_proof: false
   chats.surface.semantic-parity:
     specification: feature.chats@7
-    fingerprint: 304e33d829311b1056fcaf7d58aa1ba976f2efda0c94503ecd2f1153170003ab
+    fingerprint: 62eb43442fd78a18710aa65bd5c5f75c77f2605f91f8b3644f1c57f453925735
     direct_tests:
     - &id15801
       path: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
@@ -129050,7 +129050,7 @@ assertions:
     current_direct_proof: false
   chats.context.memory-only-summary:
     specification: feature.chats@7
-    fingerprint: abdde9cadea3851554f2c18ea879b05b9375a3669229010f387b1468a1fdf973
+    fingerprint: 3571064e0aed601cd3902277cc64a75c49db70b83cb4dd9c1dec218ef4d82276
     direct_tests:
     - &id16440
       path: backend/tests/test_rest_api_related_work_internal.py
@@ -129107,7 +129107,7 @@ assertions:
     current_direct_proof: false
   chats.context.related-work-selection:
     specification: feature.chats@7
-    fingerprint: 58b1c2be503aa9b7acf022d56386d1a87a7b5131e6abc9f912165a8cc902290c
+    fingerprint: 883ece3c80b7caae30b7dffe546565d9a1e71c89132b8b8f578792eb8e07dde5
     direct_tests: []
     supporting_tests:
     - &id16442
@@ -136435,7 +136435,7 @@ assertions:
     current_direct_proof: false
   focus-modes.project-specialist-composition:
     specification: feature.focus-modes@4
-    fingerprint: d9c2eeca5392dcc027433ed817e733ee6f5530c34336454cb8b8d02d498959a8
+    fingerprint: 70d7d64b1bc9e8f268a93171284b2aeca6645cef5668fa82d5fe5d340400956c
     direct_tests:
     - &id17320
       path: frontend/apps/web_app/tests/components/project-focus-specialist.spec.ts
@@ -137009,7 +137009,7 @@ assertions:
     current_direct_proof: false
   focus-modes.project-recommendation-catalog:
     specification: feature.focus-modes@4
-    fingerprint: c6aa02d0a1c8656b1d3ecd5ee9cf58fe5bec6182434753d9d5e52777dfce54e8
+    fingerprint: a23823f5c8c6f0a9a960c0b80d634a993a15b274f0197ff0b35913e63e3ce32f
     direct_tests:
     - &id17374
       path: backend/tests/test_project_authoring.py
@@ -137182,7 +137182,7 @@ assertions:
     current_direct_proof: false
   focus-modes.project-authoring-click:
     specification: feature.focus-modes@4
-    fingerprint: 0d9930932b6be079207957fe1e14bd58cc347d06b2ef60f857edd60c0cd4931b
+    fingerprint: ae275a3b3992cb6ab7a35a772a21e156cc6feecb1a9dc7acb8729bdfd75e0f4b
     direct_tests:
     - &id17399
       path: backend/tests/test_project_authoring.py
@@ -137786,7 +137786,7 @@ assertions:
     current_direct_proof: false
   focus-modes.updated-followup-revision:
     specification: feature.focus-modes@4
-    fingerprint: 70c70754d56e7195cfd608e3132cf112167e3fd7de86ab5f2b1bc451dd0c8815
+    fingerprint: ab72f497e4e347ffa89235e21afb778d4da065bebc851ba7b7190e1862040491
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -161942,7 +161942,7 @@ assertions:
     current_direct_proof: false
   projects.files.search-scoped:
     specification: feature.projects@2
-    fingerprint: 54993b49a0db232dc6b08930d90fe9799d38172b0193723c87799ff27925c9a7
+    fingerprint: 590f76079cdce8bf4d491dcf193ef2f5baa350206350c0d4612a81393ba83959
     direct_tests: []
     supporting_tests:
     - &id20493
@@ -162297,7 +162297,7 @@ assertions:
     current_direct_proof: false
   projects.files.search-consistent:
     specification: feature.projects@2
-    fingerprint: be8fe9051844fad2e402843f64a23e9b7c963febeee08ed2b561ac10605bfcca
+    fingerprint: c435367a65be7f90b7a75ddb752088f7e2d4f4951f6dc0e529e8b4e0ff37ce57
     direct_tests:
     - &id20542
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
@@ -162714,7 +162714,7 @@ assertions:
     current_direct_proof: false
   projects.files.executor-wait:
     specification: feature.projects@2
-    fingerprint: 73104a1ce89334773ae610970ca548505dd4ff912afd7f4afb9fa64f611ac3d3
+    fingerprint: 2626d15d6f2f121df9a8b9aee6755a25882a8ae15ea0c558f91d045aa4739115
     direct_tests: []
     supporting_tests:
     - &id20589
@@ -162805,7 +162805,7 @@ assertions:
     current_direct_proof: false
   projects.files.executor-answers:
     specification: feature.projects@2
-    fingerprint: fd0ca64e435cfc53404485ec2a910229769c8b718ee72f9c476acddd04285f41
+    fingerprint: 34e3b23bb76d3c5236b690bab5cc4f811e6ba0448116b6cd84636c104807f657
     direct_tests: []
     supporting_tests:
     - &id20600
@@ -162831,7 +162831,7 @@ assertions:
     current_direct_proof: false
   projects.files.wait-deadlines:
     specification: feature.projects@2
-    fingerprint: 3f67480e7cb74fb1965fb61cc05b2bb07dbab8597a63b91341ddb4f886cd1e6b
+    fingerprint: 20ecddd998a856891b14391bdee4091374b2431e47fff34b79e6aec9448b803b
     direct_tests: []
     supporting_tests:
     - &id20602
@@ -162901,7 +162901,7 @@ assertions:
     current_direct_proof: false
   projects.files.wait-email:
     specification: feature.projects@2
-    fingerprint: dd9fe04e1c06f5e3c6c9601e42509661fb4c7dd091fbd594d48da0e0221d0313
+    fingerprint: 22e2643ae567a9538dd37b5e31ac56cc034d820263dec4d6313d3bc01361143a
     direct_tests: []
     supporting_tests:
     - &id20610
@@ -162957,7 +162957,7 @@ assertions:
     current_direct_proof: false
   projects.files.wait-expiry:
     specification: feature.projects@2
-    fingerprint: 6d5a9118647aa9248fb9dbd662c15c17d21dcfd0e084d69432c1aea80fa7a3f5
+    fingerprint: d3a0a501553f53b098c9b52723afbae9d4efd9f5368686630a073d4afc40e522
     direct_tests: []
     supporting_tests:
     - &id20616
@@ -162982,7 +162982,7 @@ assertions:
     current_direct_proof: false
   projects.files.wait-result-reconciliation:
     specification: feature.projects@2
-    fingerprint: cef6eed505a13c48101d1dfe673cf7c39ad2809d6e88696a1c72ab48655466d4
+    fingerprint: 30a6712f391caec44b7afaced71f2f044a3fd5b2930c04929505beb8d828465c
     direct_tests: []
     supporting_tests:
     - &id20618
@@ -163024,7 +163024,7 @@ assertions:
     current_direct_proof: false
   projects.files.short-write-turn:
     specification: feature.projects@2
-    fingerprint: 061652fc93b26bb40205e5779016145d59df54b8ec90e9893ab346933655a29b
+    fingerprint: 5ee8135a4545ec175060755b748c87d9fc95b08112c16f8eee4a15e8ddcd3737
     direct_tests: []
     supporting_tests:
     - &id20622
@@ -163042,7 +163042,7 @@ assertions:
     current_direct_proof: false
   projects.files.hosted-ciphertext-commit:
     specification: feature.projects@2
-    fingerprint: fed8629ffa709cc342585a8032b57e1c9cc803fd4949153df30c0c7db798296c
+    fingerprint: 375790170631a546d187df00c1177d95a3faac9a6a4cf2d658316f415a6111c6
     direct_tests:
     - &id20631
       path: backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
@@ -163421,7 +163421,7 @@ assertions:
     current_direct_proof: false
   projects.files.no-server-decryption-authority:
     specification: feature.projects@2
-    fingerprint: 5c2319553679d97b20c789a9e633a22a382cfb6b4462c188c429f7ce040b4ace
+    fingerprint: 6cc19307afa1b34420b88221a44317e9b64b4dd2469ce04a2e150f9d3cc46fd6
     direct_tests:
     - &id20683
       path: backend/tests/test_embed_version_routes.py
@@ -163951,7 +163951,7 @@ assertions:
     current_direct_proof: false
   projects.files.commit-replay:
     specification: feature.projects@2
-    fingerprint: 06005c1661e2a3a957cc4a231cb82923291cf7b836326844a0e503e0bbe97710
+    fingerprint: 5d76421f6cde426df94d8e1309e2e3397b26c9373a4f527f9b90d917bd97a5bc
     direct_tests:
     - &id20744
       path: backend/tests/test_embed_version_routes.py
@@ -164018,7 +164018,7 @@ assertions:
     current_direct_proof: false
   projects.files.expected-base:
     specification: feature.projects@2
-    fingerprint: a959d7cc9f07c231d0daad070bda6b6d3beceeeb4c8708888f6d96cdd813ab40
+    fingerprint: 96639a7b7968e7fc03443042b99ab55105043bc53daba4d468dda3b3dca8ce2e
     direct_tests:
     - &id20752
       path: frontend/apps/web_app/tests/cli-native-remote-access-host.spec.ts
@@ -164126,7 +164126,7 @@ assertions:
     current_direct_proof: false
   projects.files.exact-patch:
     specification: feature.projects@2
-    fingerprint: 8c9cc5fad0cd973d9b817e457784d9d96d35101bee755f032d72ac8c4d7863b4
+    fingerprint: af818088e27c546e287871ea6cbbdaf5f94d73c4ffd8ecb75efe40aaca8636dd
     direct_tests:
     - &id20764
       path: frontend/apps/web_app/tests/cli-project-file-chat.spec.ts
@@ -164265,7 +164265,7 @@ assertions:
     current_direct_proof: false
   projects.files.automatic-recovery:
     specification: feature.projects@2
-    fingerprint: b7a487d6659775c0461a8fc5bda3dbf4e275777d684e541278169b894dd41975
+    fingerprint: 91aa65c436c0b8fe5a61f1554ae5f6dd91cfb88253c9044b777c64e9133fec21
     direct_tests: []
     supporting_tests:
     - &id20777
@@ -164283,7 +164283,7 @@ assertions:
     current_direct_proof: false
   projects.files.conflict-decision:
     specification: feature.projects@2
-    fingerprint: 36ee72df6e9bad666747c6cd5c0d790d74b13b67eb577f88993ee751a5b5bd6e
+    fingerprint: a588886c76d6e8bad4c1ea87963b0ee3baafaabd653c55ab5400ceffcbfc5d5e
     direct_tests: []
     supporting_tests:
     - &id20778
@@ -164301,7 +164301,7 @@ assertions:
     current_direct_proof: false
   projects.files.recovery-authorization:
     specification: feature.projects@2
-    fingerprint: ea3a920c326470aea685a62f9e6bd79aa7c86f6f1bd707b7bba1d0de2971d58c
+    fingerprint: f8146ba72abd23290b2abe3074c8de303386c37399f57a8222e5b624e8c947f5
     direct_tests:
     - &id20779
       path: backend/tests/test_embed_version_routes.py
@@ -164351,7 +164351,7 @@ assertions:
     current_direct_proof: false
   projects.files.concurrent-chat-safety:
     specification: feature.projects@2
-    fingerprint: 3002128fbcd1a1849106ba6f808a10b550de935ba07f1c5550ca16c5479105f4
+    fingerprint: a9a67982ad9a14e3b67547949542d90e6b64ee263b1c35f50ae65ababd345370
     direct_tests:
     - &id20784
       path: backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
@@ -164591,7 +164591,7 @@ assertions:
     current_direct_proof: false
   projects.files.write-policy-setup:
     specification: feature.projects@2
-    fingerprint: ca2e79cc489458162b955818a92be4b485d69ed045f10d09632ef42b56f79a7b
+    fingerprint: d57c9c4b614ad943b430e6b59b0a48df0ce1120a50ab45f06f34de4bce20d317
     direct_tests:
     - &id20817
       path: backend/tests/test_project_write_authorization.py
@@ -164730,7 +164730,7 @@ assertions:
     current_direct_proof: false
   projects.files.write-policy-enforcement:
     specification: feature.projects@2
-    fingerprint: bc9fce9c4668591e402d7db41c27e3ab8a94f1cf611b90cc07aa5e0b36e6299c
+    fingerprint: 7d3608fa4c34c1498c605983bb5aa4322879a90ee71200e20dd7c1f7bacb4660
     direct_tests:
     - &id20833
       path: backend/tests/test_commit_embed_revision_handler.py
@@ -165008,7 +165008,7 @@ assertions:
     current_direct_proof: false
   projects.focus.default-owned:
     specification: feature.projects@2
-    fingerprint: f2c05ebe147538d26202d5bbd968a223b42cced3af6482a75157820a4c3a65ce
+    fingerprint: 2c04bc339fa41c0d0267e2a1b11017bc6c7109cfd775de1019fbe688c63f340a
     direct_tests:
     - &id20866
       path: backend/tests/test_project_write_authorization.py
@@ -165165,7 +165165,7 @@ assertions:
     current_direct_proof: false
   projects.focus.existing-instructions:
     specification: feature.projects@2
-    fingerprint: 3cc19ecf517ef54360264f4ee464b1fadfccaa4ea5e6b4d6546c574ce543db68
+    fingerprint: 748b57c56042e2171f841cb5f5dff536236d2d9eaa431dcb7c505f190717f5f3
     direct_tests: []
     supporting_tests:
     - &id20884
@@ -165207,7 +165207,7 @@ assertions:
     current_direct_proof: false
   projects.focus.mention-activation:
     specification: feature.projects@2
-    fingerprint: bdf3dfbbdc96105809f58dbf792cb9516b085f2505d3163219945f57453ca701
+    fingerprint: 2e4992dd4154aa1b9c3939cf48fd0a742b88627f6468ea2a4017350f41eb4db1
     direct_tests:
     - &id20892
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
@@ -165261,7 +165261,7 @@ assertions:
     current_direct_proof: false
   projects.focus.inferred-consent:
     specification: feature.projects@2
-    fingerprint: 318556a5de3fea32717cb0a11fd54c0e51a23415058dc838dd917fde76b5637a
+    fingerprint: 8f5040668d16d0501de346b10e5632fa333ee9b7c5eecaa8797a99e9a586f72e
     direct_tests:
     - &id20933
       path: backend/tests/test_project_focus_requests.py
@@ -165821,7 +165821,7 @@ assertions:
     current_direct_proof: false
   projects.focus.mention-history:
     specification: feature.projects@2
-    fingerprint: 4d1a1a5dda9ddcbc3b4cdd394985a1fd817b000283e2b30eda23319b6b449719
+    fingerprint: 48b196225d7dcb07d72c1def0135235766f9340f6b6bf3733397156532fc5aa9
     direct_tests:
     - &id20970
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
@@ -165840,7 +165840,7 @@ assertions:
     current_direct_proof: false
   projects.files.chat-focus-required:
     specification: feature.projects@2
-    fingerprint: 77afabe5d4fa6e85ff9d2dbe17a7ee2487a1475c55e387c5b60202101ffb0d0b
+    fingerprint: 93579e93da3109823f5bcb1c10e79f5e6030a305c787393b81fa92bd41d0114f
     direct_tests:
     - &id20971
       path: backend/tests/test_commit_embed_revision_handler.py
@@ -168486,7 +168486,7 @@ assertions:
     current_direct_proof: false
   projects.surface.semantic-parity:
     specification: feature.projects@2
-    fingerprint: 495999c48c08d680db4d20f80e12d8f4d447734023986d1f2fd4851c1e20105d
+    fingerprint: c3d9a9d9ac1f931007e7e732e763ecb224f9389eb61712c283edba9bf3b299a2
     direct_tests:
     - &id21357
       path: frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
@@ -169640,7 +169640,7 @@ assertions:
     current_direct_proof: false
   projects.focus.auto-selection-setting:
     specification: feature.projects@2
-    fingerprint: 969b4bbc3908bc26447abf59da1713f1cf293d4d01334a566e95bc5d105b7b98
+    fingerprint: 898dc0723a611f2cf13eee7c4a432b6dc2837946b5a9221b83ca5db6a75902f6
     direct_tests:
     - &id21459
       path: backend/tests/test_project_focus_requests.py
@@ -206365,7 +206365,7 @@ assertions:
     current_direct_proof: false
   workflows.website-change.baseline:
     specification: feature.workflows@12
-    fingerprint: 8b6ce058278e554944ada4595545ecad90e70fddfb89411ad80a3ed128029846
+    fingerprint: 0f204d284b2c1f854da79e0ba7329bcf92d6a692fde94efe39ac70d3ced262ef
     direct_tests: []
     supporting_tests:
     - &id26048
@@ -206400,7 +206400,7 @@ assertions:
     current_direct_proof: false
   workflows.website-change.diff-inputs:
     specification: feature.workflows@12
-    fingerprint: 7340a79d9fcebc4908e68c5be0f4569a6f0656a3796c0825019f2353815767ac
+    fingerprint: 0ea317d9aaa34ae620b8a76a81b7f4aa2209d3f023f46186f89da37249dda410
     direct_tests:
     - &id26056
       path: frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
@@ -206464,7 +206464,7 @@ assertions:
     current_direct_proof: false
   workflows.website-change.retry:
     specification: feature.workflows@12
-    fingerprint: 8a0ca73017161dc300afef2d3310bcc42e3a7519a873054fa13bc41c5b40692a
+    fingerprint: 60d7bd2630267938c15ec0054c34d1a490360423276f3855dbfc018b3dd11ae2
     direct_tests: []
     supporting_tests:
     - &id26058
@@ -206541,7 +206541,7 @@ assertions:
     current_direct_proof: false
   workflows.website-change.lifecycle:
     specification: feature.workflows@12
-    fingerprint: c1340123188baff6fe8aab76deba27090581efbb0db8ca0797c1def41796f906
+    fingerprint: 38d385ed6285ab3125bca085fdc1744e627cef7f042c6206d0d6a35ddc723e47
     direct_tests: []
     supporting_tests:
     - &id26067
@@ -215395,7 +215395,7 @@ assertions:
     current_direct_proof: false
   workflows.portability.remote-project-save:
     specification: feature.workflows@12
-    fingerprint: d0ba7fed1709c2fccddf3f07de2f8c32a1499f76d19007b978a282c03beffdbb
+    fingerprint: 018c0219261585cba8091f63894814d5e60632a98d910b1e5c19905f0bfa8a0a
     direct_tests:
     - &id27201
       path: frontend/apps/web_app/tests/cli-workflow-files.spec.ts
@@ -215518,7 +215518,7 @@ assertions:
     current_direct_proof: false
   workflows.project.update-recommendation:
     specification: feature.workflows@12
-    fingerprint: b0faff923dc853986f121f818d8801ae4cf0d25816d599ed24f1e9563f2ddd8c
+    fingerprint: 88ee4bca58a478a063268f13727be5e48262e0d9cf81529d4c11390910fcbb67
     direct_tests:
     - &id27212
       path: backend/tests/test_project_authoring.py
@@ -225577,7 +225577,7 @@ assertions:
     current_direct_proof: false
   rules.ownership.encrypted-custom:
     specification: feature.rules@1
-    fingerprint: 2e5cd6fd6015fd319e517748a6e92def9bf96b9c1c00ecae9b69b6cf147fffc0
+    fingerprint: b7ae873ea74b646552a227d560f59b99612d2aa99ba93ab305ceb84e6576be17
     direct_tests:
     - &id28457
       path: frontend/apps/web_app/tests/jev-project-context-api.spec.ts

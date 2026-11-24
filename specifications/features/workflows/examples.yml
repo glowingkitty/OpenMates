@@ -462,7 +462,7 @@ remote_project_save:
 - id: save-in-selected-remote-folder
   assertion_ids:
   - workflows.portability.remote-project-save
-  given: Alice saves a Workflow in the selected SocialHub remote folder docs/automations with write permission.
+  given: Alice saves a Workflow in the selected Harbor remote folder docs/automations with write permission.
   when: The portable YAML write succeeds, or the executor disconnects before writing.
   then: Success leaves the canonical .workflow.yml file in docs/automations. Disconnection is pending/failed
     rather than a claimed remote save; retry preserves one Workflow and respects file conflicts.
@@ -471,7 +471,7 @@ project_update_recommendation:
 - id: inactive-workflow-full-assessment
   assertion_ids:
   - workflows.project.update-recommendation
-  given: SocialHub has a disabled Release checklist Workflow whose summary matches reusable guidance in a chat.
+  given: Harbor has a disabled Release checklist Workflow whose summary matches reusable guidance in a chat.
   when: Catalog Jev selects it and a second assessment receives its authorized full saved graph.
   then: Update appears only if the full graph benefits from a change. Existing Checks are inspected as configuration,
     not executed; no authoring LLM is called before click.
