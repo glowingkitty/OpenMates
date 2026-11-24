@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.shared.python_utils.saved_chat_turn_authority import (
-    admission_chat_id, admission_message_id, resolve_saved_chat_ancestry,
+    SavedChatDeleted, admission_chat_id, admission_message_id, resolve_saved_chat_ancestry,
     saved_chat_turn, prepare_saved_chat_turn,
 )
 from backend.apps.ai.sub_chat_orchestration import (
@@ -109,6 +109,31 @@ def test_canonical_lineage_survives_client_reparenting():
     ancestry = resolve(service, owner)
     assert (ancestry.parent_id, ancestry.root_chat_id, ancestry.depth) == ("child", "root", 2)
     assert resolve(service, owner, "root") is None
+
+
+@pytest.mark.parametrize("fence_changes,deleted", [
+    ({}, True),
+    ({"scope": None}, True),
+    ({"scope": "message"}, False),
+    ({"chat_id": "other"}, False),
+    ({"hashed_user_id": "other-owner"}, False),
+    ({"hashed_team_id": "other-team"}, False),
+])
+def test_missing_target_requires_an_exact_chat_deletion_fence(fence_changes, deleted):
+    service, rows, _, owner = fixture()
+    del rows["grandchild"]
+    service.get_items = AsyncMock(return_value=[{
+        "id": "grandchild", "chat_id": "grandchild", "scope": "chat",
+        "hashed_user_id": owner, "hashed_team_id": None, **fence_changes,
+    }])
+
+    if deleted:
+        with pytest.raises(SavedChatDeleted, match="saved_chat_deleted"):
+            resolve(service, owner)
+    else:
+        with pytest.raises(ValueError, match="saved_chat_ancestry_forbidden"):
+            resolve(service, owner)
+    assert service.get_items.await_args.args == ("chat_recovery_chat_deletion_fences",)
 
 
 @pytest.mark.parametrize("corruption", ["foreign_owner", "foreign_team", "missing", "cycle", "depth3", "mismatch"])

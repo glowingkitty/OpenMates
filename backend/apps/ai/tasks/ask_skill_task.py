@@ -50,7 +50,7 @@ from backend.core.api.app.services.skill_registry import build_skill_registry
 from backend.core.api.app.services.chat_recovery_cutover import (
     legacy_completion_requires_persistence as completion_requires_persistence,
 )
-from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 from backend.shared.python_utils.chat_recovery_context import (
     RecoveryOutputContext, RequiredRecoveryOutputError, active_recovery_output_context,
 )
@@ -127,7 +127,7 @@ from backend.apps.ai.processing.chat_compressor import (
     model_compression_threshold,
 )
 from backend.shared.python_utils.saved_chat_turn_authority import (
-    admission_chat_id, admission_message_id, prepare_saved_chat_turn,
+    SavedChatDeleted, admission_chat_id, admission_message_id, prepare_saved_chat_turn,
 )
 from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
@@ -1988,7 +1988,9 @@ async def _update_user_task_execution_state_with_new_directus(
         await directus_service.close()
 
 
-async def _was_task_cancelled(request_data: AskSkillRequest, task_id: str) -> bool:
+async def _was_task_cancelled(
+    request_data: AskSkillRequest, task_id: str, *, after_soft_limit: bool = False,
+) -> bool:
     """Recognize Stop even while Celery's REVOKED result is still in flight."""
     cache_service = CacheService()
     try:
@@ -2000,7 +2002,28 @@ async def _was_task_cancelled(request_data: AskSkillRequest, task_id: str) -> bo
         logger.warning("[Task ID: %s] Cancellation intent unavailable", task_id, exc_info=True)
     finally:
         await cache_service.close()
-    return celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED
+    if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+        return True
+    if after_soft_limit:
+        # The prefork child receives SIGUSR1 before the parent has recorded
+        # REVOKED. A real soft deadline has no corresponding revocation.
+        for _ in range(5):
+            await asyncio.sleep(0.05)
+            if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+                return True
+    return False
+
+
+def _was_account_recovery_fenced(error: BaseException) -> bool:
+    """Recognize an authoritative account deletion rejection through output wrappers."""
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ChatRecoveryProtocolError):
+            return current.status_code == 409 and current.code == "account_recovery_fenced"
+        seen.add(id(current))
+        current = current.__cause__
+    return False
 
 
 async def _mark_recovery_inference_failed(
@@ -5901,10 +5924,17 @@ def process_ai_skill_ask_task(
             raise Ignore()
 
 
+    except SavedChatDeleted as e:
+        terminal_class = "revoked"
+        logger.info("[Task ID: %s] Turn stopped because its chat was deleted", task_id)
+        raise Ignore() from e
     except SoftTimeLimitExceeded:
-        logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
-        was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))
+        was_revoked = loop.run_until_complete(_was_task_cancelled(
+            request_data, task_id, after_soft_limit=True,
+        ))
+        interruption = "Task cancelled" if was_revoked else "Task exceeded soft time limit"
+        logger.info("[Task ID: %s] %s", task_id, interruption)
         terminal_class = "revoked" if was_revoked else "soft_limited"
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
@@ -5916,7 +5946,7 @@ def process_ai_skill_ask_task(
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=None,  # resolved from the user record by the cleanup
-                error_message="Task exceeded soft time limit",
+                error_message=interruption,
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,
                 use_cancelled_status=bool(was_revoked)
@@ -5941,6 +5971,9 @@ def process_ai_skill_ask_task(
             ))
         except Exception as recovery_err:
             logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
+        if was_revoked:
+            # Leave Celery's REVOKED record intact after settling the turn.
+            raise Ignore()
         try:
             loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
                 request_data,
@@ -5955,10 +5988,16 @@ def process_ai_skill_ask_task(
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
             'status_message': 'completed_partially_soft_limit_wrapper', # Distinguish from async limit
             'interrupted_by_soft_time_limit': True, # This limit was in the sync part
-            'interrupted_by_revocation': bool(was_revoked)
+            'interrupted_by_revocation': False,
         })
         raise
-    except RuntimeError as e: 
+    except RuntimeError as e:
+        if _was_account_recovery_fenced(e):
+            # The deletion transaction has invalidated this turn and its output
+            # authority. Error cleanup must not recreate or hand off that output.
+            terminal_class = "revoked"
+            logger.info("[Task ID: %s] Turn stopped by account deletion", task_id)
+            raise Ignore() from e
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
         was_revoked = loop.run_until_complete(_was_task_cancelled(request_data, task_id))

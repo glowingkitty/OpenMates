@@ -8,9 +8,7 @@ from fastapi import WebSocket
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app # Celery app instance
 from backend.core.api.app.services.cache import CacheService
-from backend.shared.python_utils.ai_task_cancellation import (
-    CANCELLATION_INTENT_TTL_SECONDS, cancellation_intent_key,
-)
+from backend.shared.python_utils.ai_task_cancellation import record_cancellation_intent
 
 logger = logging.getLogger(__name__)
 
@@ -70,16 +68,8 @@ async def handle_cancel_ai_task(
             if chat_id:
                 if not cache_service:
                     cache_service = CacheService()
-                intent_saved = await cache_service.set(
-                    cancellation_intent_key(user_id, chat_id, task_id_to_cancel),
-                    "1", ttl=CANCELLATION_INTENT_TTL_SECONDS,
-                )
-                if not intent_saved:
-                    raise RuntimeError("Cancellation intent could not be recorded")
-            # Revoke the task. terminate=True sends SIGTERM.
-            # The task needs to be designed to handle this signal or check for is_revoked().
-            # Our AI task checks is_revoked().
-            celery_app.control.revoke(task_id_to_cancel, terminate=True, signal='SIGUSR1') # Using SIGUSR1 as tasks.py checks is_revoked
+                await record_cancellation_intent(cache_service, user_id, chat_id, task_id_to_cancel)
+            celery_app.control.revoke(task_id_to_cancel, terminate=True, signal="SIGUSR1")
             logger.info(f"{log_prefix} Revocation signal sent for task_id: {task_id_to_cancel}")
 
             # The worker's failure cleanup needs this fence to hand off accepted

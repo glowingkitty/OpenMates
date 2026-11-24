@@ -20,6 +20,27 @@ class SavedChatAncestry:
     depth: int
 
 
+class SavedChatDeleted(ValueError):
+    """The saved turn's target has a matching durable deletion fence."""
+
+
+async def _saved_chat_was_deleted(
+    directus: Any, *, chat_id: str, owner_hash: str, team_hash: str | None,
+) -> bool:
+    fences = await directus.get_items(
+        "chat_recovery_chat_deletion_fences",
+        params={"filter[id][_eq]": chat_id, "fields": "id,chat_id,scope,hashed_user_id,hashed_team_id", "limit": 1},
+        admin_required=True, raise_on_error=True, no_cache=True,
+    )
+    return any(
+        fence.get("id") == chat_id and fence.get("chat_id") == chat_id
+        and fence.get("scope") in (None, "chat")
+        and fence.get("hashed_team_id") == team_hash
+        and (team_hash is not None or fence.get("hashed_user_id") == owner_hash)
+        for fence in fences or []
+    )
+
+
 async def resolve_saved_chat_ancestry(
     directus: Any, *, chat_id: str, owner_hash: str, team_hash: str | None,
 ) -> SavedChatAncestry | None:
@@ -40,6 +61,10 @@ async def resolve_saved_chat_ancestry(
             raise ValueError("saved_chat_ancestry_cycle")
         seen.add(current)
         row = await directus.chat.get_chat_metadata(current, admin_required=True)
+        if row is None and depth == 0 and await _saved_chat_was_deleted(
+            directus, chat_id=chat_id, owner_hash=owner_hash, team_hash=team_hash,
+        ):
+            raise SavedChatDeleted("saved_chat_deleted")
         if (not row or row.get("id") != current
                 or row.get("hashed_team_id") != team_hash
                 or (team_hash is None and row.get("hashed_user_id") != owner_hash)):
