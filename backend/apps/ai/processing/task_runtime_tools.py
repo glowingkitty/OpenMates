@@ -48,22 +48,6 @@ def _expected_version_property() -> dict[str, Any]:
     return {"type": "integer", "description": "Current visible task version used for conflict checks."}
 
 
-def _create_tool() -> dict[str, Any]:
-    return _tool(
-        TASK_TOOL_CREATE,
-        "Create a user-visible task, linked to this chat by default. Set link_to_chat=false for unlinked work. Private content will be staged for client encryption before durable persistence.",
-        {
-            "title": {"type": "string", "description": "Short user-visible task title."},
-            "link_to_chat": {"type": "boolean", "default": True, "description": "Link the created task to this chat; false leaves it unlinked."},
-            "plan_id": {"type": "string", "description": "Optional saved Plan to link the task to."},
-            "description": {"type": "string", "description": "Optional task details or acceptance criteria."},
-            "assignee_type": {"type": "string", "enum": ["user", "openmates"], "default": "user"},
-            "status": {"type": "string", "enum": ["backlog", "todo", "in_progress", "blocked"], "default": "todo"},
-        },
-        ["title"],
-    )
-
-
 def _update_tool() -> dict[str, Any]:
     return _tool(
         TASK_TOOL_UPDATE,
@@ -156,7 +140,8 @@ def _move_tool() -> dict[str, Any]:
 
 def build_task_runtime_tools(context: TaskToolContext) -> list[dict[str, Any]]:
     """Return task tools appropriate for the visible task context."""
-    tools = [] if context.team_id else [_create_tool()]
+    # Creation is the inline openmates_task block, never a runtime tool.
+    tools: list[dict[str, Any]] = []
     if not context.attached_tasks:
         return tools
 

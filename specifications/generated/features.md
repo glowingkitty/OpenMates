@@ -14,18 +14,18 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**129 features** · enabled on prod: 113 · enabled on dev: 118
+**130 features** · enabled on prod: 113 · enabled on dev: 119
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 20 | 54 | 12 | 19 | 0 | 0 | 0 | 20 |
-| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 6 | 7 | 0 | 22 |
+| Web | 4 | 0 | 20 | 54 | 13 | 19 | 0 | 0 | 0 | 20 |
+| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 7 | 7 | 0 | 22 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 17 | 8 | 29 | 40 | 2 | 2 | 0 | 31 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 46 |
-| REST API | 5 | 2 | 34 | 16 | 28 | 15 | 0 | 2 | 0 | 27 |
-| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 56 |
-| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 57 |
+| CLI | 0 | 0 | 18 | 8 | 29 | 40 | 2 | 2 | 0 | 31 |
+| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 47 |
+| REST API | 5 | 2 | 34 | 16 | 29 | 15 | 0 | 2 | 0 | 27 |
+| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 57 |
+| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 58 |
 
 ## Core product
 
@@ -176,6 +176,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Social Media](#social-media) | impl | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Study](#study) | impl | wip |  | — | impl | — | impl | wip | on | on | v0.5.0-alpha |
 | [Tasks](#tasks) | **FAIL** 10/30 | tested 8/8 |  | partial 2/30 | **FAIL** 0/1 | partial 6/30 | not run 0/30 | not run 0/30 | on | off | unreleased |
+| [Tasks as inline embeds](#task-inline-embeds) | not run 0/6 | wip |  | partial 1/6 | — | not run 0/6 | — | — | on | off | unreleased |
 | [Travel](#travel) | partial 4/26 | partial 1/10 |  | not run 0/22 | impl | not run 0/22 | impl | impl | partly on | partly on | v0.1-alpha-1 |
 | &nbsp;&nbsp;↳ Mixed routes with owned passes | partial 1/6 | planned |  | impl | impl | not run 0/6 | impl | impl | | | |
 | &nbsp;&nbsp;↳ Trip planning focus mode | planned | planned |  | planned | planned | planned | — | — | | | |
@@ -2439,7 +2440,7 @@ Coordinate durable plans, checks, and next steps.
 | Apple | tested 2/2 | 2 pass · 0 fail · 0 not run · 0 no test | [DevComponentPreviewUITests.swift](../../apple/OpenMatesUITests/DevComponentPreviewUITests.swift)<br>1 unit test file(s), e.g. [TasksWorkspaceTests.swift](../../apple/OpenMatesTests/TasksWorkspaceTests.swift) |
 | CLI | not run 0/19 | 0 pass · 0 fail · 9 not run · 10 no test | [cli-recovery-discovery.spec.ts](../../frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts)<br>7 unit test file(s), e.g. [plans.test.ts](../../frontend/packages/openmates-cli/tests/plans.test.ts), [acceptedPlanContext.test.ts](../../frontend/packages/openmates-cli/tests/acceptedPlanContext.test.ts) |
 | TUI | impl | — | — |
-| REST API | partial 2/19 | 2 pass · 0 fail · 10 not run · 7 no test | 13 unit test file(s), e.g. [test_user_plans_route_detail.py](../../backend/tests/test_user_plans_route_detail.py), [test_user_plans_api.py](../../backend/tests/test_user_plans_api.py) |
+| REST API | partial 2/19 | 2 pass · 0 fail · 10 not run · 7 no test | 12 unit test file(s), e.g. [test_user_plans_route_detail.py](../../backend/tests/test_user_plans_route_detail.py), [test_user_plans_api.py](../../backend/tests/test_user_plans_api.py) |
 | npm SDK | not run 0/19 | 0 pass · 0 fail · 6 not run · 13 no test | 3 unit test file(s), e.g. [sdk-plans.test.ts](../../frontend/packages/openmates-cli/tests/sdk-plans.test.ts), [sdk-cleartext-boundary.test.ts](../../frontend/packages/openmates-cli/tests/sdk-cleartext-boundary.test.ts) |
 | PyPI SDK | not run 0/19 | 0 pass · 0 fail · 7 not run · 12 no test | 3 unit test file(s), e.g. [test_plans.py](../../packages/openmates-python/tests/test_plans.py), [test_cleartext_boundary.py](../../packages/openmates-python/tests/test_cleartext_boundary.py) |
 
@@ -2872,9 +2873,32 @@ Create, track, and manage tasks and checklists.
 | Apple | tested 8/8 | 8 pass · 0 fail · 0 not run · 0 no test | [ChatFlowRealAccountUITests.swift](../../apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift)<br>[DevComponentPreviewUITests.swift](../../apple/OpenMatesUITests/DevComponentPreviewUITests.swift)<br>[TasksWorkspaceInteractionUITests.swift](../../apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift)<br>[TooltipHelpParityUITests.swift](../../apple/OpenMatesUITests/TooltipHelpParityUITests.swift)<br>4 unit test file(s), e.g. [TasksWorkspaceTests.swift](../../apple/OpenMatesTests/TasksWorkspaceTests.swift), [AppDeepLinkRoutingTests.swift](../../apple/OpenMatesTests/AppDeepLinkRoutingTests.swift) |
 | CLI | partial 2/30 | 2 pass · 0 fail · 17 not run · 11 no test | [cli-claude-session-tasks.spec.ts](../../frontend/apps/web_app/tests/cli-claude-session-tasks.spec.ts)<br>[cli-team-tasks-real.spec.ts](../../frontend/apps/web_app/tests/cli-team-tasks-real.spec.ts)<br>25 unit test file(s), e.g. [tasks.test.ts](../../frontend/packages/openmates-cli/tests/tasks.test.ts), [codexConnection.test.ts](../../frontend/packages/openmates-cli/tests/codexConnection.test.ts) |
 | TUI | **FAIL** 0/1 | 0 pass · 1 fail · 0 not run · 0 no test | [cli-tui-workspace-details-proof.spec.ts](../../frontend/apps/web_app/tests/cli-tui-workspace-details-proof.spec.ts)<br>[cli-tui-workspace-proof.spec.ts](../../frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts)<br>❌ [cli-tui-workspace-details-proof.spec.ts › records real terminal Project, Workflow, Apps skill, and encrypted result details](../../frontend/apps/web_app/tests/cli-tui-workspace-details-proof.spec.ts › records real terminal Project, Workflow, Apps skill, and encrypted result details)<br>❌ [cli-tui-workspace-proof.spec.ts › records the real terminal Chats, Tasks, Projects, Workflows, and Apps homes](../../frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts › records the real terminal Chats, Tasks, Projects, Workflows, and Apps homes) |
-| REST API | partial 6/30 | 6 pass · 0 fail · 13 not run · 11 no test | [storage-archive-lifecycle.spec.ts](../../frontend/apps/web_app/tests/storage-archive-lifecycle.spec.ts)<br>[storage-recovery-canonical-receipts.spec.ts](../../frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts)<br>20 unit test file(s), e.g. [test_user_tasks_api.py](../../backend/tests/test_user_tasks_api.py), [test_user_task_admission.py](../../backend/tests/test_user_task_admission.py) |
+| REST API | partial 6/30 | 6 pass · 0 fail · 13 not run · 11 no test | [storage-archive-lifecycle.spec.ts](../../frontend/apps/web_app/tests/storage-archive-lifecycle.spec.ts)<br>[storage-recovery-canonical-receipts.spec.ts](../../frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts)<br>19 unit test file(s), e.g. [test_user_tasks_api.py](../../backend/tests/test_user_tasks_api.py), [test_user_task_admission.py](../../backend/tests/test_user_task_admission.py) |
 | npm SDK | not run 0/30 | 0 pass · 0 fail · 9 not run · 21 no test | 2 unit test file(s), e.g. [sdk-tasks.test.ts](../../frontend/packages/openmates-cli/tests/sdk-tasks.test.ts), [workspace-history.test.ts](../../frontend/packages/openmates-cli/tests/workspace-history.test.ts) |
 | PyPI SDK | not run 0/30 | 0 pass · 0 fail · 10 not run · 20 no test | 1 unit test file(s), e.g. [test_tasks.py](../../packages/openmates-python/tests/test_tasks.py) |
+
+</details>
+
+### Tasks as inline embeds
+<a id="task-inline-embeds"></a>
+
+The assistant creates a Task by writing a task block in its reply and edits it with versioned diffs; the card shows icon, title, due date and status, never raw ids.
+
+- Specifications: [feature.task-inline-embeds](../../specifications/features/task-inline-embeds/specification.yml) (draft) · 6 assertion(s)
+- Flags: `platform:tasks` · dev on · prod off · release unreleased
+- Check intent: REST API: marked not_planned, but tests on rest_api exist
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | not run 0/6 | 0 pass · 0 fail · 4 not run · 2 no test | [task-embed-preview.spec.ts](../../frontend/apps/web_app/tests/components/task-embed-preview.spec.ts)<br>[real-inference-task-inline-embeds.spec.ts](../../frontend/apps/web_app/tests/real-inference-task-inline-embeds.spec.ts)<br>1 unit test file(s), e.g. [taskEmbedData.test.ts](../../frontend/packages/ui/src/components/embeds/tasks/__tests__/taskEmbedData.test.ts) |
+| Apple | wip | 0 pass · 0 fail · 0 not run · 6 no test | — |
+| CLI | partial 1/6 | 1 pass · 0 fail · 2 not run · 3 no test | 2 unit test file(s), e.g. [embedRenderers.test.ts](../../frontend/packages/openmates-cli/tests/embedRenderers.test.ts), [test_focus_mode_routing.py](../../backend/tests/test_focus_mode_routing.py) |
+| TUI | — | — | — |
+| REST API | not run 0/6 | 0 pass · 0 fail · 4 not run · 2 no test | 3 unit test file(s), e.g. [test_task_fences.py](../../backend/tests/test_task_fences.py), [test_task_inline_streaming.py](../../backend/tests/test_task_inline_streaming.py) |
+| npm SDK | — | — | — |
+| PyPI SDK | — | — | — |
 
 </details>
 
@@ -2894,7 +2918,7 @@ Teams: shared contexts with members and roles, team credits, connected accounts 
 | Apple | tested 4/4 | 4 pass · 0 fail · 0 not run · 0 no test | [SettingsModesParityUITests.swift](../../apple/OpenMatesUITests/SettingsModesParityUITests.swift)<br>[SettingsTeamsParityUITests.swift](../../apple/OpenMatesUITests/SettingsTeamsParityUITests.swift)<br>7 unit test file(s), e.g. [SettingsTeamsServiceTests.swift](../../apple/OpenMatesTests/SettingsTeamsServiceTests.swift), [TeamWorkspaceContextTests.swift](../../apple/OpenMatesTests/TeamWorkspaceContextTests.swift) |
 | CLI | **FAIL** 1/21 | 1 pass · 1 fail · 13 not run · 6 no test | [cli-team-artifacts-parity.spec.ts](../../frontend/apps/web_app/tests/cli-team-artifacts-parity.spec.ts)<br>[cli-team-tasks-real.spec.ts](../../frontend/apps/web_app/tests/cli-team-tasks-real.spec.ts)<br>15 unit test file(s), e.g. [teams-permissions.test.ts](../../frontend/packages/openmates-cli/tests/teams-permissions.test.ts), [tuiWorkspaceInteraction.test.ts](../../frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts)<br>❌ [test_message_received_embed_bundle.py › test_bundle_gate_precedes_preflight_broadcast_cache_and_confirmation](../../backend/tests/test_message_received_embed_bundle.py › test_bundle_gate_precedes_preflight_broadcast_cache_and_confirmation) |
 | TUI | **FAIL** 0/8 | 0 pass · 3 fail · 5 not run · 0 no test | [cli-tui-team-collaboration.spec.ts](../../frontend/apps/web_app/tests/cli-tui-team-collaboration.spec.ts)<br>[cli-tui-team-direct-chat.spec.ts](../../frontend/apps/web_app/tests/cli-tui-team-direct-chat.spec.ts)<br>❌ [cli-tui-team-direct-chat.spec.ts › opens a CLI-created Team DM on web and reads a web-created Team DM in CLI and TUI](../../frontend/apps/web_app/tests/cli-tui-team-direct-chat.spec.ts › opens a CLI-created Team DM on web and reads a web-created Team DM in CLI and TUI) |
-| REST API | partial 9/21 | 9 pass · 0 fail · 9 not run · 3 no test | [storage-team-portability.spec.ts](../../frontend/apps/web_app/tests/storage-team-portability.spec.ts)<br>54 unit test file(s), e.g. [test_teams_routes.py](../../backend/tests/test_teams_routes.py), [test_teams_chat_ai.py](../../backend/tests/test_teams_chat_ai.py) |
+| REST API | partial 9/21 | 9 pass · 0 fail · 9 not run · 3 no test | [storage-team-portability.spec.ts](../../frontend/apps/web_app/tests/storage-team-portability.spec.ts)<br>55 unit test file(s), e.g. [test_teams_routes.py](../../backend/tests/test_teams_routes.py), [test_teams_chat_ai.py](../../backend/tests/test_teams_chat_ai.py) |
 | npm SDK | not run 0/21 | 0 pass · 0 fail · 9 not run · 12 no test | 6 unit test file(s), e.g. [sdk-teams.test.ts](../../frontend/packages/openmates-cli/tests/sdk-teams.test.ts), [directChatsSdk.test.ts](../../frontend/packages/openmates-cli/tests/directChatsSdk.test.ts) |
 | PyPI SDK | not run 0/21 | 0 pass · 0 fail · 8 not run · 13 no test | 3 unit test file(s), e.g. [test_teams.py](../../packages/openmates-python/tests/test_teams.py), [test_sdk_team_direct_chats.py](../../packages/openmates-python/tests/test_sdk_team_direct_chats.py) |
 

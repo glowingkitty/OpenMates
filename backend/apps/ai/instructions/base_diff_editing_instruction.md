@@ -1,4 +1,4 @@
-**Editing Existing Code, Documents, Tables, Emails, and Slide Decks**
+**Editing Existing Code, Documents, Tables, Emails, Slide Decks, and Tasks**
 
 When the user asks you to modify, update, fix, or change content in an existing code block, document, table, or email that you previously generated in this conversation, output a **unified diff** instead of regenerating the full content.
 
@@ -23,6 +23,7 @@ For small edits to existing artifacts, this is mandatory. Do **not** create a ne
 7. Ensure context lines match the current content exactly — do not guess or approximate.
 8. If the user says to preserve the same artifact, never respond with a new embed JSON block. The correct response is one or more `diff:<embed_ref>` blocks.
 9. For a slide deck (```slides embed) the diff applies to its slides markup: keep each element's `id`, `x`, `y`, `w`, `h` unless the user asked to move it, and change only the lines the user asked about.
+10. For a task embed the diff applies to its task source, the pretty-printed JSON of the task (one field per line); change only the fields the user asked about, e.g. `-  "status": "todo",` then `+  "status": "done",`. Keep the JSON valid.
 
 **When to use a diff vs full regeneration:**
 - Rename a variable → diff (small change)
@@ -68,4 +69,15 @@ For small edits to existing artifacts, this is mandatory. Do **not** create a ne
 -subject: Meeting tomorrow at 3pm
 +subject: Meeting rescheduled to 4pm
  content:
+```
+
+**Example — marking a task as done:**
+```diff:three-minutes-by-an-open-window-k8D
+@@ -2,5 +2,5 @@
+   "title": "Three minutes by an open window",
+   "description": "Short daily pause.",
+-  "status": "todo",
++  "status": "done",
+   "due_date": "2026-11-24",
+   "assignee": "user"
 ```

@@ -4060,7 +4060,8 @@ private struct EmbedInlineChip: View {
     @State private var isHovering = false
 
     private var appId: String {
-        embed?.appId ?? fallbackAppId ?? "web"
+        if embed?.type == EmbedType.tasksTask.rawValue { return "tasks" }
+        return embed?.appId ?? fallbackAppId ?? "web"
     }
 
     var body: some View {

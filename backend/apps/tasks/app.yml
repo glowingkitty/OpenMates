@@ -36,78 +36,44 @@ embed_types:
     icon: search
     gradient_var: "--color-app-tasks"
     i18n_namespace: embeds.tasks.search
+  - id: task
+    category: direct
+    frontend_type: tasks-task
+    backend_type: task
+    has_children: false
+    groupable: true
+    preview_component: tasks/TaskEmbedPreview.svelte
+    fullscreen_component: tasks/TaskEmbedFullscreen.svelte
+    icon: task
+    gradient_var: "--color-app-tasks"
+    i18n_namespace: embeds.tasks.task
+    content_catalog:
+      enabled: true
+      diff_editable: true
+      content_type_id: task
+      name: Task
+      description: A Task created inline as canonical OpenMates task JSON.
+      icon: task
+      example_key: tasks.task
+      order: 10
+    content_fields:
+      - name: task_source
+        type: string
+        required: true
+      - name: title
+        type: string
+        required: false
+      - name: validation
+        type: object
+        required: true
 instructions:
   - instruction: |
       **Task Skills**
-      - Use Tasks create when the user asks to create, capture, or break down trackable work.
+      - Create tasks only with an inline ```openmates_task block (one per task) when the user asks to create, capture, or break down trackable work; edit one with a diff against its task embed.
       - If the user does not clearly assign execution to OpenMates, create tasks assigned to the user.
       - Only work on tasks assigned to OpenMates.
       - Use Tasks search when the user asks to find existing tasks; private task search requires a connected capable client.
 skills:
-  - id: create
-    anonymous_access: authenticated
-    name_translation_key: tasks.skills.create
-    description_translation_key: tasks.skills.create.description
-    icon_image: task.svg
-    preprocessor_hint: >
-      Create one or more user-visible tasks. Use this for planning, task capture,
-      or breaking a request into trackable work. Default unclear assignees to the user.
-    providers:
-      - name: OpenMates
-        no_api_key: true
-    class_path: backend.apps.tasks.skills.create_skill.CreateSkill
-    tool_schema:
-      type: object
-      properties:
-        tasks:
-          type: array
-          items:
-            type: object
-            properties:
-              link_to_chat:
-                type: boolean
-                default: true
-                description: Link to the current chat; false leaves the Task unlinked.
-              plan_id:
-                type: string
-                description: Link this Task to a saved Plan (overrides the top-level plan_id).
-              title:
-                type: string
-              description:
-                type: string
-              assignee:
-                type: string
-                enum:
-                  - user
-                  - openmates
-              status:
-                type: string
-                enum:
-                  - backlog
-                  - todo
-                  - in_progress
-                  - blocked
-        link_to_chat:
-          type: boolean
-          default: true
-          description: Default chat-link choice for created Tasks; tasks[] can override it.
-        plan_id:
-          type: string
-          description: >
-            Default Plan to link the created Tasks to. The Plan must belong to
-            the user and be saved; a missing Plan fails the call.
-        title:
-          type: string
-          description: Single-task title when not using tasks[].
-        description:
-          type: string
-        assignee:
-          type: string
-          enum:
-            - user
-            - openmates
-      required: []
-
   - id: search
     anonymous_access: authenticated
     name_translation_key: tasks.skills.search
@@ -120,6 +86,12 @@ skills:
       - name: OpenMates
         no_api_key: true
     class_path: backend.apps.tasks.skills.search_skill.SearchSkill
+    pricing:
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Internal
     tool_schema:
       type: object
       properties:

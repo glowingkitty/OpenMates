@@ -165,7 +165,14 @@ function renderTask(content: Record<string, unknown>): string {
 	const lines = [`**${title}**`];
 	if (status) lines.push(`status: ${status}`);
 	if (assignee) lines.push(`assignee: ${assignee}`);
+	const due = str(content.due_date);
+	if (due) lines.push(`due: ${due}`);
 	if (description) lines.push(trunc(description, 240));
+	const validation = content.validation as Record<string, unknown> | undefined;
+	if (validation?.status === 'invalid' && Array.isArray(validation.errors)) {
+		lines.push('validation: invalid (fix with a diff against this task embed)');
+		for (const error of validation.errors) lines.push(`error: ${typeof error === 'string' ? error : str((error as Record<string, unknown>)?.message) ?? ''}`);
+	}
 	return lines.join('\n');
 }
 
@@ -346,15 +353,15 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 		'calendar_event': renderCalendarEvent,
 		'mindmaps-mindmap': renderMindMap,
 		'mindmap': renderMindMap,
-		'diagrams-html': renderDiagramText,
-		'diagram_html': renderDiagramText,
+		'diagrams-html': (content, children) => renderDiagramText(content, children !== undefined),
+		'diagram_html': (content, children) => renderDiagramText(content, children !== undefined),
 		'events-event': renderEvent,
 	'fitness-location': renderFitnessResult,
 	'fitness-class': renderFitnessResult,
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
-	'jobs-job-result': renderJobResult,
+	'jobs-job-result': (content) => renderJobResult(content),
 	'hosting-domain': renderHostingDomain,
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,

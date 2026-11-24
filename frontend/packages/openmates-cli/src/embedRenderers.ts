@@ -71,6 +71,7 @@ const DIRECT_TYPES = new Set([
   "images-image-result",
   "news-article",
   "tasks-task",
+  "task",
   "workflows-workflow",
 ]);
 
@@ -108,6 +109,7 @@ const DIRECT_TYPE_LABELS: Record<string, string> = {
   "images-image-result": "image",
   "news-article": "article",
   "tasks-task": "task",
+  "task": "task",
   "workflows-workflow": "workflow",
 };
 
@@ -213,7 +215,7 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   const shortId = embed.embedId.slice(0, 8);
   const c = (embed.content ?? {}) as Record<string, unknown>;
   const resolvedType = embed.type ?? str(c.type) ?? "embed";
-  if (resolvedType === "tasks-task") return formatTaskEmbedPreviewLines(c, shortId);
+  if (resolvedType === "tasks-task" || resolvedType === "task") return formatTaskEmbedPreviewLines(c, shortId);
   if (resolvedType === "workflows-workflow") return formatWorkflowEmbedPreviewLines(c, shortId);
   const app = embed.appId ?? str(c.app_id) ?? "";
   const skill = embed.skillId ?? str(c.skill_id) ?? "";
@@ -268,17 +270,28 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   return lines;
 }
 
+/** Task card lines. The internal task_id is never printed: the visible
+ * short id (or the embed id) is the only identifier shown. */
 function formatTaskEmbedPreviewLines(c: Record<string, unknown>, fallbackShortId: string): string[] {
-  const taskId = str(c.short_id) ?? str(c.task_id) ?? fallbackShortId;
+  const shortId = str(c.short_id);
+  const taskLabel = shortId ?? fallbackShortId;
   const title = str(c.title) ?? str(c.name) ?? "Untitled task";
   const status = str(c.status) ?? "todo";
-  const assignee = str(c.assignee) ?? str(c.assignee_identity) ?? str(c.assignee_type) ?? "user";
-  return [
-    `┌─ ✓ task · ${taskId} · ${trunc(title, 56)}`,
+  const assignee = str(c.assignee_name) ?? str(c.assignee) ?? str(c.assignee_identity) ?? str(c.assignee_type) ?? "user";
+  const due = str(c.due_date) ?? str(c.due_at);
+  const validation = isRecord(c.validation) ? c.validation : {};
+  const errors = validation.status === "invalid" && Array.isArray(validation.errors)
+    ? validation.errors.map((error) => typeof error === "string" ? error : str((error as Record<string, unknown>)?.message) ?? "").filter(Boolean)
+    : [];
+  const lines = [
+    `┌─ ✓ task · ${shortId ? `${shortId} · ` : ""}${trunc(title, 56)}`,
     `│  Status: ${status}`,
     `│  Assignee: ${assignee}`,
-    `└─ openmates tasks show ${taskId}`,
   ];
+  if (due) lines.push(`│  Due: ${due}`);
+  for (const error of errors) lines.push(`│  \x1b[31m✗ ${trunc(error, 72)}\x1b[0m`);
+  lines.push(shortId ? `└─ openmates tasks show ${shortId}` : `└─ openmates embeds show ${taskLabel}`);
+  return lines;
 }
 
 function formatWorkflowEmbedPreviewLines(c: Record<string, unknown>, fallbackShortId: string): string[] {
@@ -1585,6 +1598,7 @@ function renderByDirectType(
       break;
     }
 
+    case "task":
     case "tasks-task": {
       for (const line of formatTaskEmbedPreviewLines(c, embed.embedId.slice(0, 8)).slice(1, -1)) {
         ln(line.replace(/^│\s\s/, ""));
@@ -1834,6 +1848,13 @@ function renderDirectTypeFullscreen(
       field("Admission",c.is_paid === false ? "Free" : [fee.amount ?? c.fee_amount,fee.currency ?? c.fee_currency].filter(v=>v!==undefined&&v!==null).join(" "));
       field("Attendees",c.rsvp_count);
       field("Event page",c.url);
+      break;
+    }
+
+    case "task":
+    case "tasks-task": {
+      for (const line of formatTaskEmbedPreviewLines(c, embed.embedId.slice(0, 8))) write(`${line}\n`);
+      if (str(c.description)) write(`\n${str(c.description)}\n`);
       break;
     }
 

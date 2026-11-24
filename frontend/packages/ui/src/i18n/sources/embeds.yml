@@ -8818,6 +8818,31 @@ mindmaps.mindmap:
   he: מפת חשיבה
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
+tasks.task:
+  context: Tasks embed label for a Task created inline by the assistant, shown in BasicInfosBar
+  en: Task
+  de: Aufgabe
+  zh: 任务
+  es: Tarea
+  fr: Tâche
+  pt: Tarefa
+  ru: Задача
+  ja: タスク
+  ko: 작업
+  it: Attività
+  tr: Görev
+  vi: Nhiệm vụ
+  id: Tugas
+  pl: Zadanie
+  nl: Taak
+  ar: مهمة
+  hi: कार्य
+  th: งาน
+  cs: Úkol
+  sv: Uppgift
+  he: משימה
+  verified_by_human: []
+
 mindmaps.counts:
   context: "Compact count label for Mind Maps embeds. Replacements: {nodes}, {edges}"
   en: "{nodes} nodes · {edges} edges"

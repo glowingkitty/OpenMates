@@ -2226,6 +2226,31 @@ async def _finalize_json_content_embed(embed_service: Any, **content_fields: Any
     return False
 
 
+async def _finalize_json_content_for_request(
+    embed_service: Any, *, request_data: Any, cache_service: Any, directus_service: Any,
+    encryption_service: Any, **content_fields: Any,
+) -> bool:
+    """Finalize a JSON content embed; a task fence also creates its Task."""
+    from backend.apps.ai.utils.task_fences import is_task_fence
+    if not is_task_fence(content_fields.get("source_language")):
+        return await _finalize_json_content_embed(embed_service, **content_fields)
+    from backend.apps.ai.tasks.task_fence_runtime import finalize_task_fence_embed
+    log_prefix = content_fields.get("log_prefix", "")
+    try:
+        if await finalize_task_fence_embed(
+            embed_service=embed_service, embed_id=content_fields["embed_id"], source=content_fields["source_json"],
+            request_data=request_data, cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, user_vault_key_id=content_fields["user_vault_key_id"],
+            log_prefix=log_prefix,
+        ):
+            return True
+    except RequiredRecoveryOutputError:
+        raise
+    except Exception:
+        logger.error(f"{log_prefix} Task fence handling failed for embed {content_fields.get('embed_id')}", exc_info=True)
+    return await _finalize_json_content_embed(embed_service, **{**content_fields, "status": "error", "source_json": ""})
+
+
 async def _finalize_diagram_html_embed(
     embed_service: Any, embed_id: str, source: str, request_data: AskSkillRequest,
     user_vault_key_id: str, log_prefix: str,
@@ -2312,6 +2337,7 @@ async def _apply_diff_block_to_existing_embed(
         cached_embed = await directus_service.embed.get_embed_by_id(target_embed_id)
 
     current_content = None
+    decoded_task_embed: Optional[Dict[str, Any]] = None
     if cached_embed:
         encrypted_content = cached_embed.get("encrypted_content")
         if encrypted_content:
@@ -2328,7 +2354,10 @@ async def _apply_diff_block_to_existing_embed(
                         decoded.get("footer", ""),
                     )
                 else:
+                    if decoded.get("type") == "task":
+                        decoded_task_embed = decoded
                     current_content = (
+                        decoded.get("task_source") or
                         decoded.get("html_source") or
                         decoded.get("code") or
                         decoded.get("diagram_code") or
@@ -2576,6 +2605,18 @@ async def _apply_diff_block_to_existing_embed(
             version_history_rows=version_history_rows,
             log_prefix=log_prefix,
         )
+    elif embed_type == "task" and decoded_task_embed is not None:
+        from backend.apps.ai.tasks.task_fence_runtime import apply_task_embed_diff
+        task_note = await apply_task_embed_diff(
+            embed_id=target_embed_id, current=decoded_task_embed, new_source=patch_result.new_content,
+            new_version=new_version, version_history_rows=version_history_rows, content_hash=new_content_hash,
+            request_data=request_data, embed_service=embed_service, cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+        )
+        if task_note:
+            embed_ref_json = json.dumps({"type": "task", "embed_id": target_embed_id})
+            return f"```json\n{embed_ref_json}\n```\n\n_{task_note}_\n\n"
     elif embed_type == "pcb_schematic":
         pcb_metadata = _extract_pcb_schematic_metadata(
             "atopile",
@@ -8086,8 +8127,10 @@ async def _consume_main_processing_stream(
                                     )
                                     if embed_data:
                                         current_code_embed_id = embed_data["embed_id"]
-                                        json_content_finished = await _finalize_json_content_embed(
+                                        json_content_finished = await _finalize_json_content_for_request(
                                             embed_service,
+                                            request_data=request_data, cache_service=cache_service,
+                                            directus_service=directus_service, encryption_service=encryption_service,
                                             source_language=current_code_language,
                                             embed_id=current_code_embed_id,
                                             source_json=code_content,
@@ -10010,8 +10053,10 @@ async def _consume_main_processing_stream(
 
                                     logger.info(f"{log_prefix} Finalized PCB schematic embed {current_code_embed_id}")
                                 elif in_json_content_block:
-                                    json_content_finished = await _finalize_json_content_embed(
+                                    json_content_finished = await _finalize_json_content_for_request(
                                         embed_service,
+                                        request_data=request_data, cache_service=cache_service,
+                                        directus_service=directus_service, encryption_service=encryption_service,
                                         source_language=current_code_language,
                                         embed_id=current_code_embed_id,
                                         source_json=current_code_content,

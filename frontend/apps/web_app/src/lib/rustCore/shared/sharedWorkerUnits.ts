@@ -12,6 +12,7 @@
  * connection drops.
  */
 import type { UnitInstallers } from '@openmates/ui/src/services/rustCore/host/sharedWorkerProtocol';
+import { installTaskJobsUnit } from '@openmates/ui/src/services/rustCore/tasks/taskJobsUnit';
 import { installCoreUnit } from './coreUnit';
 import { installCryptoUnit } from '@openmates/ui/src/services/rustCore/crypto/cryptoUnitInstaller';
 import { installAuthUnit } from '@openmates/ui/src/services/rustCore/auth/authUnit';
@@ -59,6 +60,7 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	deckDocument: installDeckDocumentUnit,
 	embedEdit: (context) => installEmbedEditUnit(context),
 	projectTimeline: (context) => installProjectTimelineUnit(context),
+	taskJobs: (context) => installTaskJobsUnit(context),
 	projectFileJobs: (context) => installProjectFileJobsUnit(context),
 	presentRemote: (context) => installPresentRemoteUnit(context),
 	voiceTurn: (context) => installVoiceTurnUnit(context),

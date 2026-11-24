@@ -1293,6 +1293,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           description: decodedContent?.description || "",
           status: decodedContent?.status || "todo",
           assignee: decodedContent?.assignee || decodedContent?.assignee_type || "",
+          dueDate: decodedContent?.due_date || "",
+          projectName: decodedContent?.project_name || "",
           isMobile: false,
           onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
         },

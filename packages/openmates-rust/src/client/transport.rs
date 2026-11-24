@@ -534,7 +534,7 @@ impl Client {
     }
     /// A fixed Task readback completes an already committed ciphertext write.
     /// It grants no permission to dispatch another mutation after cancellation.
-    pub(super) async fn request_committed_task(
+    pub(crate) async fn request_committed_task(
         &mut self,
         id: &str,
         wrappers: bool,
@@ -1503,6 +1503,10 @@ pub(super) async fn wait_task_job(
         (received == kind || received == "error") && payload["request_id"] == request
     })
     .await?;
+    validate_task_job_reply(&received, value, job)
+}
+
+pub(super) fn validate_task_job_reply(received: &str, value: Value, job: &str) -> Result<Value> {
     if value["job_id"] != job {
         return Err(Error::Forbidden);
     }

@@ -4,15 +4,15 @@ schema_version: 2
 source: specifications/features.yml
 results_as_of: '2026-11-16'
 summary:
-  features: 129
+  features: 130
   enabled_on_prod: 113
-  enabled_on_dev: 118
+  enabled_on_dev: 119
   status_by_surface:
     web:
       live: 4
       partial: 20
       failing: 54
-      not_run: 12
+      not_run: 13
       implemented: 19
       not_planned: 20
     apple:
@@ -20,7 +20,7 @@ summary:
       partial: 36
       failing: 5
       implemented: 39
-      in_progress: 6
+      in_progress: 7
       planned: 7
       not_planned: 22
     watchos:
@@ -29,7 +29,7 @@ summary:
       failing: 1
       not_run: 2
     cli:
-      partial: 17
+      partial: 18
       failing: 8
       not_run: 29
       implemented: 40
@@ -42,13 +42,13 @@ summary:
       not_run: 1
       implemented: 57
       in_progress: 10
-      not_planned: 46
+      not_planned: 47
     rest_api:
       live: 5
       tested: 2
       partial: 34
       failing: 16
-      not_run: 28
+      not_run: 29
       implemented: 15
       planned: 2
       not_planned: 27
@@ -56,13 +56,13 @@ summary:
       partial: 3
       not_run: 20
       implemented: 50
-      not_planned: 56
+      not_planned: 57
     sdk_pypi:
       partial: 3
       not_run: 18
       implemented: 42
       in_progress: 9
-      not_planned: 57
+      not_planned: 58
 unmapped:
   specifications: []
   apps: []
@@ -9985,7 +9985,7 @@ features:
       - backend/tests/test_teams_data_portability.py
       - scripts/tests/test_teams_privacy_audit.py
       - backend/tests/test_native_chats_api.py
-      unit_test_files: 54
+      unit_test_files: 55
     sdk_npm:
       status: not_run
       source: tests
@@ -15910,7 +15910,7 @@ features:
       - backend/tests/test_workspace_change_history.py
       - backend/tests/test_plan_assumption_workflow.py
       - backend/tests/test_user_task_admission.py
-      unit_test_files: 13
+      unit_test_files: 12
     sdk_npm:
       status: not_run
       source: tests
@@ -18448,7 +18448,7 @@ features:
       - backend/tests/test_task_main_processor_tools.py
       - backend/tests/test_user_task_activity_api.py
       - backend/tests/test_task_queue_auto_continuation.py
-      unit_test_files: 20
+      unit_test_files: 19
     sdk_npm:
       status: not_run
       source: tests
@@ -18480,6 +18480,139 @@ features:
       key_unit_tests:
       - packages/openmates-python/tests/test_tasks.py
       unit_test_files: 1
+- id: task-inline-embeds
+  name: Tasks as inline embeds
+  kind: app
+  description: The assistant creates a Task by writing a task block in its reply and edits it with versioned diffs; the card
+    shows icon, title, due date and status, never raw ids.
+  specifications:
+  - id: feature.task-inline-embeds
+    status: draft
+    path: specifications/features/task-inline-embeds
+  apps: []
+  product_features: []
+  release: unreleased
+  flags:
+    ids:
+    - platform:tasks
+    dev: enabled
+    prod: disabled
+  assertions: 6
+  surfaces:
+    web:
+      status: not_run
+      source: tests
+      intent: in_progress
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 4
+        missing: 2
+        counted: 6
+      key_tests: []
+      evidence: TaskEmbedPreview.svelte task card, TaskEmbedFullscreen.svelte with EmbedVersionTimeline; real-inference-task-inline-embeds.spec.ts
+      e2e_tests:
+      - frontend/apps/web_app/tests/components/task-embed-preview.spec.ts
+      - frontend/apps/web_app/tests/real-inference-task-inline-embeds.spec.ts
+      key_unit_tests:
+      - frontend/packages/ui/src/components/embeds/tasks/__tests__/taskEmbedData.test.ts
+      unit_test_files: 1
+    apple:
+      status: in_progress
+      source: intent
+      intent: in_progress
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 6
+        counted: 6
+      key_tests: []
+      evidence: AppSkillUseRenderer.swift task card rendering
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: partial
+      source: tests
+      intent: in_progress
+      assertions:
+        passing: 1
+        failing: 0
+        not_run: 2
+        missing: 3
+        counted: 6
+      key_tests: []
+      evidence: frontend/packages/openmates-cli/src/embedRenderers.ts task embed rendering
+      e2e_tests: []
+      key_unit_tests:
+      - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+      - backend/tests/test_focus_mode_routing.py
+      unit_test_files: 2
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_run
+      source: tests
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 4
+        missing: 2
+        counted: 6
+      conflict: marked not_planned, but tests on rest_api exist
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests:
+      - backend/tests/test_task_fences.py
+      - backend/tests/test_task_inline_streaming.py
+      - backend/tests/test_task_update_jobs.py
+      unit_test_files: 3
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
 - id: travel
   name: Travel
   kind: app

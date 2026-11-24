@@ -494,9 +494,6 @@ pub struct TasksSkills<'a> {
     sdk: &'a OpenMates,
 }
 impl TasksSkills<'_> {
-    pub async fn create(&self, input: Value) -> Result<Value> {
-        self.sdk.run_skill("tasks", "create", input).await
-    }
     pub async fn search(&self, input: Value) -> Result<Value> {
         self.sdk.run_skill("tasks", "search", input).await
     }

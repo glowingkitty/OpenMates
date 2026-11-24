@@ -11,6 +11,10 @@ const config = {
 		runes: true
 	},
 	kit: {
+		alias: {
+			// Keep the generated TypeScript paths aligned with Vite's Worker alias.
+			'@openmates/ui': '../../packages/ui'
+		},
 		adapter: adapterVercel({
 			// Match our deployment target even when the build runs under Bun.
 			runtime: 'nodejs24.x'

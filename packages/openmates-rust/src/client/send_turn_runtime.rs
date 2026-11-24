@@ -265,7 +265,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             if kind == "task_update_jobs_available"
                 && owns_metadata(&p, id, message, turn, &task_id)
             {
-                observed.capture_jobs(&p, id)?;
+                observed.capture_jobs(&p, id, message)?;
             }
             if kind == "message_queued" && same {
                 queued.wipe();*queued=Some(p.clone());
@@ -575,7 +575,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     if kind == "task_update_jobs_available"
                         && owns_metadata(&p, id, message, turn, &task_id)
                     {
-                        observed.capture_jobs(&p, id)?;
+                        observed.capture_jobs(&p, id, message)?;
                     }
                     // The check runs after the final chunk; the notice still lands
                     // before the assistant message is persisted below.

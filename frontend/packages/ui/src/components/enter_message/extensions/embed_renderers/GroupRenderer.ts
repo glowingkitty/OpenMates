@@ -84,6 +84,7 @@ import DiagramHtmlEmbedPreview from "../../../embeds/diagrams/DiagramHtmlEmbedPr
 import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.svelte";
 import CalendarEventEmbedPreview from "../../../embeds/calendar/CalendarEventEmbedPreview.svelte";
 import { renderCalendarEvent } from "../../../embeds/calendar/calendarEventEmbedText";
+import { normalizeTaskResult } from "../../../embeds/tasks/taskEmbedData";
 import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
@@ -7832,6 +7833,9 @@ export class GroupRenderer implements EmbedRenderer {
           description: (decodedContent?.description || "") as string,
           status: (decodedContent?.status || "todo") as string,
           assignee: (decodedContent?.assignee || decodedContent?.assignee_type || "") as string,
+          dueDate: (decodedContent?.due_date || "") as string,
+          projectName: (decodedContent?.project_name || "") as string,
+          validation: normalizeTaskResult(embedId, decodedContent ?? {}).validation,
           isMobile: false,
           onFullscreen: () =>
             this.openFullscreen(item, embedData, decodedContent),

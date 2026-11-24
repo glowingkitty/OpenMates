@@ -185,6 +185,9 @@ async def execute_task_tool_call(
                 "created_at": now,
                 "updated_at": now,
                 **({"plan_id": plan_id} if plan_id else {}),
+                **({"due_at": _safe_int(args["due_at"], default=0)} if args.get("due_at") else {}),
+                **({"linked_project_ids": [str(v) for v in args["linked_project_ids"]]}
+                   if args.get("linked_project_ids") else {}),
             },
             expected_version=0,
             context=context,
@@ -221,6 +224,8 @@ async def execute_task_tool_call(
         if args.get("assignee_type") is not None:
             safe_metadata["assignee_type"] = _safe_assignee_type(args.get("assignee_type"))
             safe_metadata["assignee_identity"] = _safe_assignee_identity(args.get("assignee_type"))
+        if "due_at" in args:
+            safe_metadata["due_at"] = _safe_int(args["due_at"], default=0) if args["due_at"] else None
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), private_patch, safe_metadata):
             return _already_applied_result("update", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
@@ -473,7 +478,10 @@ async def execute_task_tool_call(
     raise ValueError(f"Unsupported task tool '{tool_name}'")
 
 
-async def publish_task_tool_result(*, cache_service: Any, user_id: str, user_id_hash: str, result: dict[str, Any]) -> None:
+async def publish_task_tool_result(
+    *, cache_service: Any, user_id: str, user_id_hash: str, result: dict[str, Any], publish_chat_event: bool = True,
+) -> None:
+    """Publish the chat event (unless suppressed) and the client persistence job."""
     event = result.get("event")
     if not isinstance(event, dict):
         return
@@ -487,7 +495,8 @@ async def publish_task_tool_result(*, cache_service: Any, user_id: str, user_id_
         "user_id_uuid": user_id,
         "user_id_hash": user_id_hash,
     }
-    await cache_service.publish_event(f"chat_stream::{chat_id}", base)
+    if publish_chat_event:
+        await cache_service.publish_event(f"chat_stream::{chat_id}", base)
     job = result.get("job")
     if isinstance(job, dict):
         await cache_service.publish_event(

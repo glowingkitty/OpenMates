@@ -45,6 +45,8 @@ PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
     "shopping:search_products",
     "social_media:get-posts",
     "social_media:search",
+    "tasks:create",
+    "tasks:search",
     "travel:search_connections",
     "travel:search_stays",
     "videos:search",

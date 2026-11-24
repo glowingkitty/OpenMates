@@ -8379,63 +8379,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'tasks',
   'app_namespace_py': 'tasks',
   'app_namespace_ts': 'tasks',
-  'description': 'Create one or more user-visible tasks. Use this for planning, task capture, or '
-                 'breaking a request into trackable work. Default unclear assignees to the user.',
-  'description_key': 'tasks.skills.create.description',
-  'schema': {'properties': {'assignee': {'enum': ['user', 'openmates'], 'type': 'string'},
-                            'description': {'type': 'string'},
-                            'link_to_chat': {'default': True,
-                                             'description': 'Default chat-link choice for created '
-                                                            'Tasks; tasks[] can override it.',
-                                             'type': 'boolean'},
-                            'plan_id': {'description': 'Default Plan to link the created Tasks to. '
-                                                       'The Plan must belong to the user and be '
-                                                       'saved; a missing Plan fails the call.\n',
-                                        'type': 'string'},
-                            'tasks': {'items': {'properties': {'assignee': {'enum': ['user',
-                                                                                     'openmates'],
-                                                                            'type': 'string'},
-                                                               'description': {'type': 'string'},
-                                                               'link_to_chat': {'default': True,
-                                                                                'description': 'Link '
-                                                                                               'to '
-                                                                                               'the '
-                                                                                               'current '
-                                                                                               'chat; '
-                                                                                               'false '
-                                                                                               'leaves '
-                                                                                               'the '
-                                                                                               'Task '
-                                                                                               'unlinked.',
-                                                                                'type': 'boolean'},
-                                                               'plan_id': {'description': 'Link '
-                                                                                          'this '
-                                                                                          'Task to '
-                                                                                          'a saved '
-                                                                                          'Plan '
-                                                                                          '(overrides '
-                                                                                          'the '
-                                                                                          'top-level '
-                                                                                          'plan_id).',
-                                                                           'type': 'string'},
-                                                               'status': {'enum': ['backlog',
-                                                                                   'todo',
-                                                                                   'in_progress',
-                                                                                   'blocked'],
-                                                                          'type': 'string'},
-                                                               'title': {'type': 'string'}},
-                                                'type': 'object'},
-                                      'type': 'array'},
-                            'title': {'description': 'Single-task title when not using tasks[].',
-                                      'type': 'string'}},
-             'required': [],
-             'type': 'object'},
-  'skill_id': 'create',
-  'skill_method_py': 'create',
-  'skill_method_ts': 'create'},
- {'app_id': 'tasks',
-  'app_namespace_py': 'tasks',
-  'app_namespace_ts': 'tasks',
   'description': "Search the user's encrypted tasks through a connected capable client. Do not use "
                  'server-visible metadata as a private task-content search fallback.',
   'description_key': 'tasks.skills.search.description',
@@ -11692,14 +11635,6 @@ class SocialMediaAppSkills:
 class TasksAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
-
-    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.
-
-        Description key: tasks.skills.create.description
-        Skill: tasks/create
-        """
-        return self._run_skill("tasks", "create", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.

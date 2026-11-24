@@ -180,6 +180,21 @@ units:
     - packages/openmates-browser-bindings/src/browser_project_timeline.rs
     - packages/openmates-rust/src/work/projects/timeline.rs
     - packages/openmates-rust/src/work/projects/timeline_presentation.rs
+  taskJobs:
+    specs: []
+    vectors: []
+    open_gaps:
+    - The Task job protocol supports Personal Task creation. Team creation requires Team-scoped persistence and wrappers.
+    spec_assertions:
+    - task-inline.create.fence-not-tool
+    - task-inline.edit.diff-versioned
+    - task-inline.privacy.unchanged-encryption
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_task_jobs.rs
+    - packages/openmates-rust/src/client/task_jobs.rs
+    - packages/openmates-rust/src/client/task_job_io.rs
+    - packages/openmates-rust/src/work/tasks/ai_jobs.rs
   projectFileJobs:
     specs: []
     vectors: []

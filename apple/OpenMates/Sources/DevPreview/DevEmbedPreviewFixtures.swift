@@ -2619,8 +2619,15 @@ enum DevEmbedPreviewFixtures {
                            data: ["task_id": "task-garden-1", "short_id": "T-104",
                                   "title": "Buy starter soil and basil seeds",
                                   "description": "Pick up seed trays, starter soil, and basil seeds before Saturday.",
-                                  "status": "todo", "assignee": "user"])
-        return skill(id: "tasks-task", label: "Task", primary: embed)
+                                  "status": "todo", "assignee": "user", "due_date": "2026-11-24",
+                                  "validation": ["status": "valid", "errors": [Any](), "warnings": [Any]()]])
+        let invalid = record(id: "preview-task-invalid", type: EmbedType.tasksTask.rawValue, appId: "tasks",
+                             data: ["title": "Call the plumber",
+                                    "status": "todo", "assignee_type": "user",
+                                    "validation": ["status": "invalid", "errors": [
+                                        ["field": "due_date", "code": "invalid_due_date", "message": "The due date is not a valid date."],
+                                        ["field": "status", "code": "invalid_status", "message": "Status must be todo, in progress or done."]]]])
+        return skill(id: "tasks-task", label: "Task", primary: embed, children: [invalid])
     }
 
     private static var tasksCreate: DevEmbedPreviewSkill {

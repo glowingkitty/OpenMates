@@ -264,6 +264,11 @@ pub(crate) fn verify_task_job_persistence(
         return Err(Error::Forbidden);
     }
     let task = task_crypto::decrypt(raw, wrapping, wrapping, team)?;
+    verify_task_job_fields(&task, key, expected, version)
+}
+
+/// Verify the exact fields against the canonical Task opened by the active authority.
+fn verify_task_job_fields(task: &task_crypto::Resolved, key: &[u8; 32], expected: &Value, version: u64) -> Result<()> {
     if task.key.as_ref() != key || task.raw["version"].as_u64() != Some(version) {
         return Err(Error::Conflict);
     }

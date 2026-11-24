@@ -1044,6 +1044,16 @@ specifications:
     - sdks.npm
     - sdks.pip
     - gui.web
+  feature.task-inline-embeds:
+    version: 1
+    status: draft
+    path: features/task-inline-embeds
+    fingerprint: 99608b6779aba79a9799bf9b4fec67617c30a9e3394bc0cacd3b94dbfe138088
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   feature.tasks:
     version: 4
     status: draft
@@ -14869,6 +14879,66 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  task-inline.create.fence-not-tool:
+    specification: feature.task-inline-embeds@1
+    specification_id: feature.task-inline-embeds
+    type: behavior
+    fingerprint: cea46fe408df201b7ca57125064f29c9bb1ec86e2dea9f261feee5ff3f6061d8
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  task-inline.validation.visible-and-fed-back:
+    specification: feature.task-inline-embeds@1
+    specification_id: feature.task-inline-embeds
+    type: behavior
+    fingerprint: 27ee01aee738d19c8cb8c6fb72e12732f6aab3f0c7b0448f745d52ba8f314884
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  task-inline.edit.diff-versioned:
+    specification: feature.task-inline-embeds@1
+    specification_id: feature.task-inline-embeds
+    type: behavior
+    fingerprint: 91f2ed81c8b10316bfaee305f22645455a73a983184bc40eaf963c55b9f0ad5e
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  task-inline.presentation.no-raw-ids:
+    specification: feature.task-inline-embeds@1
+    specification_id: feature.task-inline-embeds
+    type: behavior
+    fingerprint: df021ddc8b869eff0fc6bd49b69529680551ea299f031d2c73ec414014954f0a
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  task-inline.privacy.unchanged-encryption:
+    specification: feature.task-inline-embeds@1
+    specification_id: feature.task-inline-embeds
+    type: security
+    fingerprint: 03032e12b858a1034882e2a7330fc835eb8c0fa54b65adda4fb9bf5148349606
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  task-inline.surfaces.parity:
+    specification: feature.task-inline-embeds@1
+    specification_id: feature.task-inline-embeds
+    type: parity
+    fingerprint: 65bfb264f4aa5efe42500b0fcd190b8622e36df3dc88165aad0615aa462f11c6
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   tasks.content.client-encrypted:
     specification: feature.tasks@4
     specification_id: feature.tasks

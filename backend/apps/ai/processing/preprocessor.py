@@ -52,6 +52,7 @@ from backend.apps.ai.processing.chat_request_safety import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
+    focus_offered_app_scope,
     focus_offered_skill_scope,
 )
 from backend.apps.ai.processing.request_purpose_policy import (
@@ -4746,6 +4747,10 @@ async def handle_preprocessing(
         preselected_app_ids if isinstance(preselected_app_ids, list) else None,
         validated_relevant_skills,
         list(discovered_apps_metadata or {}),
+    )
+    final_selected_app_ids = focus_offered_app_scope(
+        active_focus_id=request_data.active_focus_id, selected_app_ids=final_selected_app_ids,
+        available_apps=list(discovered_apps_metadata or {}),
     )
     simple_context_fast_path = bool(
         simple_context_fast_path and not final_selected_app_ids

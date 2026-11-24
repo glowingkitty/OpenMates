@@ -7,7 +7,8 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { taskAssigneeLabel, taskStatusLabel } from './taskEmbedData';
+  import { text } from '../../../i18n/translations';
+  import { formatTaskDueDate, taskAssigneeLabel, taskStatusLabel, taskVisibleId, type TaskEmbedValidation } from './taskEmbedData';
 
   interface Props {
     id: string;
@@ -17,24 +18,32 @@
     description?: string;
     status?: string;
     assignee?: string;
+    dueDate?: string;
+    projectName?: string;
+    validation?: TaskEmbedValidation;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
 
   let {
     id,
-    taskId = '',
     shortId = '',
     title = '',
     description = '',
     status = 'todo',
     assignee = '',
+    dueDate = '',
+    projectName = '',
+    validation,
     isMobile = false,
     onFullscreen,
   }: Props = $props();
 
   let displayTitle = $derived(title || 'Untitled task');
-  let displayId = $derived(shortId || taskId);
+  let displayId = $derived(taskVisibleId(shortId));
+  let dueLabel = $derived(formatTaskDueDate(dueDate));
+  let errors = $derived(validation?.status === 'invalid' ? validation.errors : []);
+  let invalid = $derived(validation?.status === 'invalid');
 
   function handleStop() {
     // Task child cards are not cancellable.
@@ -55,43 +64,41 @@
   showSkillIcon={false}
 >
   {#snippet details()}
-    <article class="task-card" data-testid="task-embed-card">
-      <div class="icon-shell" aria-hidden="true"><span class="clickable-icon icon_task"></span></div>
+    <article class="task-card" class:invalid data-testid="task-embed-card">
       <div class="card-body">
-        <div class="kicker">{displayId || taskStatusLabel(status)}</div>
-        <h3>{displayTitle}</h3>
-        {#if description}<p>{description}</p>{/if}
-        <div class="meta-row">
-          <span>{taskStatusLabel(status)}</span>
-          <span>{taskAssigneeLabel(assignee)}</span>
-        </div>
+        <!-- A task that was never created has no id to show. -->
+        {#if !invalid && (displayId || projectName)}<div class="kicker">{displayId || projectName}</div>{/if}
+        <h3 data-testid="task-embed-title">{displayTitle}</h3>
+        {#if invalid}
+          <div class="errors" data-testid="task-embed-validation-errors">
+            <strong>{$text('embed_user_edits.task_not_created')}</strong>
+            <ul>
+              {#each errors as error}<li data-testid="task-embed-validation-error">{error}</li>{/each}
+            </ul>
+          </div>
+        {:else}
+          {#if description}<p>{description}</p>{/if}
+          <div class="meta-row">
+            {#if dueLabel}<span data-testid="task-embed-due-date">{$text('embed_user_edits.task_due', { values: { date: dueLabel } })}</span>{/if}
+            <span data-testid="task-embed-status">{taskStatusLabel(status)}</span>
+            <span data-testid="task-embed-pill">{taskAssigneeLabel(assignee)}</span>
+          </div>
+        {/if}
       </div>
     </article>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
+  /* Text only: the task icon lives in the embed's top-left corner. The body starts
+     where the header text starts (BasicInfosBar .result-identity-header, 54px from the
+     card edge); the details section already adds 20px, so the card adds 34px. */
   .task-card {
     display: flex;
-    align-items: stretch;
-    gap: var(--spacing-5);
+    box-sizing: border-box;
     width: 100%;
     height: 100%;
-    padding: var(--spacing-6);
-  }
-
-  .icon-shell {
-    display: grid;
-    flex: 0 0 56px;
-    place-items: center;
-    border-radius: 18px;
-    background: linear-gradient(135deg, var(--color-app-tasks-start, var(--color-primary-start)), var(--color-app-tasks-end, var(--color-primary-end)));
-  }
-
-  .icon_task {
-    width: 28px;
-    height: 28px;
-    background: var(--color-grey-0) !important;
+    padding: var(--spacing-2) var(--spacing-6) var(--spacing-6) 34px;
   }
 
   .card-body {
@@ -99,7 +106,7 @@
     min-width: 0;
     flex: 1 1 0;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--spacing-3);
   }
 
@@ -118,6 +125,10 @@
   }
 
   h3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    flex-shrink: 0;
     color: var(--color-font-primary);
     font-size: var(--font-size-sm);
     font-weight: 700;
@@ -133,6 +144,31 @@
     -webkit-line-clamp: 2;
   }
 
+  .invalid {
+    padding-block: 0;
+  }
+
+  .invalid .card-body {
+    gap: var(--spacing-1);
+  }
+
+  .errors {
+    min-height: 0;
+    overflow-y: auto;
+    color: var(--color-error);
+    font-size: var(--font-size-xs);
+    line-height: 1.25;
+  }
+
+  .errors ul {
+    margin: 0;
+    padding-inline-start: 1rem;
+  }
+
+  .errors li {
+    overflow-wrap: anywhere;
+  }
+
   .meta-row {
     display: flex;
     flex-wrap: wrap;
@@ -143,12 +179,5 @@
     padding: 2px 7px;
     border-radius: var(--radius-full);
     background: var(--color-grey-10);
-  }
-
-  :global(.unified-embed-preview.mobile) .task-card {
-    flex-direction: column;
-  }
-  :global(.unified-embed-preview.mobile) .icon-shell {
-    flex: 0 0 48px;
   }
 </style>

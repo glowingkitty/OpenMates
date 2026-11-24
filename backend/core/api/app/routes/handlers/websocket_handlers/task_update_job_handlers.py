@@ -290,9 +290,13 @@ async def handle_task_update_job_persist(
         if not durable:
             raise RuntimeError("Failed to persist encrypted task update")
 
-        job["state"] = "TASK_PERSISTED"
+        # A job without a chat event (Task creation from an inline task embed) has nothing
+        # left to confirm, so persisting it finishes it.
+        encrypted_event = payload.get("encrypted_task_event_message")
+        persisted_state = "TERMINAL" if operation == "create" and not encrypted_event else "TASK_PERSISTED"
+        job["state"] = persisted_state
         job["client_encrypted_payload"] = encrypted_payload
-        job["encrypted_task_event_message"] = payload.get("encrypted_task_event_message")
+        job["encrypted_task_event_message"] = encrypted_event
         job["committed_at"] = int(time.time())
         job["expires_at"] = int(time.time()) + TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS
         try:
@@ -312,7 +316,7 @@ async def handle_task_update_job_persist(
             )
         await _save_job(cache_service, job)
         await manager.send_personal_message(
-            {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": "TASK_PERSISTED", "task_id": task_id}},
+            {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": persisted_state, "task_id": task_id}},
             user_id,
             device_fingerprint_hash,
         )

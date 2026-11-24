@@ -77,6 +77,13 @@ export function setPlanCreateRequestsCapabilityEnabled(enabled: boolean): void {
 
 // Assistant Memory writes (save_memory): enabled only while the Rust core job
 // runner is installed (assistantMemoryWrites.ts, flag-on builds).
+let taskUpdateJobsCapabilityEnabled = false;
+
+/** Advertise only while the browser's encrypted Task executor is installed. */
+export function setTaskUpdateJobsCapabilityEnabled(enabled: boolean): void {
+  taskUpdateJobsCapabilityEnabled = enabled;
+}
+
 let memoryWriteJobsCapabilityEnabled = false;
 
 export function setMemoryWriteJobsCapabilityEnabled(enabled: boolean): void {
@@ -171,6 +178,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
     ...(projectCreateRequestsCapabilityEnabled ? ["project_create_requests"] : []),
     ...(planCreateRequestsCapabilityEnabled ? ["plan_create_requests"] : []),
+    ...(taskUpdateJobsCapabilityEnabled ? ["task_update_jobs"] : []),
     ...(memoryWriteJobsCapabilityEnabled ? ["memory_write_jobs"] : []),
     ...(chatOrchestrationJobsCapabilityEnabled ? ["chat_orchestration_jobs"] : []),
     "agentic-storage-v2",

@@ -11,6 +11,7 @@ import uuid
 import random
 import string
 import re
+from types import SimpleNamespace
 from typing import Dict, Any, Optional, List, Tuple, AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -740,6 +741,7 @@ class EmbedService(SlidesEmbedMixin):
             "diagram_html": ("diagrams", "html"),
             "mindmap": ("mindmaps", "mindmap"),
             "calendar_event": ("calendar", "event"),
+            "task": ("tasks", "task"),
             "authored_results": ("ai", "authored_results"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
@@ -3479,7 +3481,7 @@ class EmbedService(SlidesEmbedMixin):
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
-            next_title = title or {"calendar_event": "Calendar event", "authored_results": "Results"}.get(embed_type, "Mind Map")
+            next_title = title or {"calendar_event": "Calendar event", "authored_results": "Results", "task": "Task"}.get(embed_type, "Mind Map")
             embed_ref = self._generate_direct_embed_ref(
                 embed_type,
                 embed_id,
@@ -3497,7 +3499,8 @@ class EmbedService(SlidesEmbedMixin):
                 "status": "processing",
                 **({"primary_event": None, "context_events": []} if embed_type == "calendar_event"
                    else {"items": [], "embed_ids": [], "view": {"mode": "auto", "embeds": []}}
-                   if embed_type == "authored_results" else {"node_count": 0, "edge_count": 0}),
+                   if embed_type == "authored_results" else {"task_source": ""} if embed_type == "task"
+                   else {"node_count": 0, "edge_count": 0}),
                 "validation": {"status": "processing", "warnings": []},
                 "version_number": 1,
             }
@@ -3574,6 +3577,7 @@ class EmbedService(SlidesEmbedMixin):
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        task_content: Optional[Dict[str, Any]] = None,
         log_prefix: str = "",
     ) -> bool:
         """Normalize a JSON artifact and retain the established encrypted lifecycle."""
@@ -3607,11 +3611,21 @@ class EmbedService(SlidesEmbedMixin):
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing JSON content: {e}")
 
-            normalized = (normalize_calendar_event_source(source_json) if embed_type == "calendar_event"
-                          else normalize_mindmap_source(source_json))
+            if embed_type == "task":
+                # Task fields are validated by the caller (task_fences); the embed only stores them.
+                task_fields = task_content or {}
+                task_validation = task_fields.get("validation") or {"status": "processing", "warnings": []}
+                normalized = SimpleNamespace(
+                    source_json=source_json, title=task_fields.get("title") or "", model=None,
+                    status=task_validation.get("status"), warnings=task_validation.get("warnings", []),
+                    parse_error=None, node_count=0, edge_count=0,
+                )
+            else:
+                normalized = (normalize_calendar_event_source(source_json) if embed_type == "calendar_event"
+                              else normalize_mindmap_source(source_json))
             if embed_type == "calendar_event" and status == "finished" and normalized.model is None:
                 status = "error"
-            next_title = title or normalized.title or existing_content.get("title") or "Mind Map"
+            next_title = title or normalized.title or existing_content.get("title") or ("Task" if embed_type == "task" else "Mind Map")
             next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
             next_content_hash = content_hash
             if next_content_hash is None and status == "finished":
@@ -3621,6 +3635,7 @@ class EmbedService(SlidesEmbedMixin):
                 {"primary_event": (normalized.model or {}).get("primary_event"),
                  "context_events": (normalized.model or {}).get("context_events", [])}
                 if embed_type == "calendar_event"
+                else {**(task_content or {}), "task_source": normalized.source_json} if embed_type == "task"
                 else {"node_count": normalized.node_count, "edge_count": normalized.edge_count}
             )
             updated_content = {
@@ -3638,13 +3653,18 @@ class EmbedService(SlidesEmbedMixin):
                 ),
                 "status": status,
                 **artifact_fields,
-                "validation": {
-                    "status": normalized.status,
-                    "warnings": normalized.warnings,
-                    "parse_error": normalized.parse_error,
-                },
+                "validation": (
+                    task_validation if embed_type == "task" else {
+                        "status": normalized.status,
+                        "warnings": normalized.warnings,
+                        "parse_error": normalized.parse_error,
+                    }
+                ),
                 "version_number": next_version_number,
             }
+            if embed_type == "task":
+                updated_content.pop("source_json", None)
+                updated_content.pop("model", None)
             updated_toon = encode(updated_content)
             encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
                 updated_toon,

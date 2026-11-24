@@ -685,6 +685,9 @@ mod tests {
 mod cache_operations;
 pub use cache_operations::{BrowserCachedReadPublication,BrowserCacheMonitor,BrowserIncomingPublication};
 
+#[path = "browser_task_jobs.rs"]
+mod task_jobs;
+
 #[path="browser_chat_frames.rs"]
 mod chat_frames;
 

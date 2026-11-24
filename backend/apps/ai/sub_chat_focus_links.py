@@ -135,8 +135,12 @@ async def apply_inheritance_and_task_links(
 
 async def _link_task(directus_service: Any, request_data: Any, child: dict[str, Any],
                      link: dict[str, str], log_prefix: str) -> bool:
+    # A Task created by a task block earlier in this reply is named by its title.
+    from backend.apps.ai.tasks.task_fence_runtime import reply_task_id_for_title
+
+    task_ref = reply_task_id_for_title(request_data, link["id"]) or link["id"]
     task = await directus_service.user_task.get_task(
-        link["id"], request_data.user_id, getattr(request_data, "team_id", None),
+        task_ref, request_data.user_id, getattr(request_data, "team_id", None),
     )
     if not task or (task.get("plan_id") and task["plan_id"] != link["plan_id"]):
         logger.warning("%s [SUB_CHAT] Refused Task link for child %s", log_prefix, child["id"])

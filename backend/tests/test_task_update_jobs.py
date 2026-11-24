@@ -620,3 +620,58 @@ async def test_task_update_job_event_confirm_requires_system_message_confirmatio
     stored = await cache.get(f"{TASK_TOOL_JOB_CACHE_PREFIX}{job_id}")
     assert stored["state"] == "TERMINAL"
     assert stored["event_system_message_id"] == "event-1"
+
+
+# contract-test: supporting surface=rest_api assertions=task-inline.presentation.no-raw-ids
+@pytest.mark.asyncio
+async def test_task_create_job_without_chat_event_finishes_on_persist() -> None:
+    """An inline task embed creates its Task with no chat system event; persisting ends the job."""
+    cache = FakeCache()
+    manager = FakeManager()
+    job_id = "create-job-no-event"
+    encrypted_payload = {"encrypted_title": "cipher-title", "version": 1}
+    await cache.set(
+        f"{TASK_TOOL_JOB_CACHE_PREFIX}{job_id}",
+        {
+            "job_id": job_id,
+            "owner_hash": hash_id("user-1"),
+            "task_id": "task-1",
+            "state": "LEASED",
+            "operation": "create",
+            "expected_task_version": 0,
+            "lease_token": "lease-1",
+            "lease_generation": 1,
+            "lease_device_hash": "device-a",
+            "lease_expires_at": 9_999_999_999,
+            "expires_at": 9_999_999_999,
+        },
+    )
+    directus = SimpleNamespace(
+        user_task=SimpleNamespace(
+            get_task=AsyncMock(return_value=None),
+            create_task=AsyncMock(return_value={"task_id": "task-1", **encrypted_payload}),
+        ),
+        encryption_service=None,
+    )
+
+    await handle_task_update_job_persist(
+        manager=manager,
+        cache_service=cache,
+        directus_service=directus,
+        user_id="user-1",
+        device_fingerprint_hash="device-a",
+        payload={
+            "protocol_version": 1,
+            "job_id": job_id,
+            "lease_token": "lease-1",
+            "lease_generation": 1,
+            "expected_task_version": 0,
+            "encrypted_task_payload": encrypted_payload,
+        },
+    )
+
+    assert manager.messages[-1]["type"] == "task_update_job_persisted"
+    assert manager.messages[-1]["payload"]["state"] == "TERMINAL"
+    stored = await cache.get(f"{TASK_TOOL_JOB_CACHE_PREFIX}{job_id}")
+    assert stored["state"] == "TERMINAL"
+    assert stored["encrypted_task_event_message"] is None

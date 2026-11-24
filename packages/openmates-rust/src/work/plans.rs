@@ -681,7 +681,13 @@ fn lines(start: Option<u32>, end: Option<u32>) -> bool {
         && start.zip(end).is_none_or(|(s, e)| s <= e)
 }
 fn decode(raw: Value, master: &[u8; 32]) -> Result<ResolvedPlan> {
-    uuid(string(&raw, "plan_id")?)?;
+    let key = key_bytes(&crypto::decrypt_bytes(personal_plan_key_wrapper(&raw)?, master)?)?;
+    decode_with_key(raw, key)
+}
+
+/// Read the one Personal Plan master wrapper without opening the Plan fields.
+pub(super) fn personal_plan_key_wrapper(raw: &Value) -> Result<&str> {
+    uuid(string(raw, "plan_id")?)?;
     if raw["hashed_team_id"]
         .as_str()
         .is_some_and(|s| !s.is_empty())
@@ -699,11 +705,7 @@ fn decode(raw: Value, master: &[u8; 32]) -> Result<ResolvedPlan> {
     if master_wrappers.len() != 1 {
         return Err(Error::Forbidden);
     }
-    let key = key_bytes(&crypto::decrypt_bytes(
-        string(master_wrappers[0], "encrypted_plan_key")?,
-        master,
-    )?)?;
-    decode_with_key(raw, key)
+    string(master_wrappers[0], "encrypted_plan_key")
 }
 /// Decode the private fields once the caller authenticated the Plan key.
 fn decode_with_key(raw: Value, key: Key) -> Result<ResolvedPlan> {

@@ -371,6 +371,14 @@ function forgetTask(taskId: string, expectedScope: string | null): void {
   }
 }
 
+/** Drop stale Task views after the core verified an assistant write. */
+export function refreshTaskViewsAfterJob(ids: string[], scope: string | null): void {
+  ensureTaskScope();
+  if (!ids.length || !scope || scope !== getWorkspaceCacheIdentity()) return;
+  for (const id of ids) taskEntityCache.invalidate(id);
+  taskBoardCache.invalidate();
+}
+
 export function peekTaskBoardItems(filters: ListUserTasksFilters = {}): TasksBoardItem[] | undefined {
   ensureTaskScope();
   return taskBoardCache.peek(taskQueryKey(filters));

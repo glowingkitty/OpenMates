@@ -193,3 +193,18 @@ header_saving:
   en: Saving…
   de: Wird gespeichert…
   verified_by_human: []
+task_due:
+  context: Due date line on an inline task card; the placeholder is a short localized date such as Nov 24
+  en: "Due {date}"
+  de: "Fällig {date}"
+  verified_by_human: []
+task_not_created:
+  context: Heading above the list of problems on an inline task card whose task was not created because the assistant's task block is invalid
+  en: "This task could not be created"
+  de: "Diese Aufgabe konnte nicht erstellt werden"
+  verified_by_human: []
+task_restore_failed:
+  context: Error shown when restoring an earlier version of a task card could not update the Task itself
+  en: "The task could not be restored. Please try again."
+  de: "Die Aufgabe konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
+  verified_by_human: []

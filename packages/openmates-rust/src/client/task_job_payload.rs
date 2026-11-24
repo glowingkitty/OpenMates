@@ -170,7 +170,13 @@ impl TaskJobClaim {
         {
             return Err(Error::Forbidden);
         }
-        let message_id = optional_id(payload, "message_id")?
+        let claimed_message = optional_id(payload, "message_id")?;
+        if let Some(offered_message) = optional_id(expected_job, "message_id")?
+            && claimed_message.as_deref() != Some(offered_message.as_str())
+        {
+            return Err(Error::Forbidden);
+        }
+        let message_id = claimed_message
             .or_else(|| expected_user_message.map(str::to_owned))
             .ok_or(Error::Protocol)?;
         if expected_user_message.is_some_and(|s| s != message_id) {
@@ -327,7 +333,7 @@ fn wrapper(value: &Value) -> Result<()> {
 pub(super) fn persist_payload(
     claim: &TaskJobClaim,
     encrypted_task: Value,
-    event_cipher: &str,
+    event_cipher: Option<&str>,
 ) -> Result<Value> {
     let mut task = Private(encrypted_task);
     let object = task.0.as_object_mut().ok_or(Error::Protocol)?;
@@ -340,7 +346,9 @@ pub(super) fn persist_payload(
                 "primary_chat_id" | "blocked_reason_code" | "ai_execution_state" | "due_at"
             )
     });
-    cipher(event_cipher)?;
+    if let Some(event_cipher) = event_cipher {
+        cipher(event_cipher)?;
+    }
     for (key, value) in object.iter() {
         if key.starts_with("encrypted_") {
             cipher(value.as_str().ok_or(Error::Protocol)?)?;
@@ -408,9 +416,13 @@ pub(super) fn persist_payload(
     {
         return Err(Error::Protocol);
     }
-    Ok(
-        json!({"protocol_version":1,"job_id":claim.job_id,"lease_token":claim.lease_token.as_str(),"lease_generation":claim.lease_generation,"expected_task_version":claim.expected_task_version,"encrypted_task_payload":std::mem::take(&mut task.0),"encrypted_task_event_message":event_cipher}),
-    )
+    let mut payload = json!({"protocol_version":1,"job_id":claim.job_id,"lease_token":claim.lease_token.as_str(),"lease_generation":claim.lease_generation,"expected_task_version":claim.expected_task_version,"encrypted_task_payload":std::mem::take(&mut task.0)});
+    // A Task "created" event has no chat system message (the inline embed
+    // card replaces it), so the cipher is absent for those jobs.
+    if let Some(cipher) = event_cipher {
+        payload["encrypted_task_event_message"] = json!(cipher);
+    }
+    Ok(payload)
 }
 pub(super) fn event_message(
     job_id: &str,
@@ -418,7 +430,7 @@ pub(super) fn event_message(
     event: &Value,
     chat_key: &[u8; 32],
     created_at: u64,
-) -> Result<Value> {
+) -> Result<Option<Value>> {
     id(&json!(job_id))?;
     id(&json!(user_message))?;
     let event_id = id(&event["event_id"])?;
@@ -437,10 +449,6 @@ pub(super) fn event_message(
     {
         return Err(Error::Protocol);
     }
-    let label = event["short_id"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .unwrap_or(id(&event["task_id"])?);
     let text = |name: &str| -> Result<&str> {
         match event.get(name) {
             None | Some(Value::Null) => Ok(""),
@@ -466,12 +474,28 @@ pub(super) fn event_message(
     } else {
         format!(": {reason}")
     });
+    // Never show the internal task UUID: visible short id, else the quoted
+    // title, else a generic word.
+    let label = event["short_id"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .or_else(|| (!title.is_empty()).then(|| format!("\"{title}\"")))
+        .unwrap_or_else(|| "Task".to_owned());
+    let title_shown_in_label = event["short_id"].as_str().is_none_or(str::is_empty);
     let (title, status, reason) = (
-        title_part.as_str(),
+        if title_shown_in_label {
+            ""
+        } else {
+            title_part.as_str()
+        },
         status_part.as_str(),
         reason_part.as_str(),
     );
     let kind = id(&event["event_type"])?;
+    if kind == "created" {
+        return Ok(None);
+    }
     let content = Zeroizing::new(match kind {
         "started" => format!("Task queue continuation: {label} started{title}{status}"),
         "continuing" => format!("Task queue continuation: continuing {label}{title}{status}"),
@@ -505,9 +529,9 @@ pub(super) fn event_message(
             .encrypt(Nonce::from_slice(&nonce), content.as_bytes())
             .map_err(|_| Error::Crypto)?,
     );
-    Ok(
+    Ok(Some(
         json!({"message_id":message_id,"role":"system","encrypted_content":STANDARD.encode(combined),"created_at":timestamp,"user_message_id":user_message,"task_update_job_id":job_id}),
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -577,7 +601,7 @@ mod tests {
         value["lease_expires_at"] = json!(900);
         let claim = parse(&value).unwrap();
         assert_eq!(claim.state, "TASK_PERSISTED");
-        assert!(persist_payload(&claim, json!({"version":2}), &encrypted()).is_err());
+        assert!(persist_payload(&claim, json!({"version":2}), Some(&encrypted())).is_err());
     }
     #[test]
     fn explicit_owner_team_markers_never_cross_scope_and_absence_is_not_proof() {
@@ -622,7 +646,7 @@ mod tests {
     fn persistence_is_ciphertext_only_and_preserves_authorized_null_clears() {
         let claim = parse(&payload()).unwrap();
         let ciphertext = encrypted();
-        let result=persist_payload(&claim,json!({"version":2,"encrypted_title":ciphertext,"encrypted_description":null,"primary_chat_id":null,"blocked_reason_code":null,"ai_execution_state":null,"due_at":null,"status":"todo"}),&ciphertext).unwrap();
+        let result=persist_payload(&claim,json!({"version":2,"encrypted_title":ciphertext,"encrypted_description":null,"primary_chat_id":null,"blocked_reason_code":null,"ai_execution_state":null,"due_at":null,"status":"todo"}),Some(&ciphertext)).unwrap();
         assert_eq!(result["protocol_version"], 1);
         assert_eq!(result["expected_task_version"], 2);
         let value = &result["encrypted_task_payload"];
@@ -650,11 +674,11 @@ mod tests {
             let mut value_payload = json!({"version":2});
             value_payload[key] = value;
             assert!(
-                persist_payload(&claim, value_payload, &ciphertext).is_err(),
+                persist_payload(&claim, value_payload, Some(&ciphertext)).is_err(),
                 "accepted unsafe persistence field {key}"
             );
         }
-        assert!(persist_payload(&claim, json!({"version":2}), "").is_err());
+        assert!(persist_payload(&claim, json!({"version":2}), Some("")).is_err());
     }
     #[test]
     fn create_requires_initial_revision_private_cipher_and_refuses_team_creation() {
@@ -667,12 +691,12 @@ mod tests {
         let claim = TaskJobClaim::parse(&value, &expected, None, None, None, 1000).unwrap();
         assert!(TaskJobClaim::parse(&value, &expected, Some("team-1"), None, None, 1000).is_err());
         let cipher = encrypted();
-        assert!(persist_payload(&claim,json!({"task_id":"task-1","version":1,"encrypted_title":cipher,"encrypted_task_key":cipher}),&cipher).is_ok());
+        assert!(persist_payload(&claim,json!({"task_id":"task-1","version":1,"encrypted_title":cipher,"encrypted_task_key":cipher}),Some(&cipher)).is_ok());
         assert!(
             persist_payload(
                 &claim,
                 json!({"task_id":"task-1","version":1,"encrypted_title":cipher}),
-                &cipher
+                Some(&cipher)
             )
             .is_err()
         );
@@ -686,10 +710,10 @@ mod tests {
         let cipher = encrypted();
         let hash = "a".repeat(64);
         let mut value = json!({"version":2,"key_wrappers":[{"key_type":"plan","hashed_plan_id":hash,"encrypted_task_key":cipher,"created_at":1000,"expires_at":null}]});
-        assert!(persist_payload(&claim, value.clone(), &cipher).is_ok());
+        assert!(persist_payload(&claim, value.clone(), Some(&cipher)).is_ok());
         value["key_wrappers"][0]["title"] = json!("leaked");
-        assert!(persist_payload(&claim, value, &cipher).is_err());
-        assert!(persist_payload(&claim,json!({"version":2,"key_wrappers":[{"key_type":"project","encrypted_task_key":cipher}]}),&cipher).is_err());
+        assert!(persist_payload(&claim, value, Some(&cipher)).is_err());
+        assert!(persist_payload(&claim,json!({"version":2,"key_wrappers":[{"key_type":"project","encrypted_task_key":cipher}]}),Some(&cipher)).is_err());
     }
     #[test]
     fn event_messages_match_legacy_text_ids_timestamps_and_legacy_aead_wire() {
@@ -702,7 +726,6 @@ mod tests {
                 "continuing",
                 "Task queue continuation: continuing TASK-42 \"Private title\" (todo)",
             ),
-            ("created", "TASK-42 created \"Private title\" (todo)"),
             ("updated", "TASK-42 updated \"Private title\" (todo)"),
             ("blocked", "TASK-42 blocked: waiting"),
             ("completed", "TASK-42 completed \"Private title\""),
@@ -710,7 +733,9 @@ mod tests {
             ("moved", "TASK-42 moved \"Private title\" (todo): waiting"),
         ] {
             let event = json!({"event_id":"task-event-fixture","task_id":"task-1","short_id":"TASK-42","event_type":kind,"title":"Private title","status":"todo","reason":"waiting","created_at":55,"task_update_job_id":"job-1"});
-            let output = event_message("job-1", "user-1", &event, &[7; 32], 99).unwrap();
+            let output = event_message("job-1", "user-1", &event, &[7; 32], 99)
+                .unwrap()
+                .unwrap();
             assert_eq!(output["message_id"], "task-event-task-event-fixture");
             assert_eq!(output["created_at"], 55);
             assert_eq!(output["task_update_job_id"], "job-1");
@@ -728,11 +753,46 @@ mod tests {
         }
         let event = json!({"event_id":"event-1","task_id":"task-1","event_type":"updated"});
         assert_eq!(
-            event_message("job-1", "user-1", &event, &[7; 32], 99).unwrap()["created_at"],
+            event_message("job-1", "user-1", &event, &[7; 32], 99)
+                .unwrap()
+                .unwrap()["created_at"],
             99
         );
         let mut wrong = event;
         wrong["task_update_job_id"] = json!("other");
         assert!(event_message("job-1", "user-1", &wrong, &[7; 32], 99).is_err());
+    }
+    fn plain(output: &Value) -> String {
+        let bytes = STANDARD
+            .decode(output["encrypted_content"].as_str().unwrap())
+            .unwrap();
+        let plain = Aes256Gcm::new_from_slice(&[7; 32])
+            .unwrap()
+            .decrypt(Nonce::from_slice(&bytes[..12]), &bytes[12..])
+            .unwrap();
+        String::from_utf8(plain).unwrap()
+    }
+    #[test]
+    fn created_event_produces_no_system_message() {
+        let event = json!({"event_id":"e1","task_id":"task-1","short_id":"TASK-42","event_type":"created","title":"Buy milk","status":"todo","task_update_job_id":"job-1"});
+        assert!(
+            event_message("job-1", "user-1", &event, &[7; 32], 99)
+                .unwrap()
+                .is_none()
+        );
+    }
+    #[test]
+    fn labels_never_fall_back_to_the_task_uuid() {
+        let uuid = "6f1c2d3e-0000-4000-8000-aaaaaaaaaaaa";
+        let titled = json!({"event_id":"e1","task_id":uuid,"event_type":"updated","title":"Buy milk","status":"todo","task_update_job_id":"job-1"});
+        let out = event_message("job-1", "user-1", &titled, &[7; 32], 99)
+            .unwrap()
+            .unwrap();
+        assert_eq!(plain(&out), "\"Buy milk\" updated (todo)");
+        let bare = json!({"event_id":"e1","task_id":uuid,"event_type":"completed","task_update_job_id":"job-1"});
+        let out = event_message("job-1", "user-1", &bare, &[7; 32], 99)
+            .unwrap()
+            .unwrap();
+        assert_eq!(plain(&out), "Task completed");
     }
 }

@@ -46,7 +46,7 @@ def _tool_names(tools: list[dict]) -> set[str]:
 
 # contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
 @pytest.mark.asyncio
-async def test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks() -> None:
+async def test_no_task_tool_is_injected_when_chat_has_no_visible_tasks() -> None:
     task_methods = AsyncMock()
     task_methods.list_tasks.return_value = []
 
@@ -58,7 +58,8 @@ async def test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks(
     )
     tools = build_task_runtime_tools(context)
 
-    assert _tool_names(tools) == {TASK_TOOL_CREATE}
+    # Creation is the inline openmates_task block, never a runtime tool.
+    assert _tool_names(tools) == set()
     task_methods.list_tasks.assert_awaited_once_with("user-1", chat_id="chat-1", limit=50)
 
 
@@ -84,8 +85,8 @@ async def test_attached_tasks_enable_update_reorder_block_complete_and_move_tool
     )
     names = _tool_names(build_task_runtime_tools(context))
 
+    assert TASK_TOOL_CREATE not in names
     assert {
-        TASK_TOOL_CREATE,
         TASK_TOOL_UPDATE,
         TASK_TOOL_BLOCK,
         TASK_TOOL_COMPLETE,
@@ -314,7 +315,10 @@ def test_explicit_tasks_app_skill_accepts_legacy_singular_tool_aliases() -> None
 
 # contract-test: tooling
 def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:
-    schema = build_task_runtime_tools(TaskToolContext(user_id="user-1", chat_id="chat-1"))[0]["function"]["parameters"]
+    schema = build_task_runtime_tools(TaskToolContext(
+        user_id="user-1", chat_id="chat-1",
+        attached_tasks=[{"task_id": "task-1", "short_id": "TASK-1", "status": "todo", "version": 1}],
+    ))[0]["function"]["parameters"]
 
     sanitized = _sanitize_schema_for_llm_providers(schema)
 

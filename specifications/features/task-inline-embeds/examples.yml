@@ -1,0 +1,30 @@
+schema_version: 1
+specification: feature.task-inline-embeds@1
+
+create:
+  - id: inline-create
+    given: In the chat "Finding Life Direction and Purpose" the user asks for a small daily habit task due next Tuesday.
+    when: The assistant writes an openmates_task block titled "Three minutes by an open window" with due date 2026-11-24.
+    then: One Task is created for the user and the reply shows a task card with the task icon, the title, "Due Nov 24" and "To do", and no system event or raw id.
+
+validation:
+  - id: unknown-project
+    given: The assistant links a new task to the Project "Garden shed", which the user does not have.
+    when: The block is validated.
+    then: No Task is created; the card says the Project "Garden shed" was not found, and the next turn tells the assistant the same so it can correct it.
+  - id: bad-due-date
+    given: The assistant writes a due date of 2026-02-30.
+    when: The block is validated.
+    then: The card shows that the due date is not a real date and no Task exists.
+
+edit:
+  - id: diff-due-date
+    given: A task card "Three minutes by an open window" due Nov 24 exists in the chat.
+    when: The user asks to move it to Friday and the assistant writes a diff for the task embed changing due_date to 2026-11-27.
+    then: The same card shows "Due Nov 27", the timeline has a second version, the Task's due date is Nov 27, and Undo returns both to Nov 24.
+
+presentation:
+  - id: inline-link-icon
+    given: The assistant mentions the task later as a link to its embed.
+    when: The reply renders on web, Apple or the CLI.
+    then: The link shows the task icon and the task title, never an id.

@@ -1,0 +1,31 @@
+schema_version: 2
+profile: concise
+id: task-inline-embeds
+title: Tasks as Inline Embeds
+status: draft
+goal: >
+  The assistant creates Tasks with an inline task embed and edits them with
+  diff editing like sheets and documents; the Create task skill, the creation
+  system event and every raw id disappear; web, Apple and CLI render the same
+  task card and task-icon links.
+specification: feature.task-inline-embeds@1
+task: TASK-6473
+stages:
+  - Backend fence parser and validator, instructions, removal of the Create task skill and runtime task_create tool.
+  - Stream consumer creation, diff edits with versions, validation feedback in history.
+  - Rust core and CLI - no creation system event, no raw ids, task card in the CLI.
+  - Web and Apple task card, inline link icon, version timeline Undo.
+  - Real-inference E2E in isolated CI - create inline, edit via diff, search.
+decisions:
+  - Contract in docs/plans/task-inline-embeds/contract.md.
+  - Reuse the tasks-task embed type and the client-persisted Task job path; no new endpoint, no encryption change.
+  - Legacy tasks/create embeds in old chats stay renderable read-only.
+  - Queue execution tools other than task_create stay.
+  - No dev deploy or merge into dev until Marco's go after the 23 Nov release.
+verification:
+  report: docs/plans/task-inline-embeds/verification.md
+  required:
+    - Backend unit tests for fence parsing, validation, creation and diff edits.
+    - Rust core tests for the removed creation event and id-free labels.
+    - Web component preview of the task card states and the inline link icon.
+    - Real-inference E2E in isolated CI covering create, diff edit and search, with video.

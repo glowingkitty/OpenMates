@@ -172,13 +172,14 @@ phases:
          evidence. Add a focus_id only when the check needs a specific
          focus. Wait for their results, then summarise them in a few lines
          and ask the user only the decisions the results leave open.
-      3. Create Tasks with the tasks create skill and the plan_id, one per
-         independently verifiable step in build order, each naming the
-         requirement ids it delivers; assign build and test work to
-         openmates and every human confirmation or decision to the user,
-         all linked to this chat.
+      3. Create Tasks as openmates_task blocks with "plan" set to the
+         plan_id, one per independently verifiable step in build order,
+         each naming the requirement ids it delivers; assign build and test
+         work to openmates and every human confirmation or decision to the
+         user.
       4. Implement each openmates Task in its own sub-chat: call
-         start_sub_chats with link {kind: "task", plan_id, id} and a prompt
+         start_sub_chats with link {kind: "task", plan_id, id: <the Task's
+         exact title>} and a prompt
          that names the Task, its requirement ids and the acceptance Checks
          it must pass. Run dependent Tasks one after another
          (execution_mode sequential) and independent ones in parallel.
@@ -188,7 +189,7 @@ phases:
       the required Checks are green or a human confirmation is needed.
     requirements:
       - id: plan_started
-        text: A Plan carrying the open assumptions was created with the plans create skill, each open assumption was checked in its own linked sub-chat, and the Plan's Tasks were created with the tasks create skill.
+        text: A Plan carrying the open assumptions was created with the plans create skill, each open assumption was checked in its own linked sub-chat, and the Plan's Tasks were created as inline task blocks linked to the Plan.
       - id: tasks_delegated
         text: Each openmates Task was started in its own linked sub-chat, and this chat only summarised results and asked the user's decisions.
 

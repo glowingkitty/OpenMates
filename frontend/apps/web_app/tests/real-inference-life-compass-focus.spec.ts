@@ -14,6 +14,7 @@
 export {};
 
 import type { Page } from '@playwright/test';
+import { observeTaskJobPersistence } from './helpers/task-job-proof';
 
 const { test, expect } = require('./helpers/cookie-audit');
 const {
@@ -41,7 +42,7 @@ const proofContract = defineVideoProof({
   assertions: [
     { id: 'life_compass.active', checkpoint: '01-focus-active', visual: 'The Life compass focus bar is activated above the first reply.', devices: ['web-laptop'] },
     { id: 'life_compass.reflect', checkpoint: '02-issues-and-strengths', visual: 'The reply lists issues and strengths and asks for confirmation.', devices: ['web-laptop'] },
-    { id: 'life_compass.tasks', checkpoint: '03-steps-as-tasks', visual: 'Created Tasks for the agreed steps are visible in the chat.', devices: ['web-laptop'] },
+    { id: 'life_compass.tasks', checkpoint: '03-steps-as-tasks', visual: 'Inline task cards for the agreed steps are visible in the chat.', devices: ['web-laptop'] },
     { id: 'life_compass.memory', checkpoint: '04-memory-saved', visual: 'The notice "The assistant saved a memory: Life compass" is visible.', devices: ['web-laptop'] },
     { id: 'life_compass.follow_up', checkpoint: '05-follow-up', visual: 'The later reply recalls the agreed steps after the Memory was approved.', devices: ['web-laptop'] },
   ],
@@ -128,12 +129,12 @@ async function waitForTurn(page: Page, assistantsBefore: number): Promise<void> 
   await expect(generatedBy).toContainText(MODEL_NAME);
 }
 
-/** Created Tasks show up as a tasks embed or as "created" Task event lines in the chat. */
+/** Count inline task cards that completed validation. */
 async function createdTaskCount(page: Page): Promise<number> {
   await expandActivity(page);
-  const embeds = await page.locator('[data-testid="embed-preview"][data-app-id="tasks"]').count();
-  const events = await page.getByTestId('system-message-text').filter({ hasText: / created\b/ }).count();
-  return embeds + events;
+  return page.getByTestId('task-embed-card')
+    .filter({ hasNot: page.getByTestId('task-embed-validation-errors') })
+    .count();
 }
 
 /** Picks the fixed reply that answers what the last assistant message asks. */
@@ -146,7 +147,7 @@ function nextReply(text: string, state: { facts: boolean; confirmed: boolean; ta
     state.confirmed = true;
     return CONFIRM;
   }
-  if (!state.tasks && /step|try|todo|task|realistic|start/i.test(question)) return CHOOSE;
+  if (state.confirmed && !state.tasks && /step|try|todo|task|realistic|start|which of (these|them)|take on/i.test(question)) return CHOOSE;
   return MORE;
 }
 
@@ -176,6 +177,7 @@ test.describe('Life compass focus: steps as Tasks, consented Memory, follow-up (
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
     });
     await skipIfFeaturesDisabled(test, page, ['app:life_coaching', 'platform:tasks']);
+    const committedTasks = observeTaskJobPersistence(page);
     await loginToTestAccount(page);
     await startNewChat(page);
 
@@ -204,7 +206,11 @@ test.describe('Life compass focus: steps as Tasks, consented Memory, follow-up (
         reflected = true;
         await shot(page, testInfo, '02-issues-and-strengths');
       }
-      if (!state.tasks && await createdTaskCount(page) > 0) {
+      if (!state.tasks && await createdTaskCount(page) >= 2) {
+        await expect.poll(() => new Set(committedTasks(firstChatId!)).size, {
+          timeout: 45_000,
+          message: 'both inline Task cards have a durable encrypted Task record',
+        }).toBeGreaterThanOrEqual(2);
         state.tasks = true;
         await page.getByTestId('message-assistant').last().scrollIntoViewIfNeeded();
         await shot(page, testInfo, '03-steps-as-tasks');

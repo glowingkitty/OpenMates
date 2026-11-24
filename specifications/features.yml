@@ -1345,6 +1345,18 @@ features:
     flags: ["platform:tasks"]
     release: unreleased
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: task-inline-embeds
+    name: "Tasks as inline embeds"
+    kind: app
+    description: "The assistant creates a Task by writing a task block in its reply and edits it with versioned diffs; the card shows icon, title, due date and status, never raw ids."
+    specifications: [feature.task-inline-embeds]
+    flags: ["platform:tasks"]
+    release: unreleased
+    surfaces: {web: in_progress, apple: in_progress, cli: in_progress, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      web: "TaskEmbedPreview.svelte task card, TaskEmbedFullscreen.svelte with EmbedVersionTimeline; real-inference-task-inline-embeds.spec.ts"
+      apple: "AppSkillUseRenderer.swift task card rendering"
+      cli: "frontend/packages/openmates-cli/src/embedRenderers.ts task embed rendering"
   - id: travel
     name: "Travel"
     kind: app

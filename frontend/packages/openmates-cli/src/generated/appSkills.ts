@@ -8253,84 +8253,6 @@ export const APP_SKILL_METADATA = [
   },
   {
     "app_id": "tasks",
-    "skill_id": "create",
-    "app_namespace_ts": "tasks",
-    "skill_method_ts": "create",
-    "app_namespace_py": "tasks",
-    "skill_method_py": "create",
-    "description_key": "tasks.skills.create.description",
-    "description": "Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "tasks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "link_to_chat": {
-                "type": "boolean",
-                "default": true,
-                "description": "Link to the current chat; false leaves the Task unlinked."
-              },
-              "plan_id": {
-                "type": "string",
-                "description": "Link this Task to a saved Plan (overrides the top-level plan_id)."
-              },
-              "title": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "assignee": {
-                "type": "string",
-                "enum": [
-                  "user",
-                  "openmates"
-                ]
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "backlog",
-                  "todo",
-                  "in_progress",
-                  "blocked"
-                ]
-              }
-            }
-          }
-        },
-        "link_to_chat": {
-          "type": "boolean",
-          "default": true,
-          "description": "Default chat-link choice for created Tasks; tasks[] can override it."
-        },
-        "plan_id": {
-          "type": "string",
-          "description": "Default Plan to link the created Tasks to. The Plan must belong to the user and be saved; a missing Plan fails the call.\n"
-        },
-        "title": {
-          "type": "string",
-          "description": "Single-task title when not using tasks[]."
-        },
-        "description": {
-          "type": "string"
-        },
-        "assignee": {
-          "type": "string",
-          "enum": [
-            "user",
-            "openmates"
-          ]
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "app_id": "tasks",
     "skill_id": "search",
     "app_namespace_ts": "tasks",
     "skill_method_ts": "search",
@@ -11296,14 +11218,6 @@ export class TasksAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
     this.runSkill = runSkill;
-  }
-  /**
-   * Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.
-   * Description key: tasks.skills.create.description
-   * Skill: tasks/create
-   */
-  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
-    return this.runSkill<T>("tasks", "create", input, options);
   }
   /**
    * Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.
