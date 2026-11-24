@@ -453,6 +453,22 @@
         <div class="image-content">
           <img src={displayUrl} alt={filename || 'Uploaded image'} class="preview-image" />
           {#if status === 'finished'}<ImageAuthenticityBadge {aiDetection} />{/if}
+          {#if showStop}
+            <!-- The result-card shell has no info bar, so the upload's stop control sits on the picture. -->
+            <button
+              type="button"
+              class="upload-stop-button"
+              onclick={(event) => {
+                event.stopPropagation();
+                onStop?.();
+              }}
+              data-testid="image-upload-stop"
+              aria-label={$text('common.stop')}
+              title={$text('common.stop')}
+            >
+              <span class="clickable-icon icon_stop_processing"></span>
+            </button>
+          {/if}
         </div>
 
       {:else if imageError}
@@ -505,6 +521,39 @@
     background: var(--color-media-letterbox);
   }
 
+
+  .upload-stop-button {
+    position: absolute;
+    top: var(--spacing-3);
+    inset-inline-end: var(--spacing-3);
+    z-index: 2;
+    width: 36px;
+    min-width: 0;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-sm);
+    filter: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-stop-button .clickable-icon.icon_stop_processing {
+    width: 24px;
+    height: 24px;
+    background: var(--color-error);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
 
   .preview-image {
     /* Pinned to the box (not height: 100%): Safari cannot resolve a percentage
@@ -574,7 +623,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: null;
     font-weight: 700;
     flex-shrink: 0;
   }
