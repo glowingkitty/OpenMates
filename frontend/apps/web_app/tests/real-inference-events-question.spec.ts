@@ -270,6 +270,7 @@ dictatedTest.describe('dictated conference discovery', () => {
 				expect(text.trim().split(/\s+/).length).toBeGreaterThanOrEqual(20);
 				if (label === 'policy-summit') await expect(detail.getByTestId('result-map')).toHaveCount(0);
 				log(`${label} description: ${text}`);
+				await description.scrollIntoViewIfNeeded();
 				await testInfo.attach(label, { body: await page.screenshot(), contentType: 'image/png' });
 				await closeFullscreen(page, detail);
 			}
@@ -296,6 +297,7 @@ dictatedTest.describe('dictated conference discovery', () => {
 			}
 			log(`FOSDEM description: ${text}`);
 			log(`FOSDEM venue: ${await event.getByTestId('event-venue-card').innerText()}`);
+			await description.scrollIntoViewIfNeeded();
 			await testInfo.attach('fosdem-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
 			await closeFullscreen(page, event);
 		} finally {
