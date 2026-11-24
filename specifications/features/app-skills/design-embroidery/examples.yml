@@ -167,6 +167,12 @@ view:
       about 30, 46, 19 and 5 minutes beside the four threads, and a short remark below the list says that sewing
       time and thread length are estimates which vary with the machine and its settings.
 
+fullscreen_mobile:
+  - id: compact-header-and-local-pinch
+    given: A finished embroidery result is open on a phone.
+    when: The user inspects the facts and pinches outward over the Stitches preview, then switches to Graphic and pinches again.
+    then: The header shows up to three facts, each with one line of text beside its icon. The other facts appear below the image. Each pinch enlarges only the active image, while the header and controls stay at their original size.
+
 chat_files:
   - id: saved-embroidery-machine-files
     given: A saved web chat contains an uploaded fox drawing and a finished embroidery conversion.

@@ -12153,18 +12153,18 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 31
+  assertions: 32
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 4
+        passing: 5
         failing: 0
         not_run: 9
         missing: 20
-        counted: 33
+        counted: 34
       key_tests:
       - frontend/apps/web_app/tests/components/design-editor.spec.ts
       - frontend/apps/web_app/tests/components/design-editor-performance.spec.ts
@@ -12188,8 +12188,8 @@ features:
         passing: 1
         failing: 0
         not_run: 0
-        missing: 16
-        counted: 17
+        missing: 17
+        counted: 18
       key_tests: []
       evidence: apple/OpenMates/Sources/Features/Embeds/Renderers/DesignEmbroideryEmbedRenderer.swift, app:design:search_icons
       e2e_tests: []
@@ -12208,8 +12208,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 31
-        counted: 31
+        missing: 32
+        counted: 32
       key_tests: []
       evidence: openmates apps design search_icons|export-icon
       e2e_tests: []
@@ -12257,8 +12257,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 31
-        counted: 31
+        missing: 32
+        counted: 32
       key_tests: []
       evidence: sdk.design facade (npm)
       e2e_tests: []
@@ -12272,8 +12272,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 31
-        counted: 31
+        missing: 32
+        counted: 32
       key_tests: []
       evidence: sdk.design facade (py)
       e2e_tests: []

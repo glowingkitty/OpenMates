@@ -14,6 +14,7 @@
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbroideryThreadList from './EmbroideryThreadList.svelte';
   import EmbroideryDownloads from './EmbroideryDownloads.svelte';
+  import { embroideryPreviewZoom } from './embroideryPreviewZoom';
   import EmbroiderySettingsForm from './EmbroiderySettingsForm.svelte';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
@@ -75,6 +76,10 @@
 
   onDestroy(imageOwner.destroy);
 
+  function zoomImage(image: HTMLImageElement) {
+    if (image.parentElement) return embroideryPreviewZoom(image.parentElement, image);
+  }
+
   function canDecrypt(file: EmbroideryFile): boolean {
     return !!design.aesKey && hasMediaEncryptionMetadata(file, file.aes_nonce ?? design.aesNonce);
   }
@@ -133,7 +138,7 @@
   skillId="embroidery"
   skillIconName="embroidery"
   embedHeaderTitle={title}
-  embedHeaderSubtitle={finished ? formatSize(design) : skillName}
+  embedHeaderSubtitle={finished ? undefined : skillName}
   showSkillIcon={true}
   {onClose}
   onDownload={finished ? () => { void downloads?.download('all'); } : undefined}
@@ -148,36 +153,17 @@
 >
   {#snippet summary()}
     {#if finished}
-      {#if design.widthMm !== null}
-        <ResultEmbedInfo icon="ruler" label={$text('embeds.design.embroidery.size')} value={formatSize(design)} testId="design-embroidery-size" />
-      {/if}
-      {#if design.stitchCount !== null}
-        <ResultEmbedInfo icon="grip" label={$text('embeds.design.embroidery.stitches')} value={formatCount(design.stitchCount)} testId="design-embroidery-stitch-count" />
-      {/if}
-      {#if design.threadChanges !== null}
-        <ResultEmbedInfo icon="repeat" label={$text('embeds.design.embroidery.thread_changes')} value={String(design.threadChanges)} testId="design-embroidery-thread-changes" />
-      {/if}
-      {#if design.estimatedMinutes !== null}
-        <ResultEmbedInfo icon="timer" label={$text('embeds.design.embroidery.sewing_time')} value={`~${formatDuration(design.estimatedMinutes)}`} testId="design-embroidery-time" />
-      {/if}
-      {#if design.threadLengthM !== null}
-        <ResultEmbedInfo icon="spline" label={$text('embeds.design.embroidery.thread_length')} value={`~${formatThreadLength(design.threadLengthM)}`} testId="design-embroidery-thread-length" />
-      {/if}
-      {#if design.fitsHoop !== 'not_checked' && hoopLabel}
-        <ResultEmbedInfo
-          icon="frame"
-          label={design.fitsHoop === 'yes' ? $text('embeds.design.embroidery.fits_hoop', { values: { hoop: hoopLabel } }) : $text('embeds.design.embroidery.too_large_for_hoop', { values: { hoop: hoopLabel } })}
-          value={design.fitsHoop === 'yes' ? $text('embeds.design.embroidery.fits_hoop', { values: { hoop: hoopLabel } }) : $text('embeds.design.embroidery.too_large_for_hoop', { values: { hoop: hoopLabel } })}
-          state={design.fitsHoop}
-          testId="design-embroidery-hoop-fit"
-        />
-      {/if}
-      {#if design.fabric}
-        <ResultEmbedInfo icon="shirt" label={$text('embeds.design.embroidery.fabric')} value={$text(`embeds.design.embroidery.fabric_${design.fabric}`)} testId="design-embroidery-fabric-info" />
-      {/if}
-      {#if design.borderMm > 0}
-        <ResultEmbedInfo icon="square-dashed" label={$text('embeds.design.embroidery.border')} value={`${$text('embeds.design.embroidery.border')} ${$text('embeds.design.embroidery.border_mm', { values: { width: design.borderMm } })}`} testId="design-embroidery-border-info" />
-      {/if}
+      <div class="embroidery-header-facts">
+        {#if design.widthMm !== null}
+          <ResultEmbedInfo icon="ruler" label={$text('embeds.design.embroidery.size')} value={formatSize(design)} testId="design-embroidery-size" />
+        {/if}
+        {#if design.stitchCount !== null}
+          <ResultEmbedInfo icon="grip" label={$text('embeds.design.embroidery.stitches')} value={formatCount(design.stitchCount)} testId="design-embroidery-stitch-count" />
+        {/if}
+        {#if design.estimatedMinutes !== null}
+          <ResultEmbedInfo icon="timer" label={$text('embeds.design.embroidery.sewing_time')} value={`~${formatDuration(design.estimatedMinutes)}`} testId="design-embroidery-time" />
+        {/if}
+      </div>
     {/if}
   {/snippet}
   {#snippet media()}
@@ -201,9 +187,11 @@
           </div>
         {/if}
         {#if shownUrl}
-          <div class="stage" class:fabric={view === 'stitches'} style:--embroidery-fabric={EMBROIDERY_FABRIC_COLOUR}>
-            <img src={shownUrl} alt={title} class="result-primary-media stitch-image" data-testid="design-embroidery-image" data-view={view} />
-          </div>
+          {#key shownUrl}
+            <div class="stage" class:fabric={view === 'stitches'} style:--embroidery-fabric={EMBROIDERY_FABRIC_COLOUR} data-testid="design-embroidery-stage">
+              <img src={shownUrl} alt={title} use:zoomImage draggable="false" class="result-primary-media stitch-image" data-testid="design-embroidery-image" data-view={view} />
+            </div>
+          {/key}
         {:else if mediaError}
           <p class="status" role="status">{$text('embeds.design.embroidery.preview_unavailable')}</p>
         {:else}
@@ -216,6 +204,29 @@
     {#if finished}
       <div class="embroidery-details">
         <EmbroideryDownloads bind:this={downloads} {design} baseName={downloadBaseName} />
+        <div class="embroidery-detail-facts" data-testid="design-embroidery-detail-facts">
+          {#if design.threadChanges !== null}
+            <ResultEmbedInfo icon="repeat" label={$text('embeds.design.embroidery.thread_changes')} value={String(design.threadChanges)} testId="design-embroidery-thread-changes" />
+          {/if}
+          {#if design.threadLengthM !== null}
+            <ResultEmbedInfo icon="spline" label={$text('embeds.design.embroidery.thread_length')} value={`~${formatThreadLength(design.threadLengthM)}`} testId="design-embroidery-thread-length" />
+          {/if}
+          {#if design.fitsHoop !== 'not_checked' && hoopLabel}
+            <ResultEmbedInfo
+              icon="frame"
+              label={design.fitsHoop === 'yes' ? $text('embeds.design.embroidery.fits_hoop', { values: { hoop: hoopLabel } }) : $text('embeds.design.embroidery.too_large_for_hoop', { values: { hoop: hoopLabel } })}
+              value={design.fitsHoop === 'yes' ? $text('embeds.design.embroidery.fits_hoop', { values: { hoop: hoopLabel } }) : $text('embeds.design.embroidery.too_large_for_hoop', { values: { hoop: hoopLabel } })}
+              state={design.fitsHoop}
+              testId="design-embroidery-hoop-fit"
+            />
+          {/if}
+          {#if design.fabric}
+            <ResultEmbedInfo icon="shirt" label={$text('embeds.design.embroidery.fabric')} value={$text(`embeds.design.embroidery.fabric_${design.fabric}`)} testId="design-embroidery-fabric-info" />
+          {/if}
+          {#if design.borderMm > 0}
+            <ResultEmbedInfo icon="square-dashed" label={$text('embeds.design.embroidery.border')} value={`${$text('embeds.design.embroidery.border')} ${$text('embeds.design.embroidery.border_mm', { values: { width: design.borderMm } })}`} testId="design-embroidery-border-info" />
+          {/if}
+        </div>
         <EmbroideryThreadList threads={design.threads} />
         {#if design.notes.length > 0}
           <section class="notes" data-testid="design-embroidery-notes">
@@ -259,7 +270,14 @@
   }
   .switch button[aria-pressed="true"] { background: var(--color-button-primary); color: var(--color-font-button); }
   .switch button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
-  .stage { width: 100%; border-radius: var(--radius-6); overflow: hidden; }
+  .embroidery-header-facts, .embroidery-detail-facts { display: flex; flex-wrap: wrap; align-items: center; max-width: 100%; }
+  .embroidery-header-facts { justify-content: center; white-space: nowrap; }
+  .embroidery-header-facts :global(.fact-text) { overflow: hidden; }
+  .embroidery-header-facts :global(.fact-text strong) { overflow: hidden; text-overflow: ellipsis; }
+  .embroidery-detail-facts { gap: var(--spacing-4); }
+  .embroidery-detail-facts:empty { display: none; }
+  .stage { width: 100%; border-radius: var(--radius-6); overflow: hidden; touch-action: pan-y; }
+  .stage:global(.zoomed) { touch-action: none; }
   .stage.fabric { background: var(--embroidery-fabric); }
   .stitch-image { display: block; width: 100%; height: var(--result-media-height, 20rem); object-fit: contain; border-radius: var(--radius-6); background: var(--color-media-letterbox); }
   .stage.fabric .stitch-image { background: transparent; }

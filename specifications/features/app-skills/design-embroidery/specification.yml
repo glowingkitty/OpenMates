@@ -162,6 +162,10 @@ assertions:
     type: behavior
     must: The result card shows the stitch preview, the size, the estimated sewing time and the estimated thread length; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order with the estimated thread length and minutes of each thread, the numbers including the stitch count, the hoop fit and the notes, a short remark that sewing time and thread length are estimates which vary with the machine and its settings, one clearly visible download that saves all five machine files together as one ZIP file, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop, fabric and border shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
     depends_on: [models.EmbroideryResult, models.EmbroideryRequest, examples.view]
+  - id: design-embroidery.result.fullscreen-mobile
+    type: behavior
+    must: On the web, the fullscreen header shows at most three facts, each with an icon beside one line of text. The remaining facts sit below the preview. Pinching within either the Stitches or Graphic preview zooms only the image within its frame and leaves the surrounding page and controls at their original scale.
+    depends_on: [models.EmbroideryResult, examples.fullscreen_mobile]
   - id: design-embroidery.result.chat-files
     type: behavior
     must: On the web, the Files tab in a saved chat's settings lists each finished embroidery machine file (DST, PES, EXP, JEF and VP3). Each entry downloads that file, and Download files bundles all five with the chat's other files.
@@ -209,4 +213,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [convert, invalid_source, prepare, border, fit_hoop, rework, failure, view, chat_files, billing]
+  required_groups: [convert, invalid_source, prepare, border, fit_hoop, rework, failure, view, fullscreen_mobile, chat_files, billing]
