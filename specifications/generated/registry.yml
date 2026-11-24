@@ -688,7 +688,7 @@ specifications:
     version: 2
     status: draft
     path: features/chat-orchestration
-    fingerprint: 07f00543d3b0947e0025dff607381f976304d84048f74ee9ad51d5418fd8bd88
+    fingerprint: d7b4c5d0467a61a1cf3b973c86d9a8c115173d87bda1c4e84e18bf9eab5503d6
     required_applies_to:
     - rest_api
     - cli
@@ -960,7 +960,7 @@ specifications:
     version: 1
     status: draft
     path: features/plans
-    fingerprint: 01e4398afbd1e1702f9a8bc37c36a024fb70230a5f6c1d0bed86752f3cad82d8
+    fingerprint: 012b68e688e2fc6a35318b349c1f936890e29a3ca12989c9d7c9e934130c0721
     required_applies_to:
     - rest_api
     - cli
@@ -9769,7 +9769,7 @@ assertions:
     specification: feature.chat-orchestration@2
     specification_id: feature.chat-orchestration
     type: behavior
-    fingerprint: d5378d13e0225792e6b7fcfe50cf2a7d079c3ec5c6c15aaac727407f8e94320c
+    fingerprint: 7cb7e4f3f3516674159150dc2bcd59d04eab111804c7886145ade0b24051f0a9
     required_applies_to:
     - rest_api
     - cli
@@ -13020,7 +13020,7 @@ assertions:
     specification: feature.plans@1
     specification_id: feature.plans
     type: behavior
-    fingerprint: aff2674782b0d0545a327bbf7e630a531bc3dfa368b2d960c077ddda35577f37
+    fingerprint: 2c7f3893c9c8dcb720f8819249d3ca1ca56ebd2e1e29348cf038d3ecd25e4094
     required_applies_to:
     - rest_api
     - cli
@@ -13086,7 +13086,7 @@ assertions:
     specification: feature.plans@1
     specification_id: feature.plans
     type: behavior
-    fingerprint: 1b1056bdd74ab8b8030d6fe5aa9a321cbf0b5b1487d3bde434edce81782cdc02
+    fingerprint: 6b22114383b35ce7a191e8e9ea9a0d3080fe29ea32b8e097379479f5c1c565df
     required_applies_to:
     - rest_api
     - cli
@@ -13097,7 +13097,7 @@ assertions:
     specification: feature.plans@1
     specification_id: feature.plans
     type: behavior
-    fingerprint: d0eb5fc391614ed20ed45e9d0469a9d862243c8d58355d2fea9d20c213199a6c
+    fingerprint: 0069b59be7af3c3dc7e9a6a032cff431f7bf24d9a67cdd585d35661ab22a20ce
     required_applies_to:
     - rest_api
     - cli

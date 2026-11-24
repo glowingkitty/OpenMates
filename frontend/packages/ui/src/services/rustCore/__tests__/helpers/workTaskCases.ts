@@ -39,7 +39,7 @@ export const taskViewCases: Array<{ name: string; record: Json; team?: string; e
 	{ name: 'linked project ids that are not an array read as empty', record: taskRecord({ encrypted_linked_project_ids: seal({ a: 1 }) }) },
 	{ name: 'external chat context is decrypted', record: taskRecord({ primary_chat_id: null, external_chat_provider: 'codex', encrypted_external_chat_id: seal('ses-1'), encrypted_external_chat_title: seal('Ext title') }) },
 	{ name: 'a provider without an external id has no external chat', record: taskRecord({ external_chat_provider: 'claude' }) },
-	{ name: 'blocked, plan, AI and scheduling members are kept', record: taskRecord({ status: 'blocked', blocked_reason_code: 'missing_credentials', encrypted_blocked_reason: seal('Need a key'), plan_id: 'plan-1', ai_execution_state: 'running', due_at: 50, priority: 3, position: 7, assignee_identity: 'codex', assignee_type: 'external_ai' }) },
+	{ name: 'blocked, plan, working chat, AI and scheduling members are kept', record: taskRecord({ status: 'blocked', blocked_reason_code: 'missing_credentials', encrypted_blocked_reason: seal('Need a key'), plan_id: 'plan-1', linked_sub_chat_id: 'working-chat-1', ai_execution_state: 'running', due_at: 50, priority: 3, position: 7, assignee_identity: 'codex', assignee_type: 'external_ai' }) },
 	{ name: 'a missing version is refused', record: taskRecord({ version: undefined }) },
 	{ name: 'a non-number version is refused', record: taskRecord({ version: '3' }) },
 	{ name: 'Team record carries the active Team', record: teamRecord(), team: TEAM, envelope: 'team-wrapped' },

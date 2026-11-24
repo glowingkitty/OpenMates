@@ -810,6 +810,9 @@ async def _deliver_direction_instruction(
     return CorrectionDeliveryReceipt(True, authority, delivery_id)
 
 logger = logging.getLogger(__name__)
+
+# Sub-chat focus activations outlive worker queue delays (no human can reject there).
+SUB_CHAT_FOCUS_ACTIVATION_TTL_SECONDS = 900
 ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 8_192
 ORCHESTRATED_REASONING_AI_MAX_OUTPUT_TOKENS = 16_384
 ANONYMOUS_AI_MAX_OUTPUT_TOKENS = 4_096
@@ -2145,7 +2148,8 @@ async def _publish_skill_status(
             "event_for_client": "skill_execution_status",
             "task_id": task_id,
             "chat_id": request_data.chat_id,
-            "message_id": request_data.message_id,
+            # The preview can create an assistant placeholder before its first chunk.
+            "message_id": getattr(request_data, "continuation_message_id", None) or task_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
             "app_id": app_id,
@@ -6562,6 +6566,10 @@ async def handle_main_processing(
                 pending_context_stored = await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
                     context=pending_context,
+                    # Nobody can reject in a sub-chat, and its parent waits for it:
+                    # the auto-confirm must still find the context when a busy
+                    # worker runs it late (real run: fired 45 s after a 30 s TTL).
+                    ttl=SUB_CHAT_FOCUS_ACTIVATION_TTL_SECONDS if request_data.is_sub_chat else None,
                 )
                 logger.info(f"{log_prefix} [FOCUS_MODE] Stored pending focus activation context")
             except Exception as e:
@@ -11021,6 +11029,42 @@ async def handle_main_processing(
                             })
                             continue
 
+                    # Refuse unavailable tools before opening an upload-consent prompt.
+                    if _is_async_skill_blocked_in_orchestration(
+                        request_data, app_id, skill_id,
+                    ) and not is_root_turn_code_run(request_data, app_id, skill_id):
+                        current_message_history.append({
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": json.dumps({
+                                "status": "blocked_in_orchestration",
+                                "reason": BLOCKED_IN_ORCHESTRATION_MESSAGE,
+                                "app_id": app_id,
+                                "skill_id": skill_id,
+                            }),
+                        })
+                        if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            failed_embed_ids.update(await settle_blocked_placeholders(
+                                placeholder_embed_data,
+                                embed_service=EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service,
+                                ),
+                                app_id=app_id, skill_id=skill_id, request_data=request_data,
+                                user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                            ))
+                        logger.warning(
+                            "%s Rejected async skill %s.%s inside orchestration %s before dispatch",
+                            log_prefix,
+                            app_id,
+                            skill_id,
+                            request_data.orchestration_id,
+                        )
+                        continue
+
                     if (app_id, skill_id) == ("code", "run") and skill_arguments.get("target") != "remote_source":
                         # E2B upload consent: nothing is sent to E2B before the account allowed it.
                         from backend.apps.ai.processing.e2b_upload_consent_request import (
@@ -11060,41 +11104,6 @@ async def handle_main_processing(
                                 "content": json.dumps(declined_tool_result(app_id, skill_id)),
                             })
                             continue
-
-                    if _is_async_skill_blocked_in_orchestration(
-                        request_data, app_id, skill_id,
-                    ) and not is_root_turn_code_run(request_data, app_id, skill_id):
-                        current_message_history.append({
-                            "tool_call_id": tool_call_id,
-                            "role": "tool",
-                            "name": tool_name,
-                            "content": json.dumps({
-                                "status": "blocked_in_orchestration",
-                                "reason": BLOCKED_IN_ORCHESTRATION_MESSAGE,
-                                "app_id": app_id,
-                                "skill_id": skill_id,
-                            }),
-                        })
-                        if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
-                            from backend.core.api.app.services.embed_service import EmbedService
-                            failed_embed_ids.update(await settle_blocked_placeholders(
-                                placeholder_embed_data,
-                                embed_service=EmbedService(
-                                    cache_service=cache_service,
-                                    directus_service=directus_service,
-                                    encryption_service=encryption_service,
-                                ),
-                                app_id=app_id, skill_id=skill_id, request_data=request_data,
-                                user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
-                            ))
-                        logger.warning(
-                            "%s Rejected async skill %s.%s inside orchestration %s before dispatch",
-                            log_prefix,
-                            app_id,
-                            skill_id,
-                            request_data.orchestration_id,
-                        )
-                        continue
 
                     if same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS:
                         # Check the existing private transcript before a paid producer

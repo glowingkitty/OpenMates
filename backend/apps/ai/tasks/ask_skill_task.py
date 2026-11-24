@@ -3004,6 +3004,13 @@ async def _async_process_ai_skill_ask_task(
             )
 
         if request_data.is_sub_chat:
+            child_continuation = bool(
+                request_data.is_sub_chat_continuation
+                or request_data.is_focus_mode_continuation
+                or request_data.is_app_settings_memories_continuation
+                or request_data.is_connected_account_permission_continuation
+                or request_data.is_async_skill_continuation
+            )
             if not all((
                 request_data.orchestration_id,
                 request_data.root_chat_id,
@@ -3020,13 +3027,7 @@ async def _async_process_ai_skill_ask_task(
                     "child_chat_id": request_data.chat_id,
                     "dispatch_token": request_data.orchestration_dispatch_token,
                     "inference_task_id": task_id,
-                    "is_continuation": bool(
-                        request_data.is_sub_chat_continuation
-                        or request_data.is_focus_mode_continuation
-                        or request_data.is_app_settings_memories_continuation
-                        or request_data.is_connected_account_permission_continuation
-                        or request_data.is_async_skill_continuation
-                    ),
+                    "is_continuation": child_continuation,
                 },
             )
             if child_claim.get("depth") != request_data.sub_chat_depth:
@@ -3235,6 +3236,13 @@ async def _async_process_ai_skill_ask_task(
         if not user_vault_key_id:
             logger.error(f"[Task ID: {task_id}] vault_key_id not found for user {request_data.user_id}. Aborting.")
             raise RuntimeError("User vault key ID not found.")
+        if request_data.is_sub_chat and not child_continuation and not (
+            request_data.is_incognito or request_data.is_external or request_data.is_anonymous
+        ):
+            from backend.shared.python_utils.focus_continuation_history import admit_child_focus_source
+            await admit_child_focus_source(
+                cache_service_instance, encryption_service_instance, request_data, user_vault_key_id,
+            )
             
     elif not cache_service_instance:
         logger.error(f"[Task ID: {task_id}] CacheService not available.")

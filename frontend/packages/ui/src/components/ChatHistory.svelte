@@ -1662,6 +1662,7 @@ import { storageArchiveFetch } from "../config/api";
     isExampleChat = false,
     isSharedChat = false,
     isDirectChat = false,
+    isSubChat = false,
     videoMp4Url = null,
     videoTeaserUrl = null,
     videoTeaserMp4Url = null,
@@ -1686,11 +1687,14 @@ import { storageArchiveFetch } from "../config/api";
     voiceCallBridge = undefined,
     timelineOverlayOpen = $bindable(false),
     timelinePanelId = undefined,
+    belowHeader = undefined,
   }: {
     disablePointerEvents?: boolean;
     timelineOverlayOpen?: boolean;
     timelinePanelId?: string;
     voiceCallBridge?: { controls: Snippet<[boolean]>; onStickyChange: (stuck: boolean) => void };
+    /** Rendered in the scroll flow right below the chat header (e.g. a sub-chat's work link). */
+    belowHeader?: Snippet;
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
     containerWidth?: number;
@@ -1746,6 +1750,8 @@ import { storageArchiveFetch } from "../config/api";
     /** True when the active chat was opened from a shared-chat link. */
     isSharedChat?: boolean;
     isDirectChat?: boolean;
+    /** True when the active chat is a sub-chat; the ChatHeader shows a "Sub-chat" pill. */
+    isSubChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
      *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
@@ -3474,6 +3480,7 @@ import { storageArchiveFetch } from "../config/api";
                 {isExampleChat}
                 {isSharedChat}
                 {isDirectChat}
+                {isSubChat}
                 {videoMp4Url}
                 {videoTeaserUrl}
                 {videoTeaserMp4Url}
@@ -3491,6 +3498,8 @@ import { storageArchiveFetch } from "../config/api";
             {/key}
         </div>
     {/if}
+
+    {#if belowHeader}{@render belowHeader()}{/if}
 
     {#if voiceCallBridge}
       <div class="call-header-end" use:observeCallHeaderEnd aria-hidden="true"></div>

@@ -925,6 +925,16 @@ def _prepare_messages_and_system_prompt(
                 history.append(types.Content(role="user", parts=tool_response_parts))
                 logger.debug(f"Added {len(tool_response_parts)} function response parts in single Content")
         
+        elif role == "system":
+            # Gemini has no mid-conversation system role. A later system note is
+            # context for the model, so it goes on the user side; as a model turn
+            # it could end the request, which Gemini refuses ("Requests ending
+            # with a model turn are not supported").
+            parts = _parts_from_message_content(content)
+            if parts:
+                history.append(types.Content(role="user", parts=parts))
+            i += 1
+
         else:
             # Unknown role: treat as model message (fallback)
             if content:

@@ -16,6 +16,7 @@ from typing import Any
 
 from backend.apps.ai.processing.task_tool_executor import TASK_TOOL_JOB_CACHE_PREFIX
 from backend.core.api.app.services.directus.user_task_methods import hash_id
+from backend.core.api.app.services.task_sub_chat_link_service import apply_pending_link
 from backend.core.api.app.services.user_task_update_job_service import (
     DEFAULT_TASK_UPDATE_JOB_LEASE_TTL_SECONDS,
     TaskUpdateJobConflictError,
@@ -262,6 +263,13 @@ async def handle_task_update_job_persist(
             if await directus_service.user_task.get_task(task_id, user_id):
                 raise TaskUpdateJobConflictError("Task already exists")
             durable = await directus_service.user_task.create_task(user_id, {**encrypted_payload, "task_id": task_id})
+            if durable:
+                linked = await apply_pending_link(
+                    cache_service, directus_service, user_id=user_id,
+                    task={**durable, "task_id": task_id, "plan_id": encrypted_payload.get("plan_id")},
+                )
+                if linked:
+                    durable = {**durable, "linked_sub_chat_id": linked}
         else:
             durable = (
                 await directus_service.user_task.update_task_if_version(

@@ -13,7 +13,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
-    import SubChatWorkLink from './chats/SubChatWorkLink.svelte';
+    import SubChatOrigin from './chats/SubChatOrigin.svelte';
     import { loadSubChatWork, type SubChatWork } from './chats/subChatWork';
     import ChatTimelineToggle from './ChatTimelineToggle.svelte';
     import { responseUserMessageId } from '../message_parsing/assistantResponseTurn';
@@ -7945,6 +7945,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let closingChat = $state(false);
     // Reverse lookup: the Plan assumption or Task this sub-chat works on.
     let subChatWork = $state<SubChatWork | null>(null);
+    // Decrypted title of the main chat this sub-chat was created from (empty until known).
+    let subChatParentTitle = $state('');
+    $effect(() => {
+        const parentId = currentChat?.parent_id;
+        subChatParentTitle = '';
+        if (!parentId) return;
+        let cancelled = false;
+        void (async () => {
+            const parent = await chatDB.getChat(parentId);
+            if (!parent) return;
+            const meta = parent.title ? null : await chatMetadataCache.getDecryptedMetadata(parent);
+            const title = resolveChatDisplayTitle(parent.title || meta?.title, null);
+            if (!cancelled) subChatParentTitle = title;
+        })().catch((error) => console.error('[ActiveChat] Failed to resolve sub-chat parent title:', error));
+        return () => { cancelled = true; };
+    });
     $effect(() => {
         const chatId = currentChat?.chat_id;
         const parentId = currentChat?.parent_id;
@@ -8176,6 +8192,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         void handleChatNavigate(chatId, () => navigationGeneration === loadChatGeneration
             && callId === callState.callId && chatId === callState.chatId
             && voiceCallOwnsAudio);
+    }
+
+    /** Opens the main chat of this sub-chat the way a sub-chat card opens a sub-chat. */
+    function openSubChatParent() {
+        const parentId = currentChat?.parent_id;
+        if (parentId && parentId !== currentChat?.chat_id) activeChatStore.setActiveChat(parentId);
     }
 
     async function handleCloseChat() {
@@ -14261,7 +14283,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         />
                     {/snippet}
 
-                    {#if subChatWork}<SubChatWorkLink work={subChatWork} onBack={handleCloseChat} />{/if}
+                    {#snippet subChatOriginEvent()}
+                        <SubChatOrigin parentTitle={subChatParentTitle} work={subChatWork} onOpenParent={openSubChatParent} />
+                    {/snippet}
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}
@@ -14273,6 +14297,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                           }}
                           on:timelineStateChange={(event) => { timelineAvailable = event.detail.available; timelineNarrow = event.detail.narrow; }}
                           disablePointerEvents={showWelcome}
+                          belowHeader={currentChat?.parent_id ? subChatOriginEvent : undefined}
                           voiceCallBridge={showVoiceCallBarHere && !showWelcome
                               ? { controls: boundCallControls, onStickyChange: (stuck) => { voiceCallStripStuck = stuck; } }
                               : undefined}
@@ -14298,6 +14323,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                           isIncognito={!!currentChat?.is_incognito}
                            isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
                            isSharedChat={!!currentChat?.is_shared_by_others && !$demoMode}
+                           isSubChat={!!(currentChat?.parent_id || currentChat?.is_sub_chat)}
                            canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}

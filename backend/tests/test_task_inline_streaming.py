@@ -5,11 +5,15 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import pytest
 
+
+from backend.apps.ai.processing.focus_mode_routing import SPEC_AUTHORING_FOCUS_ID
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.tasks import stream_consumer, task_fence_runtime
 from backend.apps.ai.utils.task_fences import task_validation_feedback
+from backend.core.api.app.services.directus.user_plan_methods import hash_id
 
 REF = '{"type":"task","embed_id":"task-embed-1"}'
 
@@ -99,6 +103,49 @@ def test_invalid_fence_creates_no_task_and_shows_errors(monkeypatch):
     assert final["status"] == "error" and final["task_content"]["validation"]["status"] == "invalid"
     codes = [e["code"] for e in final["task_content"]["validation"]["errors"]]
     assert codes == ["missing_title", "invalid_status"]
+
+
+# contract-test: supporting surface=gui.web assertions=plans.sub-chats.assumption-and-task-chats
+@pytest.mark.parametrize(("plan_chat", "plan_project", "accepted"), [
+    ("chat-1", "project-1", True),
+    ("other-chat", "project-1", False),
+    ("chat-1", "other-project", False),
+])
+async def test_spec_follow_up_uses_only_the_saved_plans_authorized_project(
+    monkeypatch, plan_chat, plan_project, accepted,
+):
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+
+    execute, publish = _install(monkeypatch, [])
+    focus = AsyncMock(return_value={"project_id": "project-1"})
+    monkeypatch.setattr(ProjectWriteAuthorizationService, "get_active_focus", focus)
+    request = _request(active_focus_id=SPEC_AUTHORING_FOCUS_ID, is_sub_chat_continuation=True)
+    request.is_incognito = False
+    lookup = AsyncMock(return_value={
+        "hashed_primary_chat_id": hash_id(plan_chat), "linked_project_hashes": [hash_id(plan_project)],
+    })
+    embed_service = FakeEmbedService()
+
+    await task_fence_runtime.finalize_task_fence_embed(
+        embed_service=embed_service, embed_id="task-embed-1",
+        source=json.dumps({"title": "Wire watering alerts", "plan": "plan-1", "project": "Guessed name"}),
+        request_data=request, cache_service=FakeCache(),
+        directus_service=SimpleNamespace(user_plan=SimpleNamespace(get_plan=lookup)),
+        encryption_service=SimpleNamespace(), user_vault_key_id="vault-1", log_prefix="test",
+    )
+
+    lookup.assert_awaited_once_with("plan-1", request.user_id)
+    card = embed_service.update_json_content_embed_content.await_args.kwargs
+    if accepted:
+        focus.assert_awaited_once_with(user_id=request.user_id, chat_id=request.chat_id)
+        execute.assert_awaited_once()
+        assert execute.await_args.kwargs["args"]["linked_project_ids"] == ["project-1"]
+        publish.assert_awaited_once()
+        assert card["status"] == "finished"
+    else:
+        execute.assert_not_awaited()
+        publish.assert_not_awaited()
+        assert card["task_content"]["validation"]["errors"][0]["code"] == "unknown_project"
 
 
 # contract-test: supporting surface=rest_api assertions=teams.context.full-switch-local,tasks.surface.semantic-parity
@@ -200,12 +247,18 @@ def test_sub_chat_task_link_names_a_task_from_this_reply_by_title(monkeypatch):
     request = _request()
     task_fence_runtime.remember_reply_task(request, "Build the importer", "task-7")
     directus = SimpleNamespace(
-        user_task=SimpleNamespace(get_task=AsyncMock(return_value={"id": "task-7", "plan_id": "plan-1"})),
+        user_task=SimpleNamespace(get_task=AsyncMock(
+            return_value={"id": "record-7", "task_id": "task-7", "plan_id": "plan-1"}
+        )),
         update_item=AsyncMock(),
     )
     child = {"id": "child-1"}
-    linked = asyncio.run(sub_chat_focus_links._link_task(
-        directus, request, child, {"kind": "task", "plan_id": "plan-1", "id": "build the importer"}, ""))
+    link = {"kind": "task", "plan_id": "plan-1", "id": "build the importer"}
+    linked = asyncio.run(sub_chat_focus_links._link_task(directus, None, request, child, link, ""))
     assert linked is True
     assert directus.user_task.get_task.await_args.args[0] == "task-7"
+    directus.update_item.assert_awaited_once_with(
+        "user_tasks", "record-7", {"linked_sub_chat_id": "child-1"}, admin_required=True,
+    )
+    assert link["id"] == "task-7"
     assert task_fence_runtime.reply_task_id_for_title(SimpleNamespace(chat_id="chat-1", message_id="message-2"), "Build the importer") is None

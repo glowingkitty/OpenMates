@@ -843,6 +843,10 @@ def test_sub_chat_parent_continuation_inherits_legacy_admission_as_root(monkeypa
     assert continuation.root_legacy_cutover_task_id == legacy_identity
     assert continuation.legacy_cutover_task_id is None
     assert (continuation.chat_id, continuation.message_id) == (chat_id, message_id)
+    # Real spec run 2026-11-23: a legacy parent's children are never marked
+    # delivered (no sealed result), so consuming them refused the continuation
+    # with child_parent_not_consumed and the parent never answered.
+    assert continuation.recovery_consumed_child_ids == []
 
 
 # contract-test: supporting surface=rest_api assertions=chats.rendering.inline-entity-interaction

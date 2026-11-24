@@ -5,6 +5,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 
 // contract-test: supporting surface=gui.web assertions=plans.chat-settings.active-plan
 test('Chat settings show the active Plan with its Tasks, Checks, assumptions and approval', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 960 });
   await page.goto('/dev/preview/chats/ChatSettingsPreviewHarness?chrome=0');
   await waitForComponentPreview(page);
   const panel = page.getByTestId('chat-active-plan-panel');
@@ -12,11 +13,16 @@ test('Chat settings show the active Plan with its Tasks, Checks, assumptions and
   await expect(panel).toHaveAttribute('data-approval-state', 'approved');
   await expect(page.getByTestId('chat-active-plan-task')).toHaveCount(3);
   await expect(page.locator('[data-testid="chat-active-plan-task"][data-status="in_progress"]')).toHaveCount(1);
+  await expect(page.getByTestId('chat-active-plan-progress-bar')).toBeVisible();
+  await expect(page.getByTestId('chat-active-plan-task-status')).toHaveCount(3);
   await expect(page.getByTestId('chat-active-plan-check')).toHaveCount(3);
   await expect(page.locator('[data-testid="chat-active-plan-check"][data-status="waiting_for_confirmation"]')).toHaveCount(1);
   await expect(page.getByTestId('chat-active-plan-assumption')).toHaveCount(2);
-  await expect(page.getByTestId('chat-active-plan-open')).toBeVisible();
+  const openPlan = page.getByTestId('chat-active-plan-open');
+  await openPlan.scrollIntoViewIfNeeded();
+  await expect(openPlan).toBeInViewport({ ratio: 1 });
   await expect(page.getByTestId('chat-active-plan-task-open-chat')).toHaveCount(1);
   await expect(page.getByTestId('chat-active-plan-assumption-open-chat')).toHaveCount(1);
   await panel.screenshot({ path: test.info().outputPath('active-plan-sub-chat-links.png') });
+  await test.info().attach('active-plan-panel', { body: await panel.screenshot(), contentType: 'image/png' });
 });

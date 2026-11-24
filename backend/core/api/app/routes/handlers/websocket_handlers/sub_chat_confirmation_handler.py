@@ -174,6 +174,9 @@ async def handle_sub_chat_confirmation(
         from backend.apps.ai.tasks.stream_consumer import _store_sub_chat_pending_context
 
         request_data = AskSkillRequest(**pending_context["parent_request_data"])
+        # The confirmation paused this reply without a final stream frame.
+        # Finish the existing assistant message when the child reports come back.
+        request_data.continuation_message_id = request_data.continuation_message_id or task_id
         request_data.orchestration_descendant_limit = len(approved_sub_chats)
         request_data.orchestration_credit_limit = approve_credit_limit
         request_data.orchestration_approved = (
@@ -214,7 +217,7 @@ async def handle_sub_chat_confirmation(
             "chat_id": chat_id,
             "user_id_uuid": user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message_id": task_id,
+            "message_id": request_data.continuation_message_id,
             "sub_chats": approved_sub_chats,
             "report_trigger": pending_context.get("report_trigger", "all"),
             "execution_mode": execution_mode,
@@ -250,7 +253,7 @@ async def handle_sub_chat_confirmation(
                     "chat_id": chat_id,
                     "user_id_uuid": user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
+                    "message_id": request_data.continuation_message_id,
                     "execution_mode": "sequential",
                     "status": "running",
                     "total": len(approved_sub_chats),
@@ -273,7 +276,7 @@ async def handle_sub_chat_confirmation(
                 "chat_id": chat_id,
                 "user_id_uuid": user_id,
                 "user_id_hash": request_data.user_id_hash,
-                "message_id": task_id,
+                "message_id": request_data.continuation_message_id,
             })
 
         await manager.send_personal_message(
@@ -282,6 +285,7 @@ async def handle_sub_chat_confirmation(
                 "payload": {
                     "chat_id": chat_id,
                     "task_id": task_id,
+                    "message_id": request_data.continuation_message_id,
                     "status": "approved",
                     "approved_count": len(approved_sub_chats),
                     "approved_credit_limit": approve_credit_limit,

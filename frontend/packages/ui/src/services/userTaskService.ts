@@ -4,6 +4,7 @@
 // ciphertext plus minimal metadata for filtering and scheduling.
 
 import { getApiEndpoint } from "../config/api";
+import { readonly, writable } from "svelte/store";
 import { computeSHA256 } from "../message_parsing/utils";
 import {
   decryptChatKeyWithMasterKey,
@@ -315,6 +316,8 @@ export interface ListUserTasksFilters {
 const taskBoardCache = new WorkspaceQueryCache<TasksBoardItem[]>({ ttlMs: 60_000, maxEntries: 32 });
 const taskEntityCache = new WorkspaceQueryCache<UserTaskViewModel>({ ttlMs: 60_000, maxEntries: 128 });
 const taskEligibilityCache = new WorkspaceQueryCache<boolean>({ ttlMs: 60_000, maxEntries: 1 });
+const taskPersistenceRevision = writable(0);
+export const assistantTaskPersistenceRevision = readonly(taskPersistenceRevision);
 const knownTaskFilters = new Map<string, ListUserTasksFilters>();
 const deletedTaskIds = new Set<string>();
 let knownTaskScope: string | null = null;
@@ -377,6 +380,7 @@ export function refreshTaskViewsAfterJob(ids: string[], scope: string | null): v
   if (!ids.length || !scope || scope !== getWorkspaceCacheIdentity()) return;
   for (const id of ids) taskEntityCache.invalidate(id);
   taskBoardCache.invalidate();
+  taskPersistenceRevision.update((revision) => revision + 1);
 }
 
 export function peekTaskBoardItems(filters: ListUserTasksFilters = {}): TasksBoardItem[] | undefined {

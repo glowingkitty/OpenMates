@@ -16,14 +16,17 @@
   import { createProjectCheck } from '../../../services/projectCheckService';
   import { text } from '../../../i18n/translations';
   import { openChatById } from '../plans/planEmbedModel';
-  import { loadSpecPlanLinks } from '../specifications/loadSpecPlanLinks';
-  import type { SpecPlanTask } from '../specifications/specPlanLinks';
+  import PlanAssumptionsList from '../plans/PlanAssumptionsList.svelte';
+  import { loadSpecPlanLinks, type LoadedSpecPlanLinks } from '../specifications/loadSpecPlanLinks';
   import CheckEmbedFullscreen from './CheckEmbedFullscreen.svelte';
   import { checkViewFromSkill, draftFromSkill } from './checkSkillView';
 
-  interface Props extends EmbedFullscreenCommonProps { data: EmbedFullscreenRawData; }
+  interface Props extends EmbedFullscreenCommonProps {
+    data: EmbedFullscreenRawData;
+    relatedPlan?: LoadedSpecPlanLinks;
+  }
   let { data, onClose, embedId, hasPreviousEmbed = false, hasNextEmbed = false,
-    onNavigatePrevious, onNavigateNext, navigateDirection, showChatButton = false, onShowChat }: Props = $props();
+    onNavigatePrevious, onNavigateNext, navigateDirection, showChatButton = false, onShowChat, relatedPlan }: Props = $props();
   const check = $derived(checkViewFromSkill(data.decodedContent ?? {}, embedId ?? 'draft-check'));
   const sourceChat = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
 
@@ -32,11 +35,15 @@
   let saving = $state(false);
   let saved = $state(false);
   let failed = $state(false);
-  let planTasks = $state<SpecPlanTask[] | undefined>(undefined);
+  let savedPlan = $state<LoadedSpecPlanLinks | null>(null);
+  const plan = $derived(sourceChat?.isReadOnly || sourceChat?.exampleChatId ? null : relatedPlan ?? savedPlan);
+  const checkingChats = $derived(plan?.assumptions.filter((assumption) => assumption.linkedSubChatId) ?? []);
 
   onMount(async () => {
     const chatId = sourceChat?.chatId ?? get(activeChatStore);
-    void loadSpecPlanLinks(chatId).then((links) => { if (links) planTasks = links.tasks; });
+    if (!sourceChat?.isReadOnly && !sourceChat?.exampleChatId) {
+      void loadSpecPlanLinks(sourceChat?.chatId).then((links) => { savedPlan = links; });
+    }
     try {
       const index = chatId ? await loadChatProjectIndex() : [];
       const home = index.find((entry) => entry.chats.some((chat) => chat.chatId === chatId));
@@ -61,7 +68,7 @@
   }
 </script>
 
-<CheckEmbedFullscreen {check} {onClose} {planTasks} onOpenChat={openChatById} {embedId} {hasPreviousEmbed} {hasNextEmbed}
+<CheckEmbedFullscreen {check} {onClose} planTasks={plan?.tasks} onOpenChat={openChatById} {embedId} {hasPreviousEmbed} {hasNextEmbed}
   {onNavigatePrevious} {onNavigateNext} navigateDirection={navigateDirection ?? undefined}
   {showChatButton} {onShowChat} showActions={false}
   onRun={() => {}} onCancel={() => {}} onConfirm={() => {}} onSelectRun={() => {}} onOpenTestResult={() => {}}>
@@ -79,13 +86,16 @@
         {#if failed}<p class="save-error" role="alert" data-testid="check-save-error">{$text('checks.save.error')}</p>{/if}
       </div>
     {/if}
+    {#if checkingChats.length}
+      <PlanAssumptionsList assumptions={checkingChats} onOpenChat={openChatById} />
+    {/if}
   {/snippet}
 </CheckEmbedFullscreen>
 
 <style>
   .save-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-6); margin: var(--spacing-4) 0; }
-  .save-btn { padding: var(--spacing-4) var(--spacing-8); border: none; border-radius: var(--radius-5); background: var(--color-primary, #4867cd); color: #fff; cursor: pointer; }
+  .save-btn { padding: var(--spacing-4) var(--spacing-8); border: none; border-radius: var(--radius-5); background: var(--color-button-primary); color: var(--color-font-button); cursor: pointer; }
   .save-btn:disabled { opacity: 0.6; cursor: default; }
   .save-note { margin: 0; color: var(--color-font-secondary); }
-  .save-error { margin: 0; color: var(--color-error, #c0392b); }
+  .save-error { margin: 0; color: var(--color-error); }
 </style>

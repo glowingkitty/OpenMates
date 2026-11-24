@@ -4,7 +4,10 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+from backend.apps.ai.tasks.async_skill_continuation import (
+    ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+    async_skill_latest_user_turn_key,
+)
 from backend.shared.python_utils.queued_turn_marker import is_queued_turn_pending
 
 
@@ -44,6 +47,39 @@ def _decoded_rows(cached: list[str]) -> list[dict[str, Any]]:
         if isinstance(row, dict):
             rows.append(row)
     return rows
+
+
+async def admit_child_focus_source(
+    cache: Any, encryption: Any, request: Any, vault_key_id: str,
+) -> None:
+    """Record a claimed child prompt with the same encrypted turn fence as a client send."""
+    messages = request.message_history
+    if len(messages) != 1 or messages[0].role != "user" or messages[0].message_id != request.message_id:
+        raise FocusContinuationHistoryError("invalid_source_turn")
+    source = messages[0]
+    latest_key = async_skill_latest_user_turn_key(request.user_id, request.chat_id)
+    rows = _decoded_rows(await cache.get_ai_messages_history(request.user_id, request.chat_id))
+    if any(row.get("role") == "user" and source.message_id not in _row_ids(row) for row in rows):
+        return
+    client = await cache.client
+    if client is None:
+        raise FocusContinuationHistoryError("source_turn_cache_unavailable")
+    if not await client.set(latest_key, source.message_id, nx=True, ex=ASYNC_SKILL_CONTINUATION_TTL_SECONDS):
+        if await cache.get(latest_key) != source.message_id:
+            return
+    if any(source.message_id in _row_ids(row) for row in rows):
+        return
+    ciphertext, _ = await encryption.encrypt_with_user_key(source.content, vault_key_id)
+    if not isinstance(ciphertext, str) or not ciphertext.startswith("vault:v"):
+        raise FocusContinuationHistoryError("invalid_source_turn")
+    if await cache.get(latest_key) != source.message_id:
+        return
+    saved = await cache.add_ai_message_to_history(request.user_id, request.chat_id, json.dumps({
+        "id": source.message_id, "chat_id": request.chat_id, "role": "user",
+        "sender_name": source.sender_name, "created_at": source.created_at, "encrypted_content": ciphertext,
+    }))
+    if not saved:
+        raise FocusContinuationHistoryError("source_turn_cache_unavailable")
 
 
 async def _rows_without_queued_followups(

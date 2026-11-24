@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import re
 import uuid
@@ -18,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 LINK_KINDS = {"assumption", "task"}
 _BUILTIN_FOCUS_RE = re.compile(r"^[a-z0-9_]+-[a-z0-9_-]+$")
+_TASK_HISTORY_LIMIT = 50
 
 
 def parse_sub_chat_link(raw: Any) -> dict[str, str] | None:
@@ -126,29 +129,99 @@ async def apply_inheritance_and_task_links(
                     child["project_base"] = None
             link = child.get("link")
             if link and link["kind"] == "task":
-                if not await _link_task(directus_service, request_data, child, link, log_prefix):
+                cache = cache or cache_factory()
+                if not await _link_task(directus_service, cache, request_data, child, link, log_prefix):
                     child["link"] = None
     finally:
         if cache is not None and hasattr(cache, "close"):
             await cache.close()
 
 
-async def _link_task(directus_service: Any, request_data: Any, child: dict[str, Any],
+async def _link_task(directus_service: Any, cache: Any, request_data: Any, child: dict[str, Any],
                      link: dict[str, str], log_prefix: str) -> bool:
-    # A Task created by a task block earlier in this reply is named by its title.
+    from backend.apps.ai.processing.task_tool_context import TASK_MENTION_PATTERN
     from backend.apps.ai.tasks.task_fence_runtime import reply_task_id_for_title
+    from backend.core.api.app.services.task_sub_chat_link_service import (
+        apply_pending_link, has_staged_task_create, record_pending_link,
+    )
 
     task_ref = reply_task_id_for_title(request_data, link["id"]) or link["id"]
-    task = await directus_service.user_task.get_task(
-        task_ref, request_data.user_id, getattr(request_data, "team_id", None),
-    )
-    if not task or (task.get("plan_id") and task["plan_id"] != link["plan_id"]):
+    team_id = getattr(request_data, "team_id", None)
+    task = await directus_service.user_task.get_task(task_ref, request_data.user_id, team_id)
+    if not task and TASK_MENTION_PATTERN.fullmatch(task_ref):
+        task = await directus_service.user_task.get_task_by_short_id(task_ref, request_data.user_id, team_id)
+    if not task:
+        history_task_id = await _task_id_from_history(cache, request_data, link["plan_id"], task_ref)
+        if history_task_id:
+            task_ref = history_task_id
+            task = await directus_service.user_task.get_task(task_ref, request_data.user_id, team_id)
+    if not task and not team_id and await has_staged_task_create(cache, request_data.user_id, task_ref):
+        # The browser may still be writing a Task staged earlier in this reply.
+        await record_pending_link(
+            cache, user_id=request_data.user_id, task_id=task_ref,
+            plan_id=link["plan_id"], child_chat_id=str(child["id"]),
+        )
+        task = await directus_service.user_task.get_task(task_ref, request_data.user_id)
+        if task and not await apply_pending_link(cache, directus_service, user_id=request_data.user_id, task=task):
+            return False
+        link["id"] = task_ref
+        return True
+    if not task or task.get("plan_id") != link["plan_id"]:
         logger.warning("%s [SUB_CHAT] Refused Task link for child %s", log_prefix, child["id"])
         return False
     await directus_service.update_item(
         "user_tasks", task["id"], {"linked_sub_chat_id": str(child["id"])}, admin_required=True,
     )
+    link["id"] = str(task["task_id"])
     return True
+
+
+async def _task_id_from_history(cache: Any, request_data: Any, plan_id: str, title: str) -> str | None:
+    """Resolve an exact Task title from the parent's authorized AI working copies."""
+    ref_index = getattr(request_data, "embed_file_path_index", None)
+    if not cache or not isinstance(ref_index, dict):
+        return None
+    refs = list(dict.fromkeys(
+        embed_id for ref, embed_id in ref_index.items()
+        if ref.startswith("task-") and isinstance(embed_id, str)
+    ))[-_TASK_HISTORY_LIMIT:]
+    if not refs:
+        return None
+
+    from toon_format import decode
+    from backend.core.api.app.utils.encryption import EncryptionService
+
+    rows = await asyncio.gather(*(cache.get_embed_from_cache(embed_id) for embed_id in refs))
+    ciphertexts = [
+        row["encrypted_content"] for row in rows
+        if isinstance(row, dict) and row.get("type") == "task" and row.get("status") == "finished"
+        and row.get("chat_id") == request_data.chat_id and row.get("hashed_user_id") == request_data.user_id_hash
+        and isinstance(row.get("encrypted_content"), str)
+    ]
+    vault_key_id = await cache.get_user_vault_key_id(request_data.user_id) if ciphertexts else None
+    if not vault_key_id:
+        return None
+    service = EncryptionService(cache_service=cache)
+    try:
+        plaintexts = await service.decrypt_many_with_user_key(ciphertexts, vault_key_id)
+    finally:
+        await service.close()
+
+    candidates = set()
+    for plaintext in filter(None, plaintexts):
+        try:
+            embed = decode(plaintext)
+            if not isinstance(embed, dict) or embed.get("type") != "task":
+                continue
+            source = json.loads(embed.get("task_source", ""))
+        except (ValueError, TypeError, RecursionError):
+            continue
+        task_id = embed.get("task_id")
+        if (isinstance(source, dict) and source.get("plan") == plan_id and task_id
+                and isinstance(embed.get("title"), str)
+                and embed["title"].strip().casefold() == title.strip().casefold()):
+            candidates.add(str(task_id))
+    return candidates.pop() if len(candidates) == 1 else None
 
 
 def child_active_focus_id(sub_chat: dict[str, Any], request_data: Any) -> str | None:

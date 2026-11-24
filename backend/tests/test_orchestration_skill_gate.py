@@ -11,6 +11,9 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
+
+import pytest
 
 from backend.apps.ai.processing.orchestration_skill_gate import (
     BLOCKED_IN_ORCHESTRATION_MESSAGE,
@@ -72,3 +75,37 @@ def test_no_placeholder_means_nothing_to_settle() -> None:
         user_vault_key_id="v", task_id="t", log_prefix="",
     )) == []
     assert embeds.calls == []
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.e2b.upload-consent
+@pytest.mark.asyncio
+async def test_sub_chat_code_run_returns_tool_error_without_prompting_for_upload_consent(monkeypatch) -> None:
+    from backend.apps.ai.processing import e2b_upload_consent_request, main_processor
+    from backend.tests.test_main_processor_invalid_tool_calls import _run_mocked_protocol_guard_main_processor
+
+    consent = AsyncMock(return_value=e2b_upload_consent_request.E2bConsentGate("paused", "consent-1"))
+    dispatch = AsyncMock()
+    monkeypatch.setattr(e2b_upload_consent_request, "gate_e2b_upload_before_skill", consent)
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatch)
+    monkeypatch.setattr(main_processor, "_reserve_ai_iteration", AsyncMock(return_value=None))
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "code-run", "arguments": {"target": "e2b"}}],
+         ["I can prepare the changes for review."]],
+        generated_tools=[{"type": "function", "function": {"name": "code-run", "description": "Run code."}}],
+        discovered_apps_metadata={"code": SimpleNamespace(
+            skills=[SimpleNamespace(
+                id="run", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+                tool_schema={"type": "object", "properties": {"target": {"type": "string"}}},
+            )], instructions=[], focuses=[],
+        )},
+        preprocessing_overrides={"selected_app_ids": ["code"], "relevant_app_skills": ["code-run"]},
+        request_overrides=vars(_root(is_sub_chat=True, sub_chat_depth=1)),
+        resolved_chat_depth=1,
+    )
+
+    consent.assert_not_awaited()
+    dispatch.assert_not_awaited()
+    assert "blocked_in_orchestration" in str(calls[1]["message_history"])
+    assert "I can prepare the changes for review." in output

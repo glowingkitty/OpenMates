@@ -1,6 +1,7 @@
 # contract-test-file: infrastructure
 import json
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -11,6 +12,34 @@ from backend.apps.ai.processing.routing_ledger import (
     record_skill_event,
     user_turn_index,
 )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("continuation_message_id", "expected_message_id"),
+    [(None, "worker-task"), ("paused-assistant-reply", "paused-assistant-reply")],
+)
+async def test_live_skill_preview_targets_the_assistant_reply(
+    monkeypatch, continuation_message_id, expected_message_id,
+):
+    from backend.apps.ai.processing import routing_ledger
+    from backend.apps.ai.processing.main_processor import _publish_skill_status
+
+    monkeypatch.setattr(routing_ledger, "record_skill_event", AsyncMock())
+    cache = SimpleNamespace(publish_event=AsyncMock())
+    request = SimpleNamespace(
+        chat_id="child-chat", user_id="owner", user_id_hash="owner-hash",
+        message_id="child-user-prompt", is_external=False,
+        continuation_message_id=continuation_message_id,
+    )
+
+    await _publish_skill_status(cache, "worker-task", request, "web", "search", "processing")
+
+    cache.publish_event.assert_awaited_once()
+    channel, payload = cache.publish_event.await_args.args
+    assert channel == "ai_typing_indicator_events::owner-hash"
+    assert payload["message_id"] == expected_message_id
+    assert payload["task_id"] == "worker-task"
 
 
 def _message(role: str, content: str, *, category: str | None = None, created_at: int = 0):

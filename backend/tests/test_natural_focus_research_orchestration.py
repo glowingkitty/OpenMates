@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+# Load the worker package before the processor fixture replaces the broker.
+# Worker modules register tasks at import, while the fixture only mocks dispatch.
+from backend.apps.ai.tasks import stream_consumer
 from backend.tests.test_main_processor_invalid_tool_calls import (
     _run_mocked_protocol_guard_main_processor,
     private_focus_activation_context as _private_focus_activation_context,
@@ -35,7 +38,6 @@ async def test_natural_focus_defers_root_until_acceptance_then_waits_for_verifie
 ):
     from backend.apps.ai import sub_chat_orchestration
     from backend.apps.ai.skills.ask_skill import AskSkillRequest
-    from backend.apps.ai.tasks import stream_consumer
     import fakeredis.aioredis
 
     roots, operations = {}, []
@@ -177,3 +179,25 @@ async def test_ordinary_subchat_routes_keep_eager_root_before_inference(
         )
     assert prepared[0]["deep_research"] is False
     private_focus_activation_context.cache.store_pending_focus_activation.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("is_sub_chat,ttl", [(False, None), (True, 900)])
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request,plans.sub-chats.assumption-and-task-chats
+async def test_sub_chat_focus_activation_outlives_a_late_auto_confirm(
+    monkeypatch, private_focus_activation_context, is_sub_chat, ttl,
+):
+    # Real spec run 2026-11-23: an assumption sub-chat activated a focus, the busy
+    # worker ran its 5 s auto-confirm 45 s later, the 30 s pending context had
+    # expired, the sub-chat never finished and its parent never resumed.
+    context = private_focus_activation_context
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [], cache_service=context.cache, directus_service=Mock(),
+        user_vault_key_id="test-vault-key", discovered_apps_metadata=_focus_catalog(),
+        request_overrides={"chat_id": "11111111-1111-4111-8111-111111111111",
+            "message_id": "22222222-2222-4222-8222-222222222222", "is_sub_chat": is_sub_chat},
+        preprocessing_overrides={"relevant_focus_modes": ["web-research"]},
+    )
+    assert calls == []
+    assert any(isinstance(row, dict) and row.get("__awaiting_focus_mode_confirmation__") for row in output)
+    assert context.cache.store_pending_focus_activation.await_args.kwargs.get("ttl") == ttl

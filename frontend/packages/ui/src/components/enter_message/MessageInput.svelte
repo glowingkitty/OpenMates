@@ -1171,30 +1171,6 @@
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
-    let isCurrentSubChat = $state(false);
-    let broadcastToSiblings = $state(false);
-
-    async function checkIsSubChat() {
-        if (!currentChatId) {
-            isCurrentSubChat = false;
-            return;
-        }
-        try {
-            const { getChat } = await import('../../services/db/chatCrudOperations');
-            const { chatDB } = await import('../../services/db');
-            await chatDB.init();
-            const chat = await getChat(chatDB, currentChatId);
-            isCurrentSubChat = !!(chat && (chat.parent_id || chat.is_sub_chat));
-        } catch (e) {
-            console.error('[MessageInput] Error checking is sub-chat:', e);
-            isCurrentSubChat = false;
-        }
-    }
-
-    $effect(() => {
-        void checkIsSubChat();
-    });
-
     let activeAITaskId = $state<string | null>(null);
     // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
     // won't trigger re-evaluation of reactive statements that depend on this variable
@@ -6395,7 +6371,7 @@
             },
             currentChatId,
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
-            broadcastToSiblings,
+            false, // sub-chat broadcast is no longer a user option; the old default
             (chatId) => cancelledNewChatSendIds.has(chatId),
             getE2EServerContentOverride(event),
             projectFocusDocumentAtSendRequest,
@@ -7747,13 +7723,6 @@
         onUndoAll={handlePIIUndoAll}
     />
     
-    {#if isCurrentSubChat}
-        <div class="sub-chat-broadcast-toggle" style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 4px 8px; font-size: 12px; color: var(--fontSecondary);" data-testid="sub-chat-broadcast-toggle">
-            <span>Share with sibling sub-chats</span>
-            <Toggle bind:checked={broadcastToSiblings} />
-        </div>
-    {/if}
-
     {#if guestComposerState?.kind === 'account' && (shouldShowActionButtons || hasSendableDraft)}
         <GuestAccessReason reason={guestComposerState.reason} />
     {/if}

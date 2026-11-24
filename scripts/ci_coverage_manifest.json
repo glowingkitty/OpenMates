@@ -384,7 +384,7 @@
         "components/specification-embed.spec.ts",
         "components/plan-embed.spec.ts",
         "components/spec-sub-chat-links.spec.ts",
-        "components/sub-chat-work-link.spec.ts",
+        "components/sub-chat-origin.spec.ts",
         "components/check-embed.spec.ts",
         "components/chat-active-plan.spec.ts",
         "components/plan-skill-embeds.spec.ts",

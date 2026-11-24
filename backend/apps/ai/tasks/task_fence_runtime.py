@@ -9,10 +9,13 @@ embed encryption; nothing is sent to Directus in the clear.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections import OrderedDict
+from dataclasses import replace
 from typing import Any
 
+from backend.apps.ai.processing.focus_mode_routing import SPEC_AUTHORING_FOCUS_ID
 from backend.apps.ai.processing.task_runtime_tools import TASK_TOOL_CREATE, TASK_TOOL_UPDATE
 from backend.apps.ai.processing.task_tool_context import TaskToolContext
 from backend.apps.ai.processing.task_tool_executor import execute_task_tool_call, publish_task_tool_result
@@ -22,6 +25,7 @@ from backend.apps.ai.utils.task_fences import (
     task_validation_feedback,
     validate_task_fence,
 )
+from backend.core.api.app.services.directus.user_plan_methods import hash_id
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +61,46 @@ def _checked(source: str, request_data: Any, *, allow_done: bool) -> TaskFenceRe
     if result.model and result.model.get("assignee_type") == "member":
         return _unsupported_member_assignee(result)
     return result
+
+
+async def _resolve_spec_plan_project(
+    result: TaskFenceResult, request_data: Any, directus_service: Any, cache_service: Any,
+) -> TaskFenceResult:
+    """Resolve a redundant Project label from the active Project and saved Plan."""
+    if (
+        [error["code"] for error in result.errors] != ["unknown_project"]
+        or getattr(request_data, "active_focus_id", None) != SPEC_AUTHORING_FOCUS_ID
+        or not getattr(request_data, "is_sub_chat_continuation", False)
+        or getattr(request_data, "is_sub_chat", False)
+        or getattr(request_data, "is_incognito", False)
+        or getattr(request_data, "team_id", None)
+        or not directus_service
+        or not cache_service
+    ):
+        return result
+
+    source = json.loads(result.source_json)
+    plan_id = source.get("plan")
+    if not isinstance(plan_id, str):
+        return result
+    plan = await directus_service.user_plan.get_plan(plan_id.strip(), request_data.user_id)
+    if not plan or plan.get("hashed_primary_chat_id") != hash_id(request_data.chat_id):
+        return result
+
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+
+    focus = await ProjectWriteAuthorizationService(directus_service, cache_service).get_active_focus(
+        user_id=request_data.user_id, chat_id=request_data.chat_id,
+    )
+    project_id = (focus or {}).get("project_id")
+    if not isinstance(project_id, str) or hash_id(project_id) not in (plan.get("linked_project_hashes") or []):
+        return result
+
+    del source["project"]
+    checked = _checked(json.dumps(source), request_data, allow_done=False)
+    if checked.model is None:
+        return checked
+    return replace(checked, model={**checked.model, "project_id": project_id})
 
 
 def _task_context(request_data: Any, attached: list[dict[str, Any]] | None = None) -> TaskToolContext:
@@ -146,6 +190,7 @@ async def finalize_task_fence_embed(
 ) -> bool:
     """Validate a closed fence, stage the Task create when valid, and finish the embed."""
     result = _checked(source, request_data, allow_done=False)
+    result = await _resolve_spec_plan_project(result, request_data, directus_service, cache_service)
     task_id = job_id = None
     if result.status == "valid" and result.model:
         staged, refused = await _stage(
@@ -161,6 +206,8 @@ async def finalize_task_fence_embed(
             if task_id:
                 remember_reply_task(request_data, result.title, str(task_id))
             await _publish_job(staged, cache_service=cache_service, request_data=request_data)
+    if result.errors:
+        logger.info("%s Task create block rejected with codes %s", log_prefix, [error["code"] for error in result.errors])
     return await embed_service.update_json_content_embed_content(
         embed_id=embed_id, source_json=result.source_json, chat_id=request_data.chat_id,
         user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,

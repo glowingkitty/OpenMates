@@ -7,4 +7,5 @@ const base = {
 export default base;
 export const variants = {
   teamDirect: { ...base, isDirectChat: true },
+  subChat: { ...base, title: 'Check the announcement channel', isSubChat: true },
 };

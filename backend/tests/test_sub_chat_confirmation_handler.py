@@ -9,6 +9,7 @@ import asyncio
 import sys
 import types
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -95,6 +96,7 @@ def pending_context(sub_chat_count: int) -> dict[str, Any]:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.sub-chats.general-delegation
 def test_sub_chat_confirmation_cancel_consumes_pending_context() -> None:
     cache = FakeCache(pending_context(4))
     manager = FakeManager()
@@ -117,6 +119,7 @@ def test_sub_chat_confirmation_cancel_consumes_pending_context() -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.sub-chats.general-delegation
 def test_sub_chat_confirmation_revalidates_parallel_capacity_on_approval() -> None:
     cache = FakeCache(pending_context(21))
     manager = FakeManager()
@@ -134,6 +137,41 @@ def test_sub_chat_confirmation_revalidates_parallel_capacity_on_approval() -> No
     assert manager.messages[0]["payload"]["status"] == "limit_exceeded"
 
 
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent,chat-orchestration.sub-chats.general-delegation
+@pytest.mark.parametrize("existing_reply_id", [None, "reply-before-resume"])
+def test_approval_keeps_the_paused_assistant_message_for_parent_continuation(
+    monkeypatch: pytest.MonkeyPatch, existing_reply_id: str | None,
+) -> None:
+    context = pending_context(4)
+    context["parent_request_data"]["continuation_message_id"] = existing_reply_id
+    cache = FakeCache(context)
+    manager = FakeManager()
+    store_pending = AsyncMock()
+    monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.stream_consumer", types.SimpleNamespace(
+        _store_sub_chat_pending_context=store_pending,
+    ))
+    monkeypatch.setattr(
+        "backend.core.api.app.routes.handlers.websocket_handlers.sub_chat_confirmation_handler.create_and_dispatch_sub_chats",
+        AsyncMock(),
+    )
+
+    asyncio.run(handle_sub_chat_confirmation(
+        manager=manager,
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={"chat_id": "parent-chat", "task_id": "task-1", "action": "approve"},
+        cache_service=cache,  # type: ignore[arg-type]
+        directus_service=FakeDirectus(),  # type: ignore[arg-type]
+    ))
+
+    reply_id = existing_reply_id or "task-1"
+    assert store_pending.await_args.kwargs["parent_request_data"].continuation_message_id == reply_id
+    assert {event["type"] for _, event in cache.published} == {"spawn_sub_chats", "awaiting_sub_chats_completion"}
+    assert all(event["message_id"] == reply_id and event["task_id"] == "task-1" for _, event in cache.published)
+    assert manager.messages[-1]["payload"]["message_id"] == reply_id
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.sub-chats.general-delegation
 def test_sub_chat_confirmation_rejects_sequential_queue_above_root_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     cache = FakeCache({**pending_context(25), "execution_mode": "sequential"})
     manager = FakeManager()

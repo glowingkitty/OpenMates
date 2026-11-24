@@ -29,9 +29,9 @@ summary:
       failing: 1
       not_run: 2
     cli:
-      partial: 18
+      partial: 19
       failing: 8
-      not_run: 29
+      not_run: 28
       implemented: 40
       in_progress: 2
       planned: 2
@@ -3474,7 +3474,7 @@ features:
       - backend/tests/test_stream_consumer_recovery.py
       - backend/tests/test_agent_context_history_transport.py
       - backend/tests/test_chat_completion_recovery_retention.py
-      unit_test_files: 72
+      unit_test_files: 73
     sdk_npm:
       status: not_run
       source: tests
@@ -15533,10 +15533,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 17
+        passing: 19
         failing: 0
         not_run: 0
-        missing: 4
+        missing: 2
         counted: 21
       key_tests: []
       e2e_tests: []
@@ -15544,9 +15544,9 @@ features:
       - backend/tests/test_chat_orchestration_skills.py
       - backend/tests/test_chat_orchestration_main_chats_jobs.py
       - backend/tests/test_chat_orchestration_interpretation.py
+      - backend/tests/test_focus_continuation_history.py
       - backend/tests/test_focus_mode_routing.py
-      - backend/tests/test_server_turn_dispatch.py
-      unit_test_files: 5
+      unit_test_files: 8
     sdk_npm:
       status: implemented
       source: intent
@@ -15628,14 +15628,14 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: partial
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 1
+          passing: 3
           failing: 0
           not_run: 0
-          missing: 2
+          missing: 0
           counted: 3
       sdk_npm:
         status: unverified
@@ -15815,9 +15815,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 8
         failing: 1
-        not_run: 3
+        not_run: 2
         missing: 8
         counted: 19
       failing_tests:
@@ -15828,7 +15828,7 @@ features:
       - frontend/apps/web_app/tests/components/chat-active-plan.spec.ts
       - frontend/apps/web_app/tests/components/plan-embed.spec.ts
       - frontend/apps/web_app/tests/components/plan-skill-embeds.spec.ts
-      - frontend/apps/web_app/tests/components/sub-chat-work-link.spec.ts
+      - frontend/apps/web_app/tests/components/sub-chat-origin.spec.ts
       - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
       - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
       - frontend/apps/web_app/tests/plans-flow.spec.ts
@@ -15839,9 +15839,10 @@ features:
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/acceptedPlanContext.test.ts
       - frontend/packages/ui/src/services/__tests__/userPlanService.test.ts
+      - backend/tests/test_sub_chat_orchestration.py
+      - backend/tests/test_task_inline_streaming.py
       - frontend/packages/ui/src/services/rustCore/__tests__/workPlanChildVectors.test.ts
-      - frontend/packages/ui/src/services/rustCore/__tests__/workPlanVectors.test.ts
-      unit_test_files: 4
+      unit_test_files: 6
     apple:
       status: tested
       source: tests
@@ -15863,14 +15864,14 @@ features:
       - ipados
       - macos
     cli:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
         not_run: 9
-        missing: 10
+        missing: 9
         counted: 19
       key_tests: []
       e2e_tests:
@@ -15880,8 +15881,8 @@ features:
       - frontend/packages/openmates-cli/tests/acceptedPlanContext.test.ts
       - frontend/packages/openmates-cli/tests/work-control.test.ts
       - frontend/packages/openmates-cli/tests/work-recovery.test.ts
-      - frontend/packages/openmates-cli/tests/cli.test.ts
-      unit_test_files: 7
+      - backend/tests/test_natural_focus_research_orchestration.py
+      unit_test_files: 8
     tui:
       status: implemented
       source: intent

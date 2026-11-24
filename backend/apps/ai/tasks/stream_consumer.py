@@ -1418,10 +1418,15 @@ async def _dispatch_sub_chat_parent_continuation(
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
         is_sub_chat_continuation=True,
+        # Children inherit the parent's recovery preflight and are marked
+        # delivered only under it; a legacy-admitted parent's children have no
+        # sealed result to consume, so the worker must not try (it would refuse).
         recovery_consumed_child_ids=[
             child_chat_id for context in consumed_contexts for child_chat_id, completion in (context.get("completed") or {}).items()
             if isinstance(completion, dict) and not completion.get("failed") and not completion.get("cancelled")
-        ],
+        ] if (original_request.recovery_preflight_id or not (
+            original_request.root_legacy_cutover_task_id or original_request.legacy_cutover_task_id
+        )) else [],
         embed_file_path_index=original_request.embed_file_path_index,
         has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
     )
@@ -1787,7 +1792,7 @@ async def _publish_sub_chat_progress(
         "chat_id": parent_chat_id,
         "user_id_uuid": parent_request_payload.get("user_id"),
         "user_id_hash": parent_request_payload.get("user_id_hash"),
-        "message_id": pending_context.get("parent_task_id"),
+        "message_id": parent_request_payload.get("continuation_message_id") or pending_context.get("parent_task_id"),
         "execution_mode": pending_context.get("execution_mode", "parallel"),
         "status": status,
         "total": len(expected_ids),
