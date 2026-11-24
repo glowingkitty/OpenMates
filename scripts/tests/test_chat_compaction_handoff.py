@@ -241,6 +241,20 @@ def test_waiter_can_name_one_of_several_linked_tasks(monkeypatch):
     assert h._find_task(source, "Resume from Task 5ba50f79") == first
 
 
+def test_waiter_task_hint_uses_the_cached_link_when_task_search_is_rate_limited(tmp_path, monkeypatch):
+    source = "0b6c7f1e-1111-4222-8333-944455556667"
+    task = "5ba50f79-a8cb-4f8b-b6d1-000000000000"
+    path = tmp_path / ".local/state/openmates/tasks-cache.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"data": {"tasks": [{
+        "task_id": task, "status": "in_progress", "external_chat": {"provider": "claude", "id": source},
+    }]}}))
+    monkeypatch.setattr(h.Path, "home", lambda: tmp_path)
+    with mock.patch.object(h, "task_cli") as cli:
+        assert h._find_task(source, "Continue Task 5ba50f79") == task
+    cli.assert_not_called()
+
+
 def test_handover_can_locate_an_archived_workspace(tmp_path, monkeypatch):
     folder = tmp_path / ".claude"
     folder.mkdir()

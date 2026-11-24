@@ -21,7 +21,7 @@ import codex_chats
 import worktree_wip
 
 OWNER_WAIT = re.compile(r"\b(?:marco|owner)(?:'s)?\b|\b(?:production|prod ssh)\b", re.I)
-USER_PAUSE = re.compile(r"owner-requested pause|paused by (?:marco|owner)|owner authoriz|three-failure", re.I)
+USER_PAUSE = re.compile(r"owner(?:-requested)? pause|paused by (?:marco|owner)|owner authoriz|three-failure", re.I)
 PROMPT = ("The dev-host watchdog found unfinished work in this chat. Verify the current Task and worktree. "
           "Continue the authorized dev work and preserve any pending owner decisions.")
 

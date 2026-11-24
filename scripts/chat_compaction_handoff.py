@@ -346,6 +346,17 @@ def _full_task_id(task_id: str) -> str:
 def _find_task(chat_id: str, hint: str = "") -> str:
     """Choose a Task mentioned by the waiter or the only active candidate."""
     links = task_links(chat_id)
+    words = set(re.findall(r"[\w-]+", hint.casefold()))
+    if words:
+        cache = _load(Path.home() / ".local/state/openmates/tasks-cache.json")
+        mentioned = {task["task_id"] for task in (cache.get("data") or {}).get("tasks", [])
+                     if task.get("task_id") and task.get("status") not in ("done", "cancelled")
+                     and _external_link(task) in links and {
+                         task["task_id"].casefold(), task["task_id"][:8].casefold(),
+                         str(task.get("short_id") or "").casefold(),
+                     } & words}
+        if len(mentioned) == 1:
+            return mentioned.pop()  # resume_on_codex verifies the current Task before release
     candidates = {}
     for link in sorted(links):
         result = task_cli("list", "--external-chat", link)
@@ -356,7 +367,6 @@ def _find_task(chat_id: str, hint: str = "") -> str:
                     and _external_link(task) == link):
                 candidates[task["task_id"]] = task
     tasks = list(candidates.values())
-    words = set(re.findall(r"[\w-]+", hint.casefold()))
     mentioned = [task for task in tasks if {task["task_id"].casefold(), task["task_id"][:8].casefold(),
                                             str(task.get("short_id") or "").casefold()} & words]
     running = [task for task in tasks if task.get("status") == "in_progress"]
