@@ -82,7 +82,7 @@ async function sendWithModel(page: Page, prompt: string, kind: string): Promise<
   await page.keyboard.press('Escape');
   await page.locator('[data-action="send-message"]').click();
   await expect(userMessages).toHaveCount(usersBefore + 1, { timeout: 60_000 });
-  await expect(userMessages.last()).toHaveAttribute('data-status', /^(sent|delivered)$/, { timeout: 60_000 });
+  await expect(userMessages.last()).toHaveAttribute('data-status', /^(sent|delivered|synced)$/, { timeout: 60_000 });
   await expect(page.getByTestId('message-editor')).not.toContainText(prompt.slice(0, 24));
   console.log(`[TASK_INLINE] sent ${kind} turn`);
 }
@@ -134,6 +134,7 @@ test.describe('Tasks as inline embeds: create, edit with versions, search (real 
     await waitForTurn(page, assistants);
     const card = page.locator(CARD);
     await expect(card).toHaveCount(1, { timeout: 60_000 });
+    await expect(page.getByTestId('message-assistant').last().locator('[data-app-id="reminder"]')).toHaveCount(0);
     await expect.poll(savedTaskIds, { timeout: 45_000 }).toHaveLength(1);
     const [taskId] = await savedTaskIds();
     await expect(card.getByTestId('task-embed-title')).toContainText(TITLE);
@@ -155,7 +156,8 @@ test.describe('Tasks as inline embeds: create, edit with versions, search (real 
     await expect(card.last().getByTestId('task-embed-due-date')).toContainText('Nov 27', { timeout: 60_000 });
     await expect.poll(savedTaskIds, { timeout: 45_000 }).toEqual([taskId, taskId]);
     await expect(card.last().getByTestId('task-embed-title')).toContainText(TITLE);
-    await card.last().click();
+    const editedPreview = page.getByTestId('embed-preview').filter({ has: card }).last();
+    await editedPreview.getByTestId('result-preview-expand').click();
     const fullscreen = page.getByTestId('task-embed-fullscreen-content');
     await expect(fullscreen).toBeVisible({ timeout: 30_000 });
     const timeline = page.getByTestId('embed-version-timeline');

@@ -5407,10 +5407,11 @@ async def handle_main_processing(
             diagram_receipt_memories = selected_diagram_memories(selected_diagram_types)
             if memory_runtime is not None:
                 memory_runtime.variant = diagram_variant
-    # Task blocks: the Tasks app creates tasks only through inline openmates_task fences.
-    if discovered_apps_metadata and "tasks" in discovered_apps_metadata and (
-        selected_app_ids is None or "tasks" in selected_app_ids
-    ):
+    # Task authoring has no tool for preprocessing to select. Keep its guidance
+    # available in ordinary chats even when Tasks is missing from the shortlist.
+    if (agentic_context.first_party(request_data) and discovered_apps_metadata
+            and "tasks" in discovered_apps_metadata
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False):
         prompt_parts.append(base_instructions.get("base_task_embed_instruction", ""))
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.

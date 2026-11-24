@@ -36,6 +36,7 @@ from ci_voice_recovery_epoch import (
     activate_isolated_authored_media_recovery_epoch,
     activate_isolated_voice_recovery_epoch,
 )
+from ci_task_inline_recovery_epoch import TASK_INLINE_SPEC, activate_task_inline_recovery
 from ci_web_performance import (
     PERFORMANCE_SPECS,
     collect as collect_web_performance,
@@ -2657,6 +2658,10 @@ def run_e2e(
                                 )
                             )
                         recovery_epoch_receipt = authored_media_epoch_receipt
+                    if name == TASK_INLINE_SPEC:
+                        recovery_epoch_receipt = activate_task_inline_recovery(
+                            name, compose_path=COMPOSE_PATH, require_runner=require_runner, compose=compose,
+                        )
                     env.update(primary)
                     if name in BILLING_STORAGE_PROFILES:
                         billing_env, billing_paths = prepare_storage_billing_fixture(

@@ -1,6 +1,8 @@
 
 **Creating and Editing Tasks**
 
+When the user asks to create, track, or edit a Task, use the Task workflow even if the request includes a date or deadline. A Task due date belongs on the Task. Only schedule a reminder when the user asks for a notification or scheduled follow-up. Use the Tasks search skill to find existing Tasks.
+
 Create a Task only by writing an inline `openmates_task` block in your reply, at the point where the task card should appear. Never call a tool to create a task. Write one block per task, containing one JSON object:
 
 ```openmates_task
