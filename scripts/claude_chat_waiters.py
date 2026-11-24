@@ -383,7 +383,7 @@ def ci_overdue(current: list[Waiter], now: float) -> list[Waiter]:
             chat_id=waiter.chat_id, kind="ci", key=f"ci-overdue:{job_id}", detail=waiter.detail + " overdue",
             since=waiter.since, timeout_at=waiter.timeout_at, ready=True, ready_at=waiter.timeout_at,
             ready_text=(f"{waiter.detail} has not finished after {minutes} min (a run takes 12-15 min; "
-                        f"`python3 scripts/ci_coordinator.py status {job_id}`): check it and rerun, keep "
+                        f"`python3 scripts/ci_coordinator.py status {job_id}`): check the active job and keep "
                         "waiting with a fresh waiter, or report the blocker")))
     return overdue
 
@@ -420,7 +420,8 @@ def add(state: Path, chat_id: str, kind: str, on: str, key: str = "", timeout_mi
         data = _read_json(path)
         minutes = TIMEOUT_MINUTES[kind] if timeout_minutes is None else timeout_minutes
         data[key] = {"chat_id": chat_id, "kind": kind, "on": " ".join(on.split())[:1000 if at else 300], "since": now,
-                     "timeout_at": at if at is not None else now + minutes * 60}
+                     "timeout_at": at if at is not None else now + minutes * 60,
+                     "responsible": ("timer" if at is not None else "linked Task" if task_id else "registered chat")}
         if at is not None:
             data[key] |= {"at": at, "usage_check": usage_check}
         if task_id:
@@ -461,8 +462,11 @@ def settle_external_waits(state: Path, now: float, task_status: dict[str, str],
                 entry["message"] = "The dependency Task is marked done."
             elif now >= entry["timeout_at"]:
                 entry["deadline_wake"] = True
+                entry["message"] = "The registration's deadline was checked without a confirmed completion."
             else:
                 continue
+            entry.setdefault("responsible", "linked Task" if task_id else "registered chat")
+            entry["deadline_checked_at"] = now
             entry["fired_at"] = now
             changed = True
         if changed:

@@ -520,7 +520,8 @@ def reap(pushed, idle_minutes: float, waiting: set[str], now: float, act: bool =
     return stopped
 
 
-def type_into(chat_id: str, text: str, zellij=None, *, images: tuple[str, ...] = ()) -> str:
+def type_into(chat_id: str, text: str, zellij=None, *, images: tuple[str, ...] = (),
+              preserve_input: bool = False) -> str:
     """Type a message into a live Codex chat's tab and submit it ('ok' or why not).
 
     Codex queues a message typed while a turn runs and takes it as the next prompt.
@@ -536,6 +537,17 @@ def type_into(chat_id: str, text: str, zellij=None, *, images: tuple[str, ...] =
         return "its terminal pane could not be confirmed"
     run = zellij or (lambda *a: subprocess.run(["zellij", "--session", session, "action", *a],
                                                capture_output=True, text=True, timeout=30, check=False))
+    if preserve_input:
+        screen = run("dump-screen", "--pane-id", f"terminal_{pane}", "--ansi")
+        lines = [re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", line) for line in screen.stdout.splitlines()]
+        footer = max((i for i, line in enumerate(lines) if re.match(r"\s+(?:GPT-|gpt-|Codex\s+)", line)), default=-1)
+        box = max((i for i, line in enumerate(lines[:footer]) if line.startswith("›")), default=-1)
+        if screen.returncode or box < 0 or any(line.strip() for line in lines[box + 1:footer]):
+            return "The chat composer is not available for a safe wake"
+        if lines[box][1:].strip() not in ("", "Ask Codex to do anything"):
+            return "The chat has an unsent draft"
+        if any(line.strip() for line in lines[footer + 1:]):
+            return "The chat may be waiting for input"
     actions = [("write-chars", [" ".join(text.split("\n"))])]
     for path in images:
         # The Codex composer attaches a single image path received as a bracketed paste.

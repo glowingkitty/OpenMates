@@ -491,7 +491,14 @@ def _chat_lifecycle_line(path: Path | None = None) -> list[str]:
         summary = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return ["_Chat lifecycle counts unavailable: the lifecycle timer has not written its status yet._", ""]
-    return [f"_{claude_idle_chats.status_line(summary)} As of {summary['at'][11:16]} UTC._", ""]
+    lines = [f"_{claude_idle_chats.status_line(summary)} As of {summary['at'][11:16]} UTC._", ""]
+    try:
+        recovery = json.loads(path.with_name("watchdog-daily-list.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return lines
+    if recovery.get("items"):
+        lines.extend(["**Work chats to check**", "", *[f"- {item}" for item in recovery["items"]], ""])
+    return lines
 
 
 def _waited(hours: float) -> str:

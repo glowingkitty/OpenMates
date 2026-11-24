@@ -93,16 +93,19 @@ the daily meeting briefing ("Chats waiting on you") and the connector's
 chat_changes.
 
 ```sh
-bash scripts/chat-recovery-watchdog-setup.sh
+./scripts/chat-recovery-watchdog-setup.sh
 python3 scripts/chat_recovery_watchdog.py --dry-run
 ```
 
-The user timer runs the recovery watchdog every 30 minutes. It retries failed
-handoffs and stalled work, sends a deadline wake when an outside event stays
-unconfirmed, and sends one Discord notice per unresolved incident. A waiter
-registered with `--task <full task UUID>` fires from a fresh Task cache after the
-dependency is marked done. Explicit owner decisions stay pending. Registered
-results follow the successor when a handoff replaces the original chat.
+The recovery watchdog checks every minute. It compares meaningful transcript steps
+with the clock. Recovery starts after 30 minutes without a step, 10 minutes for
+production release work, or 10 minutes when a connector message stays unseen.
+A second wake checks current context after two minutes for release work and five
+for other work. A stall that survives both attempts gets one Discord notice with
+the chat title, last step, attempted recovery and next action. Completed chats,
+waits for Marco and future timers stay quiet. The daily meeting briefing lists
+unresolved stalls and blocked waits. A registration with a full Task UUID checks
+that exact dependency when it completes or the deadline arrives.
 
 ### Only done, asking or waiting chats are closed (TASK-7707)
 

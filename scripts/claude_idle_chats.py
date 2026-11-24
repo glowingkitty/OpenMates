@@ -911,7 +911,6 @@ def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: d
 
 WAKE_SUBMIT_TRIES = 3  # Enter presses before a typed wake-up counts as unsent
 WAKE_SUBMIT_PAUSE = 0.4  # seconds; grows per try so a long paste can settle before Enter
-WAKE_ALERT_SECONDS = 3600.0  # one Discord alert per chat per hour for unsent wake-ups
 HOOK_BLOCK_MARK = "operation blocked by hook"
 _sleep = time.sleep  # tests replace it
 
@@ -960,23 +959,6 @@ def submit_block_reason(transcript: str) -> str:
     return ""
 
 
-def alert_unsent(chat: Chat, reason: str, directory: Path, now: float, post=None) -> bool:
-    """One Discord alert per chat and hour: a wake-up stayed unsent in its box."""
-    marks = load_marks(directory, "unsent_alerts.json")
-    last = marks.get(chat.session_id)
-    if last and now - _iso(last) < WAKE_ALERT_SECONDS:
-        return False
-    import chat_usage_watch  # sibling script: owns the ops webhook lookup
-
-    label = chat.title or chat.name or chat.session_id[:8]
-    text = (f"Chat lifecycle: a wake-up for chat \"{label}\" ({chat.session_id[:8]}) stays unsent in its input box "
-            f"after {WAKE_SUBMIT_TRIES} Enter presses. " + (f"Cause: {reason}" if reason else "Cause unknown."))
-    sent = (post or chat_usage_watch.send)(text[:1900])
-    marks[chat.session_id] = _utc(now)
-    save_marks(directory, "unsent_alerts.json", marks)
-    return bool(sent)
-
-
 def accepts_chat_prompt(screen: str) -> bool:
     """A chat composer is present and Claude is outside its agent/session picker."""
     tail = "\n".join(screen.splitlines()[-12:]).casefold()
@@ -985,15 +967,15 @@ def accepts_chat_prompt(screen: str) -> bool:
     )
 
 
-def wake(chat: Chat, text: str = "") -> bool:
+def wake(chat: Chat, text: str = "", *, preserve_input: bool = False) -> bool:
     """Type a wake prompt (default: its undelivered results) into the chat's pane; True when submitted.
 
     Submitted means the box no longer shows the text after Enter. On 2026-11-23 wake-ups
     sat in many boxes for over an hour while this returned True: every Enter was refused
     by a UserPromptSubmit hook that could not find its script (.claude/hooks/run.sh). Enter
     is now pressed up to WAKE_SUBMIT_TRIES times with growing pauses; text still shown
-    afterwards is logged (`wake_unsent`, with the hook's block notice when there is one),
-    alerted on Discord once an hour per chat, and returns False so the caller retries.
+    afterwards is logged (`wake_unsent`, with the hook's block notice when there is one)
+    and returns False. The recovery watchdog owns escalation.
     """
     if (chat.kind != "pane" or not chat.pane_id or chat.protected or waiting_on_billing(chat)
             or claude_weekly_model.needs_handoff(chat.session_id, exemption=chat.reserve_exemption)):
@@ -1007,6 +989,8 @@ def wake(chat: Chat, text: str = "") -> bool:
             return False
         if not input_line(screen.stdout):
             break
+        if preserve_input:
+            return False
         zellij(chat.zellij_session, "write", "--pane-id", pane, "21")  # Ctrl+U clears one input line
     else:
         return False
@@ -1022,10 +1006,9 @@ def wake(chat: Chat, text: str = "") -> bool:
         if screen.returncode or not _box_holds(screen.stdout, text):
             return True  # submitted (or the pane closed, as after /exit)
     reason = submit_block_reason(chat.transcript)
-    directory, now = state_dir(), time.time()
+    directory = state_dir()
     log_event(directory, {"event": "wake_unsent", "session_id": chat.session_id, "title": chat.title or chat.name,
                           "reason": reason, "text": text[:200]})
-    alert_unsent(chat, reason, directory, now)
     return False
 
 

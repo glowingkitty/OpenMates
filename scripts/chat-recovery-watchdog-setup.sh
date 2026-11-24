@@ -22,10 +22,11 @@ UNIT
 
 cat > "$SYSTEMD_DIR/$UNIT_NAME.timer" <<UNIT
 [Unit]
-Description=Recover parked chat work every 30 minutes
+Description=Check for stalled work chats every minute
 
 [Timer]
-OnCalendar=*:0,30
+OnCalendar=*:0/1
+AccuracySec=10s
 Persistent=true
 
 [Install]

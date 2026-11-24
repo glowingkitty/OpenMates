@@ -469,6 +469,12 @@ def test_watchdog_fires_completed_task_and_reopens_unconfirmed_timeout(tmp_path)
     assert "dependency Task is marked done" in values[f"reg:{key}"].ready_text
     assert "deadline passed without confirmation" in values[f"reg:{late}"].ready_text
     assert all(not waiter.ready for waiter in values.values() if waiter.chat_id == protected)
+    registrations = cw._read_json(state / "registered.json")
+    assert registrations[key]["task_id"] == OTHER
+    assert registrations[key]["responsible"] == "linked Task"
+    assert registrations[late]["responsible"] == "registered chat"
+    assert registrations[late]["deadline_checked_at"] == NOW + 10
+    assert "deadline_checked_at" not in next(row for row in registrations.values() if row["chat_id"] == protected)
 
 
 def test_already_running_codex_accepts_a_ready_wait_with_the_cap_full(tmp_path):

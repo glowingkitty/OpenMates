@@ -628,7 +628,7 @@ def test_wake_counts_only_a_submitted_prompt(tmp_path, monkeypatch):
     assert calls.count(("write", "--pane-id", "terminal_7", "13")) == 2
 
 
-def test_wake_left_in_the_box_is_logged_alerted_once_and_reports_failure(tmp_path, monkeypatch):
+def test_wake_left_in_the_box_is_logged_without_its_own_alert(tmp_path, monkeypatch):
     calls: list = []
     posted: list = []
     transcript = tmp_path / "chat.jsonl"
@@ -647,10 +647,7 @@ def test_wake_left_in_the_box_is_logged_alerted_once_and_reports_failure(tmp_pat
     assert calls.count(("write", "--pane-id", "terminal_7", "13")) == lc.WAKE_SUBMIT_TRIES
     events = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text().splitlines()]
     assert events[-1]["event"] == "wake_unsent" and "chat_mailbox.py" in events[-1]["reason"]
-    assert len(posted) == 1 and "Live collab" in posted[0] and "can't open file" in posted[0]
-    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), BOX.format("[chat lifecycle] Back")]))
-    assert not lc.wake(stuck, "[chat lifecycle] Background work of this chat")
-    assert len(posted) == 1  # one alert per chat and hour
+    assert posted == []  # The watchdog owns any user-facing alert.
 
 
 def test_wake_ignores_a_suggestion_after_submit(tmp_path, monkeypatch):
