@@ -88,14 +88,14 @@ class Manager:
     def __init__(self, *, owning=True, duplicate=False):
         self.active_connections = {
             OWNER: {
-                "owning-device": SimpleNamespace(scope={"voice_call_session_hash": "owning-session" if owning else "wrong-session"}),
-                "other-device-same-active-chat": SimpleNamespace(scope={"voice_call_session_hash": "other-session"}),
+                "owning-device": SimpleNamespace(scope={"voice_call_session_id": "owning-session" if owning else "wrong-session"}),
+                "other-device-same-active-chat": SimpleNamespace(scope={"voice_call_session_id": "other-session"}),
                 "unscoped-device": SimpleNamespace(scope={}),
             },
-            "other-user": {"same-chat": SimpleNamespace(scope={"voice_call_session_hash": "owning-session"})},
+            "other-user": {"same-chat": SimpleNamespace(scope={"voice_call_session_id": "owning-session"})},
         }
         if duplicate:
-            self.active_connections[OWNER]["ambiguous-owner"] = SimpleNamespace(scope={"voice_call_session_hash": "owning-session"})
+            self.active_connections[OWNER]["ambiguous-owner"] = SimpleNamespace(scope={"voice_call_session_id": "owning-session"})
         self.send_personal_message = AsyncMock()
 
     def get_connections_for_user(self, user):

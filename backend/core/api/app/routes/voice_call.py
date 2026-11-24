@@ -519,7 +519,9 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     if not await _browser_request_is_allowed(websocket, auth_data):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
         return
-    user_id, session_id = auth_data["user_id"], auth_data.get("session_hash")
+    # The chat socket can predate refresh-token rotation. Both transports
+    # already authenticate against the durable session ledger in auth_ws.
+    user_id, session_id = auth_data["user_id"], auth_data.get("logical_session_id")
     if not isinstance(session_id, str) or not session_id:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session unavailable")
         return

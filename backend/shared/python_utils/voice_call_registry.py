@@ -3,6 +3,8 @@
 Only identities and lifecycle state are stored in Redis. Transcript text and
 audio never enter this registry. A completed call retains its issued identities
 briefly so a browser can retry ciphertext synchronization after hangup.
+The session identity comes from the authenticated session ledger and survives
+rotation of its refresh credential.
 """
 
 from __future__ import annotations
@@ -98,23 +100,27 @@ async def issue_message_id(
 
 async def require_active_call(
     cache: Any, *, user_id: str, session_id: str, chat_id: str, call_id: str,
-    message_id: str, role: str,
+    message_id: str, role: str, legacy_session_hash: str | None = None,
 ) -> VoiceCallBinding:
     key, messages_key = _keys(call_id)
     client = await _client(cache)
     values = await client.hmget(key, "user", "session", "chat", "state", "grace_expires_at")
     decoded = [value.decode() if isinstance(value, bytes) else value for value in values]
-    if decoded[:3] != [user_id, session_id, chat_id] or decoded[3] not in ("active", "finalizing"):
+    owner, bound_session, bound_chat, state, expires_at = decoded
+    session_matches = bound_session == session_id or (
+        bool(legacy_session_hash) and bound_session == legacy_session_hash
+    )
+    if owner != user_id or not session_matches or bound_chat != chat_id or state not in ("active", "finalizing"):
         raise ValueError("Call message not authorized")
     issued_role = await client.hget(messages_key, message_id)
     if isinstance(issued_role, bytes):
         issued_role = issued_role.decode()
     if issued_role != role:
         raise ValueError("Call message not authorized")
-    expiry = int(decoded[4]) if decoded[4] else None
-    if decoded[3] == "finalizing" and (expiry is None or expiry <= int(time.time())):
+    expiry = int(expires_at) if expires_at else None
+    if state == "finalizing" and (expiry is None or expiry <= int(time.time())):
         raise ValueError("Call message not authorized")
-    return VoiceCallBinding(state=decoded[3], grace_expires_at=expiry)
+    return VoiceCallBinding(state=state, grace_expires_at=expiry)
 
 
 async def finalize_active_call(

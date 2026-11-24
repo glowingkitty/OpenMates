@@ -1635,7 +1635,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             # A minimized call keeps its audio owner independently
                             # from visible-chat navigation and other signed-in devices.
                             scope = getattr(connection, "scope", {})
-                            if scope.get("voice_call_session_hash") != call_session:
+                            if scope.get("voice_call_session_id") != call_session:
                                 continue
                         elif chat_id != manager.get_active_chat(owner_id, device_hash):
                             continue
@@ -3527,12 +3527,15 @@ async def websocket_endpoint(
 
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
+    # Call authority follows the authenticated session across cookie rotations.
+    logical_session_id = auth_data.get("logical_session_id")
+    websocket.scope["voice_call_session_id"] = logical_session_id
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     volatile_session_nonce = await manager.connect(
         websocket,
         user_id,
         device_fingerprint_hash,
-        logical_session_id=auth_data.get("logical_session_id"),
+        logical_session_id=logical_session_id,
         supports_task_update_jobs=supports_task_update_jobs,
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
@@ -3579,7 +3582,6 @@ async def websocket_endpoint(
     # terminate an idle socket as well as reject its next message.
     session_watch_task: asyncio.Task | None = None
     session_hash = auth_data.get("session_hash")
-    websocket.scope["voice_call_session_hash"] = session_hash
     if session_hash:
         from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
         async def watch_session_authority() -> None:
@@ -4944,8 +4946,9 @@ async def websocket_endpoint(
                 await handle_call_message_completed(
                     manager=manager, cache_service=cache_service,
                     directus_service=directus_service, user_id=user_id,
-                    user_id_hash=user_id_hash, session_hash=session_hash,
+                    user_id_hash=user_id_hash, session_id=logical_session_id,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    legacy_session_hash=session_hash,
                 )
 
             elif message_type == "voice_call_chat_prepare":

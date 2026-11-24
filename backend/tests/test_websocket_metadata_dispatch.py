@@ -621,10 +621,10 @@ async def test_call_speech_status_keeps_language_and_routes_only_live_call_sessi
     class Manager:
         active_connections = {
             owner_id: {
-                "call-tab-background": SimpleNamespace(scope={"voice_call_session_hash": session_id}),
-                "other-session-active-chat": SimpleNamespace(scope={"voice_call_session_hash": "different-session"}),
+                "call-tab-background": SimpleNamespace(scope={"voice_call_session_id": session_id}),
+                "other-session-active-chat": SimpleNamespace(scope={"voice_call_session_id": "different-session"}),
             },
-            "other-user": {"other-user-tab": SimpleNamespace(scope={"voice_call_session_hash": session_id})},
+            "other-user": {"other-user-tab": SimpleNamespace(scope={"voice_call_session_id": session_id})},
         }
 
         def get_connections_for_user(self, user_id):

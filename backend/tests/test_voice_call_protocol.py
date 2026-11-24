@@ -16,10 +16,13 @@ from unittest.mock import AsyncMock
 import uuid
 
 from fastapi import HTTPException, Request, WebSocketDisconnect
+import fakeredis.aioredis
 from PIL import Image
 import pytest
 
 from backend.core.api.app.routes import voice_call as route
+from backend.shared.python_utils.voice_call_admission import admit_voice_call_turn
+from backend.shared.python_utils import voice_call_registry
 from backend.shared.python_utils.voice_pause_decision import PauseDecision
 from backend.shared.testing.voice_call_fixture import IsolatedVoxtralVoiceFixture, isolated_voice_fixture_enabled
 
@@ -225,7 +228,7 @@ async def runtime(monkeypatch):
     monkeypatch.setattr(route, "CallInterpretationGate", QuietInterpretationGate)
 
     async def start(*, context=None, startup_ms=0, auth=None, wait_ready=True, transport=route.SPEECH_OUTPUT_TRANSPORT,
-                    likely_end_hints=None):
+                    likely_end_hints=None, chat_id=None):
         socket, provider = Socket(), Provider()
         sockets.append(socket)
         providers.append(provider)
@@ -236,7 +239,7 @@ async def runtime(monkeypatch):
 
         monkeypatch.setattr(route, "_provider", select)
         # Match the current web STT input and transient MP3 output handshake.
-        start_event = {"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": str(uuid.uuid4()),
+        start_event = {"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": chat_id or str(uuid.uuid4()),
                        "startup_audio_allowance_ms": startup_ms}
         if transport is None:
             start_event.pop("speech_output_transport")
@@ -247,7 +250,7 @@ async def runtime(monkeypatch):
         if likely_end_hints is not None:
             start_event["likely_end_hints"] = likely_end_hints
         socket.push(start_event)
-        task = asyncio.create_task(route.voice_call(socket, auth or {"user_id": "owner", "session_hash": "session"}))
+        task = asyncio.create_task(route.voice_call(socket, auth or {"user_id": "owner", "session_hash": "session", "logical_session_id": "session"}))
         tasks.append(task)
         if wait_ready:
             await socket.event("ready")
@@ -1043,6 +1046,52 @@ async def test_typed_request_accepted_once_and_identical_retry_does_not_repeat_f
     assert len(socket.finals()) == 1 and not provider.audio
     socket.push({**event, "text": "Different"})
     assert (await socket.event("text_input_rejected"))["code"] == "duplicate_message_id"
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.privacy,video-call.chat.transcripts
+async def test_call_turn_admission_survives_refresh_rotation_on_the_chat_socket(runtime, monkeypatch):
+    async with fakeredis.aioredis.FakeRedis() as redis:
+        class RegistryCache:
+            @property
+            async def client(self):
+                return redis
+
+        cache = RegistryCache()
+
+        async def register(_cache, **binding):
+            await voice_call_registry.register_active_call(cache, **binding)
+
+        async def issue(_cache, **binding):
+            await voice_call_registry.issue_message_id(cache, **binding)
+
+        monkeypatch.setattr(route, "register_active_call", register)
+        monkeypatch.setattr(route, "issue_message_id", issue)
+        chat_id = str(uuid.uuid4())
+        socket, _, task = await runtime.start(auth={
+            "user_id": "owner", "session_hash": "successor-refresh-hash",
+            "logical_session_id": "authenticated-session",
+        }, chat_id=chat_id)
+        try:
+            identity, _ = route._ordered_message_id()
+            socket.push({"type": "text_input", "message_id": identity, "text": "Continue the discussion",
+                         "created_at": int(time.time())})
+            await socket.event("text_input.accepted")
+            final, = socket.finals()
+            arguments = {
+                "message": {"voice_mode": True, "voice_call_id": final["call_id"], "voice_turn_id": identity},
+                "user_id": "owner", "chat_id": chat_id,
+                "message_id": identity,
+            }
+            scope = {"voice_call_session_hash": "original-refresh-hash", "voice_call_session_id": "authenticated-session"}
+            delivery = await admit_voice_call_turn(cache, websocket_scope=scope, **arguments)
+            assert delivery.voice_turn_id == identity
+            with pytest.raises(ValueError, match="Call message not authorized"):
+                await admit_voice_call_turn(cache, websocket_scope={
+                    **scope, "voice_call_session_id": "different-session-for-same-owner",
+                }, **arguments)
+        finally:
+            socket.push({"type": "hangup"})
+            await task
 
 
 # contract-test: supporting surface=rest_api assertions=video-call.chat.pasted-text-not-read-aloud

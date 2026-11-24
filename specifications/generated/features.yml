@@ -10358,11 +10358,12 @@ features:
       assertions:
         passing: 15
         failing: 0
-        not_run: 5
+        not_run: 6
         missing: 0
-        counted: 20
+        counted: 21
       key_tests:
       - backend/tests/test_voice_call_protocol.py
+      - backend/tests/test_voice_call_admission.py
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_voice_realtime_turn.py
