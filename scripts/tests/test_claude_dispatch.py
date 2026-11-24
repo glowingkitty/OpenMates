@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Tests for scripts/claude_dispatch.py (admin issue + prod failure chat dispatch)."""
 
 import json
@@ -631,3 +632,22 @@ def test_queue_reroutes_on_weekly_switch_using_only_task_content(tmp_path, monke
     monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *args: seen.append(args) or "Codex tab")
     assert dispatch.start_pending()[0]["session"] == "Codex tab"
     assert seen[0][2] == "gpt-6.2-sol"
+
+
+def test_force_resume_bypasses_the_slot_cap_but_ordinary_resume_checks_it(tmp_path, monkeypatch):
+    cid = "0b6c7f1e-1111-4222-8333-944455556667"
+    thread = "0b6c7f1e-1111-4222-8333-944455556668"
+    monkeypatch.setattr(dispatch, "codex_wait_reason", lambda: "")
+    monkeypatch.setattr(dispatch.codex_chats, "live", lambda: {})
+    monkeypatch.setattr(dispatch.codex_chats, "load", lambda _: {"thread_id": thread, "cwd": str(tmp_path)})
+    monkeypatch.setattr(dispatch.codex_chats, "tab_command", lambda *a, **k: ["codex", "resume", thread])
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: "21 chats run, max 20")
+    monkeypatch.setattr(dispatch, "_codex_ready", lambda: None)
+    monkeypatch.setattr(dispatch, "ensure_zellij_session", lambda: None)
+    opened = []
+    monkeypatch.setattr(dispatch, "_zellij", lambda *args: opened.append(args))
+    monkeypatch.setattr(dispatch, "_record_launch", lambda entry: None)
+    assert dispatch.resume_codex_chat(cid, "ordinary follow-up") == "no free chat slot (21 chats run, max 20)"
+    assert opened == []
+    assert dispatch.resume_codex_chat(cid, "owner follow-up", force=True) == "ok"
+    assert opened[0][-3:] == ("codex", "resume", thread)

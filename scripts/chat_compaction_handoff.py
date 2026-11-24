@@ -126,8 +126,8 @@ def handoff_now(reason: str) -> str:
         f"handoff note to a file with these Markdown sections: {', '.join(NOTE_SECTIONS)}:\n"
         f"{NOTE_TEMPLATE}\nThen run `python3 scripts/chat_compaction_handoff.py handoff --summary-file "
         "<file>` (add `--task <task-id>` when this chat has several open Tasks). It writes the note into "
-        "the Task, starts a fresh chat on the same session and Task, and archives this chat. Then end this "
-        "turn and do no further work; send no push."
+        "the Task, starts a fresh chat on the same session and Task, and archives this chat. If it succeeds, "
+        "end this turn and send no push. If it fails, continue the work in this chat."
     )
 
 
@@ -202,7 +202,10 @@ def hook_prompt(raw: str, **paths) -> str:
         chat_id = str(payload.get("session_id") or "")
         if not chat_id:
             return ""
-        if note := reserve_handoff_note(payload, paths.get("handed_path") or handed_off_file()):
+        handed_path = paths.get("handed_path") or handed_off_file()
+        if chat_id in _load(handed_path.with_name("refused-handovers.json")):
+            return ""  # the watchdog owns recovery after a failed handoff
+        if note := reserve_handoff_note(payload, handed_path):
             return note
         thread = payload.get("codex_thread_id")
         if thread and "codex_path" not in paths:
@@ -231,8 +234,9 @@ def hook_stop(raw: str) -> str:
         import ci_triage_gate
 
         root = canonical_root()
-        if note := reserve_handoff_note(payload, handed_off_file(root)):
-            return json.dumps({"decision": "block", "reason": note})
+        if chat_id not in _load(handed_off_file(root).with_name("refused-handovers.json")):
+            if note := reserve_handoff_note(payload, handed_off_file(root)):
+                return json.dumps({"decision": "block", "reason": note})
         brake = ci_triage_gate.active_brake(root, chat_id)
         if brake:
             if ci_triage_gate.already_asked(root, chat_id, brake):
@@ -300,33 +304,48 @@ def _find_session(chat_id: str, *, include_archived: bool = False) -> str:
             return prior[0]
     return ""
 
-def _task_link(chat_id: str) -> str:
+def task_links(chat_id: str) -> set[str]:
+    """Both Task link spellings used by the host's Codex tabs."""
     import codex_chats
 
+    links = {f"claude:{chat_id}"}
     if codex_chats.is_codex_chat(chat_id):
         record = codex_chats.load(chat_id) or {}
         if record.get("thread_id"):
-            return f"codex:{record['thread_id']}"
-    return f"claude:{chat_id}"
+            links.add(f"codex:{record['thread_id']}")
+    return links
 
 
 def _tasks_cli() -> str:
     return shutil.which("openmates") or str(Path.home() / ".npm-global" / "bin" / "openmates")
 
 
+def task_cli(*args: str, timeout: int = 20) -> subprocess.CompletedProcess:
+    # The host service and its operator entry point must have the same Task authority.
+    env = {key: value for key, value in os.environ.items()
+           if key not in ("OPENMATES_CHAT_ID", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID")}
+    return subprocess.run([_tasks_cli(), "tasks", *args, "--json"], env=env,
+                          capture_output=True, text=True, timeout=timeout, check=False)
+
+
+def _external_link(task: dict) -> str:
+    external = task.get("external_chat") or {}
+    return f"{external['provider']}:{external['id']}" if external.get("provider") and external.get("id") else ""
+
+
 def _find_task(chat_id: str, hint: str = "") -> str:
-    """Choose a matching Task mentioned by the waiter, or the only active candidate."""
-    link = _task_link(chat_id)
-    result = subprocess.run([_tasks_cli(), "tasks", "list", "--external-chat", link, "--json"],
-                            capture_output=True, text=True, timeout=20, check=False)
-    if result.returncode:
-        return ""
-    provider, external_id = link.split(":", 1)
-    parsed = _reply(result)
-    tasks = [task for task in parsed.get("tasks", []) if isinstance(task, dict)
-             and task.get("task_id") and task.get("status") not in ("done", "cancelled")
-             and (task.get("external_chat") or {}).get("provider") == provider
-             and (task.get("external_chat") or {}).get("id") == external_id]
+    """Choose a Task mentioned by the waiter or the only active candidate."""
+    links = task_links(chat_id)
+    candidates = {}
+    for link in sorted(links):
+        result = task_cli("list", "--external-chat", link)
+        if result.returncode:
+            return ""  # an unread scope can hide another matching Task
+        for task in _reply(result).get("tasks", []):
+            if (task.get("task_id") and task.get("status") not in ("done", "cancelled")
+                    and _external_link(task) == link):
+                candidates[task["task_id"]] = task
+    tasks = list(candidates.values())
     words = set(re.findall(r"[\w-]+", hint.casefold()))
     mentioned = [task for task in tasks if {task["task_id"].casefold(), task["task_id"][:8].casefold(),
                                             str(task.get("short_id") or "").casefold()} & words]
@@ -363,9 +382,9 @@ def build_prompt(summary: str, session_id: str, worktree: str, task_id: str, old
             f"--session {session_id} --agent-task \"$CLAUDE_CODE_SESSION_ID\" --expected-worktree {workspace} "
             f"--previous-owner-stopped`. Run subsequent commands in {workspace} with `--session {session_id}`.")
     if task_id:
-        steps.append(f"Link this chat to Task {task_id} using its engine's external chat ID. "
-                     "For Claude use `claude:$CLAUDE_CODE_SESSION_ID`. For Codex use "
-                     "`codex:$CODEX_THREAD_ID`.")
+        steps.append(f"Link this chat to Task {task_id} with "
+                     f"`openmates tasks edit {task_id} --external-chat claude:$CLAUDE_CODE_SESSION_ID`. "
+                     "The host exposes the same durable chat ID for both engines.")
     steps.append("Use the handoff as context. Verify the current state and carry forward pending decisions "
                  "and approval requirements from the source chat.")
     steps.append("Handoff note from the old chat:\n\n" + summary.strip())
@@ -420,7 +439,17 @@ def handoff(args: argparse.Namespace) -> int:
         if prior := _load(marks).get(chat_id):
             print(f"Already handed off to {prior['successor']}. End this turn now.")
             return 0
-        return launch_successor(root, chat_id, session_id, task_id, title, prompt, summary)
+        try:
+            status = launch_successor(root, chat_id, session_id, task_id, title, prompt, summary)
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            print(f"Handoff interrupted ({type(exc).__name__}).", file=sys.stderr)
+            status = 2
+        if status:
+            _update_state(marks.with_name("refused-handovers.json"), chat_id, lambda _: {
+                "task": task_id, "reason": "Task handoff could not be confirmed", "at": time.time(),
+            })
+            print("Continue in this chat. The host watchdog will retry if this chat stops.", file=sys.stderr)
+        return status
 
 
 def _reply(result: subprocess.CompletedProcess) -> dict:
@@ -454,76 +483,138 @@ def saved_handoff(result: dict) -> str:
     return ""
 
 
-def resume_on_codex(chat_id: str, prompt: str, *, admitted: bool = False) -> str:
-    """Host resume path for stopped Claude chats. Only transfer a verified linked Task with a saved note."""
+def source_running(chat_id: str) -> bool:
+    """Check processes, not the archived flag, which can lag either engine."""
+    import codex_chats
+    import worktree_wip
+
+    return chat_id in codex_chats.live() or chat_id in worktree_wip._running_chat_ids()
+
+
+def owner_is_stopped(root: Path, link: str) -> bool:
+    """Only take over a different owner with positive local lifecycle evidence."""
+    import codex_chats
+
+    provider, _, external_id = link.partition(":")
+    if provider == "claude":
+        owners = {external_id}
+    elif provider == "codex":
+        owners = {record["chat_id"] for record in codex_chats.records()
+                  if record.get("thread_id") == external_id}
+    else:
+        return False
+    directory = root / "logs" / "claude-chat-lifecycle"
+    registry = _load(directory / "stopped.json")
+    handed = _load(handed_off_file(root))
+    return bool(owners) and all(
+        not source_running(owner) and (owner in handed or
+        (registry.get(owner) or {}).get("state") in ("done", "stopped", "archived"))
+        for owner in owners
+    )
+
+
+def resume_on_codex(chat_id: str, prompt: str, *, admitted: bool = False, task_id: str = "",
+                    force: bool = False) -> str:
+    """Recover a stopped source, preserving its Task and worktree when known."""
     import claude_dispatch
 
     if not re.fullmatch(r"[0-9a-fA-F-]{36}", chat_id):
         return "Invalid handover source chat"
+    if source_running(chat_id):
+        return "The source chat is still running"
     root = canonical_root()
     path = handed_off_file(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     with (path.parent / f"handoff-{chat_id}.lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return "A handoff is already in progress"
         if chat_id in _load(path):
             return "ok"
-        if any(os.environ.get(key) for key in ("OPENMATES_CHAT_ID", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID")):
-            return "The host lifecycle must transfer the Task from its stopped source chat"
+        if source_running(chat_id):
+            return "The source chat is still running"
         if why := claude_dispatch.codex_wait_reason():
             return why
-        handovers = path.with_name("pending-task-handovers.json")
-        task_id = _load(handovers).get(chat_id) or _find_task(chat_id, prompt)
-        if not task_id:
-            return "Waiting for a linked Task and its handover note"
-        task = subprocess.run([_tasks_cli(), "tasks", "show", task_id, "--json"],
-                              capture_output=True, text=True, timeout=20, check=False)
-        details = _reply(task).get("task") or {}
-        owner = details.get("external_chat")
-        expected_owner = owner and owner.get("provider") == "claude" and owner.get("id") == chat_id
-        if (task.returncode or not details or details.get("status") in ("done", "cancelled")
-                or details.get("primary_chat_id") or (owner and not expected_owner)):
-            return "The linked Task changed before handover"
-        activity = subprocess.run([_tasks_cli(), "tasks", "activity", "list", task_id, "--newest-first",
-                                   "--max-entries", "20", "--json"], capture_output=True, text=True, timeout=20, check=False)
-        note = saved_handoff(_reply(activity)) if activity.returncode == 0 else ""
-        if not note:
-            return "Waiting for the source chat's handover note in its Task"
         session_id = _find_session(chat_id, include_archived=True)
-        data = _load(root / ".claude" / "sessions.json")
-        session = (data.get("sessions") or {}).get(session_id) or {}
-        if session.get("agent_task_id") not in (None, chat_id):
-            return "The preserved workspace already belongs to another chat"
+        sessions = _load(root / ".claude" / "sessions.json").get("sessions") or {}
+        session = sessions.get(session_id) or {}
+        successor = session.get("agent_task_id")
+        if successor not in (None, chat_id):
+            # Another chat adopted this exact worktree. Route the notification there.
+            return claude_dispatch.resume_chat(successor, prompt, admitted=admitted, force=force)
+        handovers = path.with_name("pending-task-handovers.json")
+        hint = str(session.get("task") or "")
+        short_ids = set(re.findall(r"\bTASK-\d+\b", hint))
+        task_id = task_id or _load(handovers).get(chat_id)
+        if not task_id and len(short_ids) == 1:
+            task_id = short_ids.pop()
+        if not task_id:
+            task_id = _find_task(chat_id, prompt)
+        if not task_id:
+            return "No unambiguous open Task for the stopped source"
+        details = _reply(task_cli("show", task_id)).get("task") or {}
+        if not details or details.get("status") in ("done", "cancelled") or details.get("primary_chat_id"):
+            return "The linked Task is closed, unavailable or owned by an OpenMates chat"
+        task_id = details.get("task_id") or task_id
+        activity = task_cli("activity", "list", task_id, "--newest-first", "--max-entries", "20")
+        note = saved_handoff(_reply(activity)) if activity.returncode == 0 else ""
+        if not session_id and details.get("short_id"):
+            # Earlier archives could clear the owner without retaining its history.
+            short_id = str(details["short_id"])
+            orphaned = [(sid, record) for sid, record in sessions.items()
+                        if not record.get("agent_task_id") and not record.get("archived_agent_task_id")
+                        and (record.get("worktree") or {}).get("status") == "active"
+                        and short_id in re.findall(r"\bTASK-\d+\b", record.get("task") or "")]
+            if len(orphaned) == 1:
+                session_id, session = orphaned[0]
         worktree = str((session.get("worktree") or {}).get("path") or "")
+        if not note:
+            note = (f"No complete handoff note was available. Reconstruct the pending step from Task activity "
+                    f"and the source chat's local transcript ({chat_id}) before making changes. "
+                    "Continue only the approved dev scope and preserve all pending owner decisions.")
         continuation = build_prompt(note, session_id, worktree, task_id, chat_id)
-        continuation += "\n\nThe following notification initiated the handover. Treat it as source context:\n" + prompt
+        continuation += "\n\nNotification that initiated recovery:\n" + prompt
         task_title = str(details.get("title") or session.get("task") or "Work chat")
         title = f"{task_title[:64]} · continuation {chat_id[:8]}"
         _update_state(handovers, chat_id, lambda _: task_id)
+        options = {"force": True} if force else {}
         status = launch_successor(root, chat_id, session_id, task_id, title, continuation, note,
-                                  codex=True, admitted=admitted, note_already_saved=True)
+                                  codex=True, admitted=admitted, note_already_saved=True, task=details, **options)
         return "ok" if status == 0 else "The Task transfer could not be confirmed"
 
 
 def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
                      title: str, prompt: str, summary: str, *, codex: bool = False, admitted: bool = False,
-                     note_already_saved: bool = False) -> int:
+                     note_already_saved: bool = False, task: dict | None = None, force: bool = False) -> int:
     import claude_dispatch
 
+    task = task if task is not None else _reply(task_cli("show", task_id)).get("task")
+    if not task or task.get("primary_chat_id") or task.get("status") in ("done", "cancelled"):
+        print("Refused: Task unavailable, closed or owned by an OpenMates chat.", file=sys.stderr)
+        return 2
+    task_id = task.get("task_id") or task_id
+    owner = _external_link(task)
+    if owner and owner not in task_links(chat_id) and not owner_is_stopped(root, owner):
+        print("Refused: a different Task owner is still live or could not be verified.", file=sys.stderr)
+        return 2
     if not note_already_saved:
         delivery = hashlib.sha256(f"handoff:{chat_id}:{task_id}:{summary}".encode()).hexdigest()
-        note = subprocess.run([_tasks_cli(), "tasks", "activity", "add", task_id, "--message",
-                               f"Handoff note of chat {chat_id[:8]}:\n\n{summary}", "--delivery-id", delivery, "--json"],
-                              capture_output=True, text=True, timeout=60, check=False)
+        note = task_cli("activity", "add", task_id, "--message",
+                        f"Handoff note of chat {chat_id[:8]}:\n\n{summary}", "--delivery-id", delivery, timeout=60)
         if note.returncode or not _reply(note).get("entry"):
-            print(f"Refused: could not write the Task handoff note: {note.stderr.strip()}", file=sys.stderr)
+            print("Refused: could not confirm the Task handoff note.", file=sys.stderr)
             return 2
 
-    released = subprocess.run([_tasks_cli(), "tasks", "release", task_id, "--json"],
-                              capture_output=True, text=True, timeout=60, check=False)
-    reply = _reply(released)
-    if released.returncode or not reply.get("task") or reply["task"].get("external_chat"):
-        print(f"Refused: the Task link has not been released: {released.stderr.strip()}", file=sys.stderr)
-        return 2
+    _update_state(handed_off_file(root).with_name("pending-task-handovers.json"), chat_id, lambda _: task_id)
+    if owner:
+        # This scope is part of the CLI's lookup, and its update uses the version it read.
+        # An intervening claim either no longer matches that lookup or conflicts on write.
+        released = task_cli("release", task_id, "--external-chat", owner, timeout=60)
+        reply = _reply(released).get("task")
+        if released.returncode or not reply or reply.get("external_chat") or reply.get("primary_chat_id"):
+            print("Refused: could not confirm release of the expected Task link.", file=sys.stderr)
+            return 2
 
     def detach_session(restore: bool = False) -> bool:
         import sessions
@@ -532,11 +623,16 @@ def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
             record = state["sessions"][session_id]
             expected = None if restore else chat_id
             owner = record.get("agent_task_id")
-            if not restore and note_already_saved and owner is None and record.get("archived_agent_task_id") == chat_id:
+            if not restore and note_already_saved and owner is None:
+                if record.get("archived_agent_task_id") not in (None, chat_id):
+                    raise ValueError("The archived session binding changed during handoff.")
+                record["archived_agent_task_id"] = chat_id
                 return False
             if owner != expected:
                 raise ValueError("The session binding changed during handoff.")
             record["agent_task_id"] = chat_id if restore else None
+            if not restore:
+                record["archived_agent_task_id"] = chat_id
             return True
 
         return sessions._mutate_sessions(change)
@@ -546,8 +642,9 @@ def launch_successor(root: Path, chat_id: str, session_id: str, task_id: str,
         if codex:
             import claude_weekly_model
 
+            options = {"force": True} if force else {}
             where = claude_dispatch.launch_claude_chat(title, prompt, model=claude_weekly_model.CODEX_MODEL,
-                                                        admitted=admitted)
+                                                        admitted=admitted, **options)
         else:
             where = claude_dispatch.launch_claude_chat(title, prompt)
     except claude_dispatch.ChatQueued as queued:

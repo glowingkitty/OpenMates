@@ -536,6 +536,37 @@ def codex_handoff_waiter(waiter) -> bool:
     return waiter.kind == "handoff" and "codex" in waiter.detail.casefold()
 
 
+def redirect_handoff_waiters(waiters: dict[str, list], handed: dict, workspace_owners: dict[str, str]) -> None:
+    """Preserve background results through a handoff, including a queued successor."""
+    if not handed.keys() & waiters.keys():
+        return
+    successors = {source: target for source, target in workspace_owners.items() if source in handed}
+    records = None
+    for source in handed.keys() - successors.keys():
+        where = str((handed.get(source) or {}).get("successor") or "")
+        if match := re.search(r"\(codex chat ([a-f0-9-]{36})\)$", where):
+            successors[source] = match[1]
+        elif "queue entry " in where:
+            records = codex_chats.records() if records is None else records
+            matches = [r["chat_id"] for r in records if r.get("thread_id")
+                       and str(r.get("title") or "").endswith(f" · continuation {source[:8]}")]
+            if len(matches) == 1:
+                successors[source] = matches[0]
+    for source in handed.keys() & waiters.keys():
+        items = waiters.pop(source)
+        target = source
+        seen = {source}
+        while target in successors and successors[target] not in seen:
+            target = successors[target]
+            seen.add(target)
+        if target != source:
+            waiters.setdefault(target, []).extend(replace(item, chat_id=target) for item in items)
+        else:
+            # Retain the registrations and remembered CI completion, but keep them
+            # away from the lifecycle until the queued successor has started.
+            waiters.setdefault(source, []).extend(items)
+
+
 def gather_waiters(now: float) -> dict[str, list]:
     """chat id -> its waiters; {UNREADABLE: [...]} when a source cannot be read."""
     root = canonical_root()
@@ -543,8 +574,12 @@ def gather_waiters(now: float) -> dict[str, list]:
                                           sessions=claude_chat_pending.session_ids_by_chat(root))
     try:
         waiters = claude_chat_waiters.collect(sources, now)
-        for chat_id in load_marks(sources.state, "handed_off.json"):
-            waiters.pop(chat_id, None)
+        handed = load_marks(sources.state, "handed_off.json")
+        if handed.keys() & waiters.keys():
+            records = claude_chat_waiters._read_json(root / ".claude" / "sessions.json").get("sessions") or {}
+            owners = {record["archived_agent_task_id"]: record["agent_task_id"] for record in records.values()
+                      if record.get("archived_agent_task_id") and record.get("agent_task_id")}
+            redirect_handoff_waiters(waiters, handed, owners)
         if claude_weekly_model.reserve_active():
             for chat_id, items in waiters.items():
                 waiters[chat_id] = [
@@ -688,11 +723,13 @@ def counts(live: list[Chat], registry: dict[str, dict], now: float, config: dict
     limit = config["idle_stop_minutes"] * 60
     working = sum(1 for chat in live if chat.status != "idle" or now - chat.last_activity <= limit)
     states = [entry["state"] for entry in registry.values()]
-    codex_running = len(codex_chats.live())  # Codex chats hold slots too: admit, status and overview agree
+    codex_running = set(codex_chats.live()) - {chat.session_id for chat in live}
+    working += sum(codex_chats.turn_activity(chat_id)[1] == "working" for chat_id in codex_running)
+    running = len(live) + len(codex_running)
     return {
-        "at": _utc(now), "running": len(live) + codex_running, "running_claude": len(live),
-        "running_codex": codex_running, "max_running": int(config["max_running"]),
-        "working": working, "idle_running": len(live) - working,
+        "at": _utc(now), "running": running, "running_claude": len(live),
+        "running_codex": len(codex_running), "max_running": int(config["max_running"]),
+        "working": working, "idle_running": running - working,
         "idle_stopped": states.count("stopped"), "done_to_archive": states.count("done"),
         "archived": states.count("archived"), "queued_new_chats": queued,
         "waiting_running": sum(1 for entry in waiting or [] if entry["running"]),
@@ -1176,6 +1213,18 @@ def status_line(summary: dict) -> str:
             + (f", {summary['stalled_chats']} stalled." if "stalled_chats" in summary else "."))
 
 
+def codex_can_suspend(chat_id: str, pid: int, directory: Path, config: dict) -> bool:
+    """Keep pinned chats, pending connector messages and real child jobs alive."""
+    if chat_id in config.get("protected_chat_ids", []):
+        return False
+    if chat_id in claude_chat_waiters._read_json(directory / "connector-deliveries.json"):
+        return False
+    if (claude_chat_waiters._read_json(directory / "inputs.json").get(chat_id) or {}).get("verdict") == "typed":
+        return False
+    return all(Path(command.split()[0]).name == "codex-code-mode-host" or TOOL_SERVER_MARKER in command.lower()
+               for command in _children(pid))
+
+
 def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[list[Chat], int]:
     """One reap pass; returns (chats left running, failures)."""
     now = time.time()
@@ -1193,11 +1242,16 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
         for chat in live:
             close_setup_offer(chat, directory)  # declined; the next cycle sees its real state
         for entry in ([] if UNREADABLE in waiters else
-                      codex_chats.reap(pushed, config["idle_stop_minutes"], set(waiters), now)):
+                      codex_chats.reap(pushed, config["idle_stop_minutes"], set(waiters), now,
+                                       can_suspend=lambda cid, pid: codex_can_suspend(cid, pid, directory, config),
+                                       ready={cid for cid, items in waiters.items() if any(w.ready for w in items)})):
             log_event(directory, {"event": "codex_stopped", "session_id": entry["chat_id"], "why": entry["why"]})
+            chat_id = entry["chat_id"]
+            prior = registry.setdefault(chat_id, {})
+            prior.update(state="archived" if entry.get("archived") else "stopped", stopped_at=_utc(now),
+                         last_activity=_utc(now), kind="codex", reason=entry["why"])
             if entry.get("archived"):
-                registry[entry["chat_id"]] = {"state": "archived", "archived_at": _utc(now),
-                                                "last_activity": _utc(now)}
+                prior["archived_at"] = _utc(now)
     idle_minutes = (min(config["pressure_idle_minutes"], config["idle_stop_minutes"])
                     if getattr(args, "pressure", False) else None)
     plan: list[tuple[Chat, Decision]] = []
@@ -1280,7 +1334,8 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
                       + claude_chat_waiters.stalled_entries(waiters, live_map, registry, now)):
             if entry["session_id"] not in {item["session_id"] for item in stalled}:
                 stalled.append(entry)
-        waiting = claude_chat_waiters.status_entries(waiters, live_map, registry, now)
+        waiting = claude_chat_waiters.status_entries(waiters, live_map, registry, now,
+                                                     live_codex=set(codex_chats.live()))
         write_status(directory, counts(left, registry, now, config, own, queued_launches(), waiting), registry,
                      stalled, flagged, waiting)
     return left, failed
@@ -1320,23 +1375,32 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
             outcome = claude_dispatch.resume_chat(chat_id, text, title=f"wake {chat_id[:8]}", admitted=True)
         except (claude_dispatch.DispatchError, subprocess.SubprocessError, OSError) as error:
             return f"resume failed: {error}"[:200]
-        if outcome == "ok":
+        if outcome == "ok" and chat_id not in live_codex:
             if reserve and chat_id in load_marks(directory, "handed_off.json"):
                 archived.append(chat_id)
             else:
                 resumed.append(chat_id)
         return outcome
 
-    free = int(config["max_running"]) - len(left) - int(config["free_slots"])
+    live_codex = codex_chats.live()
+    free = int(config["max_running"]) - len({chat.session_id for chat in left} | live_codex.keys())
+    reserved = int(config["free_slots"])
+    room = max(0, min(int(config["wake_batch"]), free - reserved))
+    if free > 0 and not room and not queued_launches():
+        room = 1
     owner_waits = {chat.session_id for chat in left if chat.protected or waiting_on_billing(chat)}
     owner_waits.update(chat_id for chat_id, entry in registry.items() if entry.get("reason") == BILLING_QUESTION)
-    active_waiters = {chat_id: items for chat_id, items in waiters.items() if chat_id not in owner_waits}
+    handed = load_marks(directory, "handed_off.json")
+    active_waiters = {chat_id: items for chat_id, items in waiters.items()
+                      if chat_id not in owner_waits and chat_id not in handed}
     delivered, failures = claude_chat_waiters.deliver(
         active_waiters, {chat.session_id: chat for chat in left}, registry, directory, now, type_into=wake,
-        resume=reopen, room=max(0, min(int(config["wake_batch"]), free)),
+        resume=reopen, room=room,
         log=lambda event: log_event(directory, event), asks=asks, priority=task_priorities(),
+        live_resume=set(live_codex),
         resume_archived=lambda chat_id, ready: (
-            reserve and not codex_chats.is_codex_chat(chat_id) and any(codex_handoff_waiter(w) for w in ready)))
+            chat_id in live_codex or any(w.kind in ("handoff", "background", "ci") for w in ready)
+            or (reserve and any(codex_handoff_waiter(w) for w in ready))))
     claude_chat_waiters.remember(directory, waiters, delivered)
     for chat_id in archived:
         registry.setdefault(chat_id, {}).update(state="archived", archived_at=_utc(now), last_activity=_utc(now))
@@ -1438,7 +1502,8 @@ def main(argv: list[str] | None = None) -> int:
         refresh_registry(registry, live, now, config)
         save_registry(directory, registry)
         live_map = {chat.session_id: chat for chat in live}
-        waiting = claude_chat_waiters.status_entries(waiters, live_map, registry, now)
+        waiting = claude_chat_waiters.status_entries(waiters, live_map, registry, now,
+                                                     live_codex=set(codex_chats.live()))
         summary = counts(live, registry, now, config, os.environ.get("CLAUDE_CODE_SESSION_ID", ""),
                          queued_launches(), waiting)
         stalled = stalled_chats(live, registry, args.claude_home, now, directory, act=False)
@@ -1451,7 +1516,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "admit":
         args.command = "reap"
         left, _ = run_cycle(args, config, room=1)
-        running = len(left) + len(codex_chats.live())  # Codex chats share the slots (TASK-4476)
+        running = len({chat.session_id for chat in left} | codex_chats.live().keys())
         if running < int(config["max_running"]):
             return 0
         print(f"no room: {running} chats run (max {config['max_running']}) and none may be suspended now "

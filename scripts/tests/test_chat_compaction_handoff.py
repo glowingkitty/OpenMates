@@ -122,12 +122,16 @@ def test_handoff_writes_the_note_to_the_task_and_archives_the_old_chat(tmp_path)
          mock.patch.object(h.subprocess, "run") as run, \
          mock.patch.dict(sys.modules, {"claude_dispatch": dispatch}):
         run.side_effect = [
+            mock.Mock(returncode=0, stdout='{"task":{"external_chat":{"provider":"claude","id":"chat-1"}}}'),
             mock.Mock(returncode=0, stdout='{"entry":{"message":"note"}}'),
             mock.Mock(returncode=0, stdout='{"task":{"external_chat":null}}'),
         ]
         assert h.handoff(args) == 0
         assert h.handoff(args) == 0
         dispatch.launch_claude_chat.assert_called_once()
+        assert run.call_args_list[-1].args[0][2:] == [
+            "release", "task-9", "--external-chat", "claude:chat-1", "--json",
+        ]
     messages = [call.args[0][6] for call in run.call_args_list if "activity" in call.args[0]]
     assert "Handoff note of chat chat-1" in messages[0] and "Rerun the recipe proof" in messages[0]
     assert "Handoff note from the old chat" in dispatch.launch_claude_chat.call_args.args[1]
@@ -171,6 +175,7 @@ def test_codex_uses_native_compaction_records_and_context_window(tmp_path):
 
 def test_handoff_needs_confirmed_activity_and_task_release(tmp_path):
     dispatch = mock.Mock()
+    task = {"external_chat": {"provider": "claude", "id": "chat-1"}, "status": "todo"}
     for replies in (
         [mock.Mock(returncode=0, stdout='{"delivery":{"status":"pending"}}', stderr="")],
         [mock.Mock(returncode=0, stdout='{"entry": {"message":"note"}}'),
@@ -178,7 +183,8 @@ def test_handoff_needs_confirmed_activity_and_task_release(tmp_path):
     ):
         with mock.patch.object(h.subprocess, "run", side_effect=replies), \
              mock.patch.dict(sys.modules, {"claude_dispatch": dispatch}):
-            assert h.launch_successor(tmp_path, "chat-1", "ab12", "task-id", "Title", "Prompt", NOTE) == 2
+            assert h.launch_successor(tmp_path, "chat-1", "ab12", "task-id", "Title", "Prompt", NOTE,
+                                      task=task) == 2
     dispatch.launch_claude_chat.assert_not_called()
     assert not h.handed_off_file(tmp_path).exists()
 
@@ -197,7 +203,7 @@ def test_claude_oversized_context_blocks_the_first_stop(tmp_path):
 def test_paused_note_is_reused_for_reserve_handover(tmp_path, monkeypatch):
     source = "0b6c7f1e-1111-4222-8333-944455556667"
     for key in ("OPENMATES_CHAT_ID", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"):
-        monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv(key, "another-chat")
     monkeypatch.setattr(h, "canonical_root", lambda: tmp_path)
     monkeypatch.setattr(h, "_find_task", lambda chat, hint: "task-id")
     replies = [
@@ -210,7 +216,9 @@ def test_paused_note_is_reused_for_reserve_handover(tmp_path, monkeypatch):
          mock.patch.dict(sys.modules, {"claude_dispatch": mock.Mock(codex_wait_reason=lambda: "")}), \
          mock.patch.object(h, "launch_successor", return_value=0) as launch:
         assert h.resume_on_codex(source, "CI finished", admitted=True) == "ok"
-    assert launch.call_args.kwargs == {"codex": True, "admitted": True, "note_already_saved": True}
+    assert launch.call_args.kwargs == {"codex": True, "admitted": True, "note_already_saved": True,
+                                      "task": {"status": "todo", "external_chat": {
+                                          "provider": "claude", "id": source}}}
     assert "CI finished" in launch.call_args.args[5]
 
 
@@ -257,3 +265,41 @@ def test_archived_workspace_handover_leaves_binding_available_for_successor(tmp_
                                   note_already_saved=True, codex=True)
     assert used == 0 and data["sessions"]["ab12"]["agent_task_id"] is None
     assert h.handed_off_file(tmp_path).is_file()
+
+
+def test_host_cli_calls_have_no_unrelated_chat_identity(monkeypatch):
+    monkeypatch.setenv("CODEX_THREAD_ID", "operator")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "operator")
+    monkeypatch.setenv("OPENMATES_CHAT_ID", "operator")
+    with mock.patch.object(h.subprocess, "run") as run:
+        h.task_cli("show", "task-id")
+    env = run.call_args.kwargs["env"]
+    assert not {"CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID", "OPENMATES_CHAT_ID"} & env.keys()
+
+
+def test_stopped_source_without_note_recovers_but_running_source_is_refused(tmp_path, monkeypatch):
+    source = "0b6c7f1e-1111-4222-8333-944455556667"
+    details = {"task_id": "task-id", "status": "todo",
+               "external_chat": {"provider": "claude", "id": source}}
+    monkeypatch.setattr(h, "canonical_root", lambda: tmp_path)
+    monkeypatch.setattr(h, "source_running", lambda _: True)
+    with mock.patch.object(h, "task_cli") as cli:
+        assert h.resume_on_codex(source, "CI finished", task_id="task-id") == "The source chat is still running"
+        cli.assert_not_called()
+    monkeypatch.setattr(h, "source_running", lambda _: False)
+    with mock.patch.object(h, "task_cli", side_effect=[
+        mock.Mock(returncode=0, stdout=json.dumps({"task": details})),
+        mock.Mock(returncode=0, stdout='{"entries":[]}'),
+    ]), mock.patch.dict(sys.modules, {"claude_dispatch": mock.Mock(codex_wait_reason=lambda: "")}), \
+            mock.patch.object(h, "launch_successor", return_value=0) as launch:
+        assert h.resume_on_codex(source, "CI finished", task_id="task-id") == "ok"
+    assert "No complete handoff note" in launch.call_args.args[5]
+
+
+def test_live_different_task_owner_is_never_released(tmp_path, monkeypatch):
+    monkeypatch.setattr(h, "task_links", lambda _: {"claude:source"})
+    monkeypatch.setattr(h, "owner_is_stopped", lambda *_: False)
+    with mock.patch.object(h, "task_cli") as cli:
+        assert h.launch_successor(tmp_path, "source", "", "task-id", "Title", "Prompt", NOTE,
+                                  task={"external_chat": {"provider": "codex", "id": "other"}}) == 2
+    cli.assert_not_called()

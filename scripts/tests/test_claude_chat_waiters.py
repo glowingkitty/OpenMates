@@ -273,6 +273,7 @@ def test_run_cycle_keeps_the_waiting_chat_and_reopens_it_after_it_was_closed(tmp
     monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
     rows = [disk_wait()]
     monkeypatch.setattr(lc, "gather_waiters", lambda now: cw.collect(sources(tmp_path, rows), now))
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {})
     live = [chat(last_activity=lc.time.time() - 64 * 60)]
     monkeypatch.setattr(lc, "live_chats", lambda home, config, found=None: [
         lc.Chat(**{**c.__dict__, "waiters": (found or {}).get(c.session_id, [])}) for c in live])
@@ -455,3 +456,36 @@ def test_a_transient_wake_failure_is_retried(tmp_path):
     rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
     rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
     assert len(rec.resumed) == 2
+
+
+def test_watchdog_fires_completed_task_and_reopens_unconfirmed_timeout(tmp_path):
+    state = tmp_path / "state"
+    key = cw.add(state, CHAT, "handoff", "the fixture cleanup", now=NOW, task_id=OTHER)
+    late = cw.add(state, OTHER, "background", "the benchmark", now=NOW - 26 * HOUR)
+    protected = "10000000-0000-0000-0000-000000000000"
+    cw.add(state, protected, "handoff", "owner approval", now=NOW - 26 * HOUR)
+    cw.settle_external_waits(state, NOW + 10, {OTHER: "done"}, {protected})
+    values = {waiter.key: waiter for waiter in cw.registered_waiters(state)}
+    assert "dependency Task is marked done" in values[f"reg:{key}"].ready_text
+    assert "deadline passed without confirmation" in values[f"reg:{late}"].ready_text
+    assert all(not waiter.ready for waiter in values.values() if waiter.chat_id == protected)
+
+
+def test_already_running_codex_accepts_a_ready_wait_with_the_cap_full(tmp_path):
+    key = cw.add(tmp_path, CHAT, "background", "benchmark", now=NOW - HOUR)
+    cw.fire(tmp_path, CHAT, key, "results uploaded", now=NOW)
+    rec = Recorder()
+    delivered, failures = cw.deliver({CHAT: cw.registered_waiters(tmp_path)}, {}, {}, tmp_path, NOW,
+                                     type_into=rec.type_into, resume=rec.resume, room=0,
+                                     log=rec.events.append, live_resume={CHAT})
+    assert delivered == {f"reg:{key}"} and not failures
+    assert "results uploaded" in rec.resumed[0][1]
+
+
+def test_handoff_routes_registered_waiter_even_when_the_source_is_archived(tmp_path):
+    key = cw.add(tmp_path, CHAT, "background", "benchmark", now=NOW - HOUR)
+    cw.fire(tmp_path, CHAT, key, now=NOW)
+    found = {CHAT: cw.registered_waiters(tmp_path)}
+    lc.redirect_handoff_waiters(found, {CHAT: {"successor": f"tab (codex chat {OTHER})"}}, {})
+    assert CHAT not in found and found[OTHER][0].key == f"reg:{key}"
+    assert found[OTHER][0].chat_id == OTHER

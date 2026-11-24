@@ -387,7 +387,7 @@ def chat_effort(transcript: Path) -> str:
 
 
 def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, title: str = "",
-                admitted: bool = False) -> str:
+                admitted: bool = False, *, force: bool = False) -> str:
     """Reopen a stopped chat in a new tab with `prompt` as its next message; 'ok' or why not.
 
     Used by scripts/worktree_wip.py to wake the owner of unfinished worktree work and by
@@ -401,11 +401,13 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     if not UUID_RE.match(chat_id):
         raise DispatchError(f"not a chat id: {chat_id!r}")
     if codex_chats.is_codex_chat(chat_id):
-        return resume_codex_chat(chat_id, prompt, title, admitted)
+        options = {"force": True} if force else {}
+        return resume_codex_chat(chat_id, prompt, title, admitted, **options)
     if claude_weekly_model.reserve_active():
         from chat_compaction_handoff import resume_on_codex
 
-        return resume_on_codex(chat_id, prompt, admitted=admitted)
+        options = {"force": True} if force else {}
+        return resume_on_codex(chat_id, prompt, admitted=admitted, **options)
     projects = (claude_home or Path.home() / ".claude") / "projects"
     transcripts = sorted(projects.glob(f"*/{chat_id}.jsonl"))
     if not transcripts:
@@ -424,7 +426,7 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     if not cwd or not Path(cwd).is_dir():
         return f"its folder is gone ({cwd or 'unknown'})"
     model = model if model.startswith("claude-") and not is_fable(model) else CLAUDE_MODEL
-    why = None if admitted else admit_new_chat()
+    why = None if admitted or force else admit_new_chat()
     if why:
         return f"no free chat slot ({why})"
     title = title or f"finish {chat_id[:8]}"
@@ -519,7 +521,7 @@ def _open_codex_tab(title: str, prompt: str, model: str, explicit_model: bool, c
 
 
 def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool = False,
-                      *, images: tuple[str, ...] = ()) -> str:
+                      *, images: tuple[str, ...] = (), force: bool = False) -> str:
     """Reopen a stopped Codex chat with `prompt` as its next message ('ok' or why not)."""
     if why := codex_wait_reason():
         return why
@@ -531,7 +533,7 @@ def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool
         return "its Codex thread is unknown (it never ran a turn)"
     if not Path(str(record.get("cwd") or "")).is_dir():
         return f"its folder is gone ({record.get('cwd') or 'unknown'})"
-    why = None if admitted else admit_new_chat()
+    why = None if admitted or force else admit_new_chat()
     if why:
         return f"no free chat slot ({why})"
     _codex_ready()
@@ -539,7 +541,7 @@ def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool
     ensure_zellij_session()
     _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(record["cwd"]), "--",
             *codex_chats.tab_command(record, prompt, resume_thread=thread, images=images))
-    _record_launch({"kind": "codex-resume", "title": title, "model": record.get("model"), "chat": chat_id})
+    _record_launch({"kind": "codex-resume", "title": title, "model": record.get("model"), "chat": chat_id, "forced": force})
     return "ok"
 
 

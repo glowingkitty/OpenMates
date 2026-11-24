@@ -42,7 +42,9 @@ Rules (applied by scripts/claude_idle_chats.py every cycle):
   * A waiter past its timeout is `stalled`: it no longer keeps the chat from idle
     stop, it is listed in status.json (`stalled`, `waiting`), and it still reopens
     the chat if it fires later. Timeouts: TIMEOUT_MINUTES, or `--timeout-minutes`.
-  * Archived chats are never reopened.
+  * Explicit recovery waiters can wake an archived source or its verified successor.
+    The watchdog wakes timed-out manual waits with a deadline notice and fires
+    Task dependencies from confirmed Task status.
   * TASK-9844 (2026-11-18): chats that stopped because weekly usage ran out are woken by
     a `timer --at usage-reset` waiter instead of the owner remembering to restart them.
   * TASK-4594 (2026-11-19): a queued chat START is a timer too (add_start): the dev connector
@@ -337,7 +339,9 @@ def registered_waiters(state: Path) -> list[Waiter]:
         found.append(Waiter(
             chat_id=entry["chat_id"], kind=entry["kind"], key=f"reg:{key}", detail=entry["on"],
             since=entry["since"], timeout_at=entry["timeout_at"], ready=fired, ready_at=entry.get("fired_at", 0.0),
-            ready_text=(f"what you waited on is here ({entry['on']})"
+            ready_text=((f"wait deadline passed without confirmation ({entry['on']}). Check the actual "
+                         "state and continue any unblocked work" if entry.get("deadline_wake")
+                         else f"what you waited on is here ({entry['on']})")
                         + (f": {entry['message']}" if entry.get("message") else "")) if fired else ""))
     return found
 
@@ -345,7 +349,6 @@ def registered_waiters(state: Path) -> list[Waiter]:
 def collect(sources: Sources, now: float) -> dict[str, list[Waiter]]:
     """chat id -> its waiters now, with CI jobs that ended since last cycle as ready waiters."""
     settle_timers(sources.state, now, sources.usage)
-    expire(sources.state, now)
     current = (disk_waiters(sources.ledger or default_ledger(), now)
                + ci_waiters(sources.root, sources.sessions, now) + registered_waiters(sources.state))
     seen = {waiter.key for waiter in current}
@@ -406,7 +409,8 @@ def remember(state: Path, waiters: dict[str, list[Waiter]], delivered: set[str])
 
 
 def add(state: Path, chat_id: str, kind: str, on: str, key: str = "", timeout_minutes: float | None = None,
-        now: float | None = None, at: float | None = None, usage_check: bool = False) -> str:
+        now: float | None = None, at: float | None = None, usage_check: bool = False,
+        task_id: str = "") -> str:
     """Register a waiter; a timer needs `at` (epoch seconds) and `on` is then the wake message."""
     if kind not in REGISTERED_KINDS:
         raise ValueError(f"kind must be one of {REGISTERED_KINDS}")
@@ -414,6 +418,8 @@ def add(state: Path, chat_id: str, kind: str, on: str, key: str = "", timeout_mi
         raise ValueError("add needs a chat id (uuid) and --on (a timer: --message)")
     if (kind == "timer") != (at is not None):
         raise ValueError("--at is required for a timer and only for a timer")
+    if task_id and (kind == "timer" or not UUID_RE.fullmatch(task_id)):
+        raise ValueError("--task requires a full Task UUID and a handoff or background wait")
     now = time.time() if now is None else now
     key = key or uuid.uuid4().hex[:10]
     with _locked(state):
@@ -424,6 +430,8 @@ def add(state: Path, chat_id: str, kind: str, on: str, key: str = "", timeout_mi
                      "timeout_at": at if at is not None else now + minutes * 60}
         if at is not None:
             data[key] |= {"at": at, "usage_check": usage_check}
+        if task_id:
+            data[key]["task_id"] = task_id
         _write_json(path, data)
         return key
 
@@ -436,8 +444,36 @@ def fire(state: Path, chat_id: str, key: str, message: str = "", now: float | No
         if not entry or entry["chat_id"] != chat_id:
             raise KeyError(f"no registered waiter {key!r} for chat {chat_id}")
         entry["fired_at"] = time.time() if now is None else now
+        entry.pop("deadline_wake", None)
         entry["message"] = " ".join(message.split())[:1000]
         _write_json(path, data)
+
+
+def settle_external_waits(state: Path, now: float, task_status: dict[str, str],
+                          protected: set[str]) -> None:
+    """Keep a ready registration until it is delivered, including a deadline wake."""
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        changed = False
+        for entry in data.values():
+            if entry["kind"] == "timer" or entry.get("fired_at") or entry["chat_id"] in protected:
+                continue
+            task_id = entry.get("task_id")
+            if not task_id:
+                # Existing waiters sometimes explicitly name completion as the event.
+                match = re.match(r"^(TASK-\d+) (?:lands on dev|is done)\b", entry["on"], re.I)
+                task_id = match[1].upper() if match else None
+            if task_status.get(task_id) == "done":
+                entry["message"] = "The dependency Task is marked done."
+            elif now >= entry["timeout_at"]:
+                entry["deadline_wake"] = True
+            else:
+                continue
+            entry["fired_at"] = now
+            changed = True
+        if changed:
+            _write_json(path, data)
 
 
 def clear(state: Path, chat_id: str, key: str) -> bool:
@@ -529,7 +565,7 @@ PERMANENT_WAKE_FAILURES = ("no transcript on this host", "its folder is gone")
 def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, dict], state: Path, now: float, *,
             type_into, resume, room: int, log, asks=lambda chat: False,
             priority: dict[str, int] | None = None,
-            resume_archived=lambda chat_id, ready: False) -> tuple[set[str], list[dict]]:
+            resume_archived=lambda chat_id, ready: False, live_resume: set[str] | None = None) -> tuple[set[str], list[dict]]:
     """Wake every chat with ready waiters once. `live` maps chat id -> lifecycle Chat.
 
     type_into(chat, text) -> bool types into a live pane chat; resume(chat_id, text) -> 'ok'
@@ -579,6 +615,8 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
         elif (registry.get(chat_id) or {}).get("state") == "archived" and not resume_archived(chat_id, ready):
             delivered |= {w.key for w in ready}
             continue
+        elif chat_id in (live_resume or ()):
+            outcome = resume(chat_id, text)
         elif room <= 0:
             continue  # no free chat slot: next cycle
         else:
@@ -609,17 +647,19 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
     return delivered, failures
 
 
-def status_entries(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, dict], now: float) -> list[dict]:
+def status_entries(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, dict], now: float, *,
+                   live_codex: set[str] | None = None) -> list[dict]:
     """status.json `waiting`: every chat that waits, running or not, with what on."""
     entries = []
     for chat_id, items in sorted(waiters.items()):
         chat = live.get(chat_id)
         stopped = registry.get(chat_id) or {}
-        if chat is None and stopped.get("state") == "archived":
+        running = chat is not None or chat_id in (live_codex or ())
+        if not running and stopped.get("state") == "archived" and not any(w.ready for w in items):
             continue
         entries.append({
             "session_id": chat_id, "title": (chat.title or chat.name) if chat else stopped.get("title", ""),
-            "running": chat is not None, "waits_on": [w.label(now) for w in items],
+            "running": running, "waits_on": [w.label(now) for w in items],
             "kinds": sorted({w.kind for w in items}), "since": _utc(min(w.since for w in items)),
             "stalled": any(w.late(now) for w in items), "ready": any(w.ready for w in items),
             "timed_out": any(w.stalled(now) and not w.late(now) for w in items)})
@@ -677,12 +717,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout-minutes", type=float)
     parser.add_argument("--at", default="", help="timer: ISO time with zone, or usage-reset")
     parser.add_argument("--usage-check", action="store_true", help="timer: wait while weekly usage is used up")
+    parser.add_argument("--task", default="", help="automatically wake when this dependency Task UUID is done")
     args = parser.parse_args(argv)
     state = _state_dir()
     if args.command == "add":
         at, usage_check = parse_at(args.at, args.usage_check) if args.at else (None, False)
         on = args.message if args.kind == "timer" else args.on
-        key = add(state, args.chat, args.kind, on, args.key, args.timeout_minutes, at=at, usage_check=usage_check)
+        key = add(state, args.chat, args.kind, on, args.key, args.timeout_minutes, at=at, usage_check=usage_check, task_id=args.task)
         if at is not None:
             print(json.dumps({"key": key, "chat": args.chat, "fires": _utc(at), "usage_check": usage_check}))
             return 0

@@ -192,10 +192,11 @@ def test_registry_forgets_resumed_chats_and_marks_old_stops_done():
 
 def test_counts_split_working_idle_stopped_done_and_archived(monkeypatch):
     monkeypatch.setattr(lc.codex_chats, "live", lambda: {"codex-1": {"pid": 9}})
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW, "working"))
     registry = {"a": {"state": "stopped"}, "b": {"state": "done"}, "c": {"state": "archived"}}
     live = [chat(status="busy"), chat(session_id="b2", last_activity=NOW - 60), chat(session_id="c2")]
     summary = lc.counts(live, registry, NOW, CONFIG, "other", queued=2)
-    assert (summary["running"], summary["working"], summary["idle_running"]) == (4, 2, 1)
+    assert (summary["running"], summary["working"], summary["idle_running"]) == (4, 3, 1)
     assert (summary["idle_stopped"], summary["done_to_archive"], summary["archived"]) == (1, 1, 1)
     assert summary["queued_new_chats"] == 2 and summary["max_running"] == 20
     assert "4 running of max 20" in lc.status_line(summary)

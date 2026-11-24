@@ -208,7 +208,10 @@ def _is_codex_process(pid: int) -> bool:
         cmd = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
     except OSError:
         return False
-    return any(part.endswith((b"/codex", b"codex.js")) or part == b"codex" for part in cmd[:3])
+    # Only the host's interactive launcher passes --cd. Inherited variables
+    # also reach the app server and its workers, which may outlive the pane.
+    return b"--cd" in cmd and b"app-server" not in cmd[:4] and any(
+        part.endswith((b"/codex", b"codex.js")) or part == b"codex" for part in cmd[:3])
 
 
 def live(proc: Path = Path("/proc")) -> dict[str, dict[str, Any]]:
@@ -446,8 +449,39 @@ def last_times(chat_id: str) -> tuple[float, float]:
     return activity, prompt
 
 
+def turn_activity(chat_id: str) -> tuple[float, str]:
+    """Rollout activity time and most recent turn boundary, using a bounded read."""
+    record = load(chat_id) or {}
+    path = rollout_path(record.get("thread_id") or "")
+    if path is None:
+        return 0, ""
+    try:
+        changed = path.stat().st_mtime
+        with path.open("rb") as stream:
+            end = stream.seek(0, os.SEEK_END)
+            stream.seek(max(0, end - 512 * 1024))
+            if end > 512 * 1024:
+                stream.readline()
+            rows = stream.read().splitlines()
+    except FileNotFoundError:
+        return 0, ""
+    for line in reversed(rows):
+        if b'"event_msg"' not in line:
+            continue
+        try:
+            row = json.loads(line)
+        except (ValueError, UnicodeError):
+            continue
+        event = (row.get("payload") or {}).get("type")
+        if event in ("user_message", "task_started"):
+            return changed, "working"
+        if event in ("task_complete", "turn_aborted"):
+            return changed, "idle"
+    return changed, ""
+
+
 def reap(pushed, idle_minutes: float, waiting: set[str], now: float, act: bool = True,
-         signal_fn=os.kill) -> list[dict[str, Any]]:
+         signal_fn=os.kill, can_suspend=None, ready: set[str] | None = None) -> list[dict[str, Any]]:
     """Stop live Codex chats that reported done (✅) or asked the owner (❓) and sat idle since.
 
     Same rule as Claude pane chats (claude_idle_chats.py): a chat is closed only when it
@@ -459,14 +493,22 @@ def reap(pushed, idle_minutes: float, waiting: set[str], now: float, act: bool =
 
     stopped = []
     for chat_id, info in live().items():
-        if chat_id in waiting:
+        if chat_id in (ready or ()):
             continue
+        waits = chat_id in waiting
+        if waits and can_suspend is None:
+            continue
+        if can_suspend is not None:
+            activity, state = turn_activity(chat_id)
+            if state != "idle" or now - activity < idle_minutes * 60 or not can_suspend(chat_id, info["pid"]):
+                continue
         activity, prompt = last_times(chat_id)
         marker = pushed(chat_id, prompt) or {}
         kind = marker.get("kind")
-        if kind not in ("✅", "❓") or now - max(activity, float(marker.get("ts", 0))) < idle_minutes * 60:
+        if (kind not in ("✅", "❓") and not waits) or now - max(activity, float(marker.get("ts", 0))) < idle_minutes * 60:
             continue
-        entry = {"chat_id": chat_id, "pid": info["pid"], "why": "reported done" if kind == "✅" else "asked the owner"}
+        reason = "registered wait" if waits else "reported done" if kind == "✅" else "asked the owner"
+        entry = {"chat_id": chat_id, "pid": info["pid"], "why": reason}
         if marker.get("source") == "chat_compaction_handoff":
             entry["archived"] = True
         if act:

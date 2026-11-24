@@ -71,11 +71,12 @@ only pane), empty tabs, and the `zellij:link` background plugin. On 2026-11-20 t
 thread had used 43 CPU hours; closing them took the server from about 110% CPU
 and 900 MB to 29% and 180 MB with every chat still running.
 
-Waking after a wait reopens at most `wake_batch` (3) closed chats per cycle, a
-finished job's result before a timer, then by the chat's Task priority (hourly
-Tasks copy), and leaves `free_slots` (4) slots for new chats. A handoff waiter
-past its timeout shows as "timed out" (not STALLED) and is dropped 24 hours later;
-only timed-out disk, CI and background waiters count as stalled.
+Waking after a wait reopens at most `wake_batch` (3) closed chats per cycle.
+Finished job results go before timers, followed by the Task priority from the
+hourly cache. The lifecycle reserves `free_slots` (4) slots for new chats and can
+use one of those slots for recovery when no launch is queued. Running Codex
+panes receive ready results without consuming another slot. Idle Codex panes
+can release their process slot while a registered wait remains pending.
 
 Cap: at most `max_running` (20) chat processes. Beyond that the longest-idle
 chats are suspended, those without an open question first.
@@ -90,6 +91,18 @@ with their resume command), `events.jsonl`. The connector reports archiving with
 `claude_idle_chats.py mark --session <id> --state archived`. The counts appear in
 the daily meeting briefing ("Chats waiting on you") and the connector's
 chat_changes.
+
+```sh
+bash scripts/chat-recovery-watchdog-setup.sh
+python3 scripts/chat_recovery_watchdog.py --dry-run
+```
+
+The user timer runs the recovery watchdog every 30 minutes. It retries failed
+handoffs and stalled work, sends a deadline wake when an outside event stays
+unconfirmed, and sends one Discord notice per unresolved incident. A waiter
+registered with `--task <full task UUID>` fires from a fresh Task cache after the
+dependency is marked done. Explicit owner decisions stay pending. Registered
+results follow the successor when a handoff replaces the original chat.
 
 ### Only done, asking or waiting chats are closed (TASK-7707)
 
@@ -130,8 +143,8 @@ on 2026-11-15 were such leftovers of CI result downloads).
   zellij server, closed while waiting) is reopened with `claude --resume` and
   that line as its next message (`claude_dispatch.resume_chat`, tab `wake
   <id>`), within the cap of running chats. A busy chat is woken on a later
-  cycle, a chat whose last reply asks the owner something waits for the answer,
-  and an archived chat is never reopened. Each ready set is delivered once
+  cycle, and a chat that asks the owner for a decision waits for the answer.
+  Explicit recovery waiters can reopen an archived chat. Each ready set is delivered once
   (`waiter_wakes.json`); a failed reopen is retried and listed as stalled. A CI
   job that ended while its live chat was active again (its own background
   waiter brought the result) does not wake it twice. Events `waiter_woken` /

@@ -167,3 +167,30 @@ def test_exhausted_codex_windows_end_when_the_limit_resets():
     after = datetime(2026, 11, 23, 19, tzinfo=timezone.utc)
     assert codex_chats.exhausted_windows(reading, before) == ["five_hour:2026-11-23T18:00:00+00:00"]
     assert codex_chats.exhausted_windows(reading, after) == []
+
+
+# contract-test: tooling
+def test_slot_identity_excludes_the_codex_app_server(monkeypatch):
+    for args, expected in (
+        (b"/bin/codex\0--cd\0/repo\0prompt\0", True),
+        (b"/bin/codex\0app-server\0--cd\0/repo\0", False),
+        (b"/bin/codex\0exec\0prompt\0", False),
+    ):
+        monkeypatch.setattr(Path, "read_bytes", lambda _: args)
+        assert codex_chats._is_codex_process(100) is expected
+
+
+# contract-test: tooling
+def test_idle_waiting_codex_frees_slot_but_ready_active_and_held_chats_keep_it(home, monkeypatch):
+    ids = {name: codex_chats.new_record(name, "gpt-6.2-sol", "medium", "/repo", False)["chat_id"]
+           for name in ("parked", "ready", "working", "held")}
+    monkeypatch.setattr(codex_chats, "live", lambda: {cid: {"pid": n} for n, cid in enumerate(ids.values(), 100)})
+    monkeypatch.setattr(codex_chats, "turn_activity",
+                        lambda cid: (1000.0, "working" if cid == ids["working"] else "idle"))
+    monkeypatch.setattr(codex_chats, "last_times", lambda cid: (1000.0, 900.0))
+    calls = []
+    stopped = codex_chats.reap(lambda *_: {}, 3, set(ids.values()), now=2000.0,
+                               can_suspend=lambda cid, _: cid != ids["held"], ready={ids["ready"]},
+                               signal_fn=lambda pid, sig: calls.append(pid))
+    assert [entry["chat_id"] for entry in stopped] == [ids["parked"]]
+    assert calls == [100]
