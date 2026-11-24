@@ -98,19 +98,56 @@ def test_dev_watch_checks_new_revisions_without_debounce(tmp_path):
     clock = [10_000.0]
 
     def run(rev):
-        return check.dev_watch(state, lambda: clock[0], lambda _u: rev, checker)
+        return check.dev_watch(state, lambda: clock[0], lambda _u: rev, checker, runtime_ready=lambda _rev: True)
 
     assert run("r1") == 0 and calls == ["r1"]
     assert run("r1") == 0 and calls == ["r1"]          # same revision: quiet
     clock[0] += 60
     assert run("r2") == 0 and calls == ["r1", "r2"]
     assert run("r2") == 0 and calls == ["r1", "r2"]
+    assert run("r1") == 0 and calls == ["r1", "r2"]  # rollback
     assert json.loads(state.read_text())["last_revision"] == "r2"
+
+
+def test_dev_watch_never_repeats_an_interrupted_call(tmp_path):
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({"last_revision": "older"}))
+    calls = []
+
+    def interrupted(*args):
+        calls.append(args[2])
+        raise KeyboardInterrupt
+
+    def run(revision):
+        return check.dev_watch(state, lambda: 10, lambda _url: revision, interrupted, runtime_ready=lambda _rev: True)
+
+    with pytest.raises(KeyboardInterrupt):
+        run("current")
+    assert run("current") == 0
+    assert run("older") == 0
+    assert calls == ["current"]
+    assert json.loads(state.read_text())["last_result"] == {"status": "started"}
+
+
+def test_dev_watch_defers_when_backend_is_behind(tmp_path):
+    state = tmp_path / "state.json"
+    calls = []
+
+    def checker(*args):
+        calls.append(args[2])
+        return fake_summary(True)
+
+    assert check.dev_watch(state, lambda: 10, lambda _url: "r", checker, runtime_ready=lambda _rev: False) == 0
+    assert calls == []
+    assert not state.exists()
+    assert check.dev_watch(state, lambda: 11, lambda _url: "r", checker, runtime_ready=lambda _rev: True) == 0
+    assert calls == ["r"]
 
 
 def test_dev_watch_records_failure(tmp_path):
     state = tmp_path / "state.json"
-    code = check.dev_watch(state, lambda: 1e6, lambda _u: "r1", lambda *a: fake_summary(False))
+    code = check.dev_watch(state, lambda: 1e6, lambda _u: "r1", lambda *a: fake_summary(False),
+                           runtime_ready=lambda _rev: True)
     assert code == 1 and json.loads(state.read_text())["last_result"]["passed"] is False
 
 

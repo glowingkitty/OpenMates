@@ -250,6 +250,7 @@ for (const scenario of SCENARIOS) {
     // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.localized-waiting,video-call.audio.spoken-rich-response
     test(`a spoken question in a new chat is transcribed, answered aloud${scenario.videos ? ' with videos' : ''} and raises no error`,
       async ({ page }: { page: Page }, testInfo: TestInfo) => {
+        const testStartedAt = Date.now();
         test.skip(Boolean(scenario.form) && !FORM_PROMPT, 'VOICE_CALL_FORM_PROMPT names no form request.');
         test.setTimeout(scenario.form ? 900_000 : 420_000);
         expect(getTestAccount().email, 'test account credentials').toBeTruthy();
@@ -306,6 +307,8 @@ for (const scenario of SCENARIOS) {
             return devices.filter((device) => device.kind === 'audioinput').length;
           });
           log(`audio input devices: ${microphone}`);
+          // Bound the recurring smoke call even if speech stalls.
+          if (scenario.slug === 'capital') testInfo.setTimeout(Date.now() - testStartedAt + 45_000);
           await page.locator('[data-testid="voice-call-start"]:visible').click();
           started = true;
           const privacy = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });

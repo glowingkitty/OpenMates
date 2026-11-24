@@ -299,9 +299,20 @@ def _load_state(path: Path) -> dict:
         return {}
 
 
+def dev_runtime_ready(revision: str) -> bool:
+    """Wait for aligned dev frontend and backend before claiming a paid check."""
+    from design_embroidery_web_real_test import ProofError, require_runtime_revision
+
+    try:
+        require_runtime_revision(revision)
+    except ProofError:
+        return False
+    return True
+
+
 def dev_watch(state_path: Path = STATE_FILE, now=time.time, revision_fetcher=fetch_revision,
-              checker=run_check, base_url: str = BASE_URLS["dev"]) -> int:
-    """Run the dev check for each observed served revision, without overlap."""
+              checker=run_check, base_url: str = BASE_URLS["dev"], runtime_ready=dev_runtime_ready) -> int:
+    """Attempt the dev check at most once for each served revision."""
     state_path.parent.mkdir(parents=True, exist_ok=True)
     with (state_path.parent / "lock").open("w") as lock:
         try:
@@ -310,13 +321,26 @@ def dev_watch(state_path: Path = STATE_FILE, now=time.time, revision_fetcher=fet
             return 0
         revision = revision_fetcher(base_url)
         state = _load_state(state_path)
-        if revision == state.get("last_revision"):
+        checked = set(state.get("checked_revisions", []))
+        if prior := state.get("last_revision"):
+            checked.add(prior)
+        if revision in checked:
             return 0
-        started = now()
+        if not runtime_ready(revision):
+            return 0
+        checked.add(revision)
+        state = {"checked_revisions": sorted(checked), "last_revision": revision,
+                 "last_run_at": now(), "last_result": {"status": "started"}}
+        # Claim before spending provider credits. A killed run or a rollback
+        # to a previously served revision must not start the same calls again.
+        state_tmp = state_path.with_suffix(".tmp")
+        state_tmp.write_text(json.dumps(state))
+        state_tmp.replace(state_path)
         summary = checker("dev", base_url, revision, None, list(LEGS))
         legs = {name: leg["status"] for name, leg in summary["legs"].items()}
-        state_path.write_text(json.dumps({"last_revision": revision, "last_run_at": started,
-                                          "last_result": {"passed": summary["passed"], "legs": legs}}))
+        state["last_result"] = {"passed": summary["passed"], "legs": legs}
+        state_tmp.write_text(json.dumps(state))
+        state_tmp.replace(state_path)
         return 0 if summary["passed"] else 1
 
 

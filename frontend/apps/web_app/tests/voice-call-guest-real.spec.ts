@@ -41,6 +41,7 @@ test.describe('guest voice call on a real host', () => {
 
   // contract-test: direct surface=gui.web assertions=video-call.guest-calls
   test('a signed-out visitor speaks and hears the answer', async ({ page }: { page: Page }, testInfo: TestInfo) => {
+    const testStartedAt = Date.now();
     test.setTimeout(180_000);
     const receipt: Receipt = { status: 'failed', heard_text: '', reply_text: '', speech_status: null, error: '' };
     try {
@@ -63,6 +64,8 @@ test.describe('guest voice call on a real host', () => {
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       const start = page.locator('[data-testid="voice-call-start"]:visible');
       await expect(start).toBeVisible({ timeout: 30_000 });
+      // Bound the recurring smoke call even if speech stalls.
+      testInfo.setTimeout(Date.now() - testStartedAt + 45_000);
       await start.click();
       const notice = page.getByTestId('notification').filter({ hasText: 'Continue' });
       await expect(notice).toBeVisible({ timeout: 10_000 });
