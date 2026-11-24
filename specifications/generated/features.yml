@@ -24810,8 +24810,8 @@ features:
 - id: external-status-monitoring
   name: External Status Monitoring And Public Status Page
   kind: internal
-  description: A small EU server outside our infrastructure checks production, publishes status.openmates.org and sends escalating
-    alerts.
+  description: External and host checks track production outages and short blips, send outage and recovery notices, and publish
+    status.openmates.org.
   specifications:
   - id: architecture.external-status-monitoring
     status: draft
@@ -24823,7 +24823,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 10
+  assertions: 11
   surfaces:
     web:
       status: not_planned
@@ -24893,8 +24893,8 @@ features:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 8
-        counted: 10
+        missing: 9
+        counted: 11
       key_tests: []
       e2e_tests: []
       key_unit_tests:

@@ -76,6 +76,8 @@ def managed_block(root: Path = PROJECT_ROOT) -> str:
         "# Hourly prod reachability + guest chat that must get a reply, 06-23 Berlin (TASK-832). It only",
         "# dispatches the GitHub-hosted prod-smoke workflow; failures go to DISCORD_WEBHOOK_PROD_SMOKE and email.",
         f"5 {berlin_hours_as_utc_cron(PROD_FREE_HOURLY_BERLIN_HOURS)} * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py free-hourly' >> {log_root}/hourly-prod-tests.log 2>&1",
+        "# Lightweight checks and rechecks of active incidents, gated by OPENMATES_PROD_UPTIME_ENABLED.",
+        f"*/5 * * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py monitor' >> {log_root}/production-uptime.log 2>&1",
         "# Signed-in prod chat 3x/day and CLI web search 1x/day with the dedicated prod smoke test account",
         "# (GitHub secret OPENMATES_TEST_ACCOUNT_API_KEY; about 2 and 10 credits per run).",
         f"10 {berlin_hours_as_utc_cron(PROD_PAID_CHAT_BERLIN_HOURS)} * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py paid-chat' >> {log_root}/prod-paid-chat-tests.log 2>&1",

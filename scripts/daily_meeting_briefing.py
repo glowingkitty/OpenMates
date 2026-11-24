@@ -722,6 +722,11 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     for item in ev.get("parked_code_at_risk") or []:
         out.append(f"**⚠ Parked code purged {item['purged']}:** unlanded worktree {item['worktree']} "
                    f"(archive {item['archive']}) — recover it or decide to drop it.")
+    if (blips := ev.get("production_blips")) is not None:
+        coverage = " (host checks only)" if blips.get("host_only") else ""
+        minutes = f"{blips['seconds'] / 60:.2f}".rstrip("0").rstrip(".")
+        out.append(f"**Production uptime** — {blips['count']} short blips, "
+                   f"total {minutes} minutes in the last 24 hours{coverage}.")
     if last:
         out.append(f"**Nightly tests** ({last.get('date')}): {last.get('passed_count')} passed, "
                    f"{last.get('failed_count')} failed, {last.get('not_run_count')} not run.")

@@ -407,6 +407,32 @@ def alerts(gaps: list[str]) -> dict:
     return daily_meeting_health.collect_alerts(gaps)
 
 
+def production_blips(root: Path, now: datetime, gaps: list[str]) -> dict | None:
+    """Read the last 24 hours of host incidents and the status server's aggregate."""
+    if __package__:
+        from scripts.production_uptime import store_for
+    else:
+        from production_uptime import store_for
+
+    store = store_for(root)
+    started = now.timestamp() - 86400
+    count, seconds = store.short_blips(started, now.timestamp())
+    try:
+        request = urllib.request.Request("https://status.openmates.org/data/status.json",
+                                         headers={"User-Agent": "OpenMates Daily Briefing"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            data = json.load(response)
+        if now.timestamp() - float(data["generated_at"]) > 600:
+            raise ValueError("Status monitor data is stale")
+        external = data["short_blips_24h"]
+        return {"count": count + int(external["count"]), "seconds": seconds + float(external["seconds"])}
+    except (OSError, ValueError, KeyError, TypeError):
+        if not store.path.is_file():
+            return None
+        gaps.append("external status monitor blips unavailable")
+        return {"count": count, "seconds": seconds, "host_only": True}
+
+
 def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) -> dict | None:
     """Production growth counts, aggregate only (scripts/daily_meeting_growth.py)."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -612,6 +638,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "tasks_status": tasks_status,
         "waiting_chats": waiting(tasks, out, now, focus(root)),
         "alerts": alerts(gaps),
+        "production_blips": production_blips(root, now, gaps),
         "growth": (growth_data := growth(root, out, since, today, gaps)),
         "drop_log": drop_log(gaps),
         "marketing_block": marketing_block(out, growth_data, now.astimezone(TZ).date()),

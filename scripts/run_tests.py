@@ -129,7 +129,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402 (repo path bootstrap)
-from scripts import notification_log  # noqa: E402 (repo path bootstrap)
+from scripts import notification_log, production_uptime  # noqa: E402 (repo path bootstrap)
 from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
@@ -6033,162 +6033,9 @@ PROD_SMOKE_SPECS_BY_SUITE: dict[str, list[tuple[str, str, str]]] = {
 
 
 def _parse_prod_smoke_artifact(
-    art_path: Path,
-    specs: Optional[list[tuple[str, str, str]]] = None,
+    art_path: Path, specs: Optional[list[tuple[str, str, str]]] = None,
 ) -> list[dict]:
-    """Parse per-spec results from a downloaded prod-smoke artifact.
-
-    Returns one dict per spec in the order they ran:
-        {"name": <human label>, "status": "passed"|"failed",
-         "error": <error snippet or empty>, "passed": int, "failed": int}
-
-    Empty/missing/unparseable JSON files mean playwright crashed before
-    producing any test output (e.g. config load error) — treated as
-    `failed` with an empty error so the caller falls back to the job-level
-    log snippet for the actual cause.
-
-    Returns an empty list when the artifact is missing entirely so the
-    caller can fall back to the conclusion-based single-test path.
-    """
-    if not art_path or not art_path.is_dir():
-        return []
-
-    # The JSON files live under one of these locations depending on how the
-    # artifact was unpacked. GitHub flattens uploaded directory contents in
-    # some cases, so the artifact root itself is a valid candidate.
-    candidates = [
-        art_path,
-        art_path / "test-results",
-        art_path / f"prod-smoke-results-{art_path.name}" / "test-results",
-    ]
-    # Also walk one level down in case the artifact name is unknown.
-    if not any(c.is_dir() for c in candidates):
-        for child in art_path.iterdir():
-            if child.is_dir():
-                inner = child / "test-results"
-                if inner.is_dir():
-                    candidates.append(inner)
-                    break
-
-    candidate_dirs = [c for c in candidates if c.is_dir()]
-    if not candidate_dirs:
-        return []
-
-    out: list[dict] = []
-    for spec_key, spec_label, spec_filename in (specs or PROD_SMOKE_SPECS):
-        json_path = next(
-            (candidate / f"{spec_key}.json" for candidate in candidate_dirs if (candidate / f"{spec_key}.json").is_file()),
-            candidate_dirs[0] / f"{spec_key}.json",
-        )
-        if not json_path.is_file() or json_path.stat().st_size == 0:
-            out.append({
-                "key": spec_key,
-                "filename": spec_filename,
-                "name": spec_label,
-                "status": "failed",
-                "error": "",  # caller will substitute the job log snippet
-                "passed": 0,
-                "failed": 1,
-            })
-            continue
-
-        # The file may have non-JSON prefix from the `list` reporter — find
-        # the first `{` and try to parse from there.
-        try:
-            raw = json_path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            out.append({
-                "name": spec_label, "status": "failed",
-                "error": "", "passed": 0, "failed": 1,
-            })
-            continue
-
-        data = None
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            brace = raw.find("{")
-            if brace >= 0:
-                try:
-                    data = json.loads(raw[brace:])
-                except json.JSONDecodeError:
-                    data = None
-
-        if not isinstance(data, dict):
-            out.append({
-                "key": spec_key,
-                "filename": spec_filename,
-                "name": spec_label, "status": "failed",
-                "error": (raw.strip().splitlines()[-1][:300] if raw.strip() else ""),
-                "passed": 0, "failed": 1,
-            })
-            continue
-
-        # CLI verifier JSON: {status, scenarios: {name: {status, error?}}}
-        if "scenarios" in data and data.get("status") in {"passed", "failed"}:
-            scenarios = data.get("scenarios") if isinstance(data.get("scenarios"), dict) else {}
-            failed_scenarios = [
-                (name, value)
-                for name, value in scenarios.items()
-                if isinstance(value, dict) and value.get("status") != "passed"
-            ]
-            first_error = ""
-            if failed_scenarios:
-                scenario_name, scenario_data = failed_scenarios[0]
-                first_error = str(scenario_data.get("error") or f"{scenario_name} failed")
-            passed_count = sum(
-                1
-                for value in scenarios.values()
-                if isinstance(value, dict) and value.get("status") == "passed"
-            )
-            failed_count = len(failed_scenarios)
-            out.append({
-                "key": spec_key,
-                "filename": spec_filename,
-                "name": spec_label,
-                "status": "passed" if data.get("status") == "passed" else "failed",
-                "error": first_error,
-                "passed": passed_count,
-                "failed": failed_count,
-            })
-            continue
-
-        # Playwright JSON: stats.expected = passed, stats.unexpected = failed
-        stats = data.get("stats", {}) or {}
-        expected = int(stats.get("expected", 0) or 0)
-        unexpected = int(stats.get("unexpected", 0) or 0)
-
-        # Pull the first failure message if available.
-        first_error = ""
-        if unexpected > 0:
-            for suite in data.get("suites", []) or []:
-                for spec in suite.get("specs", []) or []:
-                    for t in spec.get("tests", []) or []:
-                        for r in (t.get("results") or []):
-                            if r.get("status") in ("failed", "timedOut"):
-                                err = (r.get("error", {}) or {}).get("message", "")
-                                if err:
-                                    first_error = err.strip()
-                                    break
-                        if first_error:
-                            break
-                    if first_error:
-                        break
-                if first_error:
-                    break
-
-        status = "passed" if unexpected == 0 and expected > 0 else "failed"
-        out.append({
-            "key": spec_key,
-            "filename": spec_filename,
-            "name": spec_label,
-            "status": status,
-            "error": first_error,
-            "passed": expected,
-            "failed": unexpected,
-        })
-
-    return out
+    return production_uptime.parse_smoke_artifact(art_path, specs or PROD_SMOKE_SPECS)
 
 
 def _berlin_now() -> datetime:
@@ -6222,36 +6069,12 @@ def _skip_outside_prod_schedule(
     return False
 
 
-def _run_prod_smoke_suite(
-    notification: NotificationService,
-    *,
-    force: bool,
-    suite: str,
-    archive_dir: Path,
-    mode_flag: str,
-    mode_label: str,
-    display_title: str,
-    dry_run: bool = False,
-) -> int:
-    """Dispatch one selected prod-smoke.yml suite and notify from dev server."""
-    git_sha, git_branch = _git_info()
-    run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    print()
-    print("=" * 60)
-    print(f"  {display_title}")
-    print("=" * 60)
-    _log(f"Git: {git_sha}@{git_branch}")
-    _log(f"Workflow: {PROD_SMOKE_WORKFLOW} suite={suite}")
-    print()
-
-    if dry_run:
-        _log("Dry run — would dispatch production smoke workflow")
-        print(f"    gh workflow run {PROD_SMOKE_WORKFLOW} --repo {GH_REPO} --ref {GH_BRANCH} -f suite={suite}")
-        return 0
-
-    client = GitHubActionsClient()
-    pre_ids = client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
+def _dispatch_prod_smoke(
+    suite: str, client: Optional[GitHubActionsClient] = None,
+) -> tuple[Optional[int], Optional[SuiteResult], str]:
+    """Dispatch and wait for the specific production smoke workflow."""
+    client = client or GitHubActionsClient()
+    pre_ids = [] if production_uptime.enabled() else client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
     dispatch_token = f"prod-{suite}-{os.getpid()}-{time.time_ns()}"
 
     new_run_id: Optional[int] = None
@@ -6287,7 +6110,7 @@ def _run_prod_smoke_suite(
             if new_run_id is not None:
                 break
             time.sleep(2)
-        if new_run_id is None:
+        if new_run_id is None and not production_uptime.enabled():
             post_ids = client._recent_run_ids(limit=10, workflow=PROD_SMOKE_WORKFLOW)
             fresh = [rid for rid in post_ids if rid not in pre_ids]
             if len(fresh) == 1:
@@ -6311,6 +6134,105 @@ def _run_prod_smoke_suite(
             status_data = statuses.get(new_run_id, {})
             conclusion = status_data.get("conclusion", "unknown")
             _log(f"prod-smoke run {new_run_id} → {conclusion}")
+
+    return new_run_id, suite_result, conclusion
+
+
+def _dispatch_observed_prod_smoke(suite: str) -> tuple[Optional[int], Optional[SuiteResult], str]:
+    """Turn local GitHub client failures into a retryable checker result."""
+    try:
+        return _dispatch_prod_smoke(suite)
+    except (OSError, subprocess.SubprocessError, SystemExit) as exc:
+        _log(f"Prod smoke checker could not reach GitHub: {type(exc).__name__}", "WARN")
+        return None, SuiteResult(status="failed", tests=[{"error": type(exc).__name__}]), "unknown"
+
+
+def _record_prod_smoke(notification, suite, archive_dir, mode_flag, run_id,
+                       git_sha, git_branch, force, run, dispatch_error, conclusion) -> int:
+    """Archive checker failures, retry them once, and record structured service evidence."""
+    from scripts.prod_email_health import post_discord
+
+    store = production_uptime.store_for(CONTROL_PLANE_ROOT)
+    specs = PROD_SMOKE_SPECS_BY_SUITE[suite]
+    webhook = notification.discord_webhook_prod_smoke
+    seen: set[str] = set()
+    outcomes: dict[str, str] = {}
+    for attempt in range(2):
+        results = []
+        detail = "No completed product test result"
+        if dispatch_error:
+            detail = dispatch_error.tests[0]["error"]
+        if run:
+            try:
+                client = GitHubActionsClient()
+                with tempfile.TemporaryDirectory(prefix="prod-smoke-artifact-") as directory:
+                    path = client.download_artifact(run, f"prod-smoke-results-{run}", Path(directory))
+                    if path:
+                        results = _parse_prod_smoke_artifact(path, specs)
+                if conclusion != "success":
+                    detail = client.get_failed_job_error(run) or detail
+            except (OSError, subprocess.SubprocessError, SystemExit) as exc:
+                detail = f"GitHub result unavailable ({type(exc).__name__})"
+        observations = production_uptime.smoke_observations(results, specs, detail, time.time())
+        # A checker retry can re-run healthy tests too. One scheduled tick must
+        # contribute at most one real result per test to outage confirmation.
+        fresh = [item for item in observations if item.check not in seen]
+        store.record(fresh, time.time(), lambda message: bool(webhook) and post_discord(webhook, message))
+        seen.update(item.check for item in fresh if item.outcome != "checker")
+        outcomes.update((item.check, item.outcome) for item in fresh)
+        tests = [{"name": item.check, "status": {"up": "passed", "down": "failed", "checker": "infrastructure_incident"}[item.outcome],
+                  "error": item.error, "duration_seconds": 0, "run_id": run} for item in fresh]
+        if tests:
+            result = ResultAggregator.build_run_result(
+                suites={suite: SuiteResult(status="passed" if all(t["status"] == "passed" for t in tests) else "failed",
+                                           tests=tests)},
+                run_id=run_id + ("-retry" if attempt else ""), git_sha=git_sha, git_branch=git_branch,
+                environment="production", duration=0,
+                flags={"mode": mode_flag, "suite": suite, "force": force},
+            )
+            _archive_hourly_run(archive_dir, result)
+        if attempt == 0 and any(item.outcome == "checker" for item in fresh):
+            _log("Prod smoke checker could not run all tests. Retrying once.", "WARN")
+            run, dispatch_error, conclusion = _dispatch_observed_prod_smoke(suite)
+        else:
+            break
+    return int(any(outcome != "up" for outcome in outcomes.values()))
+
+
+def _run_prod_smoke_suite(
+    notification: NotificationService,
+    *,
+    force: bool,
+    suite: str,
+    archive_dir: Path,
+    mode_flag: str,
+    mode_label: str,
+    display_title: str,
+    dry_run: bool = False,
+) -> int:
+    """Dispatch one selected prod-smoke.yml suite and notify from dev server."""
+    git_sha, git_branch = _git_info()
+    run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    print()
+    print("=" * 60)
+    print(f"  {display_title}")
+    print("=" * 60)
+    _log(f"Git: {git_sha}@{git_branch}")
+    _log(f"Workflow: {PROD_SMOKE_WORKFLOW} suite={suite}")
+    print()
+
+    if dry_run:
+        _log("Dry run — would dispatch production smoke workflow")
+        print(f"    gh workflow run {PROD_SMOKE_WORKFLOW} --repo {GH_REPO} --ref {GH_BRANCH} -f suite={suite}")
+        return 0
+
+    if production_uptime.enabled():
+        new_run_id, suite_result, conclusion = _dispatch_observed_prod_smoke(suite)
+        return _record_prod_smoke(notification, suite, archive_dir, mode_flag, run_id,
+                                  git_sha, git_branch, force, new_run_id, suite_result, conclusion)
+    client = GitHubActionsClient()
+    new_run_id, suite_result, conclusion = _dispatch_prod_smoke(suite, client)
 
     # ─── Result building (artifact-driven) ──────────────────────────────────
     # Download the prod-smoke artifact so we can read the per-spec playwright

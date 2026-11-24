@@ -38,8 +38,16 @@ def parse_statuses(payload: Any) -> dict[str, tuple[CheckResult, ...]]:
         key = endpoint.get("key")
         if not isinstance(key, str):
             continue
-        results = [CheckResult(parse_timestamp(r["timestamp"]), bool(r.get("success")))
-                   for r in endpoint.get("results") or [] if isinstance(r.get("timestamp"), str)]
+        results = [
+            CheckResult(
+                parse_timestamp(r["timestamp"]), r["success"],
+                str(r.get("error") or ", ".join(str(e) for e in r.get("errors") or []))[:500],
+                tuple(str(item.get("condition")) for item in r.get("conditionResults") or []
+                      if item.get("success") is False),
+            )
+            for r in endpoint.get("results") or []
+            if isinstance(r.get("timestamp"), str) and isinstance(r.get("success"), bool)
+        ]
         parsed[key] = tuple(sorted(results, key=lambda r: r.timestamp))
     return parsed
 

@@ -1,25 +1,51 @@
 schema_version: 1
 specification: architecture.external-status-monitoring@1
 
-alerts:
-  - id: single-failure-is-silent
-    given: {results: [ok, fail]}
-    expect: {notifications: []}
-  - id: two-failures-alert
-    given: {results: [ok, fail, fail]}
-    expect: {notifications: [down]}
-  - id: stale-results-count-as-down
-    given: {newest_result_age: 3_intervals_plus_3_minutes}
-    expect: {status: down}
-  - id: reminders-escalate
-    given: {down_for: [15m, 1h, 4h, 7h]}
-    expect: {reminders: [still_down_15m, still_down_1h, still_down_4h, still_down_7h]}
+confirmation:
+  - id: missing-results-are-checker-errors
+    given: The status checker stops receiving results while the API was healthy.
+    when: The status monitor observes stale check data.
+    expect: The checker problem is recorded and no API outage notice is sent.
+  - id: three-minute-blip
+    given: The API fails two real checks and recovers three minutes after the first observed failure.
+    when: The monitor records the recovery.
+    expect: One three-minute blip is stored and no notice is sent.
+
+escalation:
+  - id: prolonged-outage
+    given: The web app fails repeated checks and remains down for more than two hours.
+    when: The default cadence is in effect.
+    expect: The first 🚨 notice is due at ten minutes, followed by reminders thirty minutes later and then hourly.
+
+recovery:
   - id: recovery-resolves-once
-    given: {results: [fail, fail, ok, ok]}
-    expect: {notifications: [down, resolved]}
+    given: An outage notice was sent and all failing checks are healthy again.
+    when: The service stays healthy through the recovery window.
+    expect: One ✅ notice names the service and gives the start, end and duration.
+  - id: nearby-failure-merges
+    given: The API recovers and fails again two minutes later.
+    when: The monitor records the new failure.
+    expect: The previous incident stays open and the monitor sends no recovery notice.
+
+history:
   - id: restart-keeps-state
-    given: {alert_open: true, checker_restarted: true}
-    expect: {repeated_down_notice: false, alert_open: true}
+    given: The API is down and the first notice has already been delivered.
+    when: The monitor restarts and the incident later ends.
+    expect: The initial notice is not repeated and the closed incident retains the failing check and error.
+  - id: short-blips-in-briefing
+    given: Two short outages lasting three and four minutes were recorded in the past day.
+    when: The daily briefing is generated.
+    expect: It reports two short blips totaling seven minutes.
+
+checker_errors:
+  - id: browser-runner-fails-before-tests
+    given: Installing Playwright dependencies fails before the production smoke runs.
+    when: The host processes the workflow result.
+    expect: The host records a checker failure and retries once without opening a service incident.
+  - id: statistics-timeout-with-working-sends
+    given: Brevo accepts production sends while the statistics endpoint times out.
+    when: The email monitor evaluates the evidence.
+    expect: The statistics timeout is recorded separately and no email outage notice is sent.
 
 public_page:
   - id: outage-shows-component-only

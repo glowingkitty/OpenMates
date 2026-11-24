@@ -235,6 +235,83 @@ def run(*, dry_run: bool = False, state_path: Path = STATE_FILE) -> int:
     return 0 if result["ok"] else 1
 
 
+def monitor(store, now: datetime, post, *, api_key: str = "") -> int:
+    """Use production's own Brevo probe and production send logs for outage evidence."""
+    import subprocess
+
+    from scripts import daily_meeting_health
+    from scripts.production_uptime import Observation
+
+    service = "Production transactional email"
+    at = now.timestamp()
+    # /v1/health redacts check timestamps. Use the real production probe and
+    # send log timestamps so repeated reads of a cached failure cannot confirm it.
+    query = {"stream": "default", "select": ["_timestamp", "message"], "since_minutes": 30, "limit": 1000,
+             "filters": [{"field": "message", "op": "like", "value": "%Brevo%"}]}
+    try:
+        output = daily_meeting_health._run(
+            ["logs", "--prod", "--o2", "--json", "--query-json", json.dumps(query)], timeout=45)
+        payload = json.loads(output)
+        if not payload.get("success"):
+            raise ValueError("Production log query did not succeed")
+        observations = send_log_observations(payload["rows"], service)
+        if not observations:
+            observations.append(Observation(service, "production log query", at, "checker",
+                                            "No recent production send or Brevo account log records"))
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, AttributeError) as exc:
+        observations = [Observation(service, "production log query", at, "checker",
+                                    f"Production send logs unavailable ({type(exc).__name__})")]
+
+    # Optional secondary telemetry. A timeout or absent dev key is a checker diagnostic.
+    statistics = check_error_rate(api_key, now)
+    if not statistics["ok"] and "failed" not in statistics:
+        observations.append(Observation(service, "Brevo delivery statistics", at, "checker", statistics["reason"]))
+    store.record(observations, at, post)
+    print("[email-health] " + json.dumps({"production_observations": len(observations), "statistics": statistics}))
+    return int(service in store.active_services())
+
+
+def send_log_observations(rows: list[dict], service: str) -> list:
+    """Convert real sends to evidence without persisting message text or recipient data."""
+    from scripts.production_uptime import Observation
+
+    observations = []
+    for row in rows:
+        raw_message = row.get("message")
+        if not isinstance(raw_message, str):
+            continue
+        # Production OpenObserve wraps the Python JSON log in a message field.
+        if raw_message.startswith("{"):
+            try:
+                entry = json.loads(raw_message)
+            except ValueError:
+                continue
+            if not isinstance(entry, dict) or entry.get("name") not in {
+                "backend.core.api.app.tasks.health_check_tasks",
+                "backend.core.api.app.services.email.brevo_provider",
+            }:
+                continue
+            message = str(entry.get("message") or "")
+        else:
+            message = raw_message
+        timestamp = row.get("_timestamp")
+        if not isinstance(timestamp, (int, float)):
+            continue
+        at = timestamp / 1_000_000
+        if message.startswith("Health check: Brevo API is healthy"):
+            observations.append(Observation(service, "production Brevo account", at, "up"))
+        elif message.startswith(("Health check: Brevo API returned", "Health check: Brevo API timeout",
+                                 "Health check: Brevo API error:")):
+            observations.append(Observation(service, "production Brevo account", at, "down",
+                                            "Production Brevo account request failed"))
+        elif message.startswith(("Email accepted by Brevo", "Email sent successfully (messageId")):
+            observations.append(Observation(service, "production send logs", at, "up"))
+        elif message.startswith(("Failed to send email via Brevo.", "Error sending email via Brevo:")):
+            observations.append(Observation(service, "production send logs", at, "down",
+                                            "Brevo rejected or failed a production send"))
+    return observations
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dry-run", action="store_true", help="check and print, but neither post nor save state")

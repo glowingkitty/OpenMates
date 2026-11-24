@@ -27,7 +27,7 @@ The repository and the image contain no secrets, tokens or server addresses. The
 
 Alert-only checks come from production `/v1/health`, one per configured provider, app and service. They replace the backend's own Discord transition posts once production sets `OPENMATES_HEALTH_ALERTS_DELEGATED=true`.
 
-Alerts: 2 failures in a row trigger a "DOWN" message. "STILL DOWN … for X" reminders follow at 15 min, at 1 h, then every 3 h. One "RESOLVED … after X" message is sent when it recovers. Alerts go to Discord first and also by email.
+Two consecutive real failures and at least ten minutes of observed downtime trigger a 🚨 notice. Reminders follow after thirty minutes and then hourly. A notified outage ends with one ✅ after stable recovery. Alerts go to Discord and email. See the [monitoring runbook](../../docs/architecture/infrastructure/production-uptime-monitoring.md).
 
 ## Operating it (from the dev server, canonical checkout)
 

@@ -28,6 +28,7 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
         "tasks": {"changed_since_last_meeting": [{"id": "TASK-1", "title": "Send the journalist emails",
                                                   "from": "todo", "to": "in_progress"}]},
         "gaps": ["Mac offline"],
+        "production_blips": {"count": 2, "seconds": 420},
     }
     text = briefing.render(evidence, {"themes": [], "loose_ends": [], "chats": []},
                            date(2026, 11, 3), datetime(2026, 11, 3, 9, tzinfo=timezone.utc))
@@ -41,6 +42,7 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
     assert "- **Apps inside chat:** search" in text
     assert "record videos" in text
     assert "Mac offline" in text
+    assert "2 short blips, total 7 minutes in the last 24 hours" in text
     assert "**Changed since the last meeting, still open (1):**" in text
     assert "- TASK-1 Send the journalist emails (todo → in_progress)" in text
 

@@ -275,6 +275,19 @@ def cmd_watch(_: argparse.Namespace) -> int:
         return 0
     domain = config.get("domain", DEFAULT_DOMAIN)
     now = time.time()
+    from production_uptime import Observation, store_for
+
+    if (os.getenv("OPENMATES_PROD_UPTIME_ENABLED") or dotenv("OPENMATES_PROD_UPTIME_ENABLED")) == "1":
+        from status_agent.notify import post_uptime
+
+        healthy = page_is_fresh(f"https://{domain}/data/status.json", now)
+        webhook = dotenv("DISCORD_WEBHOOK_PROD_SMOKE")
+        store_for(CANONICAL_ROOT).record(
+            [Observation("Production status page", "external status freshness", now,
+                         "up" if healthy else "down", "" if healthy else "Status page unreachable or stale")],
+            now, lambda message: post_uptime(message, webhook))
+        return 0
+
     state = json.loads(WATCH_STATE.read_text(encoding="utf-8")) if WATCH_STATE.exists() else {}
     results = [CheckResult(*r) for r in state.get("results", [])]
     results.append(CheckResult(now, page_is_fresh(f"https://{domain}/data/status.json", now)))

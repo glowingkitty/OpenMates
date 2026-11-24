@@ -22,11 +22,20 @@ from .alerts import CheckResult, CheckSnapshot
 
 SECTIONS = {"providers": "AI provider", "apps": "App", "external_services": "Service"}
 # Matches the backend policy: unconfigured or skipped items never alert.
-IGNORED_STATUSES = {"skipped", "not_configured", "no_models"}
+OBSERVED_STATUSES = {"healthy", "unhealthy", "degraded"}
 IGNORED_ERRORS = {"missing_credentials", "not_configured"}
 KEEP_RESULTS = 10
 STALE_AFTER_S = 15 * 60
 TIMEOUT_S = 15
+
+
+def confirmation_interval(key: str) -> int:
+    """Allow a backend probe to refresh before counting a repeated cached failure."""
+    if key.startswith("integration_providers_"):
+        return 1800
+    if key == "integration_external_services_sightengine":
+        return 7200
+    return 60
 
 
 def fetch_health(api_url: str) -> Any:
@@ -49,7 +58,7 @@ def observations(payload: Any) -> dict[str, tuple[str, bool]]:
             if not isinstance(item, dict):
                 continue
             status = str(item.get("status") or "")
-            if status in IGNORED_STATUSES or str(item.get("last_error") or "") in IGNORED_ERRORS:
+            if status not in OBSERVED_STATUSES or str(item.get("last_error") or "") in IGNORED_ERRORS:
                 continue
             found[f"integration_{section}_{item_id}"] = (f"{label} {item_id} (production health check)",
                                                          status == "healthy")

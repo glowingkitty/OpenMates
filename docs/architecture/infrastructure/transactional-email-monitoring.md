@@ -18,7 +18,13 @@ plain host calls fail with HTTP 401 "unrecognised IP address" even with a valid
 key. That is why host scripts must call Brevo through `scripts/brevo_ipv4.py`
 (TASK-427). Containers use the IPv4 egress and are not affected.
 
-## Hourly check
+## Uptime monitor
+
+The dev-host production uptime monitor uses production Brevo account probes
+and real send results. See [Production uptime monitoring](production-uptime-monitoring.md)
+for the alert policy, credential locations, and enablement.
+
+## Legacy hourly check
 
 `scripts/prod_smoke_cron.py free-hourly` runs `scripts/prod_email_health.py`
 before it dispatches the browser smoke. The check fails when any of these is

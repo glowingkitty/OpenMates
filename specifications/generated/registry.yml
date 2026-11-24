@@ -73,7 +73,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/external-status-monitoring
-    fingerprint: ec3217de61d74dfed68e353e8ec6cb410b63b46cbf90c5ed8d9f29e3426fc764
+    fingerprint: 41f1715e50c9012f432ae6c25285de12bc57cb9ca00ce561efd925fbf30248b9
     required_applies_to:
     - rest_api
   architecture.operational-monitoring:
@@ -2042,35 +2042,42 @@ assertions:
     specification: architecture.external-status-monitoring@1
     specification_id: architecture.external-status-monitoring
     type: behavior
-    fingerprint: 3269d919e160d78fbc237ea7ccae1c969eb79821152b7ac90bf021fd7d0b314d
+    fingerprint: 3c33a05f2544625b772c0665a2a69bd7860323405b21e6abc8bdad74590c0070
     required_applies_to:
     - rest_api
   external-status-monitoring.alerts.escalation:
     specification: architecture.external-status-monitoring@1
     specification_id: architecture.external-status-monitoring
     type: behavior
-    fingerprint: 180832b300cf8967fa58a2f61111b62fbeb317986157113cfabe0e463a7c2f62
+    fingerprint: 39541d82ebca617126b3e6422d00e01ace93e72a6ae6f41abf8dbd2ac0b30b5f
     required_applies_to:
     - rest_api
   external-status-monitoring.alerts.resolved:
     specification: architecture.external-status-monitoring@1
     specification_id: architecture.external-status-monitoring
     type: behavior
-    fingerprint: ebb8b8fc5da47c7c18af498b80127a22f49d6dbde532e4fde2899b4dd1aaf941
+    fingerprint: 4c251c307bddacf26886a694e5f7af8cf5a6459f853291c771a1e26302e99f56
     required_applies_to:
     - rest_api
   external-status-monitoring.alerts.restart-safe:
     specification: architecture.external-status-monitoring@1
     specification_id: architecture.external-status-monitoring
     type: invariant
-    fingerprint: 2a5fa7e15d1ead9cde58d304ae0598778ec9cb53aec61f6afdb0728a8bba0b36
+    fingerprint: 5a5d77a5259d97dc1362720ea29c711ae96e45df4209e38abfb3785b5bfee1dd
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.alerts.checker-errors:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: behavior
+    fingerprint: 951666d53753347a6ab0d14804e763ced0420d76d652b1ae35c6554128c3c461
     required_applies_to:
     - rest_api
   external-status-monitoring.page.public-safe:
     specification: architecture.external-status-monitoring@1
     specification_id: architecture.external-status-monitoring
     type: privacy
-    fingerprint: 3cb827409c3d11f02ce143db788688efa3108282318f5050874a8dab175c0e5e
+    fingerprint: ef8ace3c08015a087803dbdea060497d113f46ba02552d23e964d4c677ec11f2
     required_applies_to:
     - rest_api
   external-status-monitoring.page.overall-honest:

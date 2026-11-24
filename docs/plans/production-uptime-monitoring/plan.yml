@@ -1,0 +1,25 @@
+schema_version: 2
+profile: concise
+id: production-uptime-monitoring
+title: Production uptime monitoring
+status: verified
+goal: "Make production monitoring behave like a real uptime monitor: repeated alerts while a service is really down, a recovery notice when it is back, no notification for outages shorter than 10 minutes, and every outage tracked."
+scope:
+  in:
+    - Production browser and CLI smoke, transactional email, TLS, and external status checks.
+    - Durable incident history and a short-blip count in the daily briefing.
+  out:
+    - Activating the new host schedule or replacing the production status image before the owner approves rollout.
+acceptance_criteria:
+  - id: checker-failure
+    description: The Playwright setup and Brevo statistics failures go to checker history. The smoke checker retries once.
+  - id: short-blip
+    description: A three-minute blip is recorded without a notification.
+  - id: outage-lifecycle
+    description: A sustained outage sends a down alert, reminders, and a recovery after stable health returns.
+  - id: rollout
+    description: Production stays on the existing runtime settings during dev verification.
+tests:
+  - id: uptime-replay
+    type: pytest
+    command: python3 -m pytest -q scripts/tests/test_production_uptime.py

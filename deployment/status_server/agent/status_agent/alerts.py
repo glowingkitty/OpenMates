@@ -33,6 +33,8 @@ class CheckResult:
 
     timestamp: float
     success: bool
+    error: str = ""
+    failed_conditions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
