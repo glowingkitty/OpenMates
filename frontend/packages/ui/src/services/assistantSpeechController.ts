@@ -138,6 +138,7 @@ class AssistantSpeechController {
   private callOwner: string | null = null;
   private activeCallId: string | null = null;
   private canonicalSource: { chatId: string; messageId: string; text: string } | null = null;
+  private callSpeechSource: { messageId: string; text: string } | null = null;
   /** The prerecorded clip spoken for a message before (or instead of) its answer. */
   private acknowledgementClip: { messageId: string; audioUrl: string } | null = null;
   private readonly queue = new AssistantSpeechQueue({
@@ -262,6 +263,7 @@ class AssistantSpeechController {
   /** A call keeps the one shared player scoped to its ordinary chat. */
   setCallOwner(chatId: string | null, callId?: string | null): void {
     if (this.activeCallId && (!chatId || chatId !== this.callOwner || (callId !== undefined && callId !== this.activeCallId))) {
+      this.callSpeechSource = null;
       this.queue.stop();
       this.disposeLiveAudio();
     }
@@ -270,6 +272,18 @@ class AssistantSpeechController {
     this.callOwner = chatId;
     if (!chatId) this.canonicalSource = null;
     if (chatId && this.chatId && this.chatId !== chatId) void this.stop();
+    this.publish();
+  }
+
+  /** Report only the current call reply's speech prose for microphone echo detection. */
+  registerCallSource(chatId: string, messageId: string, markdown: string): void {
+    if (chatId !== this.callOwner || !this.activeCallId) return;
+    const text = projectAssistantSpeech(markdown)
+      .filter(segment => segment.kind === "prose_paragraph")
+      .map(segment => segment.speakable_text)
+      .join("\n")
+      .slice(-8_000);
+    this.callSpeechSource = { messageId, text };
     this.publish();
   }
   get playbackBoundary() { return this.queue.playbackBoundary; }
@@ -1060,12 +1074,14 @@ class AssistantSpeechController {
     // the playing message and its clip, not the previous answer as silent, so
     // a live call can recognise the clip in its microphone (EYHC5).
     const clip = this.acknowledgementClip?.messageId === this.messageId ? this.acknowledgementClip : null;
-    const source = clip && this.canonicalSource?.messageId !== this.messageId ? null : this.canonicalSource;
+    const source = (clip || this.activeCallId) && this.canonicalSource?.messageId !== this.messageId
+      ? null : this.canonicalSource;
+    const callSource = this.callSpeechSource?.messageId === this.messageId ? this.callSpeechSource : null;
     this.activity.set({
       chatId: source?.chatId ?? this.chatId,
       messageId: source?.messageId ?? this.messageId,
-      text: source?.text ?? "",
-      clipAudioUrl: clip?.audioUrl ?? null,
+      text: this.activeCallId ? callSource?.text ?? "" : source?.text ?? "",
+      clipAudioUrl: this.queue.state.activeSegmentId?.startsWith("acknowledgement:") ? clip?.audioUrl ?? null : null,
       speaking: this.queue.state.status === "playing" && (!source || source.messageId === this.messageId),
       language: get(locale) || "en",
     });

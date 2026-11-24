@@ -10356,12 +10356,13 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
+        passing: 15
         failing: 0
         not_run: 5
         missing: 0
-        counted: 19
-      key_tests: []
+        counted: 20
+      key_tests:
+      - backend/tests/test_voice_call_protocol.py
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_voice_realtime_turn.py

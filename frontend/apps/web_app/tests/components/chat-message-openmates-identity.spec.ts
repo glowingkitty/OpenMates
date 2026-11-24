@@ -63,3 +63,17 @@ test('Explicit senders, mates, imported providers and team humans retain their i
     }
   }
 });
+
+// contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity
+test('a new call shows thinking before the Mate identity is known', async ({ page }, testInfo) => {
+  const params = new URLSearchParams({
+    chrome: '0', theme: 'light', background: '#dbeafe', width: '390', variant: 'unroutedCallResponse',
+    props: JSON.stringify({ containerWidth: 390 }),
+  });
+  await page.goto(`/dev/preview/ChatMessage?${params}`);
+  const canvas = await waitForComponentPreview(page);
+  await expect(canvas.getByTestId('assistant-transient-thinking')).toBeVisible();
+  await expect(canvas.getByTestId('openmates-profile')).toHaveCount(0);
+  await expect(canvas.getByTestId('chat-mate-name')).toHaveCount(0);
+  await testInfo.attach('new-call-awaiting-mate', { body: await canvas.screenshot(), contentType: 'image/png' });
+});

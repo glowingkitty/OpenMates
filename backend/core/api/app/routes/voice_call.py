@@ -669,7 +669,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             await settle_cleanup()
 
     async def classify_latest(turn: _SpeechTurn) -> None:
-        from backend.shared.python_utils.voice_call_intent import is_explicit_voice_stop
+        from backend.shared.python_utils.voice_call_intent import is_explicit_voice_stop, is_microphone_recapture
         if not turn.assistant_active:
             return
         if is_explicit_voice_stop(turn.text):
@@ -685,6 +685,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 await asyncio.gather(turn.classifier, return_exceptions=True)
             turn.verdict = "uncertain"
             turn.classifier_text = turn.text
+            if (turn.assistant_speaking
+                    and is_microphone_recapture(turn.text, turn.assistant_text, minimum_words=1)
+                    and not is_microphone_recapture(turn.text, turn.assistant_text)):
+                # A matching short partial has no independent intent yet. A
+                # finalized short request still enters completion.
+                turn.classifier = None
+                return
             turn.classifier = asyncio.create_task(_classify(
                 turn.text, turn.assistant_text, websocket, language, turn.assistant_speaking))
 
@@ -693,8 +700,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         from backend.shared.python_utils.voice_call_intent import is_immediate_barge_in
         if turn.interrupted:
             return
-        if not turn.assistant_active and (assistant["speaking"] or assistant["generating"]):
-            # Assistant state can arrive after the first user words were heard.
+        same_task = turn.assistant_task_id == assistant["assistant_task_id"]
+        same_answer = turn.assistant_id == assistant["assistant_message_id"]
+        if (not turn.assistant_active and (assistant["speaking"] or assistant["generating"])) or (
+            assistant["speaking"] and same_task and (same_answer or turn.assistant_id is None)
+        ):
+            # A provider turn can start while the task is still generating.
+            # Bind the text delta to playback once that same answer starts.
             turn.assistant_active = True
             turn.assistant_id = assistant["assistant_message_id"]
             turn.assistant_task_id = assistant["assistant_task_id"]

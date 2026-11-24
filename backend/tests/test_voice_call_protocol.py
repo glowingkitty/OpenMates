@@ -852,10 +852,57 @@ async def test_echo_of_a_playing_prerecorded_clip_is_discarded(runtime, monkeypa
                  "clip_audio_url": "/audio/assistant-acknowledgements/system/en-US/chat_start-1.mp3"})
     await socket.until(lambda events: any(event.get("processing") for event in events))
     provider.push("turn.start")
-    provider.push("transcription.text.delta", text="Starting your chat.")
+    provider.push("transcription.text.delta", text="Starting")
+    await socket.event("transcript")
+    provider.push("transcription.text.delta", text=" your chat.")
     provider.push("turn.end")
     assert (await socket.event("transcript.discarded"))["reason"] == "echo"
     assert not socket.finals() and not runtime.issued and not runtime.completion_texts
+    assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+async def test_first_reply_echo_after_generation_started_does_not_create_turn(runtime, monkeypatch):
+    async def uncertain(*args):
+        return "uncertain"
+
+    monkeypatch.setattr(route, "_classify", uncertain)
+    socket, provider, _ = await runtime.start()
+    socket.push({"type": "assistant_state", "speaking": False, "generating": True,
+                 "assistant_task_id": "first-task"})
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    next_receive = asyncio.Event()
+    receive = provider.receive
+
+    async def observe_next_receive():
+        next_receive.set()
+        return await receive()
+
+    monkeypatch.setattr(provider, "receive", observe_next_receive)
+    provider.push("turn.start")
+    # Wait until the endpoint event has been consumed before publishing playback.
+    await asyncio.wait_for(next_receive.wait(), 2)
+    socket.push({"type": "assistant_state", "speaking": True, "generating": True,
+                 "assistant_task_id": "first-task", "assistant_message_id": "first-answer",
+                 "text": "The capital of France is Paris."})
+    socket.push({"type": "audio_stream_end"})
+    await socket.until(lambda events: any(event.get("input_listening") is False for event in events))
+    provider.push("transcription.text.delta", text="The")
+    await socket.event("transcript")
+    provider.push("transcription.text.delta", text=" capital of France.")
+    provider.push("turn.end")
+    assert (await socket.event("transcript.discarded"))["reason"] == "echo"
+    assert not socket.finals() and not runtime.issued
+    assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
+
+    socket.push({"type": "assistant_state", "speaking": False})
+    await socket.until(lambda events: [event["processing"] for event in events
+                                         if event["type"] == "billing_activity"][-1] is False)
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Tell me about Lyon.")
+    provider.push("turn.end")
+    await socket.until(lambda _: socket.finals())
+    assert [event["text"] for event in socket.finals()] == ["Tell me about Lyon."]
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption

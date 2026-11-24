@@ -292,6 +292,10 @@ export const variants = {
     ...defaultProps, role: 'assistant' as const, category: 'openmates_official',
     content: 'A reply from OpenMates.',
   },
+  unroutedCallResponse: {
+    ...defaultProps, role: 'assistant' as const, content: '', status: 'processing' as const,
+    deferVoiceCallIdentity: true, isTransientResponse: true,
+  },
   importedChatGPT: {
     ...defaultProps, role: 'assistant' as const, category: 'chatgpt',
     content: 'A preserved imported reply.',

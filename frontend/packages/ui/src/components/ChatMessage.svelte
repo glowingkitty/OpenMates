@@ -152,6 +152,7 @@
     model_name = undefined,
     server_region = undefined,
     isTransientResponse = false,
+    deferVoiceCallIdentity = false,
     assistantTurnActive = undefined,
     status = undefined,
     messageParts = [],
@@ -195,6 +196,7 @@
     model_name?: string;
     server_region?: string | null;
     isTransientResponse?: boolean;
+    deferVoiceCallIdentity?: boolean;
     assistantTurnActive?: boolean;
     status?: MessageStatus;
     messageParts?: MessagePart[];
@@ -1342,6 +1344,7 @@
   let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
   // A category that names no mate (missing, retired or unknown) is shown with the OpenMates identity.
   let isOpenMatesIdentity = $derived(role === 'assistant' && !knownMateCategory(category));
+  const awaitingCallMate = $derived(deferVoiceCallIdentity && isOpenMatesIdentity && !category && !sender_name);
   let remoteHumanName = $derived(sender_name?.trim() || $text('settings.teams_ui.team_member'));
   let isRemoteHuman = $derived(role === 'user' && !isOwnUserMessage);
   let hasRemoteHumanIdentity = $derived(isRemoteHuman && !!teamId && !!senderUserId);
@@ -3449,7 +3452,7 @@
   </div>
 {:else}
 <div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:remote-human={isRemoteHuman} class:mobile-stacked={(effectiveRole === 'assistant' || isRemoteHuman) && shouldStackMobile} data-testid={isRemoteHuman ? 'remote-human-message' : undefined}>
-  {#if effectiveRole === 'assistant'}
+  {#if effectiveRole === 'assistant' && !awaitingCallMate}
     <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
     {#if importedProvider}
       <div
@@ -3530,7 +3533,7 @@
         </button>
       {/if}
 
-      {#if role === 'assistant'}
+      {#if role === 'assistant' && (!awaitingCallMate || isTransientResponse)}
         <div class="assistant-identity-row" class:transient={isTransientResponse} data-testid="assistant-identity-row">
           {#if isMateClickable}
             <button
@@ -3539,7 +3542,7 @@
               data-testid="chat-mate-name"
               onclick={openMateSettings}
             >{assistantDisplayName}</button>
-          {:else}
+          {:else if !awaitingCallMate}
             <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
           {/if}
           {#if isTransientResponse}
