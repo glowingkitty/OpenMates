@@ -1,0 +1,102 @@
+schema_version: 2
+id: google-connected-content-screening
+title: Screen Gmail and Google Calendar results before model inference
+status: implementing
+goal: >
+  Verify that every piece of mail and Calendar text is screened before the main
+  assistant sees it. Fix every gap found and verify with synthetic messages.
+scope:
+  in:
+    - Gmail search, thread reads, draft receipts and Google Calendar results.
+    - Saved results expanded from embeds for a later assistant turn.
+    - Automated tests and a recorded model check using synthetic data.
+  out:
+    - Production deployment, sending email and access to an actual mailbox during the synthetic run.
+    - The dedicated-account Gmail live check, which Marco will run on dev.
+scenarios:
+  - id: S-1
+    title: Screen synthetic messages and invites
+    given:
+      - A Gmail result or Calendar invite contains instructions aimed at the assistant.
+    when:
+      - The result is returned to the assistant or expanded from a saved embed.
+    then:
+      - All returned text is screened and an inconclusive result is withheld.
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Inspect short fields, encoded passages and saved results before inference, and withhold incompletely screened results.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SCREENING]
+tests:
+  - id: T-SCREENING
+    type: pytest
+    file: backend/tests/test_connected_account_output_safety.py
+    command: python3 scripts/ci_coordinator.py submit --session b642 --source <ci-source> --mode pytest --no-prepared-builds --spec backend/tests/test_connected_account_output_safety.py
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [short fields, hidden and encoded text, saved results, scanner failure and disagreement]
+    covers: [AC-1]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-11-24T10:26:26Z'
+        command: python3 scripts/ci_coordinator.py wait 52280fae152a69f09a44cc05a3b4845814d44b4d0fd22dedfd385e4e3ca15e98
+        run_id: '45374436328'
+        subject_commit: 7e597573a68b8bf0a8e9131c6eb38c23dbe32008
+        execution_environment: isolated_github_ci
+        profile: pytest/github-isolated
+tasks:
+  - id: TASK-1
+    title: Audit and harden Gmail and Calendar screening
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-1]
+    expected_files:
+      - backend/apps/ai/processing/external_result_sanitizer.py
+      - backend/shared/python_utils/app_skill_output_safety.py
+      - backend/core/api/app/services/embed_service.py
+    verification_ids: [T-SCREENING]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/shared/python_utils/app_skill_output_safety.py]
+      shared_files: []
+implementation_state:
+  subject_commit: 7e597573a68b8bf0a8e9131c6eb38c23dbe32008
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-11-24'
+    reason: Marco approved the Gmail and connected-account rules and instructed complete screening before inference.
+  plan:
+    status: approved
+    approved_at: '2026-11-24'
+    reason: Marco instructed the audit, synthetic tests, fixes and dev deployment under TASK-6855.
+decisions:
+  - id: D-1
+    status: active
+    decision: Withhold Google mailbox and Calendar results when screening is incomplete.
+    reason: Owner requires screening before the main model reads returned or saved data.
+    decided_at: '2026-11-24'
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Isolated CI exercised the shared safety boundary, and the real dev classifiers evaluated six synthetic cases.
+    recorded_at: '2026-11-24'
+handoff:
+  current_task_id: TASK-1
+  next_action: Verify the code running on dev and leave the dedicated Gmail test-account run for Marco.
+  command: python3 scripts/plan_validate.py docs/plans/google-connected-content-screening/plan.yml
+  expected_outcome: Dev runs the tested screening code and the dedicated test account remains available for Marco’s live check.
+  last_verified_commit: 7e597573a68b8bf0a8e9131c6eb38c23dbe32008

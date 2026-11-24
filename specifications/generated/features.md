@@ -143,7 +143,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Jobs](#jobs) | **live** 1/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Life coaching](#life-coaching) | not run 0/8 | wip |  | partial 1/7 | impl | — | impl | wip | on | off | unreleased |
 | &nbsp;&nbsp;↳ Life compass focus mode | not run 0/7 | ? |  | partial 1/7 | ? | — | ? | ? | | | |
-| [Mail](#mail) | **FAIL** 0/11 | impl |  | impl | impl | not run 0/9 | impl | impl | on | on | v0.5.0-alpha |
+| [Mail](#mail) | **FAIL** 0/11 | impl |  | impl | impl | not run 0/11 | impl | impl | on | on | v0.5.0-alpha |
 | [Maps](#maps) | **FAIL** 2/5 | impl |  | partial 1/5 | impl | partial 4/5 | not run 0/5 | not run 0/5 | on | on | v0.5.0-alpha |
 | [Math](#math) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Mind Maps](#mindmaps) | impl | impl |  | — | wip | — | impl | wip | on | on | v0.13.0-alpha |
@@ -1234,7 +1234,7 @@ Concise, actionable answers with relevant links, rich embeds and selected images
 
 One provider-neutral account and authorization contract serves Calendar, Code, Finance, and other connected apps.
 
-- Specifications: [architecture.connected-accounts](../../specifications/architecture/connected-accounts/specification.yml) (draft) · 14 assertion(s)
+- Specifications: [architecture.connected-accounts](../../specifications/architecture/connected-accounts/specification.yml) (approved) · 14 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.12.0-alpha
 
 <details><summary>Tests per surface</summary>
@@ -1955,7 +1955,7 @@ Members of a Team or Project can edit the same document, sheet or deck at the sa
 
 Draft emails and work with mail.
 
-- Specifications: [feature.app-skills.mail-gmail](../../specifications/features/app-skills/mail-gmail/specification.yml) (draft) · 9 assertion(s)
+- Specifications: [feature.app-skills.mail-gmail](../../specifications/features/app-skills/mail-gmail/specification.yml) (approved) · 9 assertion(s)
 - Apps: `mail`
 - Flags: `app:mail` · dev on · prod on · release v0.5.0-alpha
 - Notes: Gmail through Google's official API (search, read threads, create drafts) uses the shared Google connected account. Sending is deferred by owner decision (2026-11-22). Proton Mail Bridge search stays as is.
@@ -1968,7 +1968,7 @@ Draft emails and work with mail.
 | Apple | impl | — | — |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | TUI | impl | — | — |
-| REST API | not run 0/9 | 0 pass · 0 fail · 8 not run · 1 no test | 1 unit test file(s), e.g. [test_gmail_skills.py](../../backend/tests/test_gmail_skills.py) |
+| REST API | not run 0/11 | 0 pass · 0 fail · 10 not run · 1 no test | [test_gmail_skills.py](../../backend/tests/test_gmail_skills.py)<br>[test_connected_account_output_safety.py](../../backend/tests/test_connected_account_output_safety.py)<br>2 unit test file(s), e.g. [test_gmail_skills.py](../../backend/tests/test_gmail_skills.py), [test_connected_account_output_safety.py](../../backend/tests/test_connected_account_output_safety.py) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 

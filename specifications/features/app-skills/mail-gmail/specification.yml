@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.app-skills.mail-gmail
 version: 1
-status: draft
+status: approved
 title: Mail Skills for Gmail
 summary: >
   Mail skills search messages, read threads and create drafts in a connected Gmail account
@@ -54,10 +54,11 @@ assertions:
   - id: mail-gmail.read.untrusted-content
     type: security
     must: >
-      Mailbox text is untrusted data. Every returned message field passes the existing prompt-injection
-      safeguards (sanitize_long_text_fields_in_payload) before it reaches the model; it never grants
-      permissions or changes instructions.
-    depends_on: [examples.reads]
+      Mailbox text is untrusted data. Screen every returned string before it reaches the assistant,
+      including short subjects, sender names, snippets, bodies, quoted threads and attachment names.
+      Withhold the result if screening cannot decide. Mailbox text never grants permission to draft,
+      send or read other messages.
+    depends_on: [examples.screening]
   - id: mail-gmail.draft.create-only
     type: security
     must: >

@@ -36,6 +36,7 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewPlanningError,
     plan_application_preview_startup,
 )
+from backend.shared.python_utils.app_skill_output_safety import sanitize_connected_account_history_embed
 from backend.shared.python_utils.learning_mode import apply_learning_mode_cap_to_embed_result
 from backend.shared.python_utils.terminal_output_safety import (
     normalize_terminal_output,
@@ -4697,6 +4698,8 @@ class EmbedService(SlidesEmbedMixin):
     def _filter_toon_for_llm(
         self, toon_content: str, embed_id: str, log_prefix: str = "",
         seen_embed_refs: Optional[Dict[str, int]] = None,
+        *,
+        decoded: Optional[dict[str, Any]] = None,
     ) -> Tuple[str, Optional[str]]:
         """
         Filter a TOON-encoded embed content string for LLM consumption.
@@ -4742,7 +4745,8 @@ class EmbedService(SlidesEmbedMixin):
                 an embed_ref (passes through unchanged).
         """
         try:
-            decoded = decode(toon_content)
+            if decoded is None:
+                decoded = decode(toon_content)
             if not isinstance(decoded, dict):
                 # Non-dict TOON (unusual) — return as-is, no embed_ref
                 return toon_content, None
@@ -5378,6 +5382,29 @@ class EmbedService(SlidesEmbedMixin):
         # Second occurrence gets suffix " (2)", third " (3)", etc.
         return f"{raw_ref} ({count + 1})"
 
+    async def _filter_history_embed_for_llm(
+        self, toon_content: str, embed_id: str, log_prefix: str, seen_embed_refs: dict[str, int],
+    ) -> tuple[str, str | None, dict[str, Any] | None]:
+        """Protect decrypted app results before they are inserted into model history."""
+        try:
+            decoded = decode(toon_content)
+        except (TypeError, ValueError):
+            decoded = None
+        if isinstance(decoded, dict):
+            screened = await sanitize_connected_account_history_embed(
+                decoded, cache_service=self.cache_service,
+            )
+            if screened is not decoded:
+                toon_content = encode(screened)
+                decoded = screened
+        else:
+            decoded = None
+
+        filtered, embed_ref = self._filter_toon_for_llm(
+            toon_content, embed_id, log_prefix, seen_embed_refs, decoded=decoded,
+        )
+        return filtered, embed_ref, decoded
+
     async def resolve_embed_references_in_content(
         self,
         content: str,
@@ -5510,8 +5537,8 @@ class EmbedService(SlidesEmbedMixin):
                 # Filter the TOON content before showing to the LLM.
                 # Strips crypto/infra fields; injects embed_ref (human-readable filepath
                 # or filename) for image/audio embeds instead of the raw UUID embed_id.
-                filtered_toon, embed_ref = self._filter_toon_for_llm(
-                    toon_content, embed_id, log_prefix, seen_embed_refs
+                filtered_toon, embed_ref, decoded_for_type = await self._filter_history_embed_for_llm(
+                    toon_content, embed_id, log_prefix, seen_embed_refs,
                 )
 
                 # If an embed_ref was assigned, record it in the file_path_index so
@@ -5525,14 +5552,13 @@ class EmbedService(SlidesEmbedMixin):
                 resolved_text = f"```toon\n{filtered_toon}\n```"
 
                 try:
-                    decoded_for_type = decode(toon_content)
                     if isinstance(decoded_for_type, dict) and decoded_for_type.get("type") == "authored_results":
                         from backend.core.api.app.services.authored_result_service import authored_children_for_context
                         children = await authored_children_for_context(
                             self, embed_id, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
                         )
                         for child_id, child_toon in children:
-                            child_filtered, child_ref = self._filter_toon_for_llm(
+                            child_filtered, child_ref, _ = await self._filter_history_embed_for_llm(
                                 child_toon, child_id, log_prefix, seen_embed_refs,
                             )
                             if child_ref:

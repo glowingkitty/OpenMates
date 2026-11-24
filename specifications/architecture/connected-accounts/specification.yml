@@ -1,7 +1,7 @@
 schema_version: 1
 id: architecture.connected-accounts
 version: 2
-status: draft
+status: approved
 title: Connected Accounts
 summary: >
   One provider-neutral account and authorization contract serves Calendar, Code,

@@ -1012,6 +1012,7 @@ features:
     notes: "Gmail through Google's official API (search, read threads, create drafts) uses the shared Google connected account. Sending is deferred by owner decision (2026-11-22). Proton Mail Bridge search stays as is."
     key_tests:
       web: [frontend/apps/web_app/tests/skill-mail-search.spec.ts, frontend/apps/web_app/tests/components/mail-search-fullscreen.spec.ts]
+      rest_api: [backend/tests/test_gmail_skills.py, backend/tests/test_connected_account_output_safety.py]
   - id: maps
     name: "Maps"
     kind: app

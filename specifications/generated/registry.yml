@@ -38,9 +38,9 @@ specifications:
     - gui.apple
   architecture.connected-accounts:
     version: 2
-    status: draft
+    status: approved
     path: architecture/connected-accounts
-    fingerprint: 06f4ab46bef2e4daff4e0a1c68a0c93b2479c82ef242ed47a358345dbf74ac11
+    fingerprint: 75ee67bb85c1a58c2bd06ec15f171b325ae33cef2fce2fb3b22ecd09188ffac5
     required_applies_to:
     - rest_api
     - cli
@@ -383,9 +383,9 @@ specifications:
     - gui.web
   feature.app-skills.mail-gmail:
     version: 1
-    status: draft
+    status: approved
     path: features/app-skills/mail-gmail
-    fingerprint: 4bcecd4d5458620f9ea384b992bcb1ca4e35102150c9deaaa3d205a7cab6108a
+    fingerprint: af5a1892df800ed3a35b48ded8ba3e31524a165dfcc674403a126a6367b09e01
     required_applies_to:
     - rest_api
     - cli
@@ -6078,7 +6078,7 @@ assertions:
     specification: feature.app-skills.mail-gmail@1
     specification_id: feature.app-skills.mail-gmail
     type: behavior
-    fingerprint: 1bb11cfa0b7077db940c1b00e02bee40e5bfcd4f936db1c9abef92a07fbe152a
+    fingerprint: bfc6f98ed1ba8bea1b15d0e49b62d4cb8c1aeea6bd840acc8982d85ab89f1728
     required_applies_to:
     - rest_api
     - cli
@@ -6089,7 +6089,7 @@ assertions:
     specification: feature.app-skills.mail-gmail@1
     specification_id: feature.app-skills.mail-gmail
     type: behavior
-    fingerprint: 5f9ac6734a399f894ef1003914706a03853d0a5f255fd0014fc15554c64cd7cd
+    fingerprint: 91b1a7dd49364556e19b0e3a19e20b9dd37a8da742430ffa196bd5b746b7ce7f
     required_applies_to:
     - rest_api
     - cli
@@ -6100,7 +6100,7 @@ assertions:
     specification: feature.app-skills.mail-gmail@1
     specification_id: feature.app-skills.mail-gmail
     type: security
-    fingerprint: fc1665014e6bcbdaf11827f58570e186d72f6180256e5cbd31cbda07febc0f0c
+    fingerprint: 5b6461082863f11864e00deac008a4b38b4774a4ba6730ac2b107318a63f40ae
     required_applies_to:
     - rest_api
     - cli

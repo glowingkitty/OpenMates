@@ -213,8 +213,9 @@ implementation_state:
   subject_commit: bd58f34a81f968fbc5bd94b8601641831103009d
 approvals:
   specification:
-    status: pending
-    reason: Changes the connected-accounts and mail-gmail Specifications; rules only record owner decisions of 22 Nov.
+    status: approved
+    approved_at: '2026-11-24'
+    reason: Marco approved the five connected-account and Gmail rules in the TASK-6855 follow-up.
   plan:
     status: approved
     approved_at: '2026-11-22'
@@ -247,7 +248,7 @@ attempts:
     recorded_at: '2026-11-22'
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy the reviewed changes to dev, review the draft Specification rules with Marco, and record a live Gmail check after test-account consent.
+  next_action: The connected accounts feature is on dev. See the Gmail and Calendar prompt screening Plan for the follow-up and the Gmail live-check guide for the dedicated-account run.
   command: python3 scripts/plan_validate.py docs/plans/connected-accounts-central-page/plan.yml
   expected_outcome: Validated plan and green CI for the listed tests.
   last_verified_commit: bd58f34a81f968fbc5bd94b8601641831103009d

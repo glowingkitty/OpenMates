@@ -104,7 +104,7 @@ External content processed by app skills (websites, emails, code, PDFs, video tr
 [`content_sanitization.py`](../../backend/apps/ai/processing/content_sanitization.py) first runs a Jev yes/no decision over visible text from app-skill results. A low-risk result passes content unchanged; a high-confidence attack blocks the chunk. The middle confidence band and every Jev outage or invalid response use GPT-OSS Safeguard, because exact-span redaction requires generated evidence that Jev cannot return.
 
 **Model configuration:**
-- **Main backend primary**: `typesafe/jev-1.13` via OpenRouter, configured as `prompt_injection_decision_model`.
+- **Main backend primary**: `typesafe/jev-1.14` (Typesafe wire model `jev-1.14.0`), configured as `prompt_injection_decision_model`.
 - **Main backend ambiguity/outage fallback**: `openai/gpt-oss-safeguard-20b` via Groq with OpenRouter server fallback, configured as `content_sanitization_model`.
 - **Preview server**: `llama-3.3-70b-versatile` via Groq. Configured in [`config.py`](../../backend/preview/app/config.py).
 
@@ -138,16 +138,16 @@ External content processed by app skills (websites, emails, code, PDFs, video tr
 **Mandatory behavior:**
 
 - ASCII-smuggling removal always runs on app-skill outputs and cannot be disabled on any surface.
-- External-data skill outputs run semantic GPT-OSS prompt-injection scanning by default.
-- Semantic scanning uses one model call per nonempty external skill result after ASCII cleanup. The shared policy covers all existing selected text fields, including multiline website, transcript, mail, document and search content.
+- External-data app skills, including web search and web read, clean invisible Unicode before dividing selected text into bounded batches. Jev screens each batch. A confidence score at or below 0.20 passes the batch. Higher scores and Jev errors go to GPT-OSS Safeguard for exact-span classification.
 - The scanner distinguishes assistant-directed instructions from human-facing documentation, narration and quoted demonstrations. Exact, uniquely located evidence is required for injection decisions; only verified spans are replaced. Uncertain text is preserved.
-- Scanner timeout, malformed output, unavailability, or input exceeding the 50,000-character serialized single-call bound returns ASCII-cleaned content and logs `status=unscanned` with a stable reason. There are no retries or user questions, and failed scans are never reported as safe. Units are at most 4,000 characters with 256 characters of neighboring context.
+- The shared default returns ASCII-cleaned content when a complete scan cannot be obtained and logs `status=unscanned`. Units are at most 4,000 characters and carry up to 256 characters of neighboring context.
+- Google connected Gmail and Calendar skill results require screening of every returned string, including short fields. Timeouts, malformed or incomplete results, size limits, uncertain verdicts and a Jev warning contradicted by an all-safe Safeguard verdict withhold the result. The Gmail reader MIME-decodes body text and supplies attachment names only. Readable Base64 passages in free-text fields are decoded before classification. Provider identifiers are kept opaque. An HTML comment is discarded during text extraction. Inline-styled text that survives extraction passes through the scanners. Saved results are screened again when a chat expands them from embeds, including results saved before complete screening was introduced.
 - Skill-local helpers defer semantic work only inside an active server-owned dispatch scope. Background helpers without that scope still scan before persistence. Request authorization, tool permissions and explicit REST/CLI opt-out eligibility are unchanged.
 - Binary/media fields, encrypted blobs, hashes, keys, and base64 payloads are excluded from semantic scanning by the existing external-result sanitizer rules.
 
 **Opt-out contract:**
 
-Direct programmatic callers may disable semantic scanning only for REST/CLI/SDK app-skill calls by sending this request-body metadata:
+Direct REST/CLI/SDK calls that use the default policy can opt out of semantic scanning using this request-body metadata. Google connected Gmail and Calendar require screening on these surfaces too.
 
 ```json
 {

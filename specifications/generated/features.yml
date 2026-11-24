@@ -14413,7 +14413,7 @@ features:
   description: Draft emails and work with mail.
   specifications:
   - id: feature.app-skills.mail-gmail
-    status: draft
+    status: approved
     path: specifications/features/app-skills/mail-gmail
   apps:
   - mail
@@ -14500,15 +14500,18 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 8
+        not_run: 10
         missing: 1
-        counted: 9
-      key_tests: []
+        counted: 11
+      key_tests:
+      - backend/tests/test_gmail_skills.py
+      - backend/tests/test_connected_account_output_safety.py
       evidence: POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/mail/skills
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_gmail_skills.py
-      unit_test_files: 1
+      - backend/tests/test_connected_account_output_safety.py
+      unit_test_files: 2
     sdk_npm:
       status: implemented
       source: intent
@@ -23119,7 +23122,7 @@ features:
     apps.
   specifications:
   - id: architecture.connected-accounts
-    status: draft
+    status: approved
     path: specifications/architecture/connected-accounts
   apps: []
   product_features: []

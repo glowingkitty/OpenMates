@@ -12,7 +12,10 @@ from typing import Any, Awaitable, Callable
 from pydantic import ValidationError
 
 from backend.shared.providers.gmail.errors import GmailProviderError, MailInputError
-from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_output_safety import (
+    is_central_app_skill_dispatch,
+    sanitize_long_text_fields_in_payload,
+)
 from backend.shared.python_utils.calendar_skill_support import access_token_for_handle, summarize_errors
 
 __all__ = ["access_token_for_handle", "run_mail_request", "sanitize_mailbox_payload", "summarize_errors"]
@@ -41,10 +44,12 @@ async def run_mail_request(
 async def sanitize_mailbox_payload(
     payload: Any, *, task_id: str, secrets_manager: Any | None, cache_service: Any | None,
 ) -> Any:
-    """Email text is untrusted: run the shared prompt-injection safeguards over every long text field."""
+    """Screen standalone reads; trusted dispatch screens the entire result once."""
 
+    if is_central_app_skill_dispatch():
+        return payload
     return await sanitize_long_text_fields_in_payload(
         payload=payload, task_id=task_id, secrets_manager=secrets_manager,
-        cache_service=cache_service, min_chars=40, max_parallel=3,
+        cache_service=cache_service, require_complete_scan=True,
         app_id="mail",
     )
