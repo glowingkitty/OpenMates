@@ -397,3 +397,16 @@ oss
     assert [(row["title"], row["date_start"], row["date_end"], row["venue"]) for row in rows] == [
         ("Libre Week", "2027-01-25", "2027-02-01", {"city": "Lyon", "country": "France"}),
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=events-search.results.actionable
+def test_named_programme_excerpt_requires_the_edition_and_dates_on_the_page():
+    request = {"named_edition": "Libre Week", "start_date": "2027-01-25", "end_date": "2027-02-01",
+               "location": "Lyon"}
+    sentence = "The programme brings together open source maintainers and public sector teams for hands-on workshops about deployment, accessibility and secure software updates."
+    page = f"25 Jan – 1 Feb\n\nLyon\n\n# LIBRE WEEK 2027\n\n{sentence}\n\n## Workshops"
+    result = extraction._named_programme_excerpt(request, page)
+    assert result["description"] == sentence
+    assert result["city"] == "Lyon"
+    assert extraction._named_programme_excerpt({**request, "start_date": "2027-01-26"}, page) is None
+    assert extraction._named_programme_excerpt({**request, "named_edition": "Other Week"}, page) is None

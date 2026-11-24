@@ -526,6 +526,37 @@ def _event_page_cover(row: Dict[str, Any], page: Mapping[str, Any]) -> None:
         row["image_url"] = image
 
 
+def _named_programme_excerpt(request: Mapping[str, Any], page_text: str) -> Optional[Dict[str, Any]]:
+    """Keep a short sourced introduction when a dated programme yields no usable row."""
+    title = str(request.get("named_edition") or "")
+    if not _event_title_key(title).endswith(" week"):
+        return None
+    heading = next((match for match in re.finditer(r"^# (.+)$", page_text[:2500], re.MULTILINE)
+                    if _event_title_key(match[1]) == _event_title_key(title)), None)
+    start = _parsed_date(request.get("start_date"))
+    end = _parsed_date(request.get("end_date"))
+    if heading is None or start is None or end is None:
+        return None
+    header = _flat(page_text[:heading.end()])
+    if str(start.year) not in header or not all(
+        re.search(rf"\b{moment.day:02d}\b|\b{moment.day}\b", header)
+        and moment.strftime("%b").lower() in header for moment in (start, end)
+    ):
+        return None
+    introductions = re.split(r"\n\s*\n", page_text[heading.end():heading.end() + 2200])
+    for paragraph in introductions:
+        text = " ".join(paragraph.split())
+        if not text or text[0] in "#*-[]":
+            continue
+        for sentence in re.split(r"(?<=[.!?])\s+", text):
+            if 20 <= len(sentence.split()) <= 25 and _event_description(sentence, title, {}):
+                city = _text(request.get("location"), MAX_TEXT_CHARS)
+                return {"title": heading[1].strip(), "description": sentence,
+                        "date_start": start.date().isoformat(), "date_end": end.date().isoformat(),
+                        "city": city if _written_on_page(city, header) else None}
+    return None
+
+
 def _named_event_pages(urls: Sequence[str], previews: Sequence[Any], title: str) -> list[str]:
     """Prefer the named event page over related events and generic directories."""
     named = set()
@@ -634,6 +665,16 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
         outcome.input_tokens += tokens_in
         outcome.output_tokens += tokens_out
         rows = validated_rows(kind, items, page_url=url, page_title=title, page_text=text)
+        if event_detail and not any(row.get("description") for row in rows):
+            if excerpt := _named_programme_excerpt(page_request, text):
+                replacements = validated_rows(kind, [excerpt], page_url=url, page_title=title, page_text=text)
+                for row in rows:
+                    if (replacements and _event_title_key(row["title"]) == _event_title_key(excerpt["title"])
+                            and str(row["date_start"])[:10] == excerpt["date_start"]):
+                        row["description"] = excerpt["description"]
+                        break
+                else:
+                    rows.extend(replacements)
         if kind == KIND_EVENT and not event_detail:
             known = {row["url"]: row for row in rows}
             # Carry the site's topic tag as ranking evidence. It is neither a description nor
