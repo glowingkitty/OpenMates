@@ -12,6 +12,7 @@ from aiohttp import web
 from google import genai
 
 from backend.apps.ai.llm_providers import google_client
+from backend.apps.ai.utils.timeout_utils import stream_with_first_chunk_timeout
 
 
 def test_stream_usage_keeps_numeric_attribution_private_and_missing_thoughts_unknown(monkeypatch, caplog):
@@ -106,6 +107,98 @@ def test_custom_transport_streams_reuses_connections_and_closes(monkeypatch):
     finally:
         google_client.release_google_clients_for_loop(loop)
         loop.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("termination", ["complete", "close", "cancel", "cancel_before_headers", "timeout"])
+async def test_google_stream_finishes_across_asyncio_tasks(monkeypatch, termination):
+    """Drive the provider entry point through the real SDK and chunk watchdog."""
+    received_request = asyncio.Event()
+    release_response = asyncio.Event()
+
+    async def respond(request):
+        received_request.set()
+        if termination == "cancel_before_headers":
+            await release_response.wait()
+            return web.Response()
+        response = web.StreamResponse(headers={"Content-Type": "text/event-stream"})
+        await response.prepare(request)
+        event = {
+            "candidates": [{"content": {"role": "model", "parts": [{"text": "ready"}]}}],
+            "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 1, "totalTokenCount": 4},
+        }
+        await response.write(f"data: {json.dumps(event)}\n\n".encode())
+        if termination != "complete":
+            await release_response.wait()
+        return response
+
+    application = web.Application()
+    application.router.add_post("/{path:.*}", respond)
+    runner = web.AppRunner(application)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = runner.addresses[0][1]
+    real_client = genai.Client
+    get_client = google_client._get_loop_google_client
+    sessions = []
+    phases = []
+
+    def local_client(**kwargs):
+        kwargs["http_options"].base_url = f"http://127.0.0.1:{port}"
+        return real_client(**kwargs)
+
+    async def capture_client(*args, **kwargs):
+        client, session = await get_client(*args, **kwargs)
+        sessions.append(session)
+        return client, session
+
+    monkeypatch.setattr(google_client.genai, "Client", local_client)
+    monkeypatch.setattr(google_client, "_get_loop_google_client", capture_client)
+    monkeypatch.setattr(google_client, "_google_stream_phase",
+                        lambda timing, phase, *_: phases.append((timing.task_id, phase)))
+    monkeypatch.setenv("GEMINI_API_KEY", "local-test-key")
+    monkeypatch.setattr(google_client, "_google_ai_studio_api_key", None)
+
+    try:
+        provider_stream = await google_client.invoke_google_ai_studio_chat_completions(
+            "transport-test", "gemini-3.8-flash", [{"role": "user", "content": "Ping"}], stream=True,
+        )
+        stream = stream_with_first_chunk_timeout(
+            provider_stream, timeout_seconds=5, inter_chunk_timeout_seconds=0.1,
+        )
+        try:
+            first_chunk = asyncio.create_task(anext(stream))
+            if termination == "cancel_before_headers":
+                await asyncio.wait_for(received_request.wait(), timeout=5)
+                first_chunk.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await first_chunk
+            else:
+                assert await first_chunk == "ready"
+            if termination == "complete":
+                usage, = [chunk async for chunk in stream]
+                assert usage.total_token_count == 4
+            elif termination == "cancel":
+                pending_read = asyncio.create_task(anext(stream))
+                await asyncio.sleep(0)
+                pending_read.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await pending_read
+            elif termination == "timeout":
+                with pytest.raises(TimeoutError, match="Stream hung"):
+                    await anext(stream)
+        finally:
+            await stream.aclose()
+            await provider_stream.aclose()
+        assert ("transport-test", "http_request_start") in phases
+        if termination != "cancel_before_headers":
+            assert ("transport-test", "http_response_headers") in phases
+        assert google_client._active_google_stream.get() is None
+        assert len(sessions) == 1 and sessions[0].closed
+    finally:
+        release_response.set()
+        await runner.cleanup()
 
 
 @pytest.mark.asyncio

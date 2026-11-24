@@ -3940,6 +3940,10 @@ async def _async_process_ai_skill_ask_task(
             # Note: We no longer handle harmful content rejection here.
             # Instead, we let it flow through to the stream consumer which will handle it properly
             # with the normal streaming flow, ensuring the frontend gets proper completion signals.
+        except SoftTimeLimitExceeded:
+            # Stop uses the same signal as the Celery soft deadline. The sync
+            # wrapper checks the cancellation intent before settling the turn.
+            raise
         except Exception as e:
             logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
             raise RuntimeError(f"Preprocessing failed: {e}") from e
@@ -4613,6 +4617,10 @@ async def _async_process_ai_skill_ask_task(
             task_was_soft_limited = True # Set overall flag
             raise # Re-raise for sync wrapper to handle Celery state
         except Exception as e:
+            if _was_account_recovery_fenced(e):
+                # The sync wrapper settles this as revoked without accessing
+                # account data already removed by the deletion transaction.
+                raise
             # Check for revocation if an unexpected error occurs
             # Use .state == 'REVOKED' for checking revocation status
             if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -4620,7 +4628,7 @@ async def _async_process_ai_skill_ask_task(
                 task_was_revoked = True # Set overall flag
             else:
                 logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
-            raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
+            raise RuntimeError(f"Main processing stream execution failed: {e}") from e
         finally:
             if debug_cache_task:
                 await _settle_optional_debug_cache(
