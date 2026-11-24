@@ -21,8 +21,12 @@ zellij --session claude action new-tab --name "<title>" -- \
   claude --remote-control "<title>" --model <model> --effort <effort> --permission-mode auto "<prompt>"
 ```
 
-Issue chats run on `claude-opus-5-5` at `medium` effort
-(`CLAUDE_DISPATCH_ISSUE_MODEL`, `CLAUDE_DISPATCH_ISSUE_EFFORT`). Production
+Admin issue reports and AI test-user investigations share the scheduled-chat
+usage policy. Above 30% Claude usage remaining, the issue default is
+`claude-opus-5-5` at `medium` effort (`CLAUDE_DISPATCH_ISSUE_MODEL`,
+`CLAUDE_DISPATCH_ISSUE_EFFORT`). At 30% or less, they use `gpt-6.2-sol`.
+If Codex is exhausted, the issue waits in the pending queue and the owner gets
+one capacity notice per exhausted limit window. Production
 chat-failure chats and every other chat started through `launch_claude_chat`
 (the private voice connector, daily-meeting decision handovers) default to
 `claude-opus-5-5` at `medium` effort (`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).

@@ -341,6 +341,17 @@ def launch_claude_chat(
     slot check entirely; the launch log records it.
     """
     engine, model = claude_weekly_model.route(model, explicit_model, f"{title}\n{prompt}", live_voice=live_voice)
+    return _launch_routed_chat(
+        title, prompt, engine, model, effort, explicit_model, change_scope,
+        force=force, live_voice=live_voice, admitted=admitted, images=images,
+    )
+
+
+def _launch_routed_chat(title: str, prompt: str, engine: str, model: str, effort: str,
+                        explicit_model: bool = False, change_scope: str = "", *,
+                        force: bool = False, live_voice: bool = False, admitted: bool = False,
+                        images: tuple[str, ...] = (), queue_default: tuple[str, str] | None = None) -> str:
+    """Apply the shared admission and durable queue after the caller selects a route."""
     unavailable = codex_wait_reason() if engine == "codex" else ""
     if engine == "codex":
         model = codex_chats.check_model(model, explicit_model)
@@ -355,7 +366,8 @@ def launch_claude_chat(
         _record_launch({"kind": "forced", "title": title, "model": model, "why": "owner force: slot limit skipped"})
     if why:
         media = {"images": images} if images else {}
-        path = queue_launch(title, prompt, model, effort, explicit_model, why, change_scope, engine,
+        pending_model, pending_effort = queue_default or (model, effort)
+        path = queue_launch(title, prompt, pending_model, pending_effort, explicit_model, why, change_scope, engine,
                             live_voice=live_voice, **media)
         raise ChatQueued(f"queued, not started yet ({why}); it starts once its engine and a slot are available "
                          f"(queue entry {path.name})")
@@ -552,10 +564,15 @@ def _record_launch(entry: dict[str, Any]) -> None:
 # ── Admin issue reports (dev) ────────────────────────────────────────────────
 
 def launch_issue_chat(title: str, prompt: str, change_scope: str = "") -> str:
-    """Issue chats investigate and fix a reported issue end to end, so they run on
-    the issue model and effort instead of the dispatcher default."""
-    return launch_claude_chat(title, prompt, model=ISSUE_CLAUDE_MODEL, effort=ISSUE_CLAUDE_EFFORT,
-                              change_scope=change_scope)
+    """Investigate an issue using the same weekly policy as scheduled and pending starts."""
+    default_model = check_chat_model(ISSUE_CLAUDE_MODEL)
+    engine, model = claude_weekly_model.queued_route(default_model)
+    session = _launch_routed_chat(
+        title, prompt, engine, model, ISSUE_CLAUDE_EFFORT, change_scope=change_scope,
+        queue_default=(default_model, ISSUE_CLAUDE_EFFORT),
+    )
+    _record_launch({"kind": "issue-launch", "engine": engine, "model": model, "session": session})
+    return session
 
 
 def parse_issue_request(raw: str) -> tuple[str, str]:
@@ -637,7 +654,7 @@ def launch_test_user_chat(issue_id: str, short_id: str, env: str, launcher: Laun
         if outcome["status"] in ("started", "queued") and not ignore_cap:
             _count_test_user_chat()
     if record:
-        _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, "origin": TEST_USER_ORIGIN, "env": env,
+        _record_launch({"kind": "issue", "origin": TEST_USER_ORIGIN, "env": env,
                         "issue_id": issue_id, "short_issue_id": short_id,
                         **{k: v for k, v in outcome.items() if k != "chat_title"}})
     return outcome
@@ -713,7 +730,7 @@ def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = Fals
         target = PROCESSED_DIR / {"launched": "ok", "queued": "ok", "deferred": "deferred"}.get(outcome["status"], "failed")
         target.mkdir(parents=True, exist_ok=True)
         path.replace(target / f"{_now():%Y%m%dT%H%M%S}-{path.name}")
-        _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, **outcome})
+        _record_launch({"kind": "issue", **outcome})
         results.append(outcome)
     return results
 

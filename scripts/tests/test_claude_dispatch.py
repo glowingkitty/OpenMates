@@ -2,6 +2,7 @@
 """Tests for scripts/claude_dispatch.py (admin issue + prod failure chat dispatch)."""
 
 import json
+import sys
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -172,8 +173,86 @@ def test_issue_chat_runs_on_opus_5_5_at_medium_effort(isolated_state, monkeypatc
     chat = calls[-1][calls[-1].index("--") + 1:]
     assert chat[chat.index("--model") + 1] == "claude-opus-5-5"
     assert chat[chat.index("--effort") + 1] == "medium"
-    logged = json.loads((isolated_state / "launches.jsonl").read_text().splitlines()[-1])
-    assert logged["model"] == "claude-opus-5-5"
+    logged = [json.loads(line) for line in dispatch.LAUNCH_LOG.read_text().splitlines()]
+    assert next(entry for entry in logged if entry["kind"] == "issue-launch")["model"] == "claude-opus-5-5"
+
+
+# contract-test: tooling
+@pytest.mark.parametrize(("remaining", "expected"), [
+    (31, "claude"), (30, "codex"), (29, "codex"), (10, "codex"), (9, "codex"),
+], ids=["31-percent-left", "30-percent-left", "29-percent-left", "10-percent-left", "9-percent-left"])
+def test_admin_issue_and_ai_triage_follow_scheduled_chat_policy(
+    remaining, expected, isolated_state, monkeypatch,
+):
+    import ai_test_users_triage as triage
+    import issues
+
+    monkeypatch.setitem(sys.modules, "claude_dispatch", dispatch)
+    monkeypatch.setattr(issues, "resolve_issue_identifier", lambda *_: ISSUE_ID)
+    monkeypatch.setattr(dispatch, "codex_not_ready", lambda: "")
+    monkeypatch.setattr(dispatch, "_open_chat_tab", lambda *args, **kwargs: "claude tab")
+    monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *args, **kwargs: "codex tab")
+    dispatch.claude_weekly_model.update(
+        100 - remaining, datetime.now(timezone.utc) + timedelta(days=1), notify=lambda _: "",
+    )
+    _queue(isolated_state, "issue-ABCDE.json",
+           {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+
+    [admin] = dispatch.dispatch_issues()
+    assert admin["status"] == "launched" and admin["session"] == f"{expected} tab"
+    [ai_issue] = triage.triage([{
+        "target": "dev", "status": "persona_finished", "persona": "job_seeker",
+        "findings": [{"title": "Message failed to send", "category": "error", "kept": True}],
+        "reports": [{"short_issue_id": "S6BEV", "finding_ids": [0], "status": "submitted"}],
+    }], isolated_state, dispatch=True)
+    assert ai_issue["debug"]["status"] == "started"
+    assert ai_issue["debug"]["session"] == f"{expected} tab"
+    model = dispatch.ISSUE_CLAUDE_MODEL if expected == "claude" else "gpt-6.2-sol"
+    entries = [json.loads(line) for line in dispatch.LAUNCH_LOG.read_text().splitlines()]
+    assert [(row["engine"], row["model"]) for row in entries if row["kind"] == "issue-launch"] == [
+        (expected, model), (expected, model),
+    ]
+
+
+# contract-test: tooling
+def test_issue_reports_wait_for_capacity_and_alert_once(isolated_state, monkeypatch):
+    notifications = []
+    dispatch.claude_weekly_model.update(93, datetime.now(timezone.utc) + timedelta(days=1), notify=lambda _: "")
+    monkeypatch.setattr(dispatch.claude_weekly_model, "push", lambda message: notifications.append(message) or "")
+    monkeypatch.setattr(dispatch.codex_chats, "exhausted_windows", lambda: ["weekly:next"])
+    monkeypatch.setattr(dispatch, "_open_chat_tab", lambda *a, **kw: pytest.fail("Claude started below reserve"))
+    monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *a, **kw: pytest.fail("Codex started without capacity"))
+    _queue(isolated_state, "issue-ABCDE.json",
+           {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+
+    assert dispatch.dispatch_issues()[0]["status"] == "queued"
+    assert dispatch.launch_test_user_chat(ISSUE_ID, "S6BEV", "dev")["status"] == "queued"
+    pending = [json.loads(path.read_text()) for path in sorted(dispatch.PENDING_DIR.glob("*.json"))]
+    assert [record["engine"] for record in pending] == ["codex", "codex"]
+    assert pending[1]["change_scope"] == dispatch.CHANGE_SCOPE_SMALL_FIX
+    assert [outcome["status"] for outcome in dispatch.start_pending()] == ["still queued", "still queued"]
+    assert len(notifications) == 1
+
+    monkeypatch.setattr(dispatch.codex_chats, "exhausted_windows", lambda: [])
+    monkeypatch.setattr(dispatch, "codex_not_ready", lambda: "")
+    launches = []
+    monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *args: launches.append(args) or "codex tab")
+    assert [outcome["status"] for outcome in dispatch.start_pending()] == ["launched", "launched"]
+    assert [args[2] for args in launches] == ["gpt-6.2-sol", "gpt-6.2-sol"]
+    assert launches[1][4] == dispatch.CHANGE_SCOPE_SMALL_FIX
+    assert dispatch.start_pending() == []
+
+
+# contract-test: tooling
+def test_issue_queued_on_codex_usage_rechecks_the_policy_after_claude_reset(isolated_state, monkeypatch):
+    reset = datetime.now(timezone.utc) + timedelta(days=1)
+    dispatch.claude_weekly_model.update(93, reset, notify=lambda _: "")
+    monkeypatch.setattr(dispatch, "codex_wait_reason", lambda: "Codex has no usage left")
+    with pytest.raises(dispatch.ChatQueued, match="no usage left"):
+        dispatch.launch_issue_chat("Issue ABCDE", "Investigate")
+    dispatch.claude_weekly_model.update(0, reset + timedelta(days=7), now=reset, notify=lambda _: "")
+    monkeypatch.setattr(dispatch, "_open_chat_tab", lambda *a, **kw: "claude tab")
+    assert dispatch.start_pending()[0]["session"] == "claude tab"
 
 
 # contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
