@@ -4737,7 +4737,7 @@ def _managed_worktree_records() -> list[dict]:
         paths[str(path)] = {**linked, "linked": True}
     if AGENT_WORKTREES_DIR.is_dir():
         for path in AGENT_WORKTREES_DIR.iterdir():
-            if not path.is_dir():
+            if not path.name.startswith("agent-") or not path.is_dir():
                 continue
             resolved = path.resolve(strict=False)
             try:
@@ -5321,6 +5321,7 @@ def expire_managed_worktrees(
     max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
     now_timestamp: float | None = None,
     dry_run: bool = False,
+    preserve_unfinished: bool = False,
 ) -> dict:
     """Delete inactive worktrees only when their changes are recoverable.
 
@@ -5356,7 +5357,8 @@ def expire_managed_worktrees(
             continue
         disposable, reason = _hard_expiry_record_is_safely_disposable(record)
         candidate = {**record, "age_hours": age_hours}
-        if disposable or reason in {"unique_changes", "unique_ignored_files", "unmerged_head"}:
+        if disposable or (not preserve_unfinished
+                          and reason in {"unique_changes", "unique_ignored_files", "unmerged_head"}):
             candidate["requires_archive"] = not disposable
             expired.append(candidate)
         else:
@@ -13724,7 +13726,8 @@ def cmd_worktree(args: argparse.Namespace) -> None:
     if args.worktree_action == "expire":
         try:
             report = expire_managed_worktrees(
-                max_age_hours=args.max_age_hours, dry_run=getattr(args, "dry_run", False)
+                max_age_hours=args.max_age_hours, dry_run=getattr(args, "dry_run", False),
+                preserve_unfinished=getattr(args, "preserve_unfinished", False),
             )
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
@@ -15806,6 +15809,8 @@ def main() -> None:
         ),
     )
     p_worktree_expire.add_argument("--dry-run", action="store_true", help="Report only; archive, delete and prune nothing")
+    p_worktree_expire.add_argument("--preserve-unfinished", action="store_true",
+                                   help="Keep worktrees with changes or files that are not integrated")
     p_worktree_expire.add_argument("--format", choices=["text", "json"], default="text")
     p_worktree_restore = p_worktree_sub.add_parser(
         "restore-archive", help="Show the recovery archive of an expired worktree and how to restore it"

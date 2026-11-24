@@ -223,6 +223,7 @@ class Coordinator(CoordinatorState):
                 # the 7-day default alone let inactive worktrees fill the disk.
                 "--max-age-hours",
                 str(WORKTREE_EXPIRY_HOURS),
+                "--preserve-unfinished",
                 "--format",
                 "json",
             ]

@@ -11,6 +11,8 @@ Also applies the approved retention rule (age by mtime, never while in use):
     CI_ARTIFACT_MAX_AGE_DAYS, unless a queued, running, preparing or otherwise
     non-terminal job in logs/ci-coordinator/queue.sqlite3 references them (the
     queue is opened read-only; an unreadable queue skips these categories);
+  * old screenshots and videos under dev proof directories; preserve receipts,
+    recent files, and captures from active jobs;
   * Rust target/ dirs of managed worktrees, ~/.cache/openmates-rust-* caches and
     other cargo target dirs ~/.cache/*-target unchanged for RUST_IDLE_HOURS,
     unless a cargo/rustc process uses them;
@@ -43,6 +45,8 @@ ROOT = Path(__file__).resolve().parents[1]
 TMP_MAX_AGE_DAYS = 3
 RECOVERY_MAX_AGE_DAYS = 14
 CI_ARTIFACT_MAX_AGE_DAYS = 3
+PROOF_MEDIA_MAX_AGE_DAYS = 14
+PROOF_MEDIA_SUFFIXES = {".webm", ".mp4", ".mov", ".mkv", ".png", ".jpg", ".jpeg"}
 RUST_IDLE_HOURS = 24
 CACHE_SCRATCH_MAX_AGE_DAYS = 3
 SESSION_SCRATCH_RE = re.compile(r"^[0-9a-f]{4}-[A-Za-z0-9._-]+$")
@@ -136,6 +140,22 @@ def _retention_candidates(repository: Path, cache_root: Path, now: float,
             for entry in base.iterdir():
                 if entry.is_dir() and not entry.is_symlink() and entry.name not in references:
                     found.append((entry, category, ci_cutoff, None))
+    if references is not None:
+        proof_cutoff = now - PROOF_MEDIA_MAX_AGE_DAYS * 86400
+        proof_roots = (repository / "test-results/recordings",
+                       repository.parent / ".openmates-runtime/product-stack/test-results")
+        for base in proof_roots:
+            if not base.is_dir() or base.resolve(strict=False) != base:
+                continue
+            for directory, folders, files in os.walk(base):
+                parent = Path(directory)
+                folders[:] = [name for name in folders
+                              if name not in references and not (parent / name).is_symlink()]
+                for name in files:
+                    path = parent / name
+                    if (path.suffix.lower() in PROOF_MEDIA_SUFFIXES and path.stem not in references
+                            and not path.is_symlink()):
+                        found.append((path, "proof_media", proof_cutoff, None))
     for worktree in sorted((repository / ".openmates-agent-worktrees").glob("agent-*")):
         target = worktree / "target"
         if target.is_dir() and not target.is_symlink():
@@ -151,21 +171,6 @@ def _retention_candidates(repository: Path, cache_root: Path, now: float,
             elif SESSION_SCRATCH_RE.match(entry.name):
                 found.append((entry, "cache_scratch", scratch_cutoff, None))
     return found
-
-
-def _tree_bytes(path: Path) -> int:
-    total = 0
-    pending = [path]
-    while pending:
-        current = pending.pop()
-        try:
-            info = current.lstat()
-            total += info.st_blocks * 512
-            if stat.S_ISDIR(info.st_mode):
-                pending.extend(current.iterdir())
-        except OSError:
-            continue
-    return total
 
 
 def _scan(path: Path, cutoff: float) -> tuple[bool, int]:
@@ -244,13 +249,7 @@ def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None =
                 for item in cargo):
             report["skipped"]["in_use"] += 1
             continue
-        if category in ("ci_run", "ci_candidate"):
-            # The directory's own mtime decides, as approved; size is for reporting.
-            stale, size = path.lstat().st_mtime <= cutoff, 0
-            if stale:
-                size = _tree_bytes(path)
-        else:
-            stale, size = _scan(path, cutoff)
+        stale, size = _scan(path, cutoff)
         if not stale:
             report["skipped"]["recent"] += 1
             continue

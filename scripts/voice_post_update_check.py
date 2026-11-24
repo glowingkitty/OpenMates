@@ -22,10 +22,13 @@ unresolved legs once and reports a remaining gap after the retry window.
 from __future__ import annotations
 
 import argparse
+import errno
 import fcntl
 import json
 import os
 import re
+import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -34,6 +37,8 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+
+from resource_budget import MIN_FREE
 
 SCRIPTS = Path(__file__).resolve().parent
 BASE_URLS = {"dev": "https://app.dev.openmates.org", "prod": "https://app.openmates.org"}
@@ -94,10 +99,33 @@ def _loudness(video: Path) -> float:
         raise CheckError(f"video_has_no_audio: {exc}") from exc
 
 
+def _disk_error(*details: object) -> bool:
+    return any(re.search(r"\b(?:ENOSPC|no space left on device|waiting for disk capacity)\b",
+                         str(detail or ""), re.IGNORECASE) for detail in details)
+
+
+def _runner_disk_error(out: Path) -> bool:
+    for name in ("run.log", "wrapper.log"):
+        try:
+            with (out / name).open("rb") as log:
+                log.seek(max(0, os.fstat(log.fileno()).st_size - 16384))
+                if _disk_error(log.read().decode(errors="replace")):
+                    return True
+        except FileNotFoundError:
+            continue
+    return False
+
+
+def _blocked_disk() -> dict:
+    return {"status": "blocked", "video": None, "error": "disk space unavailable", "reason": "disk_space"}
+
+
 def evaluate_leg(out: Path, loudness=_loudness) -> dict:
     """Judge a leg from its receipt.json and videos; returns {status, video, error}."""
     path = out / "receipt.json"
     if not path.is_file():
+        if _runner_disk_error(out):
+            return _blocked_disk()
         return {"status": "blocked", "video": None, "error": "no receipt written", "reason": "setup"}
     receipt = json.loads(path.read_text())
     video = find_video(out, receipt)
@@ -106,6 +134,8 @@ def evaluate_leg(out: Path, loudness=_loudness) -> dict:
         code = receipt.get("error_code") or "no reason"
         error = f"receipt status {receipt.get('status')}: {code}"
         raw_error = str(receipt.get("error") or "")
+        if code == "disk_space" or _disk_error(code, raw_error, receipt.get("error_detail")) or _runner_disk_error(out):
+            return _blocked_disk()
         if (receipt.get("status") == "blocked" or code in SETUP_ERRORS
                 or ("deployed_revision" in receipt and "playwright_exit_code" not in receipt)):
             status, reason = "blocked", "setup"
@@ -199,7 +229,10 @@ def run_signed_in_dev(revision: str, out: Path) -> None:
     command = [sys.executable, str(SCRIPTS / "voice_call_web_real_test.py"), "--session", SESSION_LABEL,
                "--revision", revision, "--output-dir", str(out), "--personal-dev-test-account",
                "--throwaway-account", "--allow-paid-dev-inference", "--scenario", SCENARIO]
-    subprocess.run(command, check=False, timeout=RUN_TIMEOUT_SECONDS * 3)
+    out.mkdir(parents=True, exist_ok=True)
+    with (out / "wrapper.log").open("w") as log:
+        subprocess.run(command, check=False, timeout=RUN_TIMEOUT_SECONDS * 3,
+                       stdout=log, stderr=subprocess.STDOUT)
 
 
 def create_account(target: str, credentials: Path) -> dict:
@@ -274,6 +307,8 @@ def run_leg(name: str, target: str, base_url: str, revision: str, out: Path) -> 
             run_signed_in_prod(base_url, out)
         return evaluate_leg(out)
     except (CheckError, subprocess.SubprocessError, OSError, SystemExit, KeyError, ValueError) as exc:
+        if (isinstance(exc, OSError) and exc.errno == errno.ENOSPC) or _disk_error(exc):
+            return _blocked_disk()
         return {"status": "blocked", "video": None, "error": f"{type(exc).__name__}: {exc}"[:300], "reason": "setup"}
 
 
@@ -283,13 +318,17 @@ def failure_message(target: str, summary: dict) -> str:
     legs = summary["legs"]
     labels = {"signed_in": "signed-in", "guest": "guest"}
     failed = [name for name, leg in legs.items() if leg["status"] == "failed"]
-    if any(leg["status"] == "blocked" for leg in legs.values()):
+    if "disk_recovered_bytes" in summary:
+        recovered = summary["disk_recovered_bytes"] / 10**9
+        first = f"Dev disk almost full, cleanup recovered {recovered:.1f} GB."
+    elif any(leg["status"] == "blocked" for leg in legs.values()):
         first = f"The {environment} voice check is incomplete after the update."
     else:
         subject = f" {labels[failed[0]]}" if len(failed) == 1 else ""
         result = "still fails after a retry" if summary.get("retried") else "failed after the update"
         first = f"The {environment}{subject} voice check {result}."
     phrases = {
+        "disk_space": "could not write its test files because disk space was too low",
         "dev_api_unavailable": "could not start while the dev API was unavailable",
         "proof_missing": "played a reply, but the recording could not verify the result",
         "message_missing": "timed out waiting for the user's message",
@@ -301,7 +340,9 @@ def failure_message(target: str, summary: dict) -> str:
         f"The {labels[name]} call check {phrases.get(leg.get('reason'), statuses[leg['status']])}."
         for name, leg in legs.items()
     ]
-    if summary.get("retried"):
+    if "disk_recovered_bytes" in summary:
+        details.append("The checker will retry when there is enough space.")
+    elif summary.get("retried"):
         details.append("The checker retried the unresolved checks.")
     elif summary.get("retry_expired"):
         details.append("The checker waited for the service to be ready, and the retry window ended.")
@@ -333,13 +374,25 @@ def run_check(target: str, base_url: str | None, revision: str | None, out: Path
     """Run the legs, write summary.json, push on failure."""
     base = (base_url or BASE_URLS[target]).rstrip("/")
     revision = revision or fetch_revision(base)
-    out = out or Path(tempfile.mkdtemp(prefix=f"voice-check-{target}-", dir="/tmp"))
-    results = {name: leg_runner(name, target, base, revision, out / name) for name in legs}
+    try:
+        out = out or Path(tempfile.mkdtemp(prefix=f"voice-check-{target}-", dir="/tmp"))
+        results = {name: leg_runner(name, target, base, revision, out / name) for name in legs}
+        out.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        if exc.errno != errno.ENOSPC:
+            raise
+        results = {name: _blocked_disk() for name in legs}
+        out = None
     summary = {"target": target, "revision": revision, "legs": results,
                "passed": all(leg["status"] == "passed" for leg in results.values()),
                "finished_at": datetime.now(UTC).isoformat()}
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "summary.json").write_text(json.dumps(summary, indent=2))
+    if out is not None:
+        try:
+            (out / "summary.json").write_text(json.dumps(summary, indent=2))
+        except OSError as exc:
+            if exc.errno != errno.ENOSPC:
+                raise
+            print("Voice summary could not be saved because the filesystem is full.", file=sys.stderr)
     if not summary["passed"] and push:
         pusher(target, summary)
     return summary
@@ -404,13 +457,49 @@ def _record_watch_result(path: Path, state: dict, summary: dict) -> None:
     _write_state(path, state)
 
 
+def _free_space() -> int:
+    return shutil.disk_usage("/tmp").free
+
+
+def _request_disk_cleanup() -> None:
+    from disk_coordinator import KINDS, configured
+
+    try:
+        repository = SCRIPTS.parent
+        coordinator = configured(repository)
+        if coordinator:
+            for kind in KINDS:
+                coordinator.enqueue_maintenance(repository, kind)
+    except (OSError, RuntimeError, sqlite3.Error) as error:
+        print(f"Voice check could not queue disk cleanup: {type(error).__name__}", file=sys.stderr)
+
+
+def _disk_retry(summary: dict) -> dict:
+    if not any(leg.get("reason") == "disk_space" for leg in summary["legs"].values()):
+        return {}
+    free = _free_space()
+    if free >= MIN_FREE:
+        return {}
+    _request_disk_cleanup()
+    return {"disk": {"free_before": free, "alerted": False}}
+
+
 def _retry_watch(path: Path, state: dict, revision: str, base_url: str, now: float,
                  runtime_ready, checker, revision_fetcher) -> None:
     retry = state["retry"]
     if now < retry["due_at"]:
         return
     before = retry["summary"]
-    if now >= retry["deadline_at"]:
+    disk = retry.get("disk")
+    if disk:
+        free = _free_space()
+        if free < MIN_FREE:
+            if not disk["alerted"]:
+                state["alert_pending"] = {**before, "disk_recovered_bytes": max(0, free - disk["free_before"])}
+                disk["alerted"] = True
+                _write_state(path, state)
+            return
+    elif now >= retry["deadline_at"]:
         state.pop("retry")
         _record_watch_result(path, state, {**before, "retry_expired": True})
         return
@@ -433,6 +522,10 @@ def _retry_watch(path: Path, state: dict, revision: str, base_url: str, now: flo
         raise
     if served != revision:
         state["last_result"] = {"status": "superseded"}
+        _write_state(path, state)
+    elif new_disk := _disk_retry(summary):
+        state["retry"] = {**retry, "disk": disk or new_disk["disk"], "summary": _notice_summary(summary),
+                          "due_at": now + RETRY_DELAY}
         _write_state(path, state)
     else:
         _record_watch_result(path, state, summary)
@@ -479,7 +572,7 @@ def dev_watch(state_path: Path = STATE_FILE, now=time.time, revision_fetcher=fet
         state["last_result"] = {"passed": False, "status": "waiting_to_retry",
                                 "legs": {name: leg["status"] for name, leg in summary["legs"].items()}}
         state["retry"] = {"summary": _notice_summary(summary), "due_at": finished + RETRY_DELAY,
-                          "deadline_at": finished + RETRY_WINDOW}
+                          "deadline_at": finished + RETRY_WINDOW, **_disk_retry(summary)}
         _write_state(state_path, state)
         return 0
 

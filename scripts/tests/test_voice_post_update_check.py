@@ -358,3 +358,44 @@ def test_run_leg_turns_launch_failure_into_blocked_result(tmp_path, monkeypatch)
     monkeypatch.setattr(check, "run_guest", no_slot)
     result = check.run_leg("guest", "dev", "https://x", "abc", tmp_path)
     assert result["status"] == "blocked" and "no slot" in result["error"]
+
+
+
+def test_failed_runner_log_checks_for_real_disk_exhaustion(tmp_path):
+    (tmp_path / "run.log").write_text("OSError: [Errno 28] No space left on device")
+    result = check.evaluate_leg(tmp_path)
+    assert result["status"] == "blocked"
+    assert result["reason"] == "disk_space"
+
+
+def test_actual_disk_failure_cleans_alerts_once_and_retries_after_recovery(tmp_path, monkeypatch):
+    state = tmp_path / "state.json"
+    clock = [10_000]
+    free = [check.MIN_FREE - 2_000_000_000]
+    calls, cleanup, pushes = [], [], []
+    monkeypatch.setattr(check, "_free_space", lambda: free[0])
+    monkeypatch.setattr(check, "_request_disk_cleanup", lambda: cleanup.append(True))
+
+    def checker(*args):
+        calls.append(args[4])
+        if len(calls) == 1:
+            return {"passed": False, "legs": {"signed_in": {"status": "passed"}, "guest": check._blocked_disk()}}
+        return fake_summary(True)
+
+    def run():
+        return check.dev_watch(state, lambda: clock[0], lambda _url: "r1", checker,
+                               runtime_ready=lambda _rev: True,
+                               pusher=lambda target, summary: pushes.append(check.failure_message(target, summary)))
+
+    assert run() == 0 and cleanup == [True] and not pushes
+    clock[0] += check.RETRY_DELAY
+    free[0] += 1_000_000_000
+    assert run() == 1
+    assert pushes[0].splitlines()[0] == "Dev disk almost full, cleanup recovered 1.0 GB."
+    assert calls == [list(check.LEGS)]
+    clock[0] += check.RETRY_WINDOW
+    assert run() == 0 and len(pushes) == 1
+    free[0] += 2_000_000_000
+    assert run() == 0
+    assert calls == [list(check.LEGS), ["guest"]]
+    assert json.loads(state.read_text())["last_result"]["passed"]

@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from pathlib import Path
 
 import pytest
 
@@ -140,3 +141,23 @@ def test_head_bundle_preserves_unmerged_commits(tmp_path):
     run("commit", "-qam", "unmerged")
     bundle = policy.head_bundle(repo, "dev", 10_000_000)
     assert bundle.startswith(b"# v")
+
+
+
+def test_coordinated_cleanup_preserves_inactive_unfinished_work(monkeypatch, tmp_path):
+    sessions, now, archived, removed = _setup(monkeypatch, tmp_path, chat_age_hours=None)
+    report = sessions.expire_managed_worktrees(max_age_hours=24, now_timestamp=now,
+                                                preserve_unfinished=True)
+    assert archived == removed == []
+    assert report["deleted"] == []
+    assert report["protected_unresolved"][0]["reason"] == "unique_changes"
+
+
+def test_inventory_ignores_tool_cache_directories(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    (tmp_path / ".pytest_cache").mkdir()
+    (tmp_path / "agent-recoverable").mkdir()
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", tmp_path)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {})
+    monkeypatch.setattr(sessions, "_linked_git_worktrees", lambda: [])
+    assert [Path(record["path"]).name for record in sessions._managed_worktree_records()] == ["agent-recoverable"]
