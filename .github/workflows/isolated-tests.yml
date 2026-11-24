@@ -1439,11 +1439,32 @@ jobs:
           path: subject/test-results/${{ inputs.mode }}/SourcePackages
           key: apple-spm-${{ inputs.mode }}-${{ hashFiles('subject/apple/OpenMates.xcodeproj/project.pbxproj', 'subject/apple/LocalModelBridge/catalog.json') }}
           restore-keys: apple-spm-${{ inputs.mode }}-
+      - name: Validate private Apple startup evidence recipient
+        if: startsWith(inputs.proof_video_profile, 'apple-startup:')
+        env:
+          EVIDENCE_PROFILE: ${{ inputs.proof_video_profile }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/dev
+          test "$CI_TEST_MODE" = apple-ui
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          printf '%s' "${EVIDENCE_PROFILE#apple-startup:}" | "$openssl_bin" base64 -d -A > "$RUNNER_TEMP/apple-evidence-recipient.pem"
+          "$openssl_bin" x509 -in "$RUNNER_TEMP/apple-evidence-recipient.pem" -checkend 0 -noout
       - name: Run Apple lane
+        if: "!startsWith(inputs.proof_video_profile, 'apple-startup:')"
         timeout-minutes: ${{ inputs.mode != 'apple-core' && 110 || 90 }}
         run: python3 ../tooling/scripts/ci_apple.py
         env:
           PYTHONPATH: ${{ github.workspace }}/tooling/scripts
+      - name: Run private Apple startup benchmark
+        if: startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 110
+        run: python3 ../tooling/scripts/ci_apple.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tooling/scripts
+          CI_APPLE_PRIVATE_STARTUP: '1'
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -1461,7 +1482,7 @@ jobs:
             subject/test-results/apple-unit/OpenMatesTests.xcresult
           if-no-files-found: error
       - name: Export UI test screenshots and recordings
-        if: always() && inputs.mode == 'apple-ui'
+        if: always() && inputs.mode == 'apple-ui' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
         timeout-minutes: 10
         run: |
           bundle=test-results/apple-ui/OpenMatesUITests.xcresult
@@ -1473,7 +1494,7 @@ jobs:
             || echo "::warning::UI result summary export failed"
           ls test-results/apple-ui/attachments 2>/dev/null | head -50
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always() && inputs.mode == 'apple-ui'
+        if: always() && inputs.mode == 'apple-ui' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
         with:
           # Separate from isolated-test-results: recordings are large and are evidence, not the verdict.
           name: apple-ui-evidence
@@ -1482,4 +1503,37 @@ jobs:
             subject/test-results/apple-ui/attachments/
             subject/test-results/apple-ui/summary.json
             subject/test-results/apple-ui/OpenMatesUITests.xcresult
+          if-no-files-found: warn
+      - name: Encrypt private Apple startup evidence
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 10
+        run: |
+          test -f "$RUNNER_TEMP/apple-evidence-recipient.pem"
+          output=test-results/apple-ui
+          test -f "$output/private-xcode.log" || exit 0
+          files=(private-xcode.log)
+          if test -d "$output/OpenMatesUITests.xcresult"; then
+            xcrun xcresulttool export attachments --path "$output/OpenMatesUITests.xcresult" --output-path "$output/attachments" \
+              > "$output/private-export.log" 2>&1 || true
+            xcrun xcresulttool get test-results summary --path "$output/OpenMatesUITests.xcresult" > "$output/summary.json" \
+              2>> "$output/private-export.log" || true
+            files+=(OpenMatesUITests.xcresult private-export.log summary.json)
+            if test -d "$output/attachments"; then files+=(attachments); fi
+          fi
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          tar -czf "$RUNNER_TEMP/apple-evidence.tar.gz" -C "$output" "${files[@]}"
+          "$openssl_bin" cms -encrypt -binary -aes-256-gcm -outform DER \
+            -in "$RUNNER_TEMP/apple-evidence.tar.gz" -out "$RUNNER_TEMP/apple-evidence.cms" \
+            "$RUNNER_TEMP/apple-evidence-recipient.pem"
+          if test -s "$output/summary.json"; then
+            python3 -c 'import json,sys; result=json.load(open(sys.argv[1])); assert result["totalTestCount"] == 2 and result["passedTests"] == 2, "Both real-account tests must pass without skips"' "$output/summary.json"
+          else
+            exit 1
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        with:
+          name: apple-startup-encrypted-evidence
+          retention-days: 7
+          path: ${{ runner.temp }}/apple-evidence.cms
           if-no-files-found: warn

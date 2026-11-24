@@ -38,6 +38,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 ALL = "all"
@@ -55,6 +56,13 @@ RECORDED_XCTESTRUN = "OpenMates_recorded.xctestrun"
 # Attachment lifetimes in an .xctestrun: system attachments and, separately, the automatic
 # UI-test screen capture ("On, and keep all" in a test plan).
 KEEP_ALL_KEYS = ("SystemAttachmentLifetime", "UITestingScreenshotsLifetime")
+STARTUP_BENCHMARK_SPECS = {
+    "OpenMatesUITests/ChatFlowRealAccountUITests/testPersonalAccountColdLaunchFirstFrame",
+    "OpenMatesUITests/ChatFlowRealAccountUITests/testPersonalAccountColdLaunchToInteractive",
+}
+PERSONAL_CREDENTIAL_KEYS = tuple(
+    f"OPENMATES_PERSONAL_TEST_ACOUNT_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")
+)
 TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
 XCODE_MODES = ("apple-build", "apple-unit", "apple-ui")
 RESULT_BUNDLES = {
@@ -166,7 +174,7 @@ def core_plan(root: Path, results: Path) -> list[Step]:
     ]
 
 
-def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
+def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = False) -> list[Step]:
     """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests."""
     build_only = mode == "apple-build"
     only = [] if build_only else [UNIT_TARGET] if specs == [ALL] else specs
@@ -180,7 +188,10 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
     ]
     # The script phases (OpenMatesCore, LocalModelBridge) run cargo and read repository
     # files, which Xcode's script sandbox denies; the TestFlight build passes the same override.
-    settings = ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=", "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
+    signing = ["CODE_SIGNING_ALLOWED=YES", "CODE_SIGN_IDENTITY=-"] if benchmark else [
+        "CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=",
+    ]
+    settings = [*signing, "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
     # The runner and its simulators are arm64. Without this the embedded Watch app is also
     # built for the x86_64 simulator, whose Rust core is a tier-3 build-std build (about
     # 14 minutes) that no test uses.
@@ -317,14 +328,36 @@ def swift_errors(lines: list[str], root: Path) -> list[str]:
     return list(seen)[:MAX_SWIFT_ERRORS]
 
 
+def run_private_benchmark(root: Path, command: list[str], output: Path, credentials: dict[str, str]) -> int:
+    """Never stream real-account XCTest output to the public Actions log."""
+    import subprocess
+
+    credential_file = root / "apple/.openmates-live-test-account.env"
+    if any("\n" in value or "\r" in value for value in credentials.values()):
+        raise ValueError("Invalid personal benchmark credential format")
+    with os.fdopen(os.open(credential_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as handle:
+        handle.writelines(f"{key}={value}\n" for key, value in credentials.items())
+    try:
+        with (output / "private-xcode.log").open("w") as log:
+            return subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=False).returncode
+    finally:
+        credential_file.unlink()
+
+
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
     import ci_rust_checks as checks
 
     specs = validate_specs(mode, specs)
+    benchmark = os.environ.get("CI_APPLE_PRIVATE_STARTUP") == "1"
+    credentials = {key: os.environ.pop(key, "") for key in PERSONAL_CREDENTIAL_KEYS}
+    if benchmark and (mode != "apple-ui" or set(specs) != STARTUP_BENCHMARK_SPECS or len(specs) != 2):
+        raise ValueError("Private Apple startup runs require both exact benchmark selectors")
+    if benchmark and not all(credentials.values()):
+        raise ValueError("The private Apple startup lane requires repository test credentials")
     out = root / "test-results" / mode
     out.mkdir(parents=True, exist_ok=True)
     os.environ["RUST_CI_RESULTS"] = str(out / "rows")
-    plan = core_plan(root, out) if mode == "apple-core" else xcode_plan(mode, out, specs)
+    plan = core_plan(root, out) if mode == "apple-core" else xcode_plan(mode, out, specs, benchmark=benchmark)
     for name, command, extra_env, skip in plan:
         if skip:
             print(f"::notice title={name}::{skip}", flush=True)
@@ -336,6 +369,15 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                 }
             )
             continue
+        if benchmark and command[:2] == ["xcodebuild", "test-without-building"]:
+            started = time.monotonic()
+            code = run_private_benchmark(root, command, out, credentials)
+            results.append({
+                "suite": f"{mode}:private startup", "target": specs[0],
+                "command": "xcodebuild test-without-building", "exit_code": code,
+                "seconds": round(time.monotonic() - started, 1), "diagnostics": 0, "failures": [],
+            })
+            break
         saved = {key: os.environ.get(key) for key in extra_env}
         os.environ.update(extra_env)
         try:
