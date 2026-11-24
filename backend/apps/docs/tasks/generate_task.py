@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import fitz
+import pymupdf as fitz  # the `fitz` module name prints a deprecation line to stdout
 import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from docx import Document

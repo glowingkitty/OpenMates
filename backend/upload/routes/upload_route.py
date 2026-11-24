@@ -1703,7 +1703,7 @@ async def _handle_pdf_upload(
 
     # --- PDF 1. Extract page count via pymupdf ---
     try:
-        import fitz  # type: ignore[import]  # pymupdf
+        import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
 
         def _count_pages(pdf_bytes: bytes) -> int:
             """Count pages in PDF bytes synchronously (runs in threadpool)."""

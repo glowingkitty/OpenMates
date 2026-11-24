@@ -12,7 +12,7 @@ import pytest
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_docx_worker_initializes_storage_without_unrelated_billing_services(monkeypatch) -> None:
-    pytest.importorskip("fitz")
+    pytest.importorskip("pymupdf")
     pytest.importorskip("docx")
 
     from backend.apps.docs.tasks import generate_task
@@ -58,7 +58,7 @@ async def test_docx_worker_initializes_storage_without_unrelated_billing_service
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 def test_same_task_id_enters_docx_generation_once_after_worker_admission(monkeypatch) -> None:
     pytest.importorskip("celery")
-    pytest.importorskip("fitz")
+    pytest.importorskip("pymupdf")
     pytest.importorskip("docx")
 
     from backend.apps.docs.tasks import generate_task
@@ -110,7 +110,7 @@ def test_sealed_docx_retry_stops_before_generation_even_after_dedup_lock_loss(mo
     """The durable seal, rather than Redis dedup, excludes a repeated provider body."""
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "docs-retry-test-binding-key-at-least-32-bytes")
     pytest.importorskip("celery")
-    pytest.importorskip("fitz")
+    pytest.importorskip("pymupdf")
     pytest.importorskip("docx")
 
     from backend.apps.docs.tasks import generate_task
@@ -195,7 +195,7 @@ def test_sealed_docx_retry_without_backend_result_does_not_create_failure(monkey
     """A SEALED retry holds when the Celery result has expired or never appeared."""
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "docs-retry-test-binding-key-at-least-32-bytes")
     pytest.importorskip("celery")
-    pytest.importorskip("fitz")
+    pytest.importorskip("pymupdf")
     pytest.importorskip("docx")
 
     from backend.apps.docs.tasks import generate_task
