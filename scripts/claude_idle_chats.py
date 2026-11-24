@@ -848,8 +848,13 @@ def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: d
     owners = pane_owners() if owners is None else owners
     marks, seen, closed = load_marks(directory, "dead_panes.json"), {}, []
     for session in sessions:
-        listing = run(session, "list-panes", "--json", "--tab")
-        tabs = run(session, "list-tabs")
+        try:
+            listing = run(session, "list-panes", "--json", "--tab")
+            tabs = run(session, "list-tabs")
+        except (OSError, subprocess.TimeoutExpired):
+            log_event(directory, {"event": "zellij_tidy_skipped", "session": session,
+                                  "why": "pane or tab listing unavailable"})
+            continue
         if listing.returncode or tabs.returncode:
             continue
         try:

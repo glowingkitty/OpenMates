@@ -728,3 +728,19 @@ def test_reap_main_reaches_lifecycle(tmp_path, monkeypatch):
     monkeypatch.setattr(lc, "run_cycle", run)
     assert lc.main(["reap", "--dry-run", "--claude-home", str(tmp_path)]) == 0
     assert calls == [("reap", True)]
+
+
+
+def test_zellij_cleanup_timeout_does_not_abort_chat_admission(tmp_path):
+    import subprocess
+
+    calls = []
+
+    def unresponsive_listing(session, *args):
+        calls.append((session, args[0]))
+        raise subprocess.TimeoutExpired(args, 30)
+
+    assert lc.close_dead_panes(["fixture"], tmp_path, NOW, {}, unresponsive_listing) == []
+    events = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text().splitlines()]
+    assert events[-1]["event"] == "zellij_tidy_skipped"
+    assert calls == [("fixture", "list-panes")]
