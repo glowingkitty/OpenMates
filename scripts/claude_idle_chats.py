@@ -135,6 +135,7 @@ DEFAULTS = {
     "cap_question_idle_hours": 4.0,
     "pressure_idle_minutes": 15.0,
     "protected_chat_ids": [],  # operator pin, including across reap and capacity checks
+    "production_chat_ids": [],  # owner-registered release chats may take the last slot
     "zellij_sessions": ["claude"],  # more via config.json
 }
 TERM_WAIT_SECONDS = 20.0
@@ -182,6 +183,12 @@ def load_config(path: Path | None = None) -> dict:
             raise SystemExit(f"claude_idle_chats: unknown settings in {path}: {sorted(unknown)}")
         config.update(data)
     return config
+
+
+def admission_limit(config: dict, *, production: bool = False) -> int:
+    """Keep the last running-chat slot available for production releases."""
+    limit = int(config["max_running"])
+    return limit if production or limit <= 1 else limit - 1
 
 
 @dataclass
@@ -1374,14 +1381,20 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
     live_codex = codex_chats.live()
     free = int(config["max_running"]) - len({chat.session_id for chat in left} | live_codex.keys())
     reserved = int(config["free_slots"])
-    room = max(0, min(int(config["wake_batch"]), free - reserved))
-    if free > 0 and not room and not queued_launches():
-        room = 1
+    room = max(0, min(int(config["wake_batch"]), free - max(1, reserved)))
     owner_waits = {chat.session_id for chat in left if chat.protected or waiting_on_billing(chat)}
     owner_waits.update(chat_id for chat_id, entry in registry.items() if entry.get("reason") == BILLING_QUESTION)
     handed = load_marks(directory, "handed_off.json")
     active_waiters = {chat_id: items for chat_id, items in waiters.items()
                       if chat_id not in owner_waits and chat_id not in handed}
+    production = set(config["production_chat_ids"])
+    if free > 1 and not room and not queued_launches():
+        room = 1
+    if free > 0 and not room:
+        running = set(live_codex) | {chat.session_id for chat in left}
+        eligible = production | running
+        active_waiters = {chat_id: items for chat_id, items in active_waiters.items() if chat_id in eligible}
+        room = 1
     delivered, failures = claude_chat_waiters.deliver(
         active_waiters, {chat.session_id: chat for chat in left}, registry, directory, now, type_into=wake,
         resume=reopen, room=room,
@@ -1467,6 +1480,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--idle-minutes", type=float)
     parser.add_argument("--done-hours", type=float)
     parser.add_argument("--max-running", type=int)
+    parser.add_argument("--production", action="store_true", help="Admit registered production release work")
     parser.add_argument("--session", default="")
     parser.add_argument("--state", choices=("archived", "resumed"))
     parser.add_argument("--json", action="store_true")
@@ -1504,11 +1518,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "admit":
         args.command = "reap"
-        left, _ = run_cycle(args, config, room=1)
+        limit = admission_limit(config, production=args.production)
+        left, _ = run_cycle(args, config, room=1 + int(config["max_running"]) - limit)
         running = len({chat.session_id for chat in left} | codex_chats.live().keys())
-        if running < int(config["max_running"]):
+        if running < limit:
             return 0
-        print(f"no room: {running} chats run (max {config['max_running']}) and none may be suspended now "
+        print(f"no room: {running} chats run (admission limit {limit}) and none may be suspended now "
               "(all working, waiting or recently active)")
         return EXIT_NO_ROOM
     _, failed = run_cycle(args, config)

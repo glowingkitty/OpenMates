@@ -251,11 +251,14 @@ def check_chat_model(model: str, explicit_model: bool = False) -> str:
     return model
 
 
-def admit_new_chat() -> str | None:
+def admit_new_chat(*, production: bool = False) -> str | None:
     """None when one more chat may start now; else why not. Suspends the longest-idle chat
     when the cap of running chats is reached (scripts/claude_idle_chats.py admit)."""
+    command = [sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "admit"]
+    if production:
+        command.append("--production")
     result = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "admit"],
+        command,
         capture_output=True, text=True, timeout=ADMIT_TIMEOUT_SECONDS, check=False,
     )
     if result.returncode == 0:
@@ -396,6 +399,14 @@ def chat_effort(transcript: Path) -> str:
     return CLAUDE_EFFORT
 
 
+def admit_resume(chat_id: str) -> str | None:
+    import claude_idle_chats
+
+    if chat_id in claude_idle_chats.load_config()["production_chat_ids"]:
+        return admit_new_chat(production=True)
+    return admit_new_chat()
+
+
 def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, title: str = "",
                 admitted: bool = False, *, force: bool = False) -> str:
     """Reopen a stopped chat in a new tab with `prompt` as its next message; 'ok' or why not.
@@ -436,7 +447,7 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     if not cwd or not Path(cwd).is_dir():
         return f"its folder is gone ({cwd or 'unknown'})"
     model = model if model.startswith("claude-") and not is_fable(model) else CLAUDE_MODEL
-    why = None if admitted or force else admit_new_chat()
+    why = None if admitted or force else admit_resume(chat_id)
     if why:
         return f"no free chat slot ({why})"
     title = title or f"finish {chat_id[:8]}"
@@ -543,7 +554,7 @@ def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool
         return "its Codex thread is unknown (it never ran a turn)"
     if not Path(str(record.get("cwd") or "")).is_dir():
         return f"its folder is gone ({record.get('cwd') or 'unknown'})"
-    why = None if admitted or force else admit_new_chat()
+    why = None if admitted or force else admit_resume(chat_id)
     if why:
         return f"no free chat slot ({why})"
     _codex_ready()

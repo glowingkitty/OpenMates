@@ -744,3 +744,34 @@ def test_zellij_cleanup_timeout_does_not_abort_chat_admission(tmp_path):
     events = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text().splitlines()]
     assert events[-1]["event"] == "zellij_tidy_skipped"
     assert calls == [("fixture", "list-panes")]
+
+
+
+def test_admission_reserves_last_slot_for_production(monkeypatch):
+    monkeypatch.setattr(lc, "load_config", lambda: dict(CONFIG))
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {str(i): {} for i in range(19)})
+    requests = []
+
+    def reap(args, config, room):
+        requests.append(room)
+        return [], 0
+
+    monkeypatch.setattr(lc, "run_cycle", reap)
+    assert lc.main(["admit"]) == lc.EXIT_NO_ROOM
+    assert lc.main(["admit", "--production"]) == 0
+    assert requests == [2, 1]
+
+
+def test_only_production_waiter_may_use_last_free_slot(tmp_path, monkeypatch):
+    running = {str(i): {} for i in range(19)}
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: running)
+    observed = []
+
+    def deliver(waiters, *args, room, **kwargs):
+        observed.append((set(waiters), room))
+        return set(), []
+
+    monkeypatch.setattr(lc.claude_chat_waiters, "deliver", deliver)
+    config = dict(CONFIG, production_chat_ids=["release"])
+    lc.wake_waiting({"release": [], "ordinary": [], "1": []}, [], {}, tmp_path, NOW, config)
+    assert observed == [({"release", "1"}, 1)]
