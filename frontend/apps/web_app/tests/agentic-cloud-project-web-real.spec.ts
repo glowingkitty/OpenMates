@@ -12,6 +12,7 @@
  */
 export {};
 
+import { selectCompactWorkspace } from './helpers/workspace-navigation';
 import type { Locator, Page } from '@playwright/test';
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -242,7 +243,7 @@ async function openProject(page: Page): Promise<void> {
   const mobileSwitcher = page.getByTestId('workspace-mobile-select').filter({ visible: true });
   await expect(desktopLink.or(mobileSwitcher)).toBeVisible({ timeout: 60_000 });
   if (await mobileSwitcher.isVisible()) {
-    await mobileSwitcher.selectOption('/#projects');
+    await selectCompactWorkspace(page, '/#projects');
   } else {
     await desktopLink.click();
   }

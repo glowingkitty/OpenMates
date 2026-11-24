@@ -10,6 +10,7 @@
 -->
 
 <script lang="ts">
+  import { contentZoomSurface, type ZoomPoint } from '../../../actions/contentZoomSurface';
   import { onDestroy, untrack } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
@@ -132,9 +133,18 @@
     }
   }
 
+  function fitScale() {
+    return clamp(Math.min((viewportWidth - 80) / graph.width, (viewportHeight - 120) / graph.height, 1.2), MIN_ZOOM, MAX_ZOOM);
+  }
+
+  function toggleGestureZoom(point: ZoomPoint) {
+    if (scale > fitScale() + 0.01) fitToView();
+    else zoomBy(2, point.x, point.y);
+  }
+
   function fitToView() {
     if (graph.width === 0 || graph.height === 0) return;
-    const nextScale = clamp(Math.min((viewportWidth - 80) / graph.width, (viewportHeight - 120) / graph.height, 1.2), MIN_ZOOM, MAX_ZOOM);
+    const nextScale = fitScale();
     scale = nextScale;
     panX = Math.round((viewportWidth - graph.width * nextScale) / 2);
     panY = Math.round((viewportHeight - graph.height * nextScale) / 2);
@@ -251,6 +261,7 @@
       {:else}
         <div
           class="mindmap-canvas-frame"
+          use:contentZoomSurface={{ toggle: toggleGestureZoom }}
           bind:clientWidth={viewportWidth}
           bind:clientHeight={viewportHeight}
         >

@@ -106,7 +106,7 @@ test.describe('Root hash workspace routing', () => {
 				await expect(page.getByTestId(activeTestId)).toHaveAttribute('aria-current', 'page');
 				await expect(page.getByTestId('chats-nav-link')).not.toHaveAttribute('aria-current', 'page');
 				const activeHref = await page.getByTestId(activeTestId).getAttribute('href');
-				await expect(page.getByTestId('workspace-mobile-select')).toHaveValue(activeHref!);
+				await expect(page.getByTestId('workspace-mobile-select')).toHaveAttribute('data-active-workspace', activeHref!);
 			}
 		}
 	});

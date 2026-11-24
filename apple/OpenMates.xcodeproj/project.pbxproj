@@ -998,6 +998,7 @@
 		7C65A54377CA2DBD4C7E2983 /* ProjectIgnoredReadGrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADD5884508BF26C281DBDBE9 /* ProjectIgnoredReadGrant.swift */; };
 		7C6B78E2C2818FF5D4B3F36C /* DocumentCanvasTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73098EB4FCFAA0DAEAAB98B7 /* DocumentCanvasTests.swift */; };
 		7CB739BB2103F408EEC83395 /* MathCalculateIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E303763A004973B5957ACBAB /* MathCalculateIntent.swift */; };
+		DE62CFAB00AA6DC746C7FDEE /* ImageZoomModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99509865490D851A073735C6 /* ImageZoomModifier.swift */; };
 		7CCD9830D62C732F77D7EDEE /* MediaRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D5D3E1DC3573B54A3F90F73 /* MediaRenderers.swift */; };
 		7D17CB36CA3E241FA4A6DE74 /* MailEmbedModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0684F402F58CD296CD28DC0E /* MailEmbedModelTests.swift */; };
 		7D2AE8988207E23623AE97AE /* NativeAssistantSpeech.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A31AB578429D06415F6449 /* NativeAssistantSpeech.swift */; };
@@ -1555,6 +1556,7 @@
 		CBB7FF89B5CEAA9A6F998DDA /* ProjectRemoteCommandCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1452F1AF8F1844B820FFF8A /* ProjectRemoteCommandCoordinator.swift */; };
 		CC0421F1F92FF6813AE32518 /* NativeComposerEmbedLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEBEBE4766903B7F34EB8CD3 /* NativeComposerEmbedLifecycleTests.swift */; };
 		CC0DE1765E7DE9A7EF4ABFA8 /* EmbedResponsiveGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3CFF98839CE9E19EA2EA751 /* EmbedResponsiveGeometry.swift */; };
+		2CD56FD6643AC550042EFCC6 /* ImageZoomModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99509865490D851A073735C6 /* ImageZoomModifier.swift */; };
 		CC1E00430578E567A4310CC1 /* MediaRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D5D3E1DC3573B54A3F90F73 /* MediaRenderers.swift */; };
 		CC3253D098319EF73B5FBCDD /* WatchPairCookieCancellationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12B3912247708B9B6451DCBE /* WatchPairCookieCancellationTests.swift */; };
 		CC78031240453B50872A889A /* WatchWorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E28CF27176CE8835B6B9BC0 /* WatchWorkflowViews.swift */; };
@@ -2218,6 +2220,7 @@
 		2C669A530EB6253E4BC11A4E /* SpeechIcons.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = SpeechIcons.xcassets; sourceTree = "<group>"; };
 		2D30972234787FA636DCD445 /* SketchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SketchView.swift; sourceTree = "<group>"; };
 		2D5150779AE3DE5CD771FF01 /* KeychainSharingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSharingTests.swift; sourceTree = "<group>"; };
+		99509865490D851A073735C6 /* ImageZoomModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageZoomModifier.swift; sourceTree = "<group>"; };
 		2D5D3E1DC3573B54A3F90F73 /* MediaRenderers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRenderers.swift; sourceTree = "<group>"; };
 		2D87EB38920CF76561A5E254 /* ControlProjectsData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlProjectsData.swift; sourceTree = "<group>"; };
 		2E37BF3C1E31DBB33162A024 /* WatchPhonePairApprovalUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPhonePairApprovalUITests.swift; sourceTree = "<group>"; };
@@ -3292,6 +3295,7 @@
 				84CF18DCFAC7FDF99BC14380 /* MapsEmbedRenderer.swift */,
 				AD9C7BD8D105B7C5AA1BE224 /* MapsSearchEmbedModel.swift */,
 				BA38E6B1EF5E18691C537307 /* MapsSearchEmbedRenderer.swift */,
+				99509865490D851A073735C6 /* ImageZoomModifier.swift */,
 				2D5D3E1DC3573B54A3F90F73 /* MediaRenderers.swift */,
 				90E14404F376E934176F0957 /* MindMapEmbedRenderer.swift */,
 				5F57B730049713E7560BD28C /* MiscRenderers.swift */,
@@ -6208,6 +6212,7 @@
 				FDB04BD8EB6EBB5222BCA99D /* MapsSearchIntent.swift in Sources */,
 				51A84A18E7DEA7F82DBF471C /* MapsShareView.swift in Sources */,
 				7CB739BB2103F408EEC83395 /* MathCalculateIntent.swift in Sources */,
+				2CD56FD6643AC550042EFCC6 /* ImageZoomModifier.swift in Sources */,
 				CC1E00430578E567A4310CC1 /* MediaRenderers.swift in Sources */,
 				CFF604CB33DF3E5FD4A37CA3 /* MemoryIntents.swift in Sources */,
 				7468E467BA4F1AB321A8D805 /* MentionDropdownView.swift in Sources */,
@@ -7090,6 +7095,7 @@
 				BD9238498D088B187788B4A0 /* MapsSearchIntent.swift in Sources */,
 				91A56C8DF504B46197BD1BBE /* MapsShareView.swift in Sources */,
 				5007AA305A02EC6DC6705DAE /* MathCalculateIntent.swift in Sources */,
+				DE62CFAB00AA6DC746C7FDEE /* ImageZoomModifier.swift in Sources */,
 				7CCD9830D62C732F77D7EDEE /* MediaRenderers.swift in Sources */,
 				6EA75750F2A404FB3C510CA5 /* MemoryIntents.swift in Sources */,
 				68A0B9A636A25189B86ED156 /* MentionDropdownView.swift in Sources */,

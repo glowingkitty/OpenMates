@@ -99,6 +99,12 @@ assertions:
     type: behavior
     must: Released top-level workspaces render as first-party header navigation targets on desktop and keep equivalent mobile navigation, while disabled or unreleased workspace feature ids remain absent from normal navigation.
     depends_on: [models.ReleasedWorkspaceNav, examples.released_navigation]
+  - id: workspace-shell.nav.compact-picker-appearance
+    type: behavior
+    must: When the web header shows a compact workspace picker, its expanded panel matches the Apple app's blue
+      gradient, white workspace icons and labels, generous row spacing, and active-workspace checkmark in both
+      light and dark themes.
+    depends_on: [examples.compact_picker]
   - id: workspace-shell.start.shared-affordances
     type: behavior
     must: Apps, Projects, Workflows, and Tasks start shells render a decorative background identity icon and a bottom-mounted surface-specific composer without importing chat message persistence or post-send chat processing ownership. Projects and Tasks also render a surface-specific Daily Inspiration area; Apps and Workflows render none, and their start content is vertically centred in the freed space.

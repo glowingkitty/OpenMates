@@ -11,6 +11,12 @@ released_navigation:
     when: The user opens the workspace selector.
     then: Chats, Apps, Projects, Workflows, and Tasks are selectable, and Plans remain within Tasks.
 
+compact_picker:
+  - id: coloured-workspace-picker
+    given: A signed-in user opens the web app on a phone or in a narrow desktop window.
+    when: They open the workspace picker in light or dark mode.
+    then: The blue panel shows the Apple app's white icons and labels for the available workspaces, with a checkmark next to the active workspace.
+
 start_shells:
   - id: projects-and-workflows-start-shells
     given: A signed-in user opens the Apps, Projects, or Workflows start screen.

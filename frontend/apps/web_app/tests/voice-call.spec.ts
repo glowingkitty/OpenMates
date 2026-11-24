@@ -2,6 +2,7 @@
  * Only external providers use deterministic fixtures; browser sockets, routing,
  * encrypted messages, speech assets and source uploads use their normal owners.
  */
+import { selectCompactWorkspace } from './helpers/workspace-navigation';
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { installNativeVoiceInput, nativeVoiceInput } from './helpers/voice-call-test-helpers';
@@ -747,7 +748,7 @@ async function assertActivityCounter(page: Page, active: boolean): Promise<void>
 async function chooseAppsHome(page: Page): Promise<void> {
   const link=page.getByTestId('apps-nav-link');
   if(await link.isVisible()) await link.click();
-  else await page.getByTestId('workspace-mobile-select').selectOption('/#apps');
+  else await selectCompactWorkspace(page, '/#apps');
   await expect(page.getByTestId('apps-workspace-home')).toBeVisible();
   await expect.poll(()=>new URL(page.url()).hash.split('&')[0]).toBe('#apps');
   await expect(page.getByTestId('apps-route-header').getByTestId('voice-call-pill')).toHaveAccessibleName('Return to chat');

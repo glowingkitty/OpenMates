@@ -205,7 +205,7 @@ test.describe('Apps bare component previews', () => {
     await expect(nav.getByRole('link')).toHaveCount(5);
     await expect(page.getByTestId('header-login-signup-btn')).toBeHidden();
     expect(await nav.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('data-testid')))).toEqual([
-      'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'tasks-nav-link', 'workflows-nav-link',
+      'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'workflows-nav-link', 'tasks-nav-link',
     ]);
     await expect(apps).toBeVisible();
     await expect(apps).toHaveAttribute('href', '/#apps');
@@ -239,20 +239,20 @@ test.describe('Apps bare component previews', () => {
     await waitForComponentPreview(page);
     const mobileSelect = page.getByTestId('workspace-mobile-select');
     await expect(mobileSelect).toBeVisible();
-    expect(await mobileSelect.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value))).toEqual([
-      '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
+    expect(await page.getByTestId('workspace-picker-option').evaluateAll(options => options.map(option => option.getAttribute('href')))).toEqual([
+      '/', '/#apps', '/#projects', '/#workflows', '/#tasks',
     ]);
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto(preview('Header', width), { waitUntil: 'domcontentloaded' });
       await waitForComponentPreview(page);
-      const selector = page.getByTestId('workspace-mobile-select');
+      const options = page.getByTestId('workspace-picker-option');
       const login = page.getByTestId('header-login-signup-btn');
-      expect(await selector.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value))).toEqual([
+      expect(await options.evaluateAll(links => links.map(link => link.getAttribute('href')))).toEqual([
         '/', '/#apps', '/#workflows',
       ]);
-      await expect(selector.locator('option[value="/#apps"]')).toHaveText(/Apps/i);
-      await expect(selector.locator('option[value="/#workflows"]')).toHaveText(/Workflows/i);
+      await expect(options.and(page.locator('[href="/#apps"]'))).toHaveText(/Apps/i);
+      await expect(options.and(page.locator('[href="/#workflows"]'))).toHaveText(/Workflows/i);
       await expect(login).toBeVisible();
       await expect(login).toHaveAccessibleName(/Login|Sign\s*up/i);
       await expect(login).toContainText(/Login|Sign\s*up/i);

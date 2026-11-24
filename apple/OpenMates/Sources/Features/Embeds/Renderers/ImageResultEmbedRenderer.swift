@@ -1,6 +1,6 @@
 // ImageResultEmbedRenderer — native counterpart for image result embeds.
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history, chats.rendering.image-gestures
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
@@ -101,8 +101,7 @@ struct ImageResultEmbedRenderer: View {
                 .padding(.horizontal, .spacing4)
                 .padding(.vertical, .spacing8)
                 .background(Color(hex: 0xFAFAFA))
-                .contentShape(Rectangle())
-                .onTapGesture {
+                .imageZoom {
                     if recipientMediaContext == nil, let fullURL { NativeImagePreviewer.shared.previewRemoteImage(fullURL, suggestedFilename: title) }
                 }
 

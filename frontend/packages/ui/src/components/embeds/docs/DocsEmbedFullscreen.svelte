@@ -29,6 +29,7 @@
 -->
 
 <script lang="ts">
+  import { contentZoomSurface } from '../../../actions/contentZoomSurface';
   import { onDestroy, onMount, untrack } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
@@ -363,6 +364,11 @@
   /** Reset zoom to the auto-fit level for the current container width */
   function resetZoom() {
     zoomPercent = calculateFitZoomPercent();
+  }
+
+  function toggleGestureZoom() {
+    const fit = calculateFitZoomPercent();
+    zoomPercent = zoomPercent > fit + 1 ? fit : Math.min(ZOOM_MAX, fit * 2);
   }
 
   /** Display text for zoom — round to nearest integer */
@@ -811,6 +817,7 @@
         <div
           class="doc-canvas-scroll"
           bind:this={canvasScrollEl}
+          use:contentZoomSurface={{ toggle: toggleGestureZoom, includesImages: true }}
           ontouchstart={handleTouchStart}
           ontouchmove={handleTouchMove}
           ontouchend={handleTouchEnd}
@@ -853,6 +860,7 @@
         <div
           class="doc-canvas-scroll"
           bind:this={canvasScrollEl}
+          use:contentZoomSurface={{ toggle: toggleGestureZoom }}
           ontouchstart={handleTouchStart}
           ontouchmove={handleTouchMove}
           ontouchend={handleTouchEnd}

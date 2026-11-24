@@ -126,8 +126,11 @@ Light and dark theme font tokens target WCAG AA contrast for normal text. The de
 
 ### Known Test Exclusions
 
-- `meta-viewport` -- `maximum-scale=1` for mobile PWA input focus prevention
 - Third-party iframes (Stripe, reCAPTCHA) excluded from scans
+
+### Mobile Image Gestures
+
+The app declares its viewport in `app.html`. Images and supported embed viewers handle pinch, double tap, and pan inside the content area. One-finger page scrolling and browser zoom controls remain available.
 
 ## Automated Testing
 

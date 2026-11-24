@@ -6,6 +6,7 @@
 -->
 
 <script lang="ts">
+  import { contentZoomSurface, type ZoomPoint } from '../../../actions/contentZoomSurface';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -123,6 +124,18 @@
     zoom = DEFAULT_ZOOM;
     offsetX = 0;
     offsetY = 0;
+  }
+
+  function toggleGestureZoom(point: ZoomPoint) {
+    if (zoom > DEFAULT_ZOOM) {
+      resetView();
+      return;
+    }
+    const next = Math.min(MAX_ZOOM, zoom * 2);
+    const ratio = next / zoom;
+    offsetX = point.x - (point.x - offsetX) * ratio;
+    offsetY = point.y - (point.y - offsetY) * ratio;
+    zoom = next;
   }
 
   function zoomIn() {
@@ -253,6 +266,7 @@
           role="application"
           aria-label="Interactive Mermaid diagram"
           data-testid="mermaid-rendered-panel"
+          use:contentZoomSurface={{ toggle: toggleGestureZoom }}
           style={`--zoom: ${zoom}; --offset-x: ${offsetX}px; --offset-y: ${offsetY}px;`}
           onpointerdown={handlePointerDown}
           onpointermove={handlePointerMove}
@@ -328,7 +342,7 @@
     min-height: min(72vh, 760px);
     padding: var(--spacing-6);
     overflow: auto;
-    background: var(--color-grey-15);
+    background: var(--color-grey-10);
   }
 
   .source-panel pre {

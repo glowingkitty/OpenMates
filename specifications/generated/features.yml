@@ -3073,7 +3073,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 32
+  assertions: 34
   surfaces:
     web:
       status: failing
@@ -3082,9 +3082,9 @@ features:
       assertions:
         passing: 11
         failing: 15
-        not_run: 4
+        not_run: 6
         missing: 2
-        counted: 32
+        counted: 34
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -3199,6 +3199,7 @@ features:
       - frontend/apps/web_app/tests/components/chat-presentation-animation.spec.ts
       - frontend/apps/web_app/tests/components/chat-response-scroll.spec.ts
       - frontend/apps/web_app/tests/components/chat-sent-message-visibility.spec.ts
+      - frontend/apps/web_app/tests/components/content-image-gestures.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
       - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
       - frontend/apps/web_app/tests/components/diagram-html-real-examples.spec.ts
@@ -3283,6 +3284,7 @@ features:
       - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
       - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+      - frontend/apps/web_app/tests/uploaded-image-gestures.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
       - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
@@ -3302,11 +3304,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 13
+        passing: 14
         failing: 4
         not_run: 0
-        missing: 15
-        counted: 32
+        missing: 16
+        counted: 34
       failing_tests:
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testSavedChatCommitsTheExactPreflightInferencePayload
@@ -3397,8 +3399,8 @@ features:
         passing: 1
         failing: 5
         not_run: 10
-        missing: 16
-        counted: 32
+        missing: 18
+        counted: 34
       failing_tests:
       - frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts › pair login, whoami, chats list, send/stream, cancel,
         follow-up, show, restart, TUI and logout
@@ -3821,6 +3823,8 @@ features:
     name: Message rendering
     description: Inline entities, preview info, skill failure banner, history entrance
     assertion_ids:
+    - chats.rendering.embed-zoom-view
+    - chats.rendering.image-gestures
     - chats.rendering.inline-entity-interaction
     - chats.rendering.preview-info-top
     - chats.rendering.skill-card-call-order
@@ -3834,9 +3838,9 @@ features:
         assertions:
           passing: 3
           failing: 2
-          not_run: 0
+          not_run: 2
           missing: 0
-          counted: 5
+          counted: 7
         failing_tests:
         - frontend/apps/web_app/tests/components/embed-preview-info-top.spec.ts › expanded and full-image previews keep one
           visible info bar above content
@@ -3871,11 +3875,11 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 1
+          passing: 2
           failing: 0
           not_run: 0
-          missing: 4
-          counted: 5
+          missing: 5
+          counted: 7
       watchos:
         status: unverified
         source: intent
@@ -3894,8 +3898,8 @@ features:
           passing: 0
           failing: 0
           not_run: 1
-          missing: 4
-          counted: 5
+          missing: 6
+          counted: 7
       tui:
         status: failing
         source: tests
@@ -10779,21 +10783,22 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 7
+  assertions: 8
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 1
-        failing: 3
+        passing: 3
+        failing: 4
         not_run: 0
         missing: 3
-        counted: 7
+        counted: 10
       failing_tests:
       - frontend/apps/web_app/tests/apps-workspace.spec.ts › Show all replaces the home with the shared searchable grid and
         restores it after app close
+      - frontend/apps/web_app/tests/components/header-mobile-layout-preview.spec.ts
       - frontend/apps/web_app/tests/components/header-mobile-layout-preview.spec.ts › keeps the guest favicon and centered
         dropdown when all controls fit
       - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts › Tasks and Workflows focus hides workspace content,
@@ -10804,7 +10809,9 @@ features:
         only after an explicit action
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts › guest settings routes replace AI after opening a dynamic
         provider page
-      key_tests: []
+      key_tests:
+      - frontend/apps/web_app/tests/components/header-mobile-layout-preview.spec.ts
+      - frontend/apps/web_app/tests/header-mobile-layout.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/apps-workspace.spec.ts
       - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
@@ -12156,6 +12163,7 @@ features:
       - frontend/apps/web_app/tests/components/design-editor.spec.ts
       - frontend/apps/web_app/tests/components/design-editor-performance.spec.ts
       e2e_tests:
+      - frontend/apps/web_app/tests/components/content-image-gestures.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
       - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts

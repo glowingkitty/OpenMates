@@ -221,7 +221,8 @@
       "execution": "e2e",
       "enabling_work": "Use genuine disposable S3-compatible storage with fresh Vault credentials and preserved original persistence/auth assertions; no real mail delivery or Hetzner region failover claim.",
       "specs": [
-        "report-issue-flow.spec.ts"
+        "report-issue-flow.spec.ts",
+        "uploaded-image-gestures.spec.ts"
       ]
     },
     "ai_provider": {
@@ -517,6 +518,7 @@
         "components/settings-teams-icons.spec.ts",
         "components/settings-teams-storage.spec.ts",
         "components/image-result-fullscreen-proxy.spec.ts",
+        "components/content-image-gestures.spec.ts",
         "components/music-fullscreen-responsive.spec.ts",
         "components/recording-public-playback.spec.ts",
         "components/workflow-send-delivery-status.spec.ts",

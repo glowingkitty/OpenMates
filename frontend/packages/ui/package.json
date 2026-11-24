@@ -46,6 +46,7 @@
       "types": "./src/services/connectedAccountOAuthReturn.ts",
       "default": "./src/services/connectedAccountOAuthReturn.ts"
     },
+    "./actions/contentZoomSurface": "./src/actions/contentZoomSurface.ts",
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
     "./stores/uiStateStore": {

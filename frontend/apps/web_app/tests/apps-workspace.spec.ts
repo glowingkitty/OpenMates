@@ -3,7 +3,7 @@
 export {};
 import type { Page } from '@playwright/test';
 import { assertGuestHeaderControlsSeparated } from './helpers/header-layout';
-import { assertWorkspaceNavigationItems } from './helpers/workspace-navigation';
+import { assertWorkspaceNavigationItems, selectCompactWorkspace } from './helpers/workspace-navigation';
 import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
@@ -351,7 +351,7 @@ test.describe('Apps workspace', () => {
     await page.setViewportSize({width:390,height:844});
     await page.goto(getE2EDebugUrl('/#apps'),{waitUntil:'domcontentloaded'});
     await expect(page.getByTestId('apps-workspace-home')).toBeVisible({timeout:30000});
-    await expect(page.getByTestId('workspace-mobile-select')).toHaveValue('/#apps');
+    await expect(page.getByTestId('workspace-mobile-select')).toHaveAttribute('data-active-workspace', '/#apps');
     await page.getByTestId('apps-app-card').filter({hasText:/Health/i}).first().click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
     await expect(requestComposer(page)).toBeVisible();await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);
     await expect(page.getByTestId('apps-sidebar-toggle')).toHaveCount(0);const sidebarToggle=page.getByTestId('global-header').getByTestId('sidebar-toggle');await sidebarToggle.click();await expect(page.getByTestId('apps-sidebar')).toBeVisible();await sidebarToggle.click();await expect(page.getByTestId('apps-sidebar')).toHaveCount(0);
@@ -539,23 +539,23 @@ test.describe('Apps workspace', () => {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       if (width === 1440) await page.getByTestId('apps-nav-link').click();
-      else await page.getByTestId('workspace-mobile-select').selectOption('/#apps');
+      else await selectCompactWorkspace(page, '/#apps');
       await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
       await assertProfileInHeader(page);
       if (width === 1440) {
         await assertWorkspaceNavigationItems(page, 'desktop', [
-          'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'tasks-nav-link', 'workflows-nav-link',
+          'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'workflows-nav-link', 'tasks-nav-link',
         ]);
       } else {
         await assertWorkspaceNavigationItems(page, 'mobile', [
-          '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
+          '/', '/#apps', '/#projects', '/#workflows', '/#tasks',
         ]);
       }
       await page.getByTestId('apps-app-card').filter({ hasText: /Web/i }).first().click();
       await expect(requestComposer(page)).toBeVisible({ timeout: 30000 });
       await assertProfileInHeader(page);
       if (width === 1440) await page.getByTestId('chats-nav-link').click();
-      else await page.getByTestId('workspace-mobile-select').selectOption('/');
+      else await selectCompactWorkspace(page, '/');
       await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
       await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
       await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 30000 });
@@ -641,7 +641,7 @@ test.describe('Apps workspace', () => {
       page.on('pageerror', recordError);
       await page.getByTestId('icon-button-close').click();
       if (width === 1440) await page.getByTestId('chats-nav-link').click();
-      else await page.getByTestId('workspace-mobile-select').selectOption('/');
+      else await selectCompactWorkspace(page, '/');
       await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
       await page.evaluate(() => {
         (window as Window & { appsSettingsRestoreTimers?: () => void }).appsSettingsRestoreTimers?.();

@@ -250,7 +250,7 @@
   {#snippet media()}
       <div class="icon-stage">
         {#if preparedSvg}
-          <div class="icon-svg" aria-label={title} role="img">
+          <div class="icon-svg" aria-label={title} role="img" data-content-zoom>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG is validated and sanitized by the OpenMates Design icon route. -->
             {@html preparedSvg}
           </div>

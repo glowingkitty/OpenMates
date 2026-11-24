@@ -5,10 +5,10 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
-async function openHeader(page: Page, width: number, signedIn = false): Promise<void> {
+async function openHeader(page: Page, width: number, signedIn = false, theme = 'light'): Promise<void> {
   await page.setViewportSize({ width, height: 844 });
   await page.goto(`/dev/preview/Header?${new URLSearchParams({
-    theme: 'light', background: '#dbeafe', width: String(width), chrome: '0',
+    theme, background: '#dbeafe', width: String(width), chrome: '0',
     ...(signedIn ? { variant: 'signedIn' } : {}),
   })}`, { waitUntil: 'domcontentloaded' });
   await waitForComponentPreview(page);
@@ -56,6 +56,49 @@ test.beforeEach(async ({ page }: { page: Page }) => {
   await page.route('**/v1/features/availability', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ disabled: [] }),
   }));
+});
+
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.compact-picker-appearance,workspace-shell.nav.released-surfaces-visible
+test('compact workspace picker matches the native panel in light and dark', async ({ page }, testInfo) => {
+  for (const [width, theme] of [[390, 'light'], [640, 'dark']] as const) {
+    await openHeader(page, width, true, theme);
+    const trigger = page.getByTestId('workspace-mobile-select');
+    const panel = page.getByTestId('workspace-picker-panel');
+    const rows = panel.getByTestId('workspace-picker-option');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(panel).toBeHidden();
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expect(panel).toBeVisible();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(panel.getByRole('button', { name: /close workspace switcher/i })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(rows.first()).toBeFocused();
+    await expect(rows.first()).toHaveAttribute('aria-current', 'page');
+    await expect(rows.first().getByTestId('workspace-option-check')).toBeVisible();
+    await expect(rows).toHaveText([/chats?/i, 'Apps', 'Projects', 'Workflows', 'Tasks']);
+    await expect(panel).toHaveCSS('background-image', /linear-gradient/);
+    await expect(rows.first()).toHaveCSS('color', 'rgb(255, 255, 255)');
+    for (const row of await rows.all()) {
+      await expect(row).toHaveCSS('min-height', '60px');
+      await expect(row.getByTestId('workspace-option-icon')).toHaveCSS('mask-image', /url\(/);
+    }
+    const bounds = (await panel.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    await testInfo.attach(`workspace-picker-${theme}-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await expect(panel).toBeVisible();
+    await page.mouse.click(2, bounds.y + bounds.height + 10);
+    await expect(panel).toBeHidden();
+  }
+  await openHeader(page, 1280, true, 'dark');
+  await expect(page.getByTestId('workspace-mobile-select')).toBeHidden();
+  await expect(page.getByTestId('chats-nav-link')).toHaveAttribute('aria-current', 'page');
+  await testInfo.attach('workspace-tabs-dark-1280', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible

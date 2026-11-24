@@ -986,12 +986,11 @@ struct TappableEncryptedImageView: View {
                 Image(decorative: image, scale: 1.0)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                    .contentShape(Rectangle())
-                    .onTapGesture {
+                    .imageZoom {
                         guard recipientMediaContext == nil else { return }
                         NativeImagePreviewer.shared.previewImageData(imageData, suggestedFilename: filename)
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
             } else if isLoading {
                 Color.grey20.overlay(ProgressView())
             } else if let error {

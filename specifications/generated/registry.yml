@@ -743,7 +743,7 @@ specifications:
     version: 7
     status: approved
     path: features/chats
-    fingerprint: 552f308c6b0cfeb20d571ea314e279952074ccb6d73cc82d38d5cb690ba7c786
+    fingerprint: 809f00eeeafbb8ea0ace4d9d0961cb35fcdb0453a7a11d8228490f52b8cdf6ff
     required_applies_to:
     - cli
     - gui.web
@@ -1162,7 +1162,7 @@ specifications:
     version: 5
     status: draft
     path: features/workspace-shell
-    fingerprint: 51d10a9832a0a572a5550a9b284499213f8c3de48801963692099a05565526c3
+    fingerprint: 45b4bd39daeb95771a3b97997896c4d2d0fda2db69546abffe878feee3c37285
     required_applies_to:
     - gui.web
   surface.cli:
@@ -10189,6 +10189,24 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.rendering.image-gestures:
+    specification: feature.chats@7
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: 2e5bbf8ec3beccb39883deffff2e812f440ef12e0d7b8bfbddf219ed9239cd58
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.rendering.embed-zoom-view:
+    specification: feature.chats@7
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: d6cca5ba23c21a3ca0cd82784ff771f841340bc7eac704a137df1f124ae6dd66
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.layout.responsive-history:
     specification: feature.chats@7
     specification_id: feature.chats
@@ -10202,7 +10220,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: parity
-    fingerprint: 62eb43442fd78a18710aa65bd5c5f75c77f2605f91f8b3644f1c57f453925735
+    fingerprint: da556d5ed1f34618caff7a9e11c387467564540eb3a13b4c6d89f38ef0883f46
     required_applies_to:
     - cli
     - gui.web
@@ -17131,6 +17149,13 @@ assertions:
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: fbe67b0cdc183a5daa8d1d9ed5ef7eb06e79be5d938383be6195f9a3792f50f4
+    required_applies_to:
+    - gui.web
+  workspace-shell.nav.compact-picker-appearance:
+    specification: feature.workspace-shell@5
+    specification_id: feature.workspace-shell
+    type: behavior
+    fingerprint: a3b42ba683278c560e8417a5927052262cdc6907d8fe3d6e96a5ccc779e42099
     required_applies_to:
     - gui.web
   workspace-shell.start.shared-affordances:
