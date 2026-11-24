@@ -194,7 +194,7 @@ for (const width of [320, 390, 1180]) {
     await page.screenshot({ path: testInfo.outputPath(`call-sticky-${width}.png`) });
     await page.getByTestId('voice-call-close-chat').click();
     await expect(page.getByTestId('voice-call-start')).toHaveCount(0);
-    await expect(page.getByTestId('daily-inspiration-label')).toBeVisible();
+    await expect(page.getByTestId('chat-welcome-heading')).toBeVisible();
     const pill = page.getByTestId('voice-call-pill');
     await expect(pill).toBeVisible();
     if (width <= 390) {
@@ -230,15 +230,19 @@ test('keeps call and chat-header controls clickable while the composer is focuse
   await page.setViewportSize({ width: 1180, height: 844 });
   await page.goto('/dev/preview/voicecall/ActiveChatCallHeaderPreview?chrome=0&width=1180&variant=headerViewport');
   await waitForComponentPreview(page);
-  const editor = page.getByTestId('message-editor');
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
   const chatSide = page.getByTestId('chat-side');
   await expect(page.getByTestId('voice-call-bar')).toBeVisible();
   await editor.click();
-  await expect(page.getByTestId('input-dismiss-button')).toBeVisible();
+  await expect(editor).toBeFocused();
+  await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
   await expect(chatSide).not.toHaveAttribute('inert');
-  await page.getByTestId('voice-call-mute').click();
+  const mute = page.getByTestId('voice-call-mute');
+  await mute.click();
+  await expect(mute).toHaveAttribute('aria-pressed', 'true');
   await editor.click();
-  await expect(page.getByTestId('input-dismiss-button')).toBeVisible();
+  await expect(editor).toBeFocused();
+  await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
   await expect(chatSide).not.toHaveAttribute('inert');
   await page.getByTestId('chat-close-button').click();
   await expect(page.getByTestId('voice-call-pill')).toBeVisible();
@@ -381,6 +385,11 @@ test.describe('Call and Close header actions', () => {
       };
       await geometry();
       await call.hover();
+      await expect(page.getByRole('tooltip')).toHaveText('Start voice call');
+      await expect(call).not.toHaveAttribute('title', /.+/);
+      await testInfo.attach('start-voice-call-tooltip', {
+        body: await page.screenshot(), contentType: 'image/png',
+      });
       await expect.poll(() => call.evaluate((element) => new DOMMatrix(getComputedStyle(element.parentElement!).transform).a)).toBeGreaterThan(1.05);
       await page.mouse.move(0, 0);
       // Navigate back from Close with the keyboard, so the browser

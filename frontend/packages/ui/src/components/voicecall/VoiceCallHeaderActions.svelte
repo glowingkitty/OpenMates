@@ -22,15 +22,12 @@
       <button class="header-action" type="button" data-testid="voice-call-start"
         data-call-state={$callState.status} aria-pressed={active}
         aria-label={$text(active ? 'voicecall.hangup' : 'voicecall.start')}
-        aria-describedby={active ? undefined : 'voice-call-start-hint'}
-        title={active ? undefined : $text('voicecall.start_hint')}
         onclick={onToggleCall} use:tooltip>
         <span class="clickable-icon icon_call top-button" data-testid="voice-call-handset"
           data-icon="audiocall" class:hangup={active} aria-hidden="true"
           style:background={active ? 'var(--color-error)' : undefined}
           style:filter={active ? 'none' : undefined}></span>
       </button>
-      <span class="sr-only" id="voice-call-start-hint">{$text('voicecall.start_hint')}</span>
     </div>
   {/if}
   {#if showClose}
@@ -87,7 +84,6 @@
   }
   button:disabled { opacity: .5; cursor: default; }
   .clickable-icon { display: block; flex: none; width: 25px; height: 25px; margin: 0; }
-  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   .icon_call { transform: rotate(0deg); transition: transform var(--duration-normal); }
   .icon_call.hangup { transform: rotate(135deg); }
   @media (prefers-reduced-motion: reduce) {

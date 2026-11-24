@@ -1742,7 +1742,7 @@ features:
       - backend/tests/test_bank_transfer.py
       - backend/tests/test_billing_settlement_reliability.py
       - backend/tests/test_temporary_model_pricing.py
-      unit_test_files: 66
+      unit_test_files: 67
     sdk_npm:
       status: not_run
       source: tests
@@ -5131,7 +5131,7 @@ features:
       - backend/tests/test_project_authoring.py
       - backend/tests/test_project_write_authorization.py
       - backend/tests/test_focus_phases.py
-      unit_test_files: 33
+      unit_test_files: 34
     sdk_npm:
       status: implemented
       source: intent
@@ -10050,7 +10050,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 58
+  assertions: 60
   surfaces:
     web:
       status: failing
@@ -10059,9 +10059,9 @@ features:
       assertions:
         passing: 33
         failing: 6
-        not_run: 9
+        not_run: 15
         missing: 11
-        counted: 59
+        counted: 65
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10077,6 +10077,10 @@ features:
         without saving
       key_tests:
       - frontend/apps/web_app/tests/voice-call.spec.ts
+      - frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts
+      - frontend/apps/web_app/tests/voice-call-real.spec.ts
+      - frontend/apps/web_app/tests/voice-call-opening.spec.ts
+      - frontend/apps/web_app/tests/voice-call-guest.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
@@ -10102,6 +10106,10 @@ features:
       - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-waiting.spec.ts
       - frontend/apps/web_app/tests/voice-call-ambient-sounds.spec.ts
+      - frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts
+      - frontend/apps/web_app/tests/voice-call-guest-real.spec.ts
+      - frontend/apps/web_app/tests/voice-call-guest.spec.ts
+      - frontend/apps/web_app/tests/voice-call-opening.spec.ts
       - frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
       - frontend/apps/web_app/tests/voice-call-real.spec.ts
       - frontend/apps/web_app/tests/voice-call-screen-share.spec.ts
@@ -10112,7 +10120,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 68
+      unit_test_files: 69
     apple:
       status: partial
       source: tests
@@ -10121,8 +10129,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 20
-        counted: 50
+        missing: 22
+        counted: 52
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift

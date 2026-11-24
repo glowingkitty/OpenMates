@@ -275,6 +275,22 @@ describe('integrated voice call typed turns', () => {
     controller.hangup();
   });
 
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('opens the call socket even when the speech cancel of a prior typed reply never settles (TASK-6308)', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(assistantSpeechController.stop).mockReturnValueOnce(new Promise<void>(() => {}));
+      const { controller, sockets } = startingController();
+      const starting = controller.start('chat-1');
+      await vi.advanceTimersByTimeAsync(5_100);
+      await starting;
+      expect(sockets).toHaveLength(1);
+      controller.hangup();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
   it('admits the bound chat into the client core while the call connects and ends the call when it cannot', async () => {
     let admit!: (ok: boolean) => void;

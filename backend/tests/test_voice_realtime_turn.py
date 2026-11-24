@@ -613,14 +613,28 @@ async def test_safety_timeout_fails_closed_without_audio(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval,assistant-speech.playback.live-call-streaming
 async def test_one_check_per_sentence_and_audio_released_in_order():
-    owner, provider, events, _first, finalize, _credits = make_turn()
-    for index in range(3):
-        await owner.enqueue(span(index, f"Sentence {index}."))
+    owner, provider, events, first, finalize, _credits = make_turn(seconds=4)
+    approval = owner._safety_check
+
+    async def approve(text):
+        if "used web search" in text:
+            await asyncio.sleep(1.6)
+        return await approval(text)
+
+    owner._safety_check = approve
+    announcement = span(0, "I will look that up.") | {"kind": "voice_status"}
+    recap = span(1, "I used web search.") | {"kind": "voice_status"}
+    await owner.enqueue(announcement)
+    await asyncio.wait_for(first.wait(), 1)
+    await owner.enqueue(recap)
+    await owner.enqueue(span(2, "Here is what I found."))
     owner.finish_input()
     await owner.wait()
-    assert owner._safety_check.await_count == 3
+
+    assert approval.await_count == 3
+    assert provider.inputs == ["I will look that up. ", "I used web search. ", "Here is what I found. "]
     assert [row["payload"]["phase"] for row in events] == ["start", "chunk", "chunk", "chunk", "end"]
-    finalize.assert_awaited_once()
+    finalize.assert_awaited_once_with(True, sum(map(len, provider.inputs)))
 
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval,assistant-speech.playback.live-call-streaming

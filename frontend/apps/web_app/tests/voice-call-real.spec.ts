@@ -240,10 +240,16 @@ for (const scenario of SCENARIOS) {
         // in the server event that announces them and in the clip download.
         const acknowledgementUrls: string[] = [];
         const clipDownloads: string[] = [];
+        const toolTurnAudioPhases: string[] = [];
         page.on('websocket', (socket) => socket.on('framereceived', ({ payload }) => {
-          if (typeof payload !== 'string' || !payload.includes('assistant_speech_acknowledgement')) return;
-          const frame = JSON.parse(payload) as { type?: string; payload?: { audio_url?: string } };
+          if (typeof payload !== 'string' || (!payload.includes('assistant_speech_acknowledgement')
+            && !(scenario.videos && payload.includes('assistant_speech_audio')))) return;
+          const frame = JSON.parse(payload) as { type?: string; payload?: { audio_url?: string; kind?: string; phase?: string } };
           if (frame.type === 'assistant_speech_acknowledgement') acknowledgementUrls.push(String(frame.payload?.audio_url ?? ''));
+          if (frame.type === 'assistant_speech_audio' && frame.payload?.kind === 'voice_prose_turn'
+            && ['start', 'end', 'error'].includes(frame.payload.phase ?? '')) {
+            toolTurnAudioPhases.push(frame.payload.phase!);
+          }
         }));
         page.on('request', (request) => { if (request.url().includes(ACK_ROOT)) clipDownloads.push(new URL(request.url()).pathname); });
         await page.addInitScript(installRecorders);
@@ -324,6 +330,9 @@ for (const scenario of SCENARIOS) {
               .toBeVisible({ timeout: 180_000 });
             log(`video results: ${await videos.count()}`);
             await snap(page, testInfo, `${scenario.slug}-03-video-results`);
+            await expect.poll(() => toolTurnAudioPhases.includes('end') || toolTurnAudioPhases.includes('error'),
+              { timeout: 90_000, message: 'the tool turn reaches a terminal speech phase' }).toBe(true);
+            expect(toolTurnAudioPhases, 'the app-using turn delivers its full speech track').toEqual(['start', 'end']);
           }
 
           // The reply is spoken: its words are revealed while an audio element plays it.

@@ -23,7 +23,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import VoiceCallBar from './voicecall/VoiceCallBar.svelte';
     import VoiceCallMoreMenu from './voicecall/VoiceCallMoreMenu.svelte';
     import VoiceCallHeaderActions from './voicecall/VoiceCallHeaderActions.svelte';
-    import { voiceCallController } from '../services/voiceCall';
+    import { voiceCallController, initialVoiceCallState, type VoiceCallControllerLike, type VoiceCallState } from '../services/voiceCall';
+    import { guestVoiceCallController, setGuestCallTurnSink, isGuestVoiceCallSupported } from '../services/voiceCallGuest';
     import { currentPermissionRequest, isPermissionDialogVisible } from '../stores/appSettingsMemoriesPermissionStore';
     import { pendingFocusActivationStore } from '../stores/pendingFocusActivationStore';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
@@ -5050,6 +5051,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
+    // A call opening in this pane takes the microphone too; its recording state
+    // must not fade out the pane (and the call bar inside it).
     let hideWelcomeForComposerOverlay = $derived(messageInputFocused &&
         (messageInputMapsOpen || anonymousFileAttachmentPending || $recordingState.showRecordAudioUI));
 
@@ -5456,7 +5459,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          // The bound chat can render its header, composer, and incoming call
          // transcripts before its history window finishes loading. It can host
          // the inline controls as soon as that surface is visible.
-         onVisibleChatReady?.(boundWelcomeDraftCall ? $voiceCallController.chatId
+         // While this pane binds its call's new chat (welcome may already be
+         // gone, the chat not yet current) it keeps the call here, so the page
+         // never swaps in the global call bar for those frames.
+         const bindingCallHere = boundWelcomeDraftCall ||
+             (!!callState.chatId && callState.chatId === voiceCallBindingChatId);
+         onVisibleChatReady?.(bindingCallHere ? callState.chatId
              : !showWelcome && chatLoadState !== 'error' ? currentChat?.chat_id ?? null : null);
      });
      onDestroy(() => onVisibleChatReady?.(null));
@@ -5795,8 +5803,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // While a call transcript fills the composer, it is the only visible content:
     // no New chat button beside it and no Cancel pill below it.
     let callTranscriptComposerActive = $derived(
-        !!$voiceCallController.liveTranscript &&
-        ($voiceCallController.status === 'live' || $voiceCallController.status === 'connecting')
+        !!callState.liveTranscript &&
+        (callState.status === 'live' || callState.status === 'connecting')
     );
     let showNewChatButtonBesideInput = $derived(
         createButtonVisible &&
@@ -7962,7 +7970,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // A replacement selected during close still needs its entrance once close releases.
         if (closingChat) return;
         if (chatId && chatId !== previousNavigationChatId) {
-            void animateWorkspacePane(chatNavigationPane, true);
+            // The call strip has already entered on the welcome screen. The
+            // new chat binding must not replay the whole pane's entrance.
+            const bindingInlineCall = untrack(() => voiceCallBarInline &&
+                (chatId === callState.chatId || chatId === 'new-chat'));
+            if (!bindingInlineCall) void animateWorkspacePane(chatNavigationPane, true);
         }
         previousNavigationChatId = chatId;
     });
@@ -8021,10 +8033,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     }
     const showChatPIIAction = $derived(!!(chatHasPII && !showWelcome));
-    const voiceCallOwnsAudio = $derived($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live');
+    // Signed-in calls and signed-out visitors' calls (free allowance) share the
+    // same placement and bar; only the controller differs.
+    const callController = $derived<VoiceCallControllerLike>(
+        $authStore.isAuthenticated ? voiceCallController : guestVoiceCallController);
+    let callState = $state<VoiceCallState>({ ...initialVoiceCallState });
+    $effect(() => callController.subscribe((next) => { callState = next; }));
+    onMount(() => {
+        setGuestCallTurnSink((pending) => handleSendMessage(new CustomEvent('sendMessage', {
+            detail: { message: pending.userMessage, newChat: pending.isNewChat ? pending.chat : undefined },
+        })));
+        return () => setGuestCallTurnSink(null);
+    });
+    const voiceCallOwnsAudio = $derived(callState.status === 'connecting' || callState.status === 'live');
     const voiceContextConsentKey = $derived.by(() => {
         const chatId = currentChat?.chat_id;
-        if (!voiceCallOwnsAudio || !chatId || chatId !== $voiceCallController.chatId) return null;
+        if (!voiceCallOwnsAudio || !chatId || chatId !== callState.chatId) return null;
         const request = $currentPermissionRequest;
         if ($isPermissionDialogVisible && request?.chatId === chatId && request.responseTransport === 'voice') {
             return `memory:${request.requestId}`;
@@ -8042,22 +8066,34 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Track request/ref readiness, but not child focus reads or call updates.
         untrack(() => {
             input?.dismissFocus();
-            voiceCallController.setMinimized(true);
+            callController.setMinimized(true);
         });
     });
     let voiceCallStripStuck = $state(false);
     const voiceCallHasVisibleControls = $derived(
-        $voiceCallController.status === 'connecting' || $voiceCallController.status === 'live'
+        callState.status === 'connecting' || callState.status === 'live'
     );
+    // Chat a call started from the welcome screen just bound to: it keeps the
+    // call strip here until that chat is shown, instead of hiding it mid-navigation.
+    let voiceCallBindingChatId = $state<string | null>(null);
     const boundWelcomeDraftCall = $derived(
-        showWelcome && $voiceCallController.status === 'connecting' &&
-        !!$voiceCallController.chatId && $voiceCallController.chatId === (currentChat?.chat_id || temporaryChatId)
+        showWelcome && voiceCallHasVisibleControls && !!callState.chatId &&
+        (callState.chatId === (currentChat?.chat_id || temporaryChatId) ||
+            callState.chatId === voiceCallBindingChatId)
     );
+    $effect(() => {
+        const bindingId = voiceCallBindingChatId;
+        if (!bindingId) return;
+        if (!voiceCallHasVisibleControls || callState.chatId !== bindingId ||
+            (!showWelcome && currentChat?.chat_id === bindingId)) voiceCallBindingChatId = null;
+    });
     const showVoiceCallBarHere = $derived(
         voiceCallHasVisibleControls && !globalVoiceCallControlsVisible &&
         (boundWelcomeDraftCall ||
-            ($voiceCallController.status === 'connecting' && !$voiceCallController.chatId) ||
-            (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === $voiceCallController.chatId))
+            // Welcome may close a tick before the bound chat becomes current.
+            (!!callState.chatId && callState.chatId === voiceCallBindingChatId) ||
+            (callState.status === 'connecting' && !callState.chatId) ||
+            (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === callState.chatId))
     );
     // Keep welcome content out of this pane's call controls without hiding
     // welcome screens used while a call is shown elsewhere.
@@ -8066,8 +8102,34 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     const voiceCallAtTop = $derived(showVoiceCallBarHere &&
         (showWelcome || isActiveDraftOnlyChat || !activeChatDecryptedTitle.trim() || isNewChatGeneratingTitle));
     const callControlsReplaceToolbar = $derived(voiceCallStripStuck || voiceCallAtTop);
+    // While the call owns the top (welcome or a chat without a header yet) one
+    // bar instance stays mounted outside the per-chat history, so binding the
+    // new chat neither remounts it nor replays its entrance.
+    const voiceCallBarInlineNow = $derived(showVoiceCallBarHere && (showWelcome || voiceCallAtTop));
+    // Binding the new chat flips welcome, title, draft and readiness state for
+    // single frames. Once the call opens on top it stays mounted there until the
+    // bound chat is loaded with a real header, the user leaves it, or the call
+    // ends, so those frames never remount the bar or replay its entrance.
+    let voiceCallInlinePinned = $state(false);
+    const voiceCallBoundHeaderReady = $derived(!showWelcome && !!callState.chatId &&
+        currentChat?.chat_id === callState.chatId && (chatLoadState === 'ready' || currentMessages.length > 0) &&
+        !!activeChatDecryptedTitle.trim() && !isNewChatGeneratingTitle && !isActiveDraftOnlyChat);
+    const voiceCallLeftForOtherChat = $derived(!showWelcome && !!callState.chatId &&
+        !!currentChat?.chat_id && currentChat.chat_id !== callState.chatId &&
+        voiceCallBindingChatId !== callState.chatId);
+    $effect(() => {
+        if (voiceCallBarInlineNow) voiceCallInlinePinned = true;
+        else if (!voiceCallHasVisibleControls || voiceCallBoundHeaderReady || voiceCallLeftForOtherChat) voiceCallInlinePinned = false;
+    });
+    const voiceCallBarInline = $derived(voiceCallBarInlineNow ||
+        (voiceCallInlinePinned && voiceCallHasVisibleControls && !voiceCallBoundHeaderReady && !voiceCallLeftForOtherChat));
+    let voiceCallInlineHeight = $state(0);
     $effect(() => { if (!showVoiceCallBarHere) voiceCallStripStuck = false; });
-    const voiceCallLaunchEligible = $derived(
+    const guestVoiceCallLaunchEligible = $derived(
+        !$authStore.isAuthenticated && !voiceCallOwnsAudio && isGuestVoiceCallSupported() &&
+        (showWelcome || (!!currentChat?.chat_id && !isPublicChat(currentChat.chat_id)))
+    );
+    const voiceCallLaunchEligible = $derived(guestVoiceCallLaunchEligible ||
         $authStore.isAuthenticated && !voiceCallOwnsAudio &&
         (showWelcome ? !$incognitoMode : !!currentChat?.chat_id && !currentChat.is_incognito &&
             !currentChat.is_shared_by_others && !currentChat.team_id && currentChat.chat_visibility !== 'direct' &&
@@ -8076,12 +8138,20 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     function handleStartVoiceCall(): void {
         if (voiceCallOwnsAudio) {
-            voiceCallController.hangup();
+            callController.hangup();
             return;
         }
         if (!voiceCallLaunchEligible) return;
         messageInputFieldRef?.stopRecordingForVoiceCall();
         void assistantSpeechController.stop();
+        if (!$authStore.isAuthenticated) {
+            // Guest turns arrive through the turn sink, which already shows the
+            // local guest chat; the binding only keeps the call strip in place.
+            void guestVoiceCallController.start(showWelcome ? undefined : currentChat?.chat_id, (boundChatId) => {
+                voiceCallBindingChatId = boundChatId;
+            });
+            return;
+        }
         // A Project mention can own a meaningful draft without sendable plain
         // text. Preserve that editor's reserved owner; empty welcomes get a shell.
         const draftChatId = currentChat?.chat_id || temporaryChatId || undefined;
@@ -8093,15 +8163,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const draftReady = chatId && (showWelcome || isActiveDraftOnlyChat)
             ? Promise.resolve().then(() => draftInput?.prepareVoiceCallDraft?.(chatId) ?? false).catch(() => false)
             : undefined;
-        void voiceCallController.start(chatId, (boundChatId) => { void handleChatNavigate(boundChatId); }, draftReady);
+        void voiceCallController.start(chatId, (boundChatId) => {
+            voiceCallBindingChatId = boundChatId;
+            void handleChatNavigate(boundChatId);
+        }, draftReady);
     }
 
     export function handleReturnToVoiceCallChat(chatId: string): void {
         const navigationGeneration = loadChatGeneration;
-        const callId = $voiceCallController.callId;
+        const callId = callState.callId;
         // An earlier Return lookup must not undo a later Close or chat selection.
         void handleChatNavigate(chatId, () => navigationGeneration === loadChatGeneration
-            && callId === $voiceCallController.callId && chatId === $voiceCallController.chatId
+            && callId === callState.callId && chatId === callState.chatId
             && voiceCallOwnsAudio);
     }
 
@@ -13644,7 +13717,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 <!-- Left side container for chat history and buttons -->
                 <div
                     class="chat-side"
-                    class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
+                    class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat) && !voiceCallBarInline}
                     inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
@@ -13823,7 +13896,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                   {/snippet}
                   {#snippet close()}
                     <VoiceCallHeaderActions
-                        callState={voiceCallController}
+                        callState={callController}
                         showCall={voiceCallLaunchEligible && !voiceCallOwnsAudio && !showVoiceCallBarHere}
                         showClose={!showWelcome}
                         {closingChat}
@@ -14164,7 +14237,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
 
                     {#snippet boundCallControls(fixed: boolean)}
-                        <VoiceCallBar fixed={fixed || voiceCallAtTop} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
+                        {#if voiceCallBarInline}
+                            <div class="voice-call-inline-spacer" style:height={`${voiceCallInlineHeight}px`} aria-hidden="true"></div>
+                        {:else}
+                        <VoiceCallBar controller={callController} fixed={fixed || voiceCallAtTop} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
                             {#snippet moreActions()}
                                 <VoiceCallMoreMenu
                                     {report} {share} {priorityAction} {actions}
@@ -14174,6 +14250,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                 />
                             {/snippet}
                         </VoiceCallBar>
+                        {/if}
+                    {/snippet}
+                    {#snippet inlineCallMoreActions()}
+                        <VoiceCallMoreMenu
+                            {report} {share} {priorityAction} {actions}
+                            hasShare={hasActiveShareableChatSurface}
+                            hasPriorityAction={showChatPIIAction}
+                            hasActions={showChatSettingsAction || showChatRemindersAction || isAdminUser}
+                        />
                     {/snippet}
 
                     {#if subChatWork}<SubChatWorkLink work={subChatWork} onBack={handleCloseChat} />{/if}
@@ -14287,15 +14372,20 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             <span class="scroll-nav-icon"></span>
                         </button>
                     {/if}
+
+                    {#if voiceCallBarInline}
+                        <div class="voice-call-inline-region" bind:clientHeight={voiceCallInlineHeight}>
+                            <VoiceCallBar
+                                controller={callController}
+                                fixed
+                                onReturn={handleReturnToVoiceCallChat}
+                                onCloseChat={showWelcome ? undefined : handleCloseChat}
+                                moreActions={showWelcome ? undefined : inlineCallMoreActions}
+                            />
+                        </div>
+                    {/if}
                 </div>
 
-                {#if showVoiceCallBarHere && showWelcome}
-                    <div class="voice-call-inline-region">
-                        <VoiceCallBar
-                            onReturn={handleReturnToVoiceCallChat}
-                        />
-                    </div>
-                {/if}
 
                 <!-- Right side container for message input -->
                 <div
@@ -15856,14 +15946,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         pointer-events: none;
     }
 
+    @media (prefers-reduced-motion: no-preference) {
+        .voice-call-inline-region {
+            animation: voice-call-enter var(--duration-normal) var(--easing-default) both;
+        }
+    }
+
+    @keyframes voice-call-enter {
+        from { transform: translateY(-100%); }
+        to { transform: translateY(0); }
+    }
+
     .voice-call-inline-region :global(.voice-call-bar) {
         pointer-events: auto;
     }
+    .voice-call-inline-spacer { flex: none; }
 
-    .active-chat-container.extra-wide .chat-wrapper.fullscreen .voice-call-inline-region {
-        width: 65%;
-        padding-inline-end: var(--spacing-10);
-    }
 
     .chat-side.welcome-chat-side {
         pointer-events: none;

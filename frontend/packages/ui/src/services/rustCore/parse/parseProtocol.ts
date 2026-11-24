@@ -35,6 +35,8 @@ export interface ParseUnitProtocol extends UnitProtocol {
 	normalizePlan: { request: { plan: string }; response: ParseNormalized };
 	/** Read projection without voice-delivery cues (voiceDeliveryCues.ts semantics). */
 	stripVoiceCues: { request: { markdown: string }; response: string };
+	/** Marshalled guest voice frames and request descriptors from the shared core. */
+	guestVoice: { request: { input: string }; response: string };
 	/** Parent embed ids a saved image answer needs read (generatedImageRecovery.ts lostImageParents). */
 	imageRecoveryParents: { request: { source: string }; response: string[] };
 	/** Recovered document (or null) from the resolved parents aligned with imageRecoveryParents (JSON array text). */
@@ -56,6 +58,7 @@ export interface ParseBinding {
 	parse_plan_blocks(markdown: string, phase: string, previousJson: string): string;
 	parse_normalize_plan(planJson: string): string;
 	parse_strip_voice_cues(markdown: string): string;
+	parse_guest_voice(input: string): string;
 	parse_image_recovery_parents(sourceJson: string): string;
 	parse_recover_generated_images(sourceJson: string, parentsJson: string): string;
 	parse_reconcile_recommendations(inputJson: string): string;
@@ -66,7 +69,7 @@ export interface ParseBinding {
 }
 
 const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = [
-	'parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues',
+	'parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues', 'parse_guest_voice',
 	'parse_image_recovery_parents', 'parse_recover_generated_images',
 	'parse_reconcile_recommendations', 'parse_workflow_start_suggestions', 'parse_build_context_entry_event', 'parse_context_entry_event',
 	'parse_memory_write_undone',

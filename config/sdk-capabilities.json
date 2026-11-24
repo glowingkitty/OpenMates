@@ -8818,6 +8818,8 @@
             "embed_read.status.is_valid_status",
             "embed_read.status.normalize_status",
             "embed_read.status.validate_transition",
+            "guest_voice",
+            "guest_voice.plan_json",
             "mentions",
             "mentions.AppInfo",
             "mentions.AppInfo.focus_modes",

@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 19
+version: 21
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -143,6 +143,14 @@ assertions:
     its muted state uses a red microphone-off icon and an accessible pressed state without obscuring the duration.
   depends_on:
   - examples.call_strip
+- id: video-call.chat.call-strip-opening
+  type: behavior
+  must: Pressing Start, including from a new chat that the call binds while it connects, shows the call strip exactly once
+    with one smooth entrance; it stays visible without disappearing, remounting or replaying its entrance until the call
+    is listening and the bound chat's header has appeared. The Start button's hover tooltip reads only its label ("Start
+    voice call"), with no provider or billing description; the first-call notice remains the provider disclosure.
+  depends_on:
+  - examples.call_strip
 - id: video-call.chat.call-events
   type: behavior
   must: A successfully connected voice call inserts one timestamped call-start system event in its original chat, and
@@ -235,11 +243,25 @@ assertions:
   - examples.replay
 - id: video-call.privacy
   type: invariant
-  must: Calls and transcript writes are authenticated, first-party, owner- and session-scoped with permitted origins,
+  must: Signed-in calls and transcript writes are authenticated, first-party, owner- and session-scoped with permitted origins,
     bounded messages/context, concurrency admission and credit/spend controls. The server opens no paid connection when
     authorization/admission fails. Provider keys stay server-side. Raw microphone audio reaches the disclosed voice provider
     before text PII masking; transcript/media plaintext is never logged or durably retained server-side. Saved chat messages
     use client encryption, not provider transcript storage.
+  depends_on:
+  - examples.privacy
+- id: video-call.guest-calls
+  type: behavior
+  must: >-
+    A signed-out visitor on web and mobile web can start a voice call from a new or guest chat, speak and hear
+    the spoken reply. Guest calls use the existing free usage allowance for signed-out visitors, counted against
+    the same allowance as guest chat with no separate budget: transcription minutes and spoken-reply characters
+    are reserved before each provider dispatch and settled after it, and the call ends with the sign-up message
+    when the allowance is used. The guest call connection is first-party and credential-free (permitted origin,
+    browser anonymous id, official cloud only), bounded to one call per visitor and network at a time, a
+    10-minute call and an idle timeout. Guest turns become local-only guest chat messages: the server stores no
+    chat, transcript or audio. The first-call provider notice is accepted per browser and kept in that
+    browser's storage; the guest connection refuses a start without the version-3 acknowledgement.
   depends_on:
   - examples.privacy
 - id: video-call.privacy.first-call-warning
@@ -695,6 +717,9 @@ notes:
     after a focus decision to stay spoken, an in-call countdown with a reminder at about 15 s and a self-cancel
     "without memories" at about 30 s with a timed-out chat event, and a clear "Continue without memories" action in
     text chats; approval stays a manual tap.
+  version_21_guest_calls: >-
+    Owner decision, Mon 23 Nov 2026 (TASK-442): signed-out visitors can make full voice calls on the existing
+    free allowance for signed-out users, counted against the same allowance as chat, with no separate budget.
   version_19_approval: >-
     The owner approved version 19 on 2026-11-22 as his own decision on record (verified dev-connector receipt
     d35806980f111a04); camera, screen share, menu and close stay as they are.
