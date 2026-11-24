@@ -1,0 +1,15 @@
+schema_version: 2
+profile: concise
+status: verified
+id: apple-call-speech
+title: Evaluate on-device speech for Apple voice calls
+goal: >-
+  Evaluate a per-device Apple voice call path that uses optional installed speech
+  models for transcription and playback, retains the current API path elsewhere,
+  and preserves client-side encryption. Document the smallest architecture change,
+  evidence available without a physical device, and a reproducible iPhone checklist.
+scope:
+  in:
+    - Source and contract review, read-only measurements, and an implementation recommendation.
+  out:
+    - Product implementation, deployment to production, and changes to optional downloads.
