@@ -134,7 +134,8 @@ def test_unseen_delivery_recovers_once_without_exposing_message(tmp_path, fake_r
     meta["title"] = "Collaboration"
     (tmp_path / "connector-deliveries.json").write_text(json.dumps({
         f"{CHAT}:a": {"chat": CHAT, "title": "Collaboration", "state": "pending",
-                       "sent_at": START, "body": "private draft material"},
+                       "sent_at": START, "text": "Check live editing on remote access Projects",
+                       "body": "private draft material"},
         f"{CHAT}:b": {"chat": CHAT, "title": "Collaboration", "state": "undelivered",
                        "sent_at": START + 1},
     }))
@@ -145,7 +146,9 @@ def test_unseen_delivery_recovers_once_without_exposing_message(tmp_path, fake_r
     assert len(wakes) == 2 and not messages
     watchdog.cycle(tmp_path, START + 1200)
     assert len(messages) == 1 and "ten minutes" in messages[0]
+    assert messages[0].splitlines()[0] == "Collaboration still has an unread message about remote-access live editing."
     assert "private draft material" not in messages[0]
+    assert "Check live editing" not in messages[0]
     assert "Collaboration" in (tmp_path / "watchdog-daily-list.json").read_text()
 
 

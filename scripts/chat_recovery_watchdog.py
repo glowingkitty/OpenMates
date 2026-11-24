@@ -157,8 +157,20 @@ def active_stalls(now: float, live: dict, codex: dict, status: dict, registry: d
     return cases
 
 
+def delivery_topic(entry: dict) -> str:
+    """Classify the message without exposing its text in an alert."""
+    text = str(entry.get("text") or entry.get("body") or "").casefold()
+    if re.search(r"\bremote[- ]access\b", text) and re.search(r"\b(?:live editing|collaboration)\b", text):
+        return "remote-access live editing"
+    if re.search(r"\b(?:production rollout|production release|deploy to prod)\b", text):
+        return "a production rollout"
+    if re.search(r"\b(?:verify|verification|tests?|proof)\b", text):
+        return "verification"
+    return "a work follow-up"
+
+
 def delivery_stalls(directory: Path, now: float) -> dict[str, dict]:
-    """One aged unseen delivery per chat, without reading message or draft text."""
+    """One aged unseen delivery per chat, with a safe topic label."""
     cases: dict[str, dict] = {}
     for key, entry in handoff._load(directory / "connector-deliveries.json").items():
         if entry.get("state") not in ("pending", "undelivered"):
@@ -169,7 +181,8 @@ def delivery_stalls(directory: Path, now: float) -> dict[str, dict]:
             continue
         if chat_id not in cases or sent < cases[chat_id]["since"]:
             cases[chat_id] = {"kind": "unseen_delivery", "title": entry.get("title"),
-                              "reason": "a message unseen for ten minutes", "since": sent}
+                              "reason": "a message unseen for ten minutes", "since": sent,
+                              "topic": delivery_topic(entry)}
     return cases
 
 
@@ -249,7 +262,7 @@ def attempt(chat_id: str, incident: dict, live: dict, codex: dict) -> str:
 def friendly_reason(incident: dict) -> str:
     reason = incident.get("reason") or ""
     if incident["kind"] == "unseen_delivery":
-        return "a message the chat had not read after ten minutes"
+        return f"a message about {incident['topic']} that the chat had not read after ten minutes"
     if incident["kind"] == "handoff":
         return "a transfer of unfinished work"
     if incident["kind"] == "waiter":
@@ -278,7 +291,10 @@ def alert_text(incident: dict, mark: dict) -> str:
     action = ("Check with the release team before continuing the rollout."
               if incident.get("release") else "Open the chat to continue the work when you can.")
     affected = "The rollout may be delayed." if incident.get("release") else "The chat's work is waiting."
-    return (f"{title} is still stalled after two recovery attempts.\n"
+    first = f"{title} is still stalled after two recovery attempts."
+    if incident["kind"] == "unseen_delivery":
+        first = f"{title} still has an unread message about {incident['topic']}."
+    return (first + "\n"
             f"Last step or wait: {reason}. We tried waking it again with fresh context and {result}. "
             f"{affected} {action}")
 
