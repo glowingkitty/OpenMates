@@ -207,6 +207,7 @@ def problems(directory: Path, now: float, live: dict, codex: dict, status: dict,
             cases[chat_id] = {"kind": "stalled", "reason": reason, "title": entry.get("title")}
     wip = handoff._load(worktree_wip.state_dir() / "status.json")
     sessions = handoff._load(worktree_wip.sessions_file()).get("sessions") or {}
+    wip_owners = set()
     for entry in wip.get("unfinished") or []:
         chat_id = entry.get("chat_id")
         workspace = (sessions.get(entry.get("session_id")) or {}).get("worktree") or {}
@@ -214,6 +215,9 @@ def problems(directory: Path, now: float, live: dict, codex: dict, status: dict,
             continue
         if workspace.get("status") == "merged":
             continue
+        wip_owners.add(chat_id)
+        if chat_id not in live and chat_id not in codex:
+            continue  # The half-hour worktree recovery owns stopped WIP.
         parked = entry.get("parked") or {}
         reason = parked.get("reason", "")
         if USER_PAUSE.search(reason):
@@ -227,7 +231,7 @@ def problems(directory: Path, now: float, live: dict, codex: dict, status: dict,
                   if (link := task.get("external_chat")) and link.get("provider") == "claude"}
     for chat_id in open_chats:
         stopped = registry.get(chat_id) or {}
-        if stopped.get("state") == "stopped" and chat_id not in waiting:
+        if stopped.get("state") == "stopped" and chat_id not in waiting and chat_id not in wip_owners:
             cases.setdefault(chat_id, {"kind": "stalled", "reason": "stopped chat still has an open Task"})
     cases.update(active_stalls(now, live, codex, status, registry, protected, tasks))
     for chat_id, delivery in delivery_stalls(directory, now).items():

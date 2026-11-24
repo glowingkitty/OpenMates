@@ -194,3 +194,17 @@ def test_titled_chat_without_activity_in_window_is_skipped(tmp_path):
               message={"content": [{"type": "text", "text": "Done long ago, nothing since."}]}),
     ]))
     assert brief.summarize_transcript(path, datetime(2026, 11, 1, tzinfo=timezone.utc)) is None
+
+
+
+def test_forgotten_tasks_use_recorded_stop_age_and_exclude_active_chats():
+    now = brief.parse_ts("2026-11-24T20:00:00Z").timestamp()
+    old = {"state": "stopped", "stopped_at": "2026-11-22T18:00:00Z"}
+    registry = {"older": old, "new": {"state": "done", "stopped_at": "2026-11-24T18:00:00Z"},
+                "running": old, "done": old, "codex-chat": old}
+    tasks = [{"id": cid, "title": cid, "status": "done" if cid == "done" else "todo",
+              "chat": f"claude:{cid}"} for cid in ("older", "new", "running", "done", "missing")]
+    tasks.append({"id": "native", "title": "Codex work", "status": "in_progress", "chat": "codex:native-thread"})
+    result = brief.forgotten_tasks(tasks, now, registry, {"running"}, {"native-thread": "codex-chat"})
+    assert result["count"] == 2
+    assert [row["id"] for row in result["items"]] == ["older", "native"]

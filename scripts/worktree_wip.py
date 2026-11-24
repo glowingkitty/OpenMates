@@ -19,9 +19,8 @@ module keeps that work safe and visible:
              until the worktree changes again.
   sweep      snapshots every dirty session worktree and writes ``status.json`` (every 30
              minutes from a systemd timer, scripts/worktree-wip-setup.sh).
-  nightly    sweep, then the release-readiness gate, written to ``readiness.json`` for the
-             daily meeting, then resumes the stopped owner chats of unparked unfinished
-             work (at most a few per night, once per worktree state) with a finish prompt.
+  recover    snapshot unfinished work and retry its stopped owners every 30 minutes.
+  nightly    sweep, then write the release-readiness result for the daily meeting.
 
 The Stop hook (.claude/hooks/wip-snapshot.sh) snapshots the chat's worktree at the end of
 every turn, and the chat lifecycle (scripts/claude_idle_chats.py) wakes a chat with
@@ -32,9 +31,10 @@ State lives in ``<canonical checkout>/logs/worktree-wip/``.
 from __future__ import annotations
 
 import argparse
-import hashlib
+import fcntl
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -50,7 +50,6 @@ GENERATED_PREFIXES = ("specifications/generated/",)
 GENERATED_FILES = frozenset(
     f"docs/migration/rust/{name}.yml" for name in ("overview", "web-app", "shared-client", "cli", "sdk")
 )
-NIGHTLY_MAX_WAKES = 3
 GIT_TIMEOUT = 120
 
 
@@ -383,39 +382,6 @@ def readiness() -> dict:
             "blocked_deploys": report.get("blocked_deploys", []), "inspected": len(report.get("items", []))}
 
 
-def wake_owners(status: dict, *, limit: int = NIGHTLY_MAX_WAKES, launch=None) -> list[dict]:
-    """Resume stopped owner chats of unparked unfinished work, once per worktree state."""
-    marks_path = state_dir() / "woken.json"
-    marks = _read_json(marks_path, {})
-    running = _running_chat_ids()
-    by_chat: dict[str, list[dict]] = {}
-    for entry in status.get("unfinished", []):
-        if entry.get("parked") or entry.get("error") or not entry.get("chat_id"):
-            continue
-        by_chat.setdefault(entry["chat_id"], []).append(entry)
-    results = []
-    for chat_id, entries in by_chat.items():
-        key = chat_id + ":" + hashlib.sha256(json.dumps(
-            [e["snapshot"].get("tree", "") for e in entries]).encode()).hexdigest()[:16]
-        if key in marks:
-            continue
-        if chat_id in running:
-            results.append({"chat_id": chat_id, "state": "running", "note": "the chat lifecycle wakes it before stopping it"})
-            continue
-        if _chat_transcript(chat_id) is None:
-            results.append({"chat_id": chat_id, "state": "no_transcript", "note": "owner chat is gone: list for the owner"})
-            continue
-        if len([r for r in results if r["state"] == "resumed"]) >= limit:
-            results.append({"chat_id": chat_id, "state": "deferred", "note": f"over the nightly limit of {limit}"})
-            continue
-        outcome = (launch or _resume_chat)(chat_id, finish_prompt(entries))
-        results.append({"chat_id": chat_id, "state": "resumed" if outcome == "ok" else "failed", "note": outcome})
-        if outcome == "ok":
-            marks[key] = _utc()
-    _write_json(marks_path, dict(sorted(marks.items())[-500:]))
-    return results
-
-
 def _resume_chat(chat_id: str, prompt: str) -> str:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import claude_dispatch  # noqa: E402  (sibling script, imported only when a wake is due)
@@ -426,10 +392,125 @@ def _resume_chat(chat_id: str, prompt: str) -> str:
         return str(exc)[:200]
 
 
+
+def task_holds(tasks: list[dict], native_links: dict) -> set[str]:
+    """Only linked Tasks with recorded owner holds can stop a scheduled recovery."""
+    holds = set()
+    for task in tasks:
+        link = task.get("external_chat") or {}
+        ident = link.get("id")
+        provider = link.get("provider")
+        if not ident or provider not in {"claude", "codex"}:
+            continue
+        cid = native_links.get(ident, ident) if provider == "codex" else ident
+        labels = {str(value).casefold() for value in task.get("labels") or []}
+        reason = str(task.get("blocked_reason_code") or "").casefold()
+        if (task.get("status") in {"cancelled", "withdrawn", "parked"}
+                or labels & {"parked", "paused", "withdrawn"}
+                or reason in {"owner_approval", "owner_decision", "waiting_for_owner"}):
+            holds.add(cid)
+    return holds
+
+
+def periodic_owners(status: dict, running: set[str], protected: set[str], held: set[str],
+                    now: float, marks: dict, launch, transcript_exists) -> list[dict]:
+    """Retry each eligible owner on the half-hour, including after a successful wake."""
+    by_chat: dict[str, list[dict]] = {}
+    results = []
+    for entry in status.get("unfinished") or []:
+        cid = entry.get("chat_id")
+        if entry.get("error") or not cid:
+            results.append({"session_id": entry["session_id"], "state": "held",
+                            "note": entry.get("error") or "no recorded chat owner"})
+            continue
+        if not entry.get("files"):
+            continue
+        by_chat.setdefault(cid, []).append(entry)
+    for cid, entries in by_chat.items():
+        parked = " ".join((entry.get("parked") or {}).get("reason", "") for entry in entries)
+        if cid in running:
+            state, note = "running", "the owning chat is open"
+        elif cid in protected:
+            state, note = "held", "waiting for Marco"
+        elif cid in held or re.search(
+            r"(?i)owner.requested pause|paused by (?:marco|owner)|"
+            r"(?:await|wait)\w* (?:on |for )?(?:separate )?(?:marco|owner)(?:'s)? (?:authorization|decision|approval|answer)",
+            parked,
+        ):
+            state, note = "held", "parked or withdrawn by Marco"
+        elif not transcript_exists(cid):
+            state, note = "held", "the chat history is unavailable"
+        elif cid in marks and now - float(marks[cid]) < 1800:
+            state, note = "retry due", "the last wake attempt was less than 30 minutes ago"
+        else:
+            marks[cid] = now
+            try:
+                outcome = launch(cid, finish_prompt(entries))
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                outcome = f"could not wake the chat ({type(error).__name__})"
+            state, note = ("resumed", "the chat was reopened to continue") if outcome == "ok" else ("retry due", outcome)
+        results.append({"chat_id": cid, "state": state, "note": note})
+    return results
+
+
+def recover_owners(status: dict) -> list[dict]:
+    import time
+
+    import chat_recovery_watchdog as watchdog
+    import claude_idle_chats as lifecycle
+    import codex_chats
+    import daily_meeting_tasks_cache
+
+    directory = state_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    with (directory / "owner-recovery.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return []
+        now = time.time()
+        recent, details = daily_meeting_tasks_cache.load()
+        if not recent or not details.get("fresh") or not recent.get("complete", True):
+            report = [{"session_id": entry["session_id"], "state": "retry due",
+                       "note": "waiting for a fresh Tasks list"} for entry in status.get("unfinished") or []]
+        else:
+            marks_file = directory / "owner-recovery-attempts.json"
+            marks = _read_json(marks_file, {})
+            source = lifecycle.state_dir()
+            registered = _read_json(source / "registered.json", {})
+            protected = watchdog.protected_chats(source, registered, {}, now)
+            codex = {record["chat_id"]: record.get("thread_id", "") for record in codex_chats.records()}
+            owners = {entry.get("chat_id") for entry in status.get("unfinished") or []} - {None, ""}
+            for cid in owners:
+                path = codex_chats.mirror(cid) if cid in codex else _chat_transcript(cid)
+                if not path:
+                    continue
+                records = lifecycle._tail_records(path)
+                speaker, text = lifecycle.last_turn(records)
+                owner_at = max((lifecycle._iso(row.get("timestamp")) for row in records
+                                if row.get("type") == "user" and not row.get("isMeta")), default=0.0)
+                if lifecycle.pushed(cid, owner_at).get("kind") == "❓" or (
+                    speaker == "assistant" and lifecycle.asks_something(text)
+                ):
+                    protected.add(cid)
+            held = task_holds(recent.get("tasks") or [], {thread: cid for cid, thread in codex.items() if thread})
+
+            def launch(cid, prompt):
+                _write_json(marks_file, marks)
+                return _resume_chat(cid, prompt)
+
+            report = periodic_owners(status, _running_chat_ids() | set(codex_chats.live()), protected, held,
+                                     now, marks, launch,
+                                     lambda cid: (_chat_transcript(cid) or codex_chats.rollout_path(codex.get(cid, ""))))
+            _write_json(marks_file, {cid: stamp for cid, stamp in marks.items() if now - stamp < 7 * 86400})
+        _write_json(directory / "owner-recovery.json", {"at": _utc(), "wakes": report})
+        return report
+
+
 def nightly() -> dict:
     status = sweep("nightly")
     report = {**status, "readiness": readiness()}
-    report["wakes"] = wake_owners(status)
+    report["wakes"] = _read_json(state_dir() / "owner-recovery.json", {}).get("wakes") or []
     _write_json(state_dir() / "readiness.json", report)
     return report
 
@@ -440,18 +521,23 @@ def briefing_lines(path: Path | None = None) -> list[str]:
     if not data:
         return ["_Worktree readiness unavailable: the nightly check (scripts/worktree_wip.py nightly) has not run yet._", ""]
     gate = data.get("readiness") or {}
-    rows = data.get("unfinished") or []
+    latest = _read_json(state_dir() / "status.json", {}) if path is None else {}
+    rows = (latest.get("unfinished") if "unfinished" in latest else data.get("unfinished")) or []
     open_rows = [row for row in rows if not row.get("parked")]
     lines = [f"_Release readiness (dev→main) at {data['at'][:16]} UTC: "
              f"{'ready' if gate.get('ready') else 'NOT ready'}; {len(gate.get('blocking') or [])} blocking worktrees, "
              f"{len(open_rows)} with unfinished work, {len(rows) - len(open_rows)} parked._", ""]
-    wakes = {w["chat_id"]: w for w in data.get("wakes") or []}
+    recent = _read_json(state_dir() / "owner-recovery.json", {}) if path is None else {}
+    wakes = {w.get("chat_id") or w.get("session_id"): w for w in (recent.get("wakes") or data.get("wakes") or [])}
     for row in open_rows[:15]:
-        wake = wakes.get(row["chat_id"], {})
+        wake = wakes.get(row["chat_id"] or row["session_id"], {})
         lines.append(f"- `{row['session_id']}` {row['task'][:90]} — {row['files']} files not on dev, chat "
-                     f"`{(row['chat_id'] or '?')[:8]}` {wake.get('state', 'not woken')}")
+                     f"`{(row['chat_id'] or '?')[:8]}` {wake.get('state', 'not woken')}"
+                     + (f": {wake['note'][:125]}" if wake.get("note") else ""))
     for row in [row for row in rows if row.get("parked")][:10]:
-        lines.append(f"- parked `{row['session_id']}` {row['task'][:70]} — {row['parked'].get('reason', '')[:120]}")
+        wake = wakes.get(row["chat_id"] or row["session_id"], {})
+        reason = wake.get("note") or row["parked"].get("reason", "")
+        lines.append(f"- `{row['session_id']}` {row['task'][:70]} — {wake.get('state', 'parked')}: {reason[:120]}")
     return lines + [""]
 
 
@@ -468,6 +554,7 @@ def main(argv: list[str] | None = None) -> int:
     parked.add_argument("--session", required=True)
     parked.add_argument("--reason", required=True)
     sub.add_parser("sweep", help="snapshot every dirty session worktree, write status.json")
+    sub.add_parser("recover", help="snapshot unfinished work and retry stopped owners")
     sub.add_parser("nightly", help="sweep, readiness gate, wake stopped owners")
     listing = sub.add_parser("list", help="session worktrees with unfinished work")
     listing.add_argument("--json", action="store_true")
@@ -486,9 +573,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "park":
         print(json.dumps(park(args.session, args.reason), indent=1))
         return 0
-    if args.command == "sweep":
+    if args.command in ("sweep", "recover"):
         status = sweep()
         print(f"{len(status['unfinished'])} session worktrees with unfinished work; snapshots in {WIP_REF_PREFIX}*")
+        if args.command == "recover":
+            report = recover_owners(status)
+            print(json.dumps({"owners": report}, indent=1))
         return 0
     if args.command == "nightly":
         report = nightly()

@@ -639,6 +639,19 @@ def _reminders_banner(rem: dict) -> list[str]:
             "start of the meeting.", ""]
 
 
+
+def _forgotten_task_list(data: dict) -> list[str]:
+    count = data.get("count", 0)
+    if not count:
+        return []
+    items = data.get("items") or []
+    lines = ["", f"## Forgotten Tasks ({count})", "", "_Open Tasks whose linked chat stopped over 24 hours ago._", ""]
+    lines.extend(f"- {item['title']} ({item['id'] or 'Task'}) — stopped {item['days']}d ago" for item in items)
+    if count > len(items):
+        lines.append(f"- {count - len(items)} more in OpenMates Tasks.")
+    return lines + [""]
+
+
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
     rem = ev.get("reminders") or {}
     tasks = ev.get("tasks") or {}
@@ -676,6 +689,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     out += daily_meeting_growth.render(ev.get("growth"))
     out += daily_meeting_marketing.render(ev.get("marketing_block"))
     out += _waiting_section(ev.get("waiting_chats") or {}, tri)
+    out += _forgotten_task_list(ev.get("forgotten_tasks") or {})
     out += _dropped_recheck(ev)
     out += ["", "## Unfinished work in worktrees (dev→main readiness)", "", *worktree_wip.briefing_lines()]
     product = ev.get("product") or {}

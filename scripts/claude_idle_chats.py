@@ -777,7 +777,7 @@ def exit_cleanly(chat: Chat) -> bool:
     if chat.kind != "pane" or not chat.pane_id:
         return False
     expected_start = _proc_start(chat.pid)
-    if not wake(chat, "/exit"):
+    if not wake(chat, "/exit", preserve_input=True):
         return False
     deadline = time.monotonic() + TERM_WAIT_SECONDS
     while time.monotonic() < deadline:
@@ -1276,7 +1276,8 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
         if args.dry_run:
             print(f"would stop {label}: {decision.reason}")
             continue
-        exited = decision.action == "archive" and exit_cleanly(chat)
+        exited = (decision.action == "archive" and now - chat.last_activity >= 86400
+                  and exit_cleanly(chat))
         ok = exited or stop(chat)
         failed += 0 if ok else 1
         print(f"{'archived' if exited else 'stopped' if ok else 'STILL RUNNING'} {label}: {decision.reason}")

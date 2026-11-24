@@ -252,6 +252,47 @@ def _compact(task: dict) -> dict:
     return {key: value for key, value in task.items() if value and value != "none" and key != "status"}
 
 
+
+def forgotten_tasks(tasks: list[dict] | None, now: float, registry: dict, live: set[str],
+                    native_links: dict[str, str]) -> dict:
+    """One bounded briefing list, based on positive evidence the linked chat stopped."""
+    rows = []
+    for task in tasks or []:
+        if task.get("status") not in {"todo", "in_progress", "blocked", "backlog"}:
+            continue
+        provider, _, ident = (task.get("chat") or "").partition(":")
+        if not ident or provider not in {"claude", "codex"}:
+            continue
+        cid = native_links.get(ident, ident) if provider == "codex" else ident
+        if cid in live or ident in live:
+            continue
+        stopped = registry.get(cid) or {}
+        if stopped.get("state") not in {"idle", "stopped", "done", "archived"}:
+            continue
+        stamps = [parse_ts(stopped.get(key)) for key in ("stopped_at", "last_activity")]
+        seconds = [stamp.timestamp() for stamp in stamps if stamp]
+        if not seconds or now - max(seconds) < 86400:
+            continue
+        rows.append((max(seconds), task))
+    rows.sort(key=lambda row: row[0])
+    return {"count": len(rows),
+            "items": [{"id": task.get("id"), "title": task["title"],
+                       "days": int((now - stamp) // 86400)} for stamp, task in rows[:8]]}
+
+
+def forgotten_task_snapshot(tasks: list[dict] | None, now: datetime) -> dict:
+    import claude_idle_chats
+    import codex_chats
+    import worktree_wip
+
+    state = claude_idle_chats.state_dir()
+    registry = claude_idle_chats.load_registry(state)
+    native_links = {record["thread_id"]: record["chat_id"] for record in codex_chats.records()
+                    if record.get("thread_id")}
+    live = set(codex_chats.live()) | worktree_wip._running_chat_ids()
+    return forgotten_tasks(tasks, now.timestamp(), registry, live, native_links)
+
+
 def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
                  active_chats: set[str] | None = None) -> dict:
     """OpenMates Tasks are the agents' work queue (Reminders are the user's capture inbox)."""
@@ -634,6 +675,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "work_mix": work_mix(root),
         "marketing": marketing(since),
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
+        "forgotten_tasks": forgotten_task_snapshot(tasks, now),
         "nightly": nightly(root, since),
         "tasks_status": tasks_status,
         "waiting_chats": waiting(tasks, out, now, focus(root)),

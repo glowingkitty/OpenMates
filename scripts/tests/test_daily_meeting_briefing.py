@@ -15,7 +15,8 @@ def test_briefing_has_no_marketing_or_build_week_phase():
         assert word not in briefing.MEETING_SCRIPT
 
 
-def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps():
+def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps(monkeypatch):
+    monkeypatch.setattr(briefing.worktree_wip, "briefing_lines", lambda: [])
     evidence = {
         "window": {"since": "2026-11-02T10:00+01:00", "until": "2026-11-03T10:00+01:00"},
         "focus_file": "# Focus\nWeek goals: record videos",
@@ -66,3 +67,12 @@ def test_scheduled_run_only_proceeds_on_weekdays_from_0830_berlin():
     assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 8, 29, tzinfo=berlin))
     assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 9, 30, tzinfo=berlin))
     assert not briefing.in_scheduled_slot(datetime(2026, 11, 14, 8, 30, tzinfo=berlin))  # Saturday
+
+
+def test_forgotten_tasks_render_as_one_bounded_list():
+    lines = briefing._forgotten_task_list({"count": 120, "items": [
+        {"id": "TASK-1", "title": "Verify backups", "days": 2},
+    ]})
+    assert lines.count("## Forgotten Tasks (120)") == 1
+    assert any("Verify backups" in line for line in lines)
+    assert any("119 more" in line for line in lines)
