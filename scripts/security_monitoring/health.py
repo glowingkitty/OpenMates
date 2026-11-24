@@ -203,6 +203,7 @@ def render_digest(data: dict[str, Any]) -> notify.Rendered:
             lines.append(("Not checked", notify.bounded(text, 300)))
         for text in images.get("runtimes", [])[:40]:
             lines.append(("Runtimes", notify.bounded(text, 300)))
+    lines += [(label, notify.bounded(text, 300)) for label, text in data.get("apple_packages", [])]
     gaps = sorted(name for name, entry in data["coverage"].items() if entry["unsupported"] and not entry["ok"] and not entry["failed"])
     failed = sorted(name for name, entry in data["coverage"].items() if entry["failed"])
     lines += [
@@ -227,7 +228,8 @@ def watcher_is_stale(store: Store, now: datetime, hours: int) -> bool:
 
 
 def run_digest(settings: Settings, store: Store, notifier: notify.Notifier, *, now: datetime | None = None,
-               sender: Callable[[dict[str, str]], SendResult] | None = None) -> dict[str, Any]:
+               sender: Callable[[dict[str, str]], SendResult] | None = None,
+               apple_packages: list[tuple[str, str]] | None = None) -> dict[str, Any]:
     """Check watcher liveness, then deliver the once-per-day digest email."""
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     result: dict[str, Any] = {}
@@ -243,6 +245,7 @@ def run_digest(settings: Settings, store: Store, notifier: notify.Notifier, *, n
     else:
         store.resolve_incident_key("health:watcher_stopped", current)
     data = digest_data(store, current)
+    data["apple_packages"] = apple_packages or []
     rendered = render_digest(data)
     notification_id = stable_notification_id("security-monitoring-digest", "dev", current.date().isoformat())
     if settings.dry_run:

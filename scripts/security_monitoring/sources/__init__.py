@@ -94,6 +94,7 @@ def collect(*, since: datetime, now: datetime, inventory: Inventory,
     window_start = min(since, now - timedelta(minutes=5))
 
     run.source("osv", lambda: packages.collect_osv(inventory, fetcher))
+    run.source("tokenizers_rust", lambda: packages.collect_tokenizers_rust(inventory, fetcher))
     run.source("dependabot", lambda: packages.collect_dependabot(fetcher))
     for repository in sorted(packages.UPSTREAM_REPOSITORIES):
         run.source(f"upstream:{repository}", lambda repository=repository: packages.collect_upstream(repository, fetcher))

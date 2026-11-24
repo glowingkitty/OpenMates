@@ -19,6 +19,11 @@ xcuserdata/
 # SPM
 .build/
 Package.resolved
+!OpenMates.xcodeproj/project.xcworkspace/
+OpenMates.xcodeproj/project.xcworkspace/**
+!OpenMates.xcodeproj/project.xcworkspace/xcshareddata/
+!OpenMates.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+!OpenMates.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # CocoaPods (not used, but just in case)
 Pods/

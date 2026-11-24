@@ -34,6 +34,13 @@ matching:
   when: The hourly watcher runs.
   then: One observation with match strength version_range is created and sent to triage. The same advisory
     also arriving from Dependabot one hour later stays the same observation.
+apple_packages:
+- id: apple-pins-and-version-gaps-in-the-existing-security-report
+  assertion_ids:
+  - security-monitoring.apple-packages.daily-report
+  given: Xcode resolves a Swift dependency by commit and uses the vendored ONNX Runtime 1.20.0 binary. A newer stable runtime is published upstream.
+  when: The hourly security watcher and daily digest run.
+  then: The watcher queries advisories for the Swift commit and native runtime version. The existing daily email lists the newer runtime. The version gap alone sends no immediate alert. An advisory in a Rust crate embedded in Swift Tokenizers is attributed to the Swift package that ships the binary.
 host_reports:
 - id: daily-private-push
   assertion_ids:

@@ -14807,6 +14807,14 @@ assertions:
     tests: []
     surfaces: {}
     current_direct_proof: false
+  security-monitoring.apple-packages.daily-report:
+    specification: architecture.security-monitoring@1
+    fingerprint: de29a9d9c983814e4b2e141ab81039c3b840c12ddfb21ebca17627f21df08674
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   security-monitoring.host-reports.private-push:
     specification: architecture.security-monitoring@1
     fingerprint: 5a3221b6c53ebfd2d9323d7ceca243b2c198a670d60a33d05cf7820cbc053c40
@@ -14841,7 +14849,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.triage.untrusted-input:
     specification: architecture.security-monitoring@1
-    fingerprint: a698b06c691a7c80a0ae1200c5cf842cd5455f184595995563ba139049003b5a
+    fingerprint: 452c263792e21e8d27fe17652b20a1e8e9c52542c368cd2487435821bee15a1f
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14849,7 +14857,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.routine:
     specification: architecture.security-monitoring@1
-    fingerprint: f24e456253afb2339326d44f2452bdb2fd0bbc5e412b4f06415b9b38ef65e14e
+    fingerprint: 3e3128c7427f381d3ec2b7de179de0ca7dbc4f5dd1342a15a46037de38cdb195
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14857,7 +14865,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.install-time:
     specification: architecture.security-monitoring@1
-    fingerprint: d9970b70fa38a1f81a98503021bee71024d96a7f91c34698a507d425dee17570
+    fingerprint: d7d54e84d3db9f29575675f6dad6be5685317de83cefcdea380ee3c4a86e0bc9
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14865,7 +14873,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.security-priority:
     specification: architecture.security-monitoring@1
-    fingerprint: c31d82ab85fb5e32dd525f9b3b899da514e0a084825f569a0dbfefbf43822fdc
+    fingerprint: 4b0ce29c8d1927359f8833664c124663deb35eadfe6afd12fff579af776958ec
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14881,7 +14889,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.notifications.deterministic-dual-channel:
     specification: architecture.security-monitoring@1
-    fingerprint: faf70f86a1d9c427bf10eda90e59d7a1ecd6298144ca9e31f2fd78b71ed6c93a
+    fingerprint: 7747a66ae00dc0836df69ca028b5506df303d03c2ba6eda80a29ae2db8010780
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14889,7 +14897,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.health.no-silent-failure:
     specification: architecture.security-monitoring@1
-    fingerprint: e2e8130a652ab07f4cb1ec607fb256da1c5156df930a76f8fb3d998d12db9836
+    fingerprint: 4ad12999ec30ef7dae626d7f1fcb29c786f271b2fcb837da78aeb33323e493c6
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14897,7 +14905,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.config-guard.hooks-and-settings:
     specification: architecture.security-monitoring@1
-    fingerprint: 2dcd6d5dde8764ec3b331ebb554d9975a59356ea36e9fc2c2c062933e00b5735
+    fingerprint: e20a8e425c7193cd4e21ebe1720af70e2369f98dd11d40dda5224c97fe2c808d
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14905,7 +14913,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.images.running-digests:
     specification: architecture.security-monitoring@1
-    fingerprint: 85e6a6cf7db34b231d061da02c2af0aa37f741ff9dcb442d305f0eede19b7f03
+    fingerprint: 84ac2ca98a78101bc6c2084bb60f5cd8b8f9bd0ce7a76bd602a91eae0972786e
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14913,7 +14921,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.github-alerts.every-alert-listed:
     specification: architecture.security-monitoring@1
-    fingerprint: 638205a43ba48d4a211cfd75c06e023feaf33de1c8882d3d086190f962219241
+    fingerprint: 094e69fc3b68a607c22e36f6fd9254ccc58c1c85673935c8f59179cb29d78f45
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14921,7 +14929,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.os.reboot-windows:
     specification: architecture.security-monitoring@1
-    fingerprint: c52254014dd2d8ad05344b04e87e7ba9a5b4e529f502ef2a74b469888ea64613
+    fingerprint: 15361f5ab7d75ce3c315f142c9667c3ca56eaaedd86ac6e907f8b9888c158d35
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14929,7 +14937,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.content.boundary:
     specification: architecture.security-monitoring@1
-    fingerprint: 1c02a57b0e68b4c9ad29d8fc05897a7101ccc1fc5e3cbc24a89a3b00fb47e7c5
+    fingerprint: 7178d180fcf421ff660d8d2024a51873a32555e61d2edb2656593e83cbdfcaf0
     direct_tests: []
     supporting_tests: []
     tests: []

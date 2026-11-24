@@ -782,7 +782,7 @@ Record voice notes and get transcripts.
 
 Hourly matching of security advisories against everything OpenMates runs, with guarded fixes.
 
-- Specifications: [architecture.security-monitoring](../../specifications/architecture/security-monitoring/specification.yml) (draft) · 18 assertion(s)
+- Specifications: [architecture.security-monitoring](../../specifications/architecture/security-monitoring/specification.yml) (draft) · 19 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unverified
 
 <details><summary>Tests per surface</summary>
@@ -791,7 +791,7 @@ Hourly matching of security advisories against everything OpenMates runs, with g
 |---|---|---|---|
 | Web | — | — | — |
 | Apple | — | — | — |
-| CLI | impl | 0 pass · 0 fail · 0 not run · 18 no test | — |
+| CLI | impl | 0 pass · 0 fail · 0 not run · 19 no test | — |
 | TUI | — | — | — |
 | REST API | — | — | — |
 | npm SDK | — | — | — |
