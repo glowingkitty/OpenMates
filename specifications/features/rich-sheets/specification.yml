@@ -1,0 +1,66 @@
+schema_version: 1
+id: feature.rich-sheets
+version: 1
+status: draft
+title: Rich Formatted Sheets
+summary: Create, edit, share and exchange spreadsheets with cell styling and sheet layout.
+
+related_contracts:
+  - specification: feature.live-collaboration@1
+    relationship: Use the shared sheet document, client-side encrypted updates, undo and snapshots.
+  - specification: feature.embed-user-edits@1
+    relationship: Formatting is part of the same embed and version history as cell data.
+
+scope:
+  includes:
+    - Optional formatting for new and existing sheet embeds.
+    - Assistant creation, web editing, shared snapshots and workbook exchange.
+  excludes:
+    - Conditional formatting and basic charts in the initial phase.
+
+assertions:
+  - id: rich-sheets.compatibility.plain
+    type: invariant
+    must: Existing sheets retain their current appearance and data without migration. Formatting and layout are optional.
+    depends_on: [examples.compatibility]
+  - id: rich-sheets.creation.validated-formatting
+    type: behavior
+    must: >-
+      The assistant can create formatted sheets with column widths, row heights, cell
+      background and text colors, font family and size, bold, italic, underline,
+      strikethrough, horizontal and vertical alignment, wrapping, number, date and
+      currency formats, borders, merged ranges and frozen rows and columns. Invalid
+      assistant output follows an explicit validation error path.
+    depends_on: [examples.creation]
+  - id: rich-sheets.editing.toolbar-and-layout
+    type: behavior
+    must: >-
+      The Sheets edit mode offers controls for the supported cell formatting and sheet
+      layout on phone and desktop, in light and dark mode.
+    depends_on: [examples.editing]
+  - id: rich-sheets.collaboration.shared-history
+    type: behavior
+    must: >-
+      Formatting changes by users and the assistant flow through the same shared
+      document as cell edits. They synchronize through client-side encrypted updates,
+      can be undone, are included in version history and come back on restore.
+    depends_on: [examples.collaboration]
+  - id: rich-sheets.exchange.workbook-and-csv
+    type: behavior
+    must: >-
+      XLSX import and export carry supported formatting and layout, including column
+      widths, colors, merged cells and number formats. The import explains any
+      formatting lost in conversion. CSV exports tabular data and carries no
+      formatting or sheet layout.
+    depends_on: [examples.exchange]
+
+applies_to:
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups: [compatibility, creation, editing, collaboration, exchange]

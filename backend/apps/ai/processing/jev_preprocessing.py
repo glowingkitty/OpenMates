@@ -50,6 +50,7 @@ PREVIEW_TYPES = {
     "website": "A web page or HTML artifact.",
     "image": "An image or visual artifact.",
     "music": "Music or audio composition output.",
+    "formatted_sheet": "An editable spreadsheet requested with styling, merged cells, frozen panes, or formatted numbers. Ordinary answer tables use Markdown.",
     "calendar_event": "A dated event the user can add to a calendar: conference/event date research or an explicit event request. No calendar account is needed.",
 }
 PREVIEW_TYPES.update(authoring_preview_hints(get_authoring_definitions()))

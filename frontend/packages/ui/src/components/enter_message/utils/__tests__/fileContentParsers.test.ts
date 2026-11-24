@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText, xlsxArrayBufferToMarkdownTable } from "../fileContentParsers";
 import { convertXlsxWorkbook } from "../xlsxSheetConverter";
-import { computeTableFormulas, parseMarkdownTable } from "../../../embeds/sheets/sheetEmbedContent";
+import { computeTableFormulas, parseMarkdownTable, tableToCSV, tableToXlsx } from "../../../embeds/sheets/sheetEmbedContent";
 
 describe("delimitedTextToMarkdownTable", () => {
   // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
@@ -223,6 +223,70 @@ describe("convertXlsxWorkbook", () => {
 
     expect(workbook.sheets[0].markdown).toContain("| 2025-12-09 | 12.5% | x |");
     expect(workbook.removed).toEqual(expect.arrayContaining(["macros", "charts", "merged_cells", "formatting"]));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=rich-sheets.exchange.workbook-and-csv
+  it("round trips formatted cells, sizes, merges and frozen panes", async () => {
+    const table = parseMarkdownTable("| Budget | |\n| --- | --- |\n| Supplies | 1250.5 |");
+    const blob = await tableToXlsx(table.headers, table.rows, "Budget", {
+      columnWidths: { A: 175 },
+      rowHeights: { "1": 48 },
+      frozenRows: 1,
+      frozenColumns: 1,
+      merges: [{ start: "A1", end: "B1" }],
+      cells: {
+        A1: {
+          backgroundColor: "#1E3A8A", textColor: "#FFFFFF", fontFamily: "Arial", fontSize: 24,
+          bold: true, italic: true, underline: true, strikethrough: true,
+          horizontalAlign: "center", verticalAlign: "middle", wrap: true,
+          borders: { bottom: { style: "thin", color: "#BCDDEF" } },
+        },
+        B2: { numberFormat: { kind: "currency", currency: "USD", decimals: 2 } },
+      },
+    });
+    const workbook = await convertXlsxWorkbook(await blob.arrayBuffer());
+    expect(workbook.removed).toEqual([]);
+    expect(workbook.sheets[0].markdown).toBe("| Budget |  |\n| --- | --- |\n| Supplies | 1250.5 |");
+    expect(workbook.sheets[0].formatting).toMatchObject({
+      columnWidths: { A: 175 }, rowHeights: { "1": 48 }, frozenRows: 1, frozenColumns: 1,
+      merges: [{ start: "A1", end: "B1" }],
+      cells: {
+        A1: {
+          backgroundColor: "#1E3A8A", textColor: "#FFFFFF", fontFamily: "Arial", fontSize: 24,
+          bold: true, italic: true, underline: true, strikethrough: true,
+          horizontalAlign: "center", verticalAlign: "middle", wrap: true,
+          borders: { bottom: { style: "thin", color: "#BCDDEF" } },
+        },
+        B2: { numberFormat: { kind: "currency", currency: "USD", decimals: 2 } },
+      },
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=rich-sheets.exchange.workbook-and-csv
+  it("resolves tinted workbook theme colors to cell colors", async () => {
+    const workbook = await convertXlsxWorkbook(await buildWorkbook({
+      sheets: [{
+        name: "Budget",
+        xml: '<sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>Item</t></is></c></row></sheetData>',
+      }],
+      styles: '<styleSheet><fills><fill/><fill/><fill><patternFill patternType="solid"><fgColor theme="4" tint="0.5"/></patternFill></fill></fills>'
+        + '<cellXfs><xf/><xf fillId="2"/></cellXfs></styleSheet>',
+      extraFiles: {
+        "xl/theme/theme1.xml": '<a:theme><a:themeElements><a:clrScheme><a:accent1><a:srgbClr val="808080"/></a:accent1></a:clrScheme></a:themeElements></a:theme>',
+      },
+    }));
+    expect(workbook.removed).toEqual([]);
+    expect(workbook.sheets[0].formatting?.cells?.A1?.backgroundColor).toBe("#C0C0C0");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=rich-sheets.exchange.workbook-and-csv
+  it("exports CSV values with quoting and protects formula-like text", () => {
+    const headers = [{ content: "Item" }, { content: "Amount" }];
+    const rows = [
+      [{ content: 'Chips, "salted"' }, { content: "-10.50" }],
+      [{ content: "=SUM(A1)" }, { content: "two\nlines" }],
+    ];
+    expect(tableToCSV(headers, rows)).toBe('Item,Amount\r\n"Chips, ""salted""",-10.50\r\n\'=SUM(A1),"two\nlines"');
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send

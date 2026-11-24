@@ -13887,6 +13887,256 @@ browse.no_frame:
   cs: Uložený snímek není k dispozici.
   sv: Ingen sparad skärmbild finns.
   he: אין צילום מסך שמור.
+sheets.sheet.download_csv:
+  context: Fullscreen sheet action to download data as a CSV file
+  en: Download CSV
+  de: CSV herunterladen
+  verified_by_human: []
+sheets.sheet.downloaded:
+  context: Confirmation after the user downloads a sheet file
+  en: Sheet downloaded
+  de: Tabelle heruntergeladen
+  verified_by_human: []
+sheets.sheet.download_failed:
+  context: Error when a sheet file could not be downloaded
+  en: Could not download the sheet
+  de: Die Tabelle konnte nicht heruntergeladen werden
+  verified_by_human: []
+sheets.sheet.formatting_failed:
+  context: Error when a formatting action for a shared sheet fails
+  en: Could not apply the sheet formatting.
+  de: Die Tabellenformatierung konnte nicht angewendet werden.
+  verified_by_human: []
+sheets.sheet.invalid_formatting:
+  context: Error shown when an assistant-created sheet fails formatting validation
+  en: This sheet has invalid formatting. Ask the assistant to recreate it.
+  de: Diese Tabelle enthält eine ungültige Formatierung. Bitte den Assistenten, sie erneut zu erstellen.
+  verified_by_human: []
+sheets.sheet.formatting_toolbar:
+  context: Sheet formatting in the Sheets formatting toolbar
+  en: "Sheet formatting"
+  de: "Tabellenformatierung"
+  verified_by_human: []
+sheets.sheet.selection:
+  context: Selected cells in the Sheets formatting toolbar
+  en: "Selected cells"
+  de: "Ausgewählte Zellen"
+  verified_by_human: []
+sheets.sheet.strikethrough:
+  context: Strikethrough in the Sheets formatting toolbar
+  en: "Strikethrough"
+  de: "Durchgestrichen"
+  verified_by_human: []
+sheets.sheet.wrap:
+  context: Wrap text in the Sheets formatting toolbar
+  en: "Wrap text"
+  de: "Text umbrechen"
+  verified_by_human: []
+sheets.sheet.cell_format:
+  context: Cell format in the Sheets formatting toolbar
+  en: "Cell format"
+  de: "Zellenformat"
+  verified_by_human: []
+sheets.sheet.font_family:
+  context: Font family in the Sheets formatting toolbar
+  en: "Font family"
+  de: "Schriftart"
+  verified_by_human: []
+sheets.sheet.font_size:
+  context: Font size in the Sheets formatting toolbar
+  en: "Font size"
+  de: "Schriftgröße"
+  verified_by_human: []
+sheets.sheet.text_color:
+  context: Text color in the Sheets formatting toolbar
+  en: "Text color"
+  de: "Textfarbe"
+  verified_by_human: []
+sheets.sheet.fill_color:
+  context: Fill color in the Sheets formatting toolbar
+  en: "Fill color"
+  de: "Füllfarbe"
+  verified_by_human: []
+sheets.sheet.horizontal_align:
+  context: Horizontal alignment in the Sheets formatting toolbar
+  en: "Horizontal alignment"
+  de: "Horizontale Ausrichtung"
+  verified_by_human: []
+sheets.sheet.vertical_align:
+  context: Vertical alignment in the Sheets formatting toolbar
+  en: "Vertical alignment"
+  de: "Vertikale Ausrichtung"
+  verified_by_human: []
+sheets.sheet.default:
+  context: Default in the Sheets formatting toolbar
+  en: "Default"
+  de: "Standard"
+  verified_by_human: []
+sheets.sheet.left:
+  context: Left in the Sheets formatting toolbar
+  en: "Left"
+  de: "Links"
+  verified_by_human: []
+sheets.sheet.center:
+  context: Center in the Sheets formatting toolbar
+  en: "Center"
+  de: "Zentriert"
+  verified_by_human: []
+sheets.sheet.right:
+  context: Right in the Sheets formatting toolbar
+  en: "Right"
+  de: "Rechts"
+  verified_by_human: []
+sheets.sheet.top:
+  context: Top in the Sheets formatting toolbar
+  en: "Top"
+  de: "Oben"
+  verified_by_human: []
+sheets.sheet.middle:
+  context: Middle in the Sheets formatting toolbar
+  en: "Middle"
+  de: "Mittig"
+  verified_by_human: []
+sheets.sheet.bottom:
+  context: Bottom in the Sheets formatting toolbar
+  en: "Bottom"
+  de: "Unten"
+  verified_by_human: []
+sheets.sheet.number_format:
+  context: Number format in the Sheets formatting toolbar
+  en: "Number format"
+  de: "Zahlenformat"
+  verified_by_human: []
+sheets.sheet.number:
+  context: Number in the Sheets formatting toolbar
+  en: "Number"
+  de: "Zahl"
+  verified_by_human: []
+sheets.sheet.percent:
+  context: Percentage in the Sheets formatting toolbar
+  en: "Percentage"
+  de: "Prozent"
+  verified_by_human: []
+sheets.sheet.currency:
+  context: Currency in the Sheets formatting toolbar
+  en: "Currency"
+  de: "Währung"
+  verified_by_human: []
+sheets.sheet.date:
+  context: Date in the Sheets formatting toolbar
+  en: "Date"
+  de: "Datum"
+  verified_by_human: []
+sheets.sheet.decimals:
+  context: Decimal places in the Sheets formatting toolbar
+  en: "Decimal places"
+  de: "Dezimalstellen"
+  verified_by_human: []
+sheets.sheet.currency_code:
+  context: Currency code in the Sheets formatting toolbar
+  en: "Currency code"
+  de: "Währungscode"
+  verified_by_human: []
+sheets.sheet.date_pattern:
+  context: Date format in the Sheets formatting toolbar
+  en: "Date format"
+  de: "Datumsformat"
+  verified_by_human: []
+sheets.sheet.border_side:
+  context: Border side in the Sheets formatting toolbar
+  en: "Border side"
+  de: "Rahmenseite"
+  verified_by_human: []
+sheets.sheet.border_style:
+  context: Border style in the Sheets formatting toolbar
+  en: "Border style"
+  de: "Rahmenstil"
+  verified_by_human: []
+sheets.sheet.thin:
+  context: Thin in the Sheets formatting toolbar
+  en: "Thin"
+  de: "Dünn"
+  verified_by_human: []
+sheets.sheet.medium:
+  context: Medium in the Sheets formatting toolbar
+  en: "Medium"
+  de: "Mittel"
+  verified_by_human: []
+sheets.sheet.thick:
+  context: Thick in the Sheets formatting toolbar
+  en: "Thick"
+  de: "Dick"
+  verified_by_human: []
+sheets.sheet.dashed:
+  context: Dashed in the Sheets formatting toolbar
+  en: "Dashed"
+  de: "Gestrichelt"
+  verified_by_human: []
+sheets.sheet.dotted:
+  context: Dotted in the Sheets formatting toolbar
+  en: "Dotted"
+  de: "Gepunktet"
+  verified_by_human: []
+sheets.sheet.double:
+  context: Double in the Sheets formatting toolbar
+  en: "Double"
+  de: "Doppelt"
+  verified_by_human: []
+sheets.sheet.border_color:
+  context: Border color in the Sheets formatting toolbar
+  en: "Border color"
+  de: "Rahmenfarbe"
+  verified_by_human: []
+sheets.sheet.reset_colors:
+  context: Clear colors in the Sheets formatting toolbar
+  en: "Clear colors"
+  de: "Farben zurücksetzen"
+  verified_by_human: []
+sheets.sheet.layout:
+  context: Sheet layout in the Sheets formatting toolbar
+  en: "Sheet layout"
+  de: "Tabellenlayout"
+  verified_by_human: []
+sheets.sheet.column_width:
+  context: Column width (px) in the Sheets formatting toolbar
+  en: "Column width (px)"
+  de: "Spaltenbreite (px)"
+  verified_by_human: []
+sheets.sheet.row_height:
+  context: Row height (px) in the Sheets formatting toolbar
+  en: "Row height (px)"
+  de: "Zeilenhöhe (px)"
+  verified_by_human: []
+sheets.sheet.frozen_rows:
+  context: Frozen rows in the Sheets formatting toolbar
+  en: "Frozen rows"
+  de: "Fixierte Zeilen"
+  verified_by_human: []
+sheets.sheet.frozen_columns:
+  context: Frozen columns in the Sheets formatting toolbar
+  en: "Frozen columns"
+  de: "Fixierte Spalten"
+  verified_by_human: []
+sheets.sheet.merge:
+  context: Merge cells in the Sheets formatting toolbar
+  en: "Merge cells"
+  de: "Zellen verbinden"
+  verified_by_human: []
+sheets.sheet.select_merge_end:
+  context: Prompt after choosing to merge cells in the Sheets grid
+  en: Select the last cell to merge.
+  de: Wähle die letzte Zelle zum Verbinden aus.
+  verified_by_human: []
+sheets.sheet.undo_formatting:
+  context: Button that undoes the most recent local Sheets formatting change
+  en: Undo formatting
+  de: Formatierung rückgängig machen
+  verified_by_human: []
+sheets.sheet.unmerge:
+  context: Unmerge cells in the Sheets formatting toolbar
+  en: "Unmerge cells"
+  de: "Zellverbindung aufheben"
+  verified_by_human: []
 authoring.draft:
   context: "Authored result provenance and presentation label"
   en: "Draft"

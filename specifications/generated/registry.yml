@@ -994,6 +994,13 @@ specifications:
     fingerprint: 61ef7b914cbb47df5ad24300d2cb216628526bc89397296f210e61d8ca28c30a
     required_applies_to:
     - gui.web
+  feature.rich-sheets:
+    version: 1
+    status: draft
+    path: features/rich-sheets
+    fingerprint: 07e25f831d7c6a6ed4a29aae14ac6d3ef887dc529044771bacbd72ca915835f6
+    required_applies_to:
+    - gui.web
   feature.rules:
     version: 1
     status: superseded
@@ -14246,6 +14253,41 @@ assertions:
     specification_id: feature.public-publications
     type: behavior
     fingerprint: 8889d50aee981e8bfa40f0ab68a8acda6f21e5ea0f2484c621b3451a31d86522
+    required_applies_to:
+    - gui.web
+  rich-sheets.compatibility.plain:
+    specification: feature.rich-sheets@1
+    specification_id: feature.rich-sheets
+    type: invariant
+    fingerprint: d6ddf95d7ccbf729665ae99e6c2a2091e41f0f71e112a894bab52c23d1bf1f91
+    required_applies_to:
+    - gui.web
+  rich-sheets.creation.validated-formatting:
+    specification: feature.rich-sheets@1
+    specification_id: feature.rich-sheets
+    type: behavior
+    fingerprint: 2586657156a662c49946bd5669923141abacc48a99f5db306d6b3afc1e60d197
+    required_applies_to:
+    - gui.web
+  rich-sheets.editing.toolbar-and-layout:
+    specification: feature.rich-sheets@1
+    specification_id: feature.rich-sheets
+    type: behavior
+    fingerprint: 09731d1182a4ade0e8c4880f5f6f67e4158a57512f2452153202376fa01f2108
+    required_applies_to:
+    - gui.web
+  rich-sheets.collaboration.shared-history:
+    specification: feature.rich-sheets@1
+    specification_id: feature.rich-sheets
+    type: behavior
+    fingerprint: d7391938f3df18ebb89e4d178b7e81006fb6a1ef3298f922deef499f595134af
+    required_applies_to:
+    - gui.web
+  rich-sheets.exchange.workbook-and-csv:
+    specification: feature.rich-sheets@1
+    specification_id: feature.rich-sheets
+    type: behavior
+    fingerprint: 4d9e85fbadd76c021063a32e2c7f0564af6b15ca1d09ab3abf17cfc4840d55c9
     required_applies_to:
     - gui.web
   safety-strikes.screening-rejects:

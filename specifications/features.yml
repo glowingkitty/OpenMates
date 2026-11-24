@@ -1286,6 +1286,16 @@ features:
       sdk_pypi: "generated/app_skills.py apps.shopping (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-shopping-search.spec.ts]
+  - id: rich-sheets
+    name: "Rich Formatted Sheets"
+    kind: app
+    description: "Create, format and exchange spreadsheets with editable cell styles and layout."
+    specifications: [feature.rich-sheets]
+    apps: [sheets]
+    release: unverified
+    surfaces: {web: in_progress, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    key_tests:
+      web: [frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts, frontend/apps/web_app/tests/real-inference-live-assistant-sheet.spec.ts, frontend/apps/web_app/tests/rich-sheet-live.spec.ts, frontend/apps/web_app/tests/projects-create-edit-files.spec.ts]
   - id: slides
     name: "Slides"
     kind: app

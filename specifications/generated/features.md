@@ -14,18 +14,18 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**130 features** · enabled on prod: 113 · enabled on dev: 119
+**131 features** · enabled on prod: 114 · enabled on dev: 120
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 20 | 54 | 13 | 19 | 0 | 0 | 0 | 20 |
-| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 7 | 7 | 0 | 22 |
+| Web | 4 | 0 | 21 | 54 | 13 | 19 | 0 | 0 | 0 | 20 |
+| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 7 | 7 | 0 | 23 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 31 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 47 |
-| REST API | 5 | 2 | 34 | 16 | 30 | 15 | 0 | 1 | 0 | 27 |
-| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 57 |
-| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 58 |
+| CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 32 |
+| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 48 |
+| REST API | 5 | 2 | 34 | 16 | 30 | 15 | 0 | 1 | 0 | 28 |
+| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 58 |
+| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 59 |
 
 ## Core product
 
@@ -169,6 +169,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Project Timeline tab | partial 1/2 | ? |  | tested 2/2 | ? | tested 2/2 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Access, memories and parity | **FAIL** 1/4 | **FAIL** 1/4 |  | partial 1/4 | **FAIL** 0/1 | partial 2/4 | not run 0/4 | not run 0/4 | | | |
 | [Reminder](#reminder) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
+| [Rich Formatted Sheets](#rich-sheets) | partial 5/9 | — |  | — | — | — | — | — | on | on | unverified |
 | [Shopping](#shopping) | partial 1/10 | impl |  | impl | impl | partial 4/9 | impl | impl | on | on | v0.5.0-alpha |
 | [Slides](#slides) | partial 15/24 | tested 3/3 |  | — | wip | partial 11/24 | impl | — | on | on | untagged-main |
 | &nbsp;&nbsp;↳ Presentation remote | **live** 3/3 | tested 2/2 |  | — | ? | partial 1/3 | ? | — | | | |
@@ -2625,6 +2626,29 @@ Set reminders for specific or random times.
 | REST API | impl | — | — |
 | npm SDK | impl | — | — |
 | PyPI SDK | impl | — | — |
+
+</details>
+
+### Rich Formatted Sheets
+<a id="rich-sheets"></a>
+
+Create, format and exchange spreadsheets with editable cell styles and layout.
+
+- Specifications: [feature.rich-sheets](../../specifications/features/rich-sheets/specification.yml) (draft) · 5 assertion(s)
+- Apps: `sheets`
+- Flags: `app:sheets` · dev on · prod on · release unverified
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | partial 5/9 | 5 pass · 0 fail · 4 not run · 0 no test | [sheet-fullscreen.spec.ts](../../frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts)<br>[real-inference-live-assistant-sheet.spec.ts](../../frontend/apps/web_app/tests/real-inference-live-assistant-sheet.spec.ts)<br>[rich-sheet-live.spec.ts](../../frontend/apps/web_app/tests/rich-sheet-live.spec.ts)<br>[projects-create-edit-files.spec.ts](../../frontend/apps/web_app/tests/projects-create-edit-files.spec.ts)<br>[sheet-fullscreen.spec.ts](../../frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts)<br>[real-inference-live-assistant-sheet.spec.ts](../../frontend/apps/web_app/tests/real-inference-live-assistant-sheet.spec.ts)<br>[rich-sheet-live.spec.ts](../../frontend/apps/web_app/tests/rich-sheet-live.spec.ts)<br>2 unit test file(s), e.g. [test_sheet_formatting.py](../../backend/tests/test_sheet_formatting.py), [fileContentParsers.test.ts](../../frontend/packages/ui/src/components/enter_message/utils/__tests__/fileContentParsers.test.ts) |
+| Apple | — | — | — |
+| CLI | — | — | — |
+| TUI | — | — | — |
+| REST API | — | — | — |
+| npm SDK | — | — | — |
+| PyPI SDK | — | — | — |
 
 </details>
 

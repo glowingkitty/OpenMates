@@ -1372,6 +1372,13 @@
         "components/chat-orchestration-event-notice.spec.ts"
       ]
     },
+    "rich_sheets_e2e": {
+      "execution": "e2e",
+      "enabling_work": "Two provisioned Team members in an isolated stack, using the live collaboration flag to edit one sheet, sync formatting, undo and restore. No provider inference.",
+      "specs": [
+        "rich-sheet-live.spec.ts"
+      ]
+    },
     "real_inference": {
       "execution": "e2e",
       "enabling_work": "Real provider inference in the run's own isolated stack. Only the protected real-inference GitHub environment (dev branch) supplies the dev-only provider keys, which reach only that run's throwaway Vault; the stack's only egress is the gateway's HTTPS allowlist for those providers. Own batch; never mixed with replay fixtures.",

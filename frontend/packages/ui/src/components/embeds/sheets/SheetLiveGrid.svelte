@@ -14,7 +14,9 @@
   import { liveItemClient } from '../../../services/live/liveItemClient';
   import type { LiveItemClient, LivePeer, LiveStatus } from '../../../services/live/liveItemTypes';
   import { columnLabel, peerMate, sheetCursor } from '../../../services/live/liveSurface';
-  import { asSheetView, cellKey, type LiveSheetView } from './sheetLiveTypes';
+  import { asSheetView, cellKey, type LiveSheetAddress, type LiveSheetView } from './sheetLiveTypes';
+  import { displaySheetValue, sheetCellCss, sheetPixels, visibleSheetMerges, watchSheetRows } from './sheetFormattingPresentation';
+  import type { SheetFormatting } from './sheetFormattingTypes';
 
   interface Props {
     itemId: string;
@@ -23,14 +25,42 @@
     teamId?: string;
     status?: LiveStatus;
     peers?: LivePeer[];
+    onFormatSelect?: (cell: LiveSheetAddress) => boolean;
   }
-  let { itemId, projectId, teamId, client = liveItemClient(), status = $bindable('saving'), peers = $bindable([]) }: Props = $props();
+  let { itemId, projectId, teamId, client = liveItemClient(), status = $bindable('saving'), peers = $bindable([]), onFormatSelect }: Props = $props();
 
   let view = $state<LiveSheetView | null>(null);
   let active = $state<{ row: string; col: string } | null>(null);
   let draft = $state('');
   let headerEdit = $state<string | null>(null);
   let readOnly = $derived(status === 'read_only' || status === 'access_revoked');
+  let formatting = $derived(view?.formatting as SheetFormatting | undefined);
+  let formatted = $derived(!!formatting && Object.keys(formatting).length > 0);
+  let merges = $derived(visibleSheetMerges(formatting, (view?.rows.length ?? 0) + 1, view?.cols.length ?? 0));
+  let columnWidths = $derived(view?.cols.map((_, column) => (
+    sheetPixels(formatting?.columnWidths?.[columnLabel(column)], 24, 1200) ?? 120
+  )) ?? []);
+  let rowOffsets = $state<number[]>([]);
+  let leftOffsets = $derived(columnWidths.map((_, column) => columnWidths.slice(0, column).reduce((sum, width) => sum + width, 56)));
+  let frozenRows = $derived(sheetPixels(formatting?.frozenRows, 0, (view?.rows.length ?? 0) + 1) ?? 0);
+  let frozenColumns = $derived(sheetPixels(formatting?.frozenColumns, 0, columnWidths.length) ?? 0);
+
+  function measureRows(table: HTMLTableElement, _formatting?: SheetFormatting) {
+    return watchSheetRows(table, (offsets) => { rowOffsets = offsets; });
+  }
+
+  function rowHeight(index: number): string | undefined {
+    const size = sheetPixels(formatting?.rowHeights?.[String(index + 1)], 16, 600);
+    return size ? `${size}px` : undefined;
+  }
+
+  function rowTop(index: number): string | undefined {
+    return index < frozenRows ? `${rowOffsets[index] ?? 0}px` : undefined;
+  }
+
+  function columnLeft(index: number): string | undefined {
+    return index < frozenColumns ? `${leftOffsets[index]}px` : undefined;
+  }
 
   onMount(() => {
     const stops = [
@@ -56,10 +86,15 @@
 
   function startEdit(rowId: string, colId: string) {
     if (readOnly) return;
+    if (onFormatSelect?.({ rowId, colId })) return;
     active = { row: rowId, col: colId };
     const cell = view?.cells[cellKey(rowId, colId)];
     draft = cell?.formula ?? cell?.display ?? '';
     select(rowId, colId);
+  }
+
+  function startHeaderEdit(colId: string) {
+    if (!readOnly && !onFormatSelect?.({ rowId: null, colId })) headerEdit = colId;
   }
 
   function commit() {
@@ -91,20 +126,36 @@
 
 <div class="live-sheet" data-testid="sheet-live-grid" data-live="true" data-status={status}>
   {#if view}
+    {@const headingTop = rowTop(0)}
     <div class="live-sheet-scroll">
-      <table class="live-sheet-table" aria-label={$text('embed_user_edits.live_sheet_label')}>
-        <thead>
-          <tr>
-            <th class="gutter"></th>
+      <table class="live-sheet-table" class:formatted aria-label={$text('embed_user_edits.live_sheet_label')}
+        use:measureRows={formatting} style:width={formatted ? `${columnWidths.reduce((sum, width) => sum + width, 56)}px` : undefined}>
+        {#if formatted}
+          <colgroup><col style:width="56px" />
+            {#each columnWidths as width}<col style:width={`${width}px`} />{/each}
+          </colgroup>
+        {/if}
+        <tbody>
+          <tr style:height={rowHeight(0)}>
+            <th class="gutter" class:pinned-row={headingTop !== undefined} style:top={headingTop}></th>
             {#each view.cols as colId, colIndex (colId)}
-              <th class="head" data-testid="sheet-live-header" data-col-id={colId} style:text-align={view.aligns?.[colId] ?? undefined}>
+              {@const merge = merges.get(`0:${colIndex}`)}
+              {@const format = formatting?.cells?.[`${columnLabel(colIndex)}1`]}
+              {@const left = columnLeft(colIndex)}
+              {#if merge !== null}
+              <th class="head" data-testid="sheet-live-header" data-col-id={colId}
+                class:pinned-row={headingTop !== undefined} class:pinned-column={left !== undefined}
+                colspan={merge?.colSpan} rowspan={merge?.rowSpan}
+                style={sheetCellCss(format)} style:top={headingTop} style:left style:text-align={format?.horizontalAlign ?? view.aligns?.[colId]}>
                 <span class="col-letter">{columnLabel(colIndex)}</span>
                 {#if headerEdit === colId}
-                  <input class="head-input" type="text" data-testid="sheet-live-header-input" value={view.headers[colId] ?? ''} use:focusInput
+                  <input class="head-input" type="text" value={view.headers[colId] ?? ''} use:focusInput
+                    data-testid="sheet-live-header-input"
                     onblur={(e) => commitHeader(colId, e.currentTarget.value)}
                     onkeydown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') headerEdit = null; }} />
                 {:else}
-                  <button type="button" class="head-text" disabled={readOnly} onclick={() => (headerEdit = colId)}>{view.headers[colId] ?? ''}</button>
+                  <button type="button" class="head-text" disabled={readOnly} onclick={() => startHeaderEdit(colId)}
+                    data-testid="sheet-live-header-edit">{displaySheetValue(view.headers[colId] ?? '', format)}</button>
                 {/if}
                 {#if !readOnly}
                   <span class="line-actions">
@@ -113,13 +164,13 @@
                   </span>
                 {/if}
               </th>
+              {/if}
             {/each}
           </tr>
-        </thead>
-        <tbody>
           {#each view.rows as rowId, rowIndex (rowId)}
-            <tr data-row-id={rowId}>
-              <td class="gutter">
+            {@const top = rowTop(rowIndex + 1)}
+            <tr data-row-id={rowId} style:height={rowHeight(rowIndex + 1)}>
+              <td class="gutter" class:pinned-row={top !== undefined} style:top>
                 <span>{rowIndex + 1}</span>
                 {#if !readOnly}
                   <span class="line-actions">
@@ -128,24 +179,32 @@
                   </span>
                 {/if}
               </td>
-              {#each view.cols as colId (colId)}
+              {#each view.cols as colId, colIndex (colId)}
                 {@const cell = view.cells[cellKey(rowId, colId)]}
+                {@const merge = merges.get(`${rowIndex + 1}:${colIndex}`)}
+                {@const format = formatting?.cells?.[`${columnLabel(colIndex)}${rowIndex + 2}`]}
+                {@const left = columnLeft(colIndex)}
                 {@const here = peersAt(rowId, colId)}
                 {@const lead = here[0]}
+                {#if merge !== null}
                 <td
                   class="cell"
+                  class:pinned-row={top !== undefined}
+                  class:pinned-column={left !== undefined}
                   class:suggested={!!cell?.suggestion}
                   class:peer-here={!!lead}
                   data-testid="sheet-live-cell"
                   data-cell-id={cellKey(rowId, colId)}
                   data-formula={cell?.formula ?? undefined}
+                  colspan={merge?.colSpan} rowspan={merge?.rowSpan}
+                  style={sheetCellCss(format)} style:top style:left
                   style:outline-color={lead?.color}
-                  style:text-align={view.aligns?.[colId] ?? undefined}
+                  style:text-align={format?.horizontalAlign ?? view.aligns?.[colId]}
                 >
                   {#if active && active.row === rowId && active.col === colId}
                     <input class="cell-input" data-testid="sheet-live-cell-input" type="text" bind:value={draft} onkeydown={onCellKey} onblur={commit} use:focusInput />
                   {:else}
-                    <button type="button" class="cell-text" disabled={readOnly} onclick={() => startEdit(rowId, colId)} onfocus={() => select(rowId, colId)}>{cell?.display ?? ''}</button>
+                    <button type="button" class="cell-text" disabled={readOnly} onclick={() => startEdit(rowId, colId)} onfocus={() => select(rowId, colId)}>{displaySheetValue(cell?.display ?? '', format)}</button>
                   {/if}
                   {#if cell?.suggestion}
                     <span class="suggestion" data-testid="sheet-live-suggestion">
@@ -164,6 +223,7 @@
                     </span>
                   {/if}
                 </td>
+                {/if}
               {/each}
             </tr>
           {/each}
@@ -176,13 +236,21 @@
 <style>
   .live-sheet { width: 100%; }
   .live-sheet-scroll { overflow: auto; }
+  .live-sheet:has(.formatted) .live-sheet-scroll { max-block-size: 65dvh; }
   .live-sheet-table { border-collapse: collapse; width: 100%; font-size: var(--font-size-small); color: var(--color-font-primary); }
+  .live-sheet-table.formatted { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
   th, td { border: 1px solid var(--color-grey-30); padding: 0; min-width: 96px; height: 34px; position: relative; text-align: left; vertical-align: middle; }
   .gutter { min-width: 56px; width: 56px; background: var(--color-grey-10); color: var(--color-font-secondary); text-align: center; }
   .head { background: var(--color-grey-10); font-weight: 600; }
   .col-letter { display: block; font-size: 11px; font-weight: 400; color: var(--color-font-tertiary); padding: 0 var(--spacing-3); }
   .head-text, .cell-text, .head-input, .cell-input { width: 100%; min-width: 0; min-height: 0; margin: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: inherit; padding: var(--spacing-2) var(--spacing-3); box-sizing: border-box; cursor: pointer; }
   .cell-text { height: 100%; min-height: 32px; }
+  .formatted :is(th, td) { min-width: 0; overflow-wrap: anywhere; }
+  .formatted .cell-text { white-space: inherit; }
+  .pinned-row, .pinned-column { position: sticky; z-index: var(--z-index-raised); }
+  .pinned-row.pinned-column, .pinned-row.gutter { z-index: var(--z-index-raised-2); }
+  .cell.pinned-row, .cell.pinned-column { background-color: var(--color-grey-0); }
+  .formatted .gutter { position: sticky; left: 0; z-index: var(--z-index-raised); }
   .cell-input, .head-input { cursor: text; outline: 2px solid var(--color-primary-start); outline-offset: -2px; background: var(--color-grey-0); }
   .cell-text:focus-visible, .head-text:focus-visible { outline: 2px solid var(--color-primary-start); outline-offset: -2px; }
   .cell.peer-here { outline: 2px solid; outline-offset: -2px; }

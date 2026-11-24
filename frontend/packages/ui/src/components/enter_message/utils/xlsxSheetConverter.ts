@@ -2,8 +2,8 @@
 //
 // Converts an uploaded .xlsx workbook into one sheet-embed markdown table per
 // visible worksheet. Formulas the sheet formula engine supports are kept (and
-// rewritten to its data-row coordinates); everything else (macros, charts,
-// pivots, images, styling, unsupported formulas ...) is dropped and reported in
+// rewritten to its data-row coordinates). Supported formatting is retained.
+// Unsupported features (macros, charts, pivots, images, unsupported formulas) are reported in
 // `removed` so the UI can tell the user. Nothing in the workbook is executed.
 //
 // Coordinates: the engine counts DATA rows (the first row below the header is
@@ -11,6 +11,8 @@
 // Architecture: components/embeds/sheets/sheetFormulaEngine.ts
 
 import JSZip from "jszip";
+import type { SheetFormatting } from "../../embeds/sheets/sheetFormattingTypes";
+import { readXlsxStyles, type XlsxCellStyle } from "./xlsxSheetStyles";
 
 export type XlsxRemovedFeature =
   | "formatting"
@@ -31,6 +33,7 @@ export interface ConvertedXlsxSheet {
   markdown: string;
   rowCount: number;
   colCount: number;
+  formatting?: SheetFormatting;
 }
 
 export interface ConvertedXlsxWorkbook {
@@ -104,31 +107,8 @@ function classifyFormat(numFmtId: number, code: string | undefined): CellKind {
   return "plain";
 }
 
-interface StyleInfo {
-  kinds: CellKind[];
-  filled: boolean[];
-}
-
-function parseStyles(stylesXml: string | undefined): StyleInfo {
-  const info: StyleInfo = { kinds: [], filled: [] };
-  if (!stylesXml) return info;
-  const customCodes = new Map<number, string>();
-  for (const m of stylesXml.matchAll(/<numFmt\b([^>]*?)\/?>/g)) {
-    const id = attr(m[1], "numFmtId");
-    const code = attr(m[1], "formatCode");
-    if (id !== null && code !== null) customCodes.set(Number(id), code);
-  }
-  const xfBlock = stylesXml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/)?.[1] ?? "";
-  for (const m of xfBlock.matchAll(/<xf\b([^>]*?)(?:\/>|>)/g)) {
-    const numFmtId = Number(attr(m[1], "numFmtId") ?? 0);
-    info.kinds.push(classifyFormat(numFmtId, customCodes.get(numFmtId)));
-    info.filled.push(Number(attr(m[1], "fillId") ?? 0) >= 2);
-  }
-  return info;
-}
-
 function serialToText(serial: number, kind: "date" | "time", date1904: boolean): string {
-  const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
+  const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, serial < 60 ? 31 : 30);
   const d = new Date(epoch + Math.round(serial * 86400000));
   const pad = (n: number) => String(n).padStart(2, "0");
   const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
@@ -248,15 +228,15 @@ interface RawCell {
   kind: CellKind;
   isText: boolean;
   formula: string | null;
-  filled: boolean;
+  style?: XlsxCellStyle;
 }
 
 function readWorksheet(
   xml: string,
   sharedStrings: string[],
-  styles: StyleInfo,
+  styles: XlsxCellStyle[],
   date1904: boolean,
-): { raw: RawCell[]; merged: boolean; conditional: boolean } {
+): RawCell[] {
   const raw: RawCell[] = [];
   const sheetData = xml.match(/<sheetData\b[^>]*>([\s\S]*?)<\/sheetData>/)?.[1] ?? "";
   const shared = new Map<string, { text: string; row: number; col: number }>();
@@ -269,7 +249,8 @@ function readWorksheet(
     const row = Number(ref[2]);
     const type = attr(attrs, "t");
     const styleIndex = Number(attr(attrs, "s") ?? 0);
-    const kind = styles.kinds[styleIndex] ?? "plain";
+    const style = styles[styleIndex];
+    const kind = classifyFormat(style?.formatId ?? 0, style?.code);
 
     let value = "";
     let isText = false;
@@ -310,24 +291,45 @@ function readWorksheet(
       }
       if (formula === null) formula = text || "";
     }
-    raw.push({ col, row, value, kind, isText, formula, filled: styles.filled[styleIndex] === true });
+    raw.push({ col, row, value, kind, isText, formula, style });
   }
-  return {
-    raw,
-    merged: /<mergeCell\b/.test(xml),
-    conditional: /<conditionalFormatting\b/.test(xml),
-  };
+  return raw;
 }
 
-function toMarkdown(raw: RawCell[]): { result: ConvertedXlsxSheet; unsupported: boolean; filled: boolean } | null {
+function toMarkdown(raw: RawCell[], xml: string, removed: Set<XlsxRemovedFeature>): ConvertedXlsxSheet | null {
   const populated = raw.filter((c) => c.value.trim() !== "" || (c.formula ?? "") !== "");
   if (populated.length === 0) return null;
 
   const headerRow = Math.min(...populated.map((c) => c.row));
-  const lastRow = Math.max(...populated.map((c) => c.row));
-  const colCount = Math.max(...populated.map((c) => c.col)) + 1;
+  let lastRow = Math.max(...populated.map((c) => c.row));
+  let colCount = Math.max(...populated.map((c) => c.col)) + 1;
   const byPos = new Map<string, RawCell>();
   for (const cell of raw) byPos.set(`${cell.col}:${cell.row}`, cell);
+
+  const merges: NonNullable<SheetFormatting["merges"]> = [];
+  const mergeBounds: Array<{ top: number; bottom: number; left: number; right: number }> = [];
+  for (const [, attrs] of xml.matchAll(/<mergeCell\b([^>]*?)\/?>/g)) {
+    const ref = attr(attrs, "ref")?.match(/^([A-Z]{1,3})(\d+):([A-Z]{1,3})(\d+)$/);
+    if (!ref) { removed.add("merged_cells"); continue; }
+    const [, startColumn, startRow, endColumn, endRow] = ref;
+    const top = Number(startRow);
+    const bottom = Number(endRow);
+    const left = colToIndex(startColumn);
+    const right = colToIndex(endColumn);
+    const overlaps = mergeBounds.some((other) =>
+      top <= other.bottom && bottom >= other.top && left <= other.right && right >= other.left,
+    );
+    if (top < headerRow || top > lastRow || left >= colCount || top > bottom || left > right
+      || (top === bottom && left === right) || bottom - headerRow >= 1000 || right >= 256
+      || overlaps || merges.length >= 256) {
+      removed.add("merged_cells");
+      continue;
+    }
+    lastRow = Math.max(lastRow, bottom);
+    colCount = Math.max(colCount, right + 1);
+    mergeBounds.push({ top, bottom, left, right });
+    merges.push({ start: `${startColumn}${top - headerRow + 1}`, end: `${endColumn}${bottom - headerRow + 1}` });
+  }
 
   const headerIsText = (col: number) => {
     const cell = byPos.get(`${col}:${headerRow}`);
@@ -342,7 +344,6 @@ function toMarkdown(raw: RawCell[]): { result: ConvertedXlsxSheet; unsupported: 
     },
   };
 
-  let unsupported = false;
   const escape = (text: string) => text.replace(/\|/g, "¦").replace(/\r?\n/g, " ").trim();
   const lines: string[] = [];
   for (let row = headerRow; row <= lastRow; row++) {
@@ -353,7 +354,7 @@ function toMarkdown(raw: RawCell[]): { result: ConvertedXlsxSheet; unsupported: 
       if (cell && cell.formula) {
         const translated = row > headerRow ? translateFormula(cell.formula, ctx) : null;
         if (translated) text = translated;
-        else unsupported = true;
+        else removed.add("unsupported_formulas");
       } else if (/^\s*=/.test(text)) {
         text = `'${text.trim()}`; // literal text that merely starts with "=" must not become a formula
       }
@@ -362,17 +363,68 @@ function toMarkdown(raw: RawCell[]): { result: ConvertedXlsxSheet; unsupported: 
     lines.push(`| ${cells.join(" | ")} |`);
     if (row === headerRow) lines.push(`| ${new Array(colCount).fill("---").join(" | ")} |`);
   }
-  while (lines.length > 2 && /^\|(\s*\|)+$/.test(lines[lines.length - 1])) lines.pop();
-
+  const formatting = worksheetFormatting(xml, raw, headerRow, lastRow, colCount, removed);
+  if (merges.length) formatting.merges = merges;
   return {
-    result: {
-      name: "",
-      markdown: lines.join("\n"),
-      rowCount: lines.length - 2,
-      colCount,
-    },
-    unsupported,
-    filled: populated.some((c) => c.filled),
+    name: "",
+    markdown: lines.join("\n"),
+    rowCount: lines.length - 2,
+    colCount,
+    ...(Object.keys(formatting).length ? { formatting } : {}),
+  };
+}
+
+function worksheetFormatting(
+  xml: string,
+  raw: RawCell[],
+  headerRow: number,
+  lastRow: number,
+  colCount: number,
+  removed: Set<XlsxRemovedFeature>,
+): SheetFormatting {
+  const columnWidths: NonNullable<SheetFormatting["columnWidths"]> = {};
+  for (const [, attrs] of xml.matchAll(/<col\b([^>]*?)\/?>/g)) {
+    const min = Number(attr(attrs, "min"));
+    const max = Math.min(Number(attr(attrs, "max")), colCount, 256);
+    const chars = Number(attr(attrs, "width"));
+    if (chars > 0 && Number.isInteger(min) && min >= 1 && Number.isInteger(max)) {
+      const pixels = Math.min(1200, Math.max(24, Math.round(chars * 7 + 5)));
+      for (let col = min; col <= max; col++) columnWidths[indexToCol(col - 1)] = pixels;
+    }
+    if (attr(attrs, "hidden") === "1" || attr(attrs, "style")) removed.add("formatting");
+  }
+  const rowHeights: NonNullable<SheetFormatting["rowHeights"]> = {};
+  for (const [, attrs] of xml.matchAll(/<row\b([^>]*?)>/g)) {
+    const sourceRow = Number(attr(attrs, "r"));
+    const points = Number(attr(attrs, "ht"));
+    if (points > 0 && sourceRow >= headerRow && sourceRow <= Math.min(lastRow, headerRow + 999)) {
+      rowHeights[String(sourceRow - headerRow + 1)] = Math.min(600, Math.max(16, Math.round(points * 4 / 3)));
+    }
+    if (attr(attrs, "hidden") === "1" || attr(attrs, "s")) removed.add("formatting");
+  }
+
+  const cells: NonNullable<SheetFormatting["cells"]> = {};
+  let styledCount = 0;
+  for (const cell of raw) {
+    if (cell.style?.hasUnsupportedStyle) removed.add("formatting");
+    if (!cell.style || !Object.keys(cell.style.style).length) continue;
+    if (cell.row < headerRow || cell.row > lastRow || cell.col >= colCount || styledCount >= 10000) {
+      removed.add("formatting");
+      continue;
+    }
+    cells[`${indexToCol(cell.col)}${cell.row - headerRow + 1}`] = cell.style.style;
+    styledCount++;
+  }
+  const pane = xml.match(/<pane\b([^>]*?)\/?>/)?.[1] ?? "";
+  const frozen = ["frozen", "frozenSplit"].includes(attr(pane, "state") ?? "");
+  const frozenRows = Math.max(0, Math.min(Number(attr(pane, "ySplit")) - headerRow + 1, lastRow - headerRow + 1, 1000));
+  const frozenColumns = Math.min(Number(attr(pane, "xSplit")), colCount, 256);
+  return {
+    ...(Object.keys(columnWidths).length ? { columnWidths } : {}),
+    ...(Object.keys(rowHeights).length ? { rowHeights } : {}),
+    ...(styledCount ? { cells } : {}),
+    ...(frozen && Number.isInteger(frozenRows) && frozenRows > 0 ? { frozenRows } : {}),
+    ...(frozen && Number.isInteger(frozenColumns) && frozenColumns > 0 ? { frozenColumns } : {}),
   };
 }
 
@@ -397,7 +449,10 @@ export async function convertXlsxWorkbook(buffer: ArrayBuffer): Promise<Converte
   const workbookXml = (await zip.file("xl/workbook.xml")?.async("string")) ?? "";
   const relsXml = (await zip.file("xl/_rels/workbook.xml.rels")?.async("string")) ?? "";
   const sharedXml = await zip.file("xl/sharedStrings.xml")?.async("string");
-  const styles = parseStyles(await zip.file("xl/styles.xml")?.async("string"));
+  const [stylesXml, themeXml] = await Promise.all([
+    zip.file("xl/styles.xml")?.async("string"), zip.file("xl/theme/theme1.xml")?.async("string"),
+  ]);
+  const styles = readXlsxStyles(stylesXml ?? "", themeXml ?? "", attr);
   const date1904 = /<workbookPr\b[^>]*date1904="(1|true)"/.test(workbookXml);
   const sharedStrings = sharedXml
     ? Array.from(sharedXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)).map((m) => textOf(m[1]))
@@ -423,14 +478,10 @@ export async function convertXlsxWorkbook(buffer: ArrayBuffer): Promise<Converte
     if (sheets.length >= MAX_SHEETS) { removed.add("sheet_limit"); continue; }
     const xml = await zip.file(sheet.path)?.async("string");
     if (!xml) continue;
-    const parsed = readWorksheet(xml, sharedStrings, styles, date1904);
-    if (parsed.merged) removed.add("merged_cells");
-    if (parsed.conditional) removed.add("conditional_formatting");
-    const table = toMarkdown(parsed.raw);
+    if (/<conditionalFormatting\b/.test(xml)) removed.add("conditional_formatting");
+    const table = toMarkdown(readWorksheet(xml, sharedStrings, styles, date1904), xml, removed);
     if (!table) continue;
-    if (table.unsupported) removed.add("unsupported_formulas");
-    if (table.filled) removed.add("formatting");
-    sheets.push({ ...table.result, name: sheet.name });
+    sheets.push({ ...table, name: sheet.name });
   }
 
   return { sheets, removed: Array.from(removed) };

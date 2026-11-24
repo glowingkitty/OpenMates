@@ -21,7 +21,8 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { parseSheetEmbedContent, formatTableDimensions, tableToTSV } from './sheetEmbedContent';
+  import { colIndexToLetter, parseSheetEmbedContent, formatTableDimensions, tableToTSV } from './sheetEmbedContent';
+  import { displaySheetValue, sheetCellCss, sheetPixels, visibleSheetMerges } from './sheetFormattingPresentation';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks, stripWikiLinks } from '../../../utils/embedLinkUtils';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
@@ -74,6 +75,7 @@
   let localColCount = $state<number>(0);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
+  let invalidFormatting = $state(false);
 
   // Track whether the store has resolved a terminal status for this embed.
   // Once handleEmbedDataUpdated receives "finished"/"error", the $effect must NOT
@@ -159,6 +161,7 @@
   let parsedContent = $derived.by(() => parseSheetEmbedContent(piiProcessedTableContent, { title }));
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
+  let formatting = $derived(parsedContent.formatting);
   
   // Get actual row/col counts
   let actualRowCount = $derived(rowCount > 0 ? rowCount : parsedTable.rowCount);
@@ -176,6 +179,8 @@
    */
   let colWidths = $derived.by(() => {
     return parsedTable.headers.map((header, i) => {
+      const width = sheetPixels(formatting?.columnWidths?.[colIndexToLetter(i)], 24, 1200);
+      if (width) return width;
       const headerLen = stripEmbedLinks(header.content).length;
       const maxDataLen = previewRows.reduce((max, row) => {
         const len = row[i]?.content?.length ?? 0;
@@ -211,6 +216,12 @@
     return Math.max(count, 1);
   });
   let hiddenColCount = $derived(parsedTable.headers.length - visibleColCount);
+  let merges = $derived(visibleSheetMerges(formatting, previewRows.length + 1, visibleColCount));
+
+  function rowHeight(row: number): string | undefined {
+    const height = sheetPixels(formatting?.rowHeights?.[String(row)], 16, 600);
+    return height ? `${height}px` : undefined;
+  }
   let visibleColWidths = $derived(colWidths.slice(0, visibleColCount));
   let visibleHeaders = $derived(parsedTable.headers.slice(0, visibleColCount));
 
@@ -241,6 +252,8 @@
     
     if (data.decodedContent) {
       const c = data.decodedContent;
+      const validation = c.validation as { status?: string } | undefined;
+      invalidFormatting = data.status === 'error' && validation?.status === 'error';
       // TOON content uses 'table' field; legacy/fallback uses 'code'
       const nextTableContent = String(c.table || c.code || c.content || '');
       if (nextTableContent || !localTableContent) {
@@ -328,9 +341,13 @@
               {/each}
             </colgroup>
             <thead>
-              <tr>
-                {#each visibleHeaders as header}
-                  <th>{stripEmbedLinks(header.content)}</th>
+              <tr style:height={rowHeight(1)}>
+                {#each visibleHeaders as header, index}
+                  {@const merge = merges.get(`0:${index}`)}
+                  {@const style = formatting?.cells?.[`${colIndexToLetter(index)}1`]}
+                  {#if merge !== null}
+                    <th colspan={merge?.colSpan} rowspan={merge?.rowSpan} style={sheetCellCss(style)}>{displaySheetValue(stripEmbedLinks(header.content), style)}</th>
+                  {/if}
                 {/each}
                 {#if hiddenColCount > 0}
                   <th class="more-cols-header">+{hiddenColCount}</th>
@@ -338,16 +355,21 @@
               </tr>
             </thead>
             <tbody>
-              {#each previewRows as row}
-                <tr>
-                  {#each row.slice(0, visibleColCount) as cell}
+              {#each previewRows as row, rowIndex}
+                <tr style:height={rowHeight(rowIndex + 2)}>
+                  {#each row.slice(0, visibleColCount) as cell, columnIndex}
+                    {@const merge = merges.get(`${rowIndex + 1}:${columnIndex}`)}
+                    {@const style = formatting?.cells?.[`${colIndexToLetter(columnIndex)}${rowIndex + 2}`]}
                     {@const cleanCellContent = stripEmbedLinks(cell.content)}
                     {@const wikiHtml = replaceWikiLinksInText(cleanCellContent)}
-                    {#if wikiHtml}
-                      <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-                      <td class:sheet-cell-formula={!!cell.formula} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined}>{@html wikiHtml}</td>
-                    {:else}
-                      <td class:sheet-cell-formula={!!cell.formula} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined}>{cleanCellContent}</td>
+                    {#if merge !== null}
+                      <td colspan={merge?.colSpan} rowspan={merge?.rowSpan} style={sheetCellCss(style)}
+                        class:sheet-cell-formula={!!cell.formula} data-formula={cell.formula ?? undefined} title={cell.formula ?? undefined}>
+                        {#if wikiHtml}
+                          <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
+                          {@html wikiHtml}
+                        {:else}{displaySheetValue(cleanCellContent, style)}{/if}
+                      </td>
                     {/if}
                   {/each}
                   {#if hiddenColCount > 0}
@@ -365,6 +387,8 @@
             </tbody>
           </table>
         </div>
+      {:else if invalidFormatting}
+        <p class="empty-state" role="alert">{$text('embeds.sheets.sheet.invalid_formatting')}</p>
       {:else}
         <!-- Error or empty state -->
         <div class="empty-state">
@@ -416,7 +440,7 @@
     flex: 1;
     height: 18px;
     background: var(--color-grey-20);
-    border-radius: 2px;
+    border-radius: var(--spacing-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
   
@@ -530,7 +554,6 @@
   
   .more-indicator {
     color: var(--color-font-tertiary);
-    font-size: null;
     font-style: italic;
   }
   
@@ -552,10 +575,6 @@
   }
   
   /* ── Mobile ────────────────────────────────────────── */
-  
-  .mobile .preview-table {
-    font-size: null;
-  }
   
   .mobile .preview-table th,
   .mobile .preview-table td {

@@ -26,6 +26,8 @@
  */
 
 import { rustDetectLanguages } from "./rustComposerCode";
+import { withSheetFormatting } from "../../embeds/sheets/sheetFormattingText";
+import type { SheetFormatting } from "../../embeds/sheets/sheetFormattingTypes";
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { createEmbedReferenceBlock } from "./urlMetadataService";
@@ -757,6 +759,7 @@ export async function createDocEmbed(
 export async function createSheetEmbed(
   tableMarkdown: string,
   title?: string,
+  formatting?: SheetFormatting,
 ): Promise<SheetEmbedCreationResult> {
   const embed_id = generateUUID();
   const { redactedContent, piiMappings } = await redactEmbedContent(tableMarkdown);
@@ -767,12 +770,13 @@ export async function createSheetEmbed(
   const headerLine = rows[0] || "";
   const colCount = Math.max(0, (headerLine.match(/\|/g) || []).length - 1);
   const rowCount = Math.max(0, rows.length - 2);
+  const table = withSheetFormatting(redactedContent, formatting);
 
   const embedContent = {
     type: "sheet",
     title: title || null,
-    table: redactedContent,
-    code: redactedContent,
+    table,
+    code: table,
     row_count: rowCount,
     col_count: colCount,
     rows: rowCount,

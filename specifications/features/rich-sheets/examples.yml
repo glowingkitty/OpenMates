@@ -1,0 +1,40 @@
+schema_version: 1
+specification: feature.rich-sheets@1
+
+compatibility:
+  - id: plain-sheet
+    given: Alice saved a plain expense table before Sheets added formatting.
+    when: She opens it in the chat or fullscreen.
+    then: The columns, row labels and amounts look the same, and opening it does not change the saved sheet.
+
+creation:
+  - id: formatted-budget
+    given: Alice asks for a monthly budget with a merged navy title, wider categories, dollar amounts and a frozen title row.
+    when: The assistant creates the budget.
+    then: The title spans the requested cells, the categories have room, the amounts display as currency and the title row stays in view when she scrolls.
+  - id: invalid-merge
+    given: The assistant sends a formatting request with two overlapping merged ranges.
+    when: OpenMates validates that output.
+    then: OpenMates reports a formatting validation error.
+
+editing:
+  - id: edit-on-phone
+    given: Alice opens a budget in edit mode on her phone in dark mode.
+    when: She selects a cell and changes its fill, then changes the row height and column width.
+    then: Each change is visible in the grid, and she can reach the controls without leaving edit mode.
+
+collaboration:
+  - id: undo-and-restore-formatting
+    given: Alice and Bob have the same shared budget open.
+    when: Alice changes the total to bold, Bob changes its fill, and Alice undoes her bold change and restores an earlier version.
+    then: Both viewers see the changes live. Undo removes the bold change while keeping Bob's fill, and restore brings back the earlier formatting for both viewers.
+  - id: assistant-formatting-while-open
+    given: Alice and Bob have the same shared budget open.
+    when: Alice asks the assistant to change the currency display while Bob changes a description.
+    then: Both viewers see the new currency display and Bob's description, and the assistant's change appears as one version.
+
+exchange:
+  - id: workbook-round-trip
+    given: A workbook has a wide first column, colored headings, a merged title and formatted amounts.
+    when: Alice imports it, then downloads XLSX and CSV.
+    then: The XLSX keeps the supported layout and formatting. The CSV contains the data in rows and columns.

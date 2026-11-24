@@ -3,6 +3,104 @@ import { waitForComponentMotion, waitForComponentPreview } from '../helpers/comp
 
 // playwright-account: not_required reason=isolated_component_preview
 const PREVIEW = '/dev/preview/embeds/sheets/SheetEmbedFullscreen';
+const previewSizes = [390, 1000].flatMap(width => ['light', 'dark'].map(theme => ({ width, theme })));
+
+// contract-test: supporting surface=gui.web assertions=rich-sheets.compatibility.plain,rich-sheets.editing.toolbar-and-layout
+test('formatted sheets keep value editing available with live collaboration off', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.addInitScript(() => localStorage.removeItem('om_live_collaboration'));
+  await page.goto(`${PREVIEW}?theme=light&background=%23dbeafe&width=390&chrome=0&variant=formattedEditableBudget`);
+  await waitForComponentPreview(page);
+  const edit = page.getByTestId('sheet-edit-toggle');
+  const formatted = page.getByTestId('formatted-sheet-grid');
+  await expect(formatted.getByText('$1,250.50', { exact: true })).toBeVisible();
+  await edit.click();
+  await page.getByTestId('sheet-cell').and(page.locator('[data-cell="B1"]')).click();
+  const input = page.getByTestId('sheet-cell-input');
+  await expect(input).toHaveValue('1250.5');
+  await testInfo.attach('formatted-sheet-value-editor-with-live-off', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await input.press('Escape');
+  await edit.click();
+  await expect(formatted.getByText('$1,250.50', { exact: true })).toBeVisible();
+});
+
+for (const { width, theme } of previewSizes) {
+  // contract-test: supporting surface=gui.web assertions=rich-sheets.editing.toolbar-and-layout
+  test(`sheet formatting toolbar exposes editable options at ${width}px in ${theme} mode`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`/dev/preview/embeds/sheets/SheetFormattingToolbar?theme=${theme}&background=%23dbeafe&width=${width}&chrome=0`);
+    await waitForComponentPreview(page);
+    const toolbar = page.getByRole('toolbar', { name: 'Sheet formatting' });
+    const bold = toolbar.getByRole('button', { name: 'Bold', exact: true });
+    const undo = toolbar.getByRole('button', { name: 'Undo formatting', exact: true });
+    const wrap = toolbar.getByRole('button', { name: 'Wrap text', exact: true });
+    await expect(bold).toHaveAttribute('aria-pressed', 'true');
+    await expect(undo).toBeEnabled();
+    await expect(wrap).toBeVisible();
+    expect((await wrap.boundingBox())?.y).toBe((await undo.boundingBox())?.y);
+    const styleChange = page.waitForEvent('console', { predicate: (message) => message.text().includes('{"bold":false}') });
+    await bold.click();
+    await styleChange;
+
+    await toolbar.getByText('Cell format', { exact: true }).click();
+    await expect(toolbar.getByLabel('Fill color')).toBeVisible();
+    await expect(toolbar.getByLabel('Currency code')).toHaveValue('USD');
+    await expect(toolbar.getByLabel('Decimal places')).toHaveValue('2');
+    await testInfo.attach(`sheet-formatting-${width}-${theme}`, {
+      body: await toolbar.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+
+    await toolbar.getByText('Cell format', { exact: true }).click();
+    await toolbar.getByText('Sheet layout', { exact: true }).click();
+    await expect(toolbar.getByLabel('Column width (px)')).toHaveValue('140');
+    await expect(toolbar.getByLabel('Frozen rows')).toHaveValue('1');
+    await expect(toolbar.getByRole('button', { name: 'Merge cells', exact: true })).toBeEnabled();
+    await expect(toolbar.getByRole('button', { name: 'Unmerge cells', exact: true })).toBeDisabled();
+    expect(await toolbar.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    await testInfo.attach(`sheet-layout-${width}-${theme}`, {
+      body: await toolbar.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+  });
+}
+
+for (const { width, theme } of previewSizes) {
+  // contract-test: supporting surface=gui.web assertions=rich-sheets.creation.validated-formatting
+  test(`formatted sheet preview shows merge, fill and currency at ${width}px in ${theme} mode`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`/dev/preview/embeds/sheets/SheetEmbedPreview?theme=${theme}&background=%23dbeafe&width=${width}&chrome=0&variant=formattedBudget`);
+    await waitForComponentPreview(page);
+    const table = page.locator('table.preview-table');
+    const heading = table.getByRole('columnheader', { name: 'July budget' });
+    await expect(heading).toHaveAttribute('colspan', '2');
+    await expect(heading).toHaveCSS('background-color', 'rgb(30, 58, 138)');
+    await expect(heading).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(heading).toHaveCSS('text-align', 'center');
+    await expect(table.getByRole('cell', { name: '$1,250.50', exact: true })).toBeVisible();
+    await testInfo.attach(`formatted-budget-${width}-${theme}`, {
+      body: await table.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+    await page.goto(`${PREVIEW}?theme=${theme}&background=%23dbeafe&width=${width}&chrome=0&variant=formattedBudget`);
+    await waitForComponentPreview(page);
+    const fullscreen = page.getByTestId('formatted-sheet-grid');
+    await expect(page.getByTestId('sheet-pin-cover')).toHaveCount(0);
+    const columnB = fullscreen.getByRole('columnheader', { name: 'B', exact: true });
+    await expect(columnB).toBeInViewport();
+    expect(await columnB.evaluate((element) => {
+      const { left, top, width, height } = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(left + width / 2, top + height / 2));
+    })).toBe(true);
+    const formattedCell = fullscreen.locator('[data-cell="A1"]');
+    await expect(formattedCell).toHaveAttribute('colspan', '2');
+    await expect(formattedCell).toHaveCSS('background-color', 'rgb(30, 58, 138)');
+    await expect(formattedCell).toHaveCSS('position', 'sticky');
+    await expect(fullscreen.locator('[data-cell="B2"]')).toHaveText('$1,250.50');
+    await testInfo.attach(`formatted-fullscreen-${width}-${theme}`, {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+  });
+}
 
 for (const width of [390, 1000]) {
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering

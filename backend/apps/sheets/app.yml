@@ -1,0 +1,129 @@
+landing:
+  enabled: false
+
+app_id: sheets
+name_translation_key: sheets
+description_translation_key: sheets.description
+icon_image: sheets.svg
+category: productivity
+
+instructions:
+  - for_embed_types: [formatted_sheet]
+    instruction: |
+      When the user asks for a spreadsheet with formatting or layout, create it
+      with one openmates_sheet fenced JSON object. Use an ordinary Markdown table
+      for a plain sheet. Do not emit a second copy of the same grid.
+      When editing an existing sheet through a Project file tool, apply the
+      same footer change to the file using that tool. For a sheet supplied
+      with an embed reference, use a unified diff targeting that reference.
+      Its optional final HTML comment has the prefix
+      "<!-- openmates-sheet-format-v1: " and suffix " -->". Patch only the
+      necessary lines and preserve unrelated formatting properties. A
+      formatting-only edit must leave every table row and cell value unchanged.
+      Store formatting only in the footer. HTML tags, inline CSS, Markdown
+      emphasis, and currency symbols inside cells are literal cell values.
+      For example, to make the first data cell bold with a pale blue fill in
+      a plain sheet, use the final table row as context and append the footer
+      in the diff:
+
+      ```diff:sheet-embed-ref
+      @@ -3,1 +3,2 @@
+       | Tomatoes | |
+      +<!-- openmates-sheet-format-v1: {"cells":{"A2":{"bold":true,"backgroundColor":"#DBEAFE"}}} -->
+      ```
+
+      Use the actual embed reference and final row from the sheet. If a footer
+      already exists, replace that line with the updated compact JSON, preserving
+      the other styles. The footer is stored with the sheet and is not a row.
+      For project_update_file, first use project_read_text and pass its exact
+      path and expected_base. The patch starts with --- and +++ file headers
+      using that same path. Copy context lines from the read result verbatim,
+      including spaces in empty cells. Project sheets usually end without a
+      newline. To append the footer to such a sheet, remove the last table row
+      and add back that identical row followed by the footer. The standard
+      no-newline markers describe the old row and new footer. For example, if
+      the last line of Inventory.md is line 3 and reads "| Tomatoes | |":
+
+      ```diff
+      --- Inventory.md
+      +++ Inventory.md
+      @@ -3,1 +3,2 @@
+      -| Tomatoes | |
+      \ No newline at end of file
+      +| Tomatoes | |
+      +<!-- openmates-sheet-format-v1: {"cells":{"A2":{"bold":true,"backgroundColor":"#DBEAFE"}}} -->
+      \ No newline at end of file
+      ```
+
+      For creation, use only schemaVersion, title, table and formatting at
+      the top level. The table is a Markdown string. Here is a merged heading,
+      a frozen row and a numeric amount displayed as currency:
+
+      ```openmates_sheet
+      {"schemaVersion":1,"title":"Travel costs","table":"| Travel costs | |\n| --- | --- |\n| Train | 42.5 |","formatting":{"columnWidths":{"A":180,"B":130},"rowHeights":{"1":48},"cells":{"A1":{"backgroundColor":"#1E3A8A","textColor":"#FFFFFF","bold":true,"horizontalAlign":"center"},"B2":{"numberFormat":{"kind":"currency","currency":"USD","decimals":2},"horizontalAlign":"right"}},"merges":[{"start":"A1","end":"B1"}],"frozenRows":1}}
+      ```
+
+      The table is a rectangular Markdown table with a heading and a separator.
+      JSON-escape newlines inside the table string. Use empty cells for blanks.
+      Styling addresses include the heading as row 1. Existing Sheets formulas
+      count data rows from 1, so a formula's A1 refers to the first data row.
+      Use raw numeric values for number, currency and percentage formatting
+      (0.125 represents 12.5%) and YYYY-MM-DD for dates. Use RGB hex colors.
+      A merge uses two inclusive corners, such as {"start":"A1","end":"B1"}.
+      Keep values only in the top left of each merge. All addresses, including
+      the merge's lower corner, must exist in the table. Merges cannot overlap.
+      The formatting object accepts only these optional keys:
+      - columnWidths maps column letters to integer CSS pixels (24 to 1200).
+      - rowHeights maps row numbers to integer CSS pixels (16 to 600).
+      - cells maps A1 addresses to optional cell style properties listed below.
+      - merges is an array of up to 256 {start,end} ranges.
+      - frozenRows and frozenColumns are integer counts starting at the top or
+        left and cannot exceed the sheet dimensions.
+
+      A cell style accepts backgroundColor and textColor (#RRGGBB); fontFamily
+      (letters, digits, spaces and hyphens); fontSize (integer CSS pixels,
+      8 to 96); bold, italic, underline, strikethrough and wrap (booleans);
+      horizontalAlign (left, center, right); verticalAlign (top, middle, bottom).
+      Set numberFormat to {"kind":"number","decimals":2},
+      {"kind":"percent","decimals":1}, {"kind":"currency","currency":"USD","decimals":2},
+      or {"kind":"date","pattern":"yyyy-mm-dd"}. Decimals are optional (0 to 10).
+      Date patterns are yyyy-mm-dd, mm/dd/yyyy, dd/mm/yyyy, and mmm d, yyyy.
+      The optional borders object maps top, right, bottom and left to
+      {"style":"thin","color":"#000000"}; styles are thin, medium, thick,
+      dashed, dotted, and double. Omit unused properties.
+      Conditional formatting and charts are not part of this sheet format.
+
+embed_types:
+  - id: sheet
+    category: direct
+    frontend_type: sheets-sheet
+    backend_type: sheet
+    has_children: false
+    groupable: true
+    preview_component: sheets/SheetEmbedPreview.svelte
+    fullscreen_component: sheets/SheetEmbedFullscreen.svelte
+    icon: sheets
+    gradient_var: "--color-app-sheets"
+    i18n_namespace: embeds.sheets.sheet
+    content_catalog:
+      enabled: true
+      diff_editable: true
+      content_type_id: sheet
+      name: Spreadsheet
+      description: Spreadsheet with optional cell styling and sheet layout.
+      icon: sheets
+      example_key: sheets.sheet
+      order: 10
+    content_fields:
+      - name: table
+        type: string
+        required: true
+        description: Markdown table with an optional versioned formatting line.
+      - name: title
+        type: string
+      - name: row_count
+        type: number
+        required: true
+      - name: col_count
+        type: number
+        required: true

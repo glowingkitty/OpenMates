@@ -5,6 +5,8 @@
  * Access at: /dev/preview/embeds/sheets/SheetEmbedFullscreen
  */
 
+import { formattedBudgetTable } from './SheetEmbedPreview.preview';
+
 const teamDirectoryTable = `| Name | Role | Department | Start Date | Location | Salary |
 |------|------|------------|------------|----------|--------|
 | Alice Johnson | Senior Engineer | Engineering | 2023-01-15 | Munich | €85,000 |
@@ -90,6 +92,20 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  formattedBudget: {
+    ...defaultProps,
+    embedId: 'preview-formatted-budget-fullscreen',
+    data: sheetData('Monthly budget', formattedBudgetTable, 2, 2),
+  },
+  formattedEditableBudget: {
+    ...defaultProps,
+    embedId: 'preview-formatted-budget-editable',
+    chatId: 'preview-chat',
+    data: {
+      ...sheetData('Monthly budget', formattedBudgetTable, 2, 2),
+      embedData: { encrypted_content: 'preview-encrypted', hashed_message_id: 'preview-message' },
+    },
+  },
 	/** Citation targets remain in saved data; headings show their readable labels. */
 	citationHeaders: {
 		data: sheetData('Employer comparison', `| [Employer](embed:employer-search-result-reference) | [Location](embed:location-search-result-reference) |\n|---|---|\n| voize | Berlin |\n| stiftung ear | Nürnberg |`, 2, 2),

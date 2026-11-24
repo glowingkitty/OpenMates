@@ -50,6 +50,7 @@ from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
 from backend.core.api.app.services.slides_embed_service import SlidesEmbedMixin
 from backend.apps.ai.utils.calendar_event_fences import normalize_calendar_event_source
 from backend.apps.ai.utils.json_content_fences import json_content_embed_type
+from backend.apps.ai.utils.sheet_formatting import SheetFormattingError, normalize_authored_sheet
 from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError,
@@ -2652,6 +2653,7 @@ class EmbedService(SlidesEmbedMixin):
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
         learning_mode_metadata: Optional[Dict[str, Any]] = None,
+        validation_error: Optional[str] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -2717,6 +2719,8 @@ class EmbedService(SlidesEmbedMixin):
             }
             if learning_mode_metadata:
                 updated_content.update(learning_mode_metadata)
+            if validation_error:
+                updated_content["validation"] = {"status": "error", "parse_error": validation_error}
 
             updated_toon = encode(updated_content)
 
@@ -3476,6 +3480,12 @@ class EmbedService(SlidesEmbedMixin):
             embed_type = json_content_embed_type(source_language)
             if embed_type is None:
                 raise ValueError("Unsupported JSON content fence")
+            if embed_type == "sheet":
+                return await self.create_table_embed_placeholder(
+                    chat_id=chat_id, message_id=message_id, user_id=user_id,
+                    user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id,
+                    task_id=task_id, title=title, log_prefix=log_prefix,
+                )
             app_id, skill_id = self._direct_embed_app_skill(embed_type)
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
@@ -3586,6 +3596,28 @@ class EmbedService(SlidesEmbedMixin):
             embed_type = json_content_embed_type(source_language)
             if embed_type is None:
                 raise ValueError("Unsupported JSON content fence")
+            if embed_type == "sheet":
+                if status == "processing":
+                    return True
+                table, rows, columns, validation_error = "", 0, 0, None
+                if status == "finished":
+                    try:
+                        title, table, rows, columns = normalize_authored_sheet(source_json)
+                    except SheetFormattingError as exc:
+                        validation_error = str(exc)
+                        status = "error"
+                        logger.warning(
+                            "%s Rejected formatted sheet %s during validation: %s",
+                            log_prefix, embed_id, validation_error,
+                        )
+                return await self.update_table_embed_content(
+                    embed_id=embed_id, table_content=table, chat_id=chat_id,
+                    user_id=user_id, user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id,
+                    status=status, title=title, row_count=rows, col_count=columns,
+                    version_number=version_number, content_hash=content_hash,
+                    version_history_rows=version_history_rows, validation_error=validation_error,
+                    log_prefix=log_prefix,
+                )
             if embed_type == "authored_results":
                 from backend.core.api.app.services.authored_result_service import update_authored_results_embed
                 return await update_authored_results_embed(

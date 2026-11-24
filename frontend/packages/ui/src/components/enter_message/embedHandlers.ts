@@ -18,6 +18,7 @@ import { createWebPIIDocumentScanContext } from "./services/webPIIDetectionServi
 import { classifyMindMapUploadSource } from "./services/mindMapUploadDetection";
 import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText } from "./utils/fileContentParsers";
 import { convertXlsxWorkbook, type ConvertedXlsxSheet, type XlsxRemovedFeature } from "./utils/xlsxSheetConverter";
+import { withSheetFormatting } from "../embeds/sheets/sheetFormattingText";
 import { encode as toonEncode } from "@toon-format/toon";
 import { getApiUrl } from "../../config/api";
 import { notificationStore } from "../../stores/notificationStore";
@@ -1341,7 +1342,7 @@ async function createSheetEmbedNode(
         status: "finished",
         contentRef: `preview:sheets-sheet:${embedId}`,
         title,
-        code: redactedContent,
+        code: withSheetFormatting(redactedContent, sheet.formatting),
         rows: rowCount,
         cols: colCount,
         cellCount,
@@ -1350,7 +1351,7 @@ async function createSheetEmbedNode(
     };
   }
 
-  const result = await createSheetEmbed(sheet.markdown, title);
+  const result = await createSheetEmbed(sheet.markdown, title, sheet.formatting);
   return {
     type: "embed",
     attrs: {

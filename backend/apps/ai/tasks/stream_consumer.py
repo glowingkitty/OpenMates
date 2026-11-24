@@ -77,6 +77,7 @@ from backend.apps.ai.processing.wellbeing_support import (
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
+from backend.apps.ai.utils.sheet_formatting import SheetFormattingError, split_formatted_sheet
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
 from backend.apps.ai.processing.agentic_context import attach_memory_receipt_assistant_id
 from backend.apps.ai.tasks.loose_application_files import split_loose_application_files
@@ -2184,6 +2185,21 @@ def _render_diff_visual_card(diff_embed_ref: Optional[str], diff_content: str, r
     return f"\n**Suggested changes to `{label}`:**\n```diff\n{diff_content}\n```\n"
 
 
+def _invalid_sheet_diff_card(
+    embed_type: Optional[str], content: str, resolved_ref: Optional[str],
+    diff_content: str, log_prefix: str,
+) -> Optional[str]:
+    """Keep an invalid formatted sheet out of the revision and live delivery paths."""
+    if embed_type != "sheet":
+        return None
+    try:
+        split_formatted_sheet(content)
+    except SheetFormattingError as exc:
+        logger.warning("%s [DIFF_BLOCK] Rejected sheet formatting: %s", log_prefix, exc)
+        return _render_diff_visual_card(resolved_ref, diff_content, f"invalid sheet formatting: {exc}")
+    return None
+
+
 def _full_replacement_history_rows(
     embed_id: str, current_content: str, new_content: str, current_version: int, created_at: int,
 ) -> list[dict[str, Any]]:
@@ -2340,6 +2356,9 @@ async def _deliver_live_diff(
         from backend.core.api.app.services.embed_diff_service import apply_patch
         retry = apply_patch(str(details["current_text_form"]), parsed_diff)
         if retry.success:
+            error_card = _invalid_sheet_diff_card(embed_type, retry.new_content, resolved_ref, diff_content, log_prefix)
+            if error_card is not None:
+                return error_card
             logger.info(f"{log_prefix} [DIFF_BLOCK] same_spot: regenerate_once for {target_embed_id}")
             return await _deliver_live_diff(
                 parsed_diff=parsed_diff, new_content=retry.new_content, embed_type=embed_type,
@@ -2470,6 +2489,12 @@ async def _apply_diff_block_to_existing_embed(
             f"{patch_result.error}. Showing visual diff card."
         )
         return _render_diff_visual_card(resolved_ref, diff_content, "could not apply automatically")
+
+    error_card = _invalid_sheet_diff_card(
+        cached_embed.get("type"), patch_result.new_content, resolved_ref, diff_content, log_prefix,
+    )
+    if error_card is not None:
+        return error_card
 
     current_version = cached_embed.get("version_number") or 1
     # Base check (task eafb0277): never overwrite a version newer than the one the

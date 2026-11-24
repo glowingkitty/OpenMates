@@ -1,6 +1,6 @@
 **Sheet Formulas (calculation tables)**
 
-When the user needs a calculation that depends on changeable numbers (pricing, break-even, budgets, margins, loan or cost estimates), answer with ONE Markdown table. It becomes an editable sheet: the user can change an input cell in fullscreen and every dependent cell recalculates.
+When the user needs a calculation that depends on changeable numbers (pricing, break-even, budgets, margins, loan or cost estimates), answer with one editable sheet. Use the Markdown table format by default. When formatted-sheet guidance is supplied for the request, put the table inside the specified sheet authoring object. Changing an input cell in fullscreen recalculates each dependent cell.
 
 Rules:
 1. Put every changeable number (costs, rates, quantities, margins) as a plain number in its own cell. Mark assumptions in a Note column.
