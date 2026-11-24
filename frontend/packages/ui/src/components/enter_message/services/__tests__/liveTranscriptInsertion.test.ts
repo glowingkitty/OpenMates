@@ -25,7 +25,7 @@ afterEach(() => {
 
 describe('live transcript insertion', () => {
   // contract-test: supporting surface=gui.web assertions=message-input.audio.live-editor-transcript
-  it('streams only the new suffix of the cumulative transcript at the caret', () => {
+  it('streams new words at the caret and keeps adding to the dictated range after Finish', () => {
     const editor = createEditor('Existing notes.');
     const live = createLiveTranscriptController(editor);
     expect(live.apply('please')).toBe(true);
@@ -35,6 +35,10 @@ describe('live transcript insertion', () => {
     expect(editor.getText()).toBe('Existing notes. please schedule the review');
     expect(editor.state.selection.from).toBe(editor.state.doc.content.size - 1);
     expect(live.hasText()).toBe(true);
+    editor.commands.setTextSelection(3);
+    expect(live.apply('please schedule the review tomorrow', false)).toBe(true);
+    expect(editor.getText()).toBe('Existing notes. please schedule the review tomorrow');
+    expect(editor.state.selection.from).toBe(3);
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.audio.live-editor-transcript
@@ -53,13 +57,15 @@ describe('live transcript insertion', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.audio.live-editor-transcript
-  it('replaces one untouched segment with the corrected transcript', () => {
+  it('replaces one untouched segment while preserving the caret after Finish', () => {
     const editor = createEditor('Notes:');
     const live = createLiveTranscriptController(editor);
     live.apply('um please schedule the the review');
     expect(editor.getText()).toBe('Notes: um please schedule the the review');
-    expect(live.applyCorrection('Please schedule the review.')).toBe('replaced');
-    expect(editor.getText()).toBe('Notes: Please schedule the review.');
+    editor.commands.setTextSelection(3);
+    expect(live.applyCorrection('Please schedule the review tomorrow.', true)).toBe('replaced');
+    expect(editor.getText()).toBe('Notes: Please schedule the review tomorrow.');
+    expect(editor.state.selection.from).toBe(3);
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.audio.live-editor-transcript

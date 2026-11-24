@@ -118,6 +118,7 @@
     import { buildProjectMentionSyntax } from './services/projectMentionSyntax';
     import {
         extractMentionQuery,
+        MEMORY_MENTION_GRADIENT,
         resolveModelMentionSelection,
         type AnyMentionResult,
         type MateMentionResult,
@@ -445,6 +446,7 @@
         live: LiveTranscriptController;
         realtime: AudioRealtimeTranscriptionHandle | null;
         sendRequested: boolean;
+        editorReturned: boolean;
         overlayRemoved: Promise<void>;
         resolveOverlayRemoved: () => void;
         releaseEmptyDraftProtection: () => void;
@@ -2053,7 +2055,7 @@
                         break;
                     }
                     case 'video':
-                        // YouTube videos should always use red color (#A70B09)
+                        // YouTube videos use the video highlight color.
                         className = 'unclosed-block-video';
                         console.debug('[MessageInput] Video block detected, using video highlight color (red):', block.content?.substring(0, 50));
                         break;
@@ -2357,7 +2359,7 @@
                 'max-height: none',
                 'max-width: none',
                 'z-index: 200',
-                'border-radius: 20px',
+                'border-radius: var(--radius-8)',
             ].join('; ') + ';';
         }
         if (isFullscreen) {
@@ -5424,6 +5426,7 @@
             textAtCapture: activeEditor.getText(),
             realtime: null as AudioRealtimeTranscriptionHandle | null,
             sendRequested: false,
+            editorReturned: false,
             overlayRemoved,
             resolveOverlayRemoved,
             releaseEmptyDraftProtection: () => {},
@@ -5470,7 +5473,7 @@
     function handleLiveTranscript(event: CustomEvent<{ transcript: string }>) {
         const context = recordingContext;
         if (!context || !isCurrentRecordingContext(context)) return;
-        if (!context.live.apply(event.detail.transcript)) return;
+        if (!context.live.apply(event.detail.transcript, !context.editorReturned)) return;
         recordingHasLiveText = true;
         scheduleLivePIIDetection(context.editor);
     }
@@ -5546,6 +5549,15 @@
         }
 
         try {
+            if ($authStore.isAuthenticated && !context.sendRequested && context.live.hasText()) {
+                // Return the caret to the user. The provider's remaining words
+                // can reconcile the dictated range but must no longer follow it.
+                context.editorReturned = true;
+                isMessageFieldFocused = true;
+                isFocused = true;
+                await tick();
+                if (isCurrentRecordingContext(context)) context.editor.view.focus();
+            }
             const result = await realtime.correction;
             recordRecordingDiagnostic('correction-arrived', context);
             if (!isCurrentRecordingContext(context)) return;
@@ -5554,7 +5566,7 @@
             context.live.setProcessing(false);
             // One untouched dictation segment becomes the corrected text. Text
             // the user redirected or edited while speaking stays as arranged.
-            const outcome = transcript ? context.live.applyCorrection(transcript) : 'kept';
+            const outcome = transcript ? context.live.applyCorrection(transcript, context.editorReturned) : 'kept';
             recordRecordingDiagnostic('transcript-inserted', context, outcome);
             hasContent = editorHasSendableText(context.editor);
             refreshDraftPreviewState(context.editor);
@@ -5579,11 +5591,10 @@
                 }
                 return;
             }
-            // Finish reveals the corrected editor only after the overlay outro.
             await context.overlayRemoved;
             recordRecordingDiagnostic('post-frame', context);
             if (!isCurrentRecordingContext(context)) return;
-            context.editor.view.focus();
+            if (!context.editorReturned) context.editor.view.focus();
             recordRecordingDiagnostic('focus-restored', context);
             if (!queuedEdit) triggerSaveDraft(currentChatId, context.editor);
         } catch (error) {
@@ -6719,16 +6730,19 @@
 
     function handleStopRecordingCleanup() {
         recordRecordingDiagnostic('recording-close', recordingContext);
-        const revealCorrectedDraft = !!recordingContext && !recordingContext.sendRequested &&
-            !!recordingContext.realtime && isCurrentRecordingContext(recordingContext);
+        const context = recordingContext;
+        const revealCorrectedDraft = !!context && !context.sendRequested &&
+            !!context.realtime && isCurrentRecordingContext(context);
         if (recordingContext && !recordingContext.realtime) invalidateRecordingContext('recording-close-without-realtime');
         clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
         keyboardRecordingStartCheckTimer = null;
         window.dispatchEvent(new Event('recordingShortcutFinished'));
         recordingLayoutPending = false;
         cleanupRecordingState();
-        isMessageFieldFocused = revealCorrectedDraft;
-        isFocused = revealCorrectedDraft;
+        if (!revealCorrectedDraft || !context?.editorReturned) {
+            isMessageFieldFocused = revealCorrectedDraft;
+            isFocused = revealCorrectedDraft;
+        }
     }
 
     export function stopRecordingForVoiceCall(): void {
@@ -6743,7 +6757,7 @@
             if (!isCurrentRecordingContext(context)) return;
             // Direct Send keeps the composer collapsed through the overlay outro.
             // Finish still restores the editor for review and editing.
-            if (context.sendRequested) return;
+            if (context.sendRequested || context.editorReturned) return;
             // The collapsed composer hides TipTap, so view.focus() cannot work
             // until its expanded DOM has rendered after the overlay outro.
             isMessageFieldFocused = true;
@@ -7605,8 +7619,6 @@
                             // Memories mentions use the dedicated memory gradient,
                             // not the app's icon gradient, for visual consistency with the memory icon style.
                             const isMemory = !!memoryMatch || isMemoryEntry;
-                            const MEMORY_GRADIENT_START = '#dd03b5';
-                            const MEMORY_GRADIENT_END = '#cb00a5';
 
                             editor
                                 .chain()
@@ -7615,8 +7627,8 @@
                                     mentionType: isSkill ? 'skill' : (isFocus ? 'focus_mode' : (isMemoryEntry ? 'settings_memory_entry' : 'settings_memory')),
                                     displayName,
                                     mentionSyntax: mention,
-                                    colorStart: isMemory ? MEMORY_GRADIENT_START : app.icon_colorgradient?.start,
-                                    colorEnd: isMemory ? MEMORY_GRADIENT_END : app.icon_colorgradient?.end,
+                                    colorStart: isMemory ? MEMORY_MENTION_GRADIENT.start : app.icon_colorgradient?.start,
+                                    colorEnd: isMemory ? MEMORY_MENTION_GRADIENT.end : app.icon_colorgradient?.end,
                                     autoInserted: true,
                                 })
                                 .insertContent(' ')
@@ -8126,7 +8138,9 @@
     @import './EmbeddPreview.styles.css';
 
     .ideabucket-pill {
-        background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%) !important;
+        /* This gradient identifies the idea bucket in every theme. */
+        --color-ideabucket-pill: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%);
+        background: var(--color-ideabucket-pill) !important;
         --focus-pill-gradient: none;
     }
 
@@ -8135,14 +8149,14 @@
     }
 
     .ideabucket-pill-body:hover {
-        background: rgba(255, 255, 255, 0.06) !important;
+        background: color-mix(in srgb, white 6%, transparent) !important;
     }
 
     .ideabucket-pill-dot {
         width: 11px;
         height: 11px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
+        background: color-mix(in srgb, white 95%, transparent);
         box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
         flex-shrink: 0;
     }
@@ -8172,7 +8186,7 @@
 	.message-field.empty-welcome-field {
 		min-height: 64px;
 		padding: 0 64px;
-		border-radius: 32px;
+		border-radius: calc(2 * var(--radius-7));
 	}
 
     .message-field.inline-compact.empty-welcome-field {
@@ -8180,7 +8194,7 @@
         min-height: 48px;
         max-height: 48px;
         padding: 0 56px;
-        border-radius: 24px;
+        border-radius: calc(2 * var(--radius-5));
     }
 
     .message-field.empty-welcome-field .scrollable-content {
@@ -8284,7 +8298,7 @@
         align-items: center;
         justify-content: space-between;
         padding: var(--spacing-3) var(--spacing-6);
-        background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
+        background: var(--color-grey-10, color-mix(in srgb, white 6%, transparent));
         border-radius: var(--radius-3) 8px 0 0;
         margin: 0 8px;
     }
@@ -8332,7 +8346,7 @@
     }
 
     .edit-banner-cancel:hover {
-        background: var(--color-grey-20, rgba(255, 255, 255, 0.1));
+        background: var(--color-grey-20, color-mix(in srgb, white 10%, transparent));
     }
 
     .anonymous-terms-reminder {

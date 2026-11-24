@@ -88932,7 +88932,7 @@ assertions:
       surface: gui.web
     - &id11130
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 541
+      line: 559
       name: test_realtime_audio_bills_accepted_audio_when_recording_is_interrupted
       surface: rest_api
     - &id11131
@@ -145197,7 +145197,7 @@ assertions:
         - *id18344
     current_direct_proof: false
   message-input.focus.parent-state:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
     direct_tests: []
     supporting_tests:
@@ -145278,7 +145278,7 @@ assertions:
         - *id18354
     current_direct_proof: false
   message-input.focus.guest-welcome-suppression:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: c933fbea8f93821c45a3a877c156d7d6b06d85ae4f4091f423d967748a818df3
     direct_tests:
     - &id18355
@@ -145350,7 +145350,7 @@ assertions:
         - *id18361
     current_direct_proof: false
   message-input.focus.workspace-suppression:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: c7a2ea4163b551346229632a481846960f46511195a333b32d02edf473ddeec0
     direct_tests:
     - &id18373
@@ -145472,7 +145472,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.actions.visibility:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 5c8d4b857988f7d4ea4b2d12b52a224fa96539dba11fcf7344322a1a525af091
     direct_tests:
     - &id18383
@@ -145825,7 +145825,7 @@ assertions:
         - *id18420
     current_direct_proof: false
   message-input.attachments.quick-access:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: ec56a430a0eaf37c7d71c61f4f7468329cf038888c2227110368e2104fc58943
     direct_tests:
     - &id18425
@@ -145851,7 +145851,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.drafts.preview-persistence:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 640529ae4fc024dd4ec43ec4810b922d61232c875233f0e1ae99e7510cf817dc
     direct_tests:
     - &id18430
@@ -146354,7 +146354,7 @@ assertions:
         - *id18492
     current_direct_proof: false
   message-input.embeds.gated-send:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 3ca30e8ebdfb1985406c4a9d74b477e80ebfc5f1685de5ab69ae224b295643a8
     direct_tests:
     - &id18503
@@ -147046,12 +147046,12 @@ assertions:
       surface: gui.web
     - &id18617
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 362
+      line: 363
       name: test_realtime_audio_relays_pcm_deltas_and_final_text
       surface: gui.web
     - &id18618
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 663
+      line: 681
       name: test_realtime_correction_failure_keeps_raw_transcript
       surface: gui.web
     - &id18619
@@ -147646,7 +147646,7 @@ assertions:
         - *id18675
     current_direct_proof: false
   message-input.recording.lifecycle:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 57b9517de2eb6c4d7e8e89975c97bdc94035c92240bba5f0e463e39a97e06c98
     direct_tests:
     - &id18680
@@ -147898,17 +147898,17 @@ assertions:
     - &id18816
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
       line: 183
-      name: Finish on the ${width}px composer shimmers dictated text until correction
-        replaces it
+      name: Finish on the ${width}px composer returns the editor while correction
+        is pending
       surface: gui.web
     - &id18817
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 218
+      line: 234
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id18818
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 274
+      line: 290
       name: moving the caret while recording inserts the next words there and Enter
         in the editor finishes
       surface: gui.web
@@ -148460,7 +148460,7 @@ assertions:
       surface: gui.web
     - &id18797
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 541
+      line: 559
       name: test_realtime_audio_bills_accepted_audio_when_recording_is_interrupted
       surface: rest_api
     - &id18798
@@ -148874,7 +148874,7 @@ assertions:
         - *id18797
     current_direct_proof: false
   message-input.suggestions.contextual:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
     direct_tests:
     - &id18863
@@ -149238,7 +149238,7 @@ assertions:
         - *id18895
     current_direct_proof: false
   message-input.send.ownership:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 0cdd07a0825a9fb6e20341f6ff15595b61d95c56f3e86cda879453e569d4e00a
     direct_tests:
     - &id18906
@@ -149253,7 +149253,7 @@ assertions:
       surface: gui.apple
     - &id18917
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 218
+      line: 234
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id18918
@@ -150256,7 +150256,7 @@ assertions:
         - *id19033
     current_direct_proof: false
   message-input.send.collapse-at-send:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 6468071b5ca6466a82dfb7bf1f3b5d5559dacdeab16c37c18670101eeebe439d
     direct_tests:
     - &id19034
@@ -150291,7 +150291,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.privacy-context:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 6b26620a7d7a2eecf45ff9b5a4e4e404f73838448e431b5c9db8c8433166e5e1
     direct_tests:
     - &id19089
@@ -150849,7 +150849,7 @@ assertions:
         - *id19101
     current_direct_proof: false
   message-input.layout.responsive-parity:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: ae4b23f1ed3345bae9cdd0f1021af7d30ec0f359fab64707a860472438ccc562
     direct_tests:
     - &id19129
@@ -150981,12 +150981,12 @@ assertions:
     - &id19175
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
       line: 183
-      name: Finish on the ${width}px composer shimmers dictated text until correction
-        replaces it
+      name: Finish on the ${width}px composer returns the editor while correction
+        is pending
       surface: gui.web
     - &id19176
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 218
+      line: 234
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id19177
@@ -151387,8 +151387,8 @@ assertions:
         - *id19186
     current_direct_proof: false
   message-input.audio.editable-transcript:
-    specification: feature.message-input@14
-    fingerprint: 914a30e07c07a98584463f94466408a1dbafb4777de5de057373f2a2ad76404b
+    specification: feature.message-input@15
+    fingerprint: fb642bccc4287159cc5724871dc8a1650ceece5b41eb2d71676118deae7e2e6a
     direct_tests:
     - &id19188
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
@@ -151515,12 +151515,12 @@ assertions:
     - &id19217
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
       line: 183
-      name: Finish on the ${width}px composer shimmers dictated text until correction
-        replaces it
+      name: Finish on the ${width}px composer returns the editor while correction
+        is pending
       surface: gui.web
     - &id19218
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 218
+      line: 234
       name: '${width}px ${includeNotes ? '
       surface: gui.web
     - &id19219
@@ -151590,12 +151590,12 @@ assertions:
       surface: gui.apple
     - &id19191
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 362
+      line: 363
       name: test_realtime_audio_relays_pcm_deltas_and_final_text
       surface: gui.web
     - &id19192
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 686
+      line: 704
       name: test_realtime_mercury_correction_reports_model_and_sanitizes_text
       surface: gui.web
     - &id19193
@@ -151759,7 +151759,7 @@ assertions:
         - *id19235
     current_direct_proof: false
   message-input.suggestion.editable-acceptance:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 6d9b131cf10f3eade559e3dc78557e5c7312793796661c81072f45999df37028
     direct_tests:
     - &id19237
@@ -151801,7 +151801,7 @@ assertions:
         - *id19236
     current_direct_proof: false
   message-input.suggestion.keyboard-ownership:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 5ba10c97b4bf3796634e80c21584fc3e9b3f8c41b7d3e4cd8ca9244321107249
     direct_tests:
     - &id19240
@@ -151819,7 +151819,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.suggestion.dismissal:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 2ff79519a5de3f85c64b88c777ef871115b196d61ee0d4be231b4c70644a91ce
     direct_tests:
     - &id19241
@@ -151837,7 +151837,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.suggestion.draft-priority:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 13a8c2b349bbc566be559a348bf09719a8a4bb1fd6d9d887c6a87318bedf312f
     direct_tests:
     - &id19242
@@ -151871,7 +151871,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.suggestion.touch-acceptance:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 22eff2e48adf2c7e7c8b90598c9e977918672097d84e43d4f23ccbc562c53ab2
     direct_tests:
     - &id19245
@@ -151889,7 +151889,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.audio.realtime-voxtral3:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 25efdfb2514c7087d87c647caf81c0b30535f211f5b05270d1a3307a959ab11f
     direct_tests:
     - &id19260
@@ -151950,7 +151950,7 @@ assertions:
       surface: gui.web
     - &id19256
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 663
+      line: 681
       name: test_realtime_correction_failure_keeps_raw_transcript
       surface: gui.web
     - &id19257
@@ -152005,8 +152005,8 @@ assertions:
         - *id19259
     current_direct_proof: false
   message-input.audio.correction-gate:
-    specification: feature.message-input@14
-    fingerprint: 1540104b0c65910d872340506923422bb025b9de090b419f8151f505fbec2bd8
+    specification: feature.message-input@15
+    fingerprint: da97b29f2950bcb8872f8aaa8f84e05df63d3b2d7ccc884f656b63b91ea5d695
     direct_tests:
     - &id19264
       path: frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
@@ -152027,7 +152027,7 @@ assertions:
       surface: gui.apple
     - &id19262
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 721
+      line: 739
       name: test_dictation_gate_skips_only_confident_batches_and_falls_back
       surface: gui.web
     - &id19263
@@ -152055,7 +152055,7 @@ assertions:
         - *id19263
     current_direct_proof: false
   message-input.audio.guest-admission:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 4e90d45262ee9a99290190eedd78914dba667875b581570613fbb930cbcc75ac
     direct_tests:
     - &id19276
@@ -152195,8 +152195,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.audio.live-editor-transcript:
-    specification: feature.message-input@14
-    fingerprint: 6a1ce4b45c464303836f66c099708f1a4d99f02c042d266510aa723309bd9c85
+    specification: feature.message-input@15
+    fingerprint: 0325cfcb6d81d9057cadc142308baded462b135d5d59c611ca34854e281d2653
     direct_tests:
     - &id19285
       path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
@@ -152217,18 +152217,18 @@ assertions:
     - &id19288
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
       line: 183
-      name: Finish on the ${width}px composer shimmers dictated text until correction
-        replaces it
+      name: Finish on the ${width}px composer returns the editor while correction
+        is pending
       surface: gui.web
     - &id19289
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 274
+      line: 290
       name: moving the caret while recording inserts the next words there and Enter
         in the editor finishes
       surface: gui.web
     - &id19290
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 301
+      line: 317
       name: dictated private data is highlighted live and fades out recording Send
         until reviewed
       surface: gui.web
@@ -152251,46 +152251,47 @@ assertions:
     - &id19292
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
       line: 28
-      name: streams only the new suffix of the cumulative transcript at the caret
+      name: streams new words at the caret and keeps adding to the dictated range
+        after Finish
       surface: gui.web
     - &id19293
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 41
+      line: 45
       name: continues dictation at a moved caret and keeps the arranged text on correction
       surface: gui.web
     - &id19294
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 56
-      name: replaces one untouched segment with the corrected transcript
+      line: 60
+      name: replaces one untouched segment while preserving the caret after Finish
       surface: gui.web
     - &id19295
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 66
+      line: 72
       name: keeps user edits inside dictated text instead of overwriting them
       surface: gui.web
     - &id19296
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 78
+      line: 84
       name: inserts the corrected transcript when no live text arrived
       surface: gui.web
     - &id19297
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 86
+      line: 92
       name: separates dictation inserted mid-sentence from neighbouring words
       surface: gui.web
     - &id19298
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 97
+      line: 103
       name: discards only untouched dictated text on cancel
       surface: gui.web
     - &id19299
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 107
+      line: 113
       name: marks dictated ranges while correction is processing and clears them afterwards
       surface: gui.web
     - &id19300
       path: frontend/packages/ui/src/components/enter_message/services/__tests__/liveTranscriptInsertion.test.ts
-      line: 121
+      line: 127
       name: renders dictated line breaks as hard breaks
       surface: gui.web
     tests:
@@ -152339,7 +152340,7 @@ assertions:
         - *id19300
     current_direct_proof: false
   message-input.audio.workspace-dictation:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 76f3c5966f78a291963c7f291818159b5b428d4f08b6335b69abbe1123525e99
     direct_tests:
     - &id19303
@@ -152417,7 +152418,7 @@ assertions:
         - *id19302
     current_direct_proof: false
   message-input.workspace.controls-parity:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 1b2813f1a30432a0a3761e2b472a5affa76881f15fde75f72c5f776f28d4dcee
     direct_tests:
     - &id19310
@@ -152435,7 +152436,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   message-input.signed-out-two-states:
-    specification: feature.message-input@14
+    specification: feature.message-input@15
     fingerprint: 0a2cc91d3cdd8631147e960ce3ca2f80655495e84367bfbbe30e0d1a180d441a
     direct_tests:
     - &id19311
@@ -158756,7 +158757,7 @@ assertions:
       surface: gui.web
     - &id20114
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 301
+      line: 317
       name: dictated private data is highlighted live and fades out recording Send
         until reviewed
       surface: gui.web
@@ -220182,12 +220183,12 @@ assertions:
     supporting_tests:
     - &id27737
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 761
+      line: 779
       name: test_workflow_voice_uses_raw_transcript_without_correction_by_default
       surface: gui.web
     - &id27738
       path: backend/tests/test_audio_realtime_transcription.py
-      line: 784
+      line: 802
       name: test_workflow_voice_correction_routes_by_language_and_falls_back
       surface: gui.web
     - &id27760

@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 14
+version: 15
 status: approved
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -396,7 +396,10 @@ assertions:
   must: In the shared web composer, microphone recordings are transient input for transcription and correction.
     On success, the corrected transcript becomes ordinary editable text where it was dictated, as defined by
     message-input.audio.live-editor-transcript, while preserving existing notes and other content. Finish or Enter
-    leaves the corrected text unsent for review. During recording and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
+    leaves the text unsent for review. For a signed-in user with text already streamed into the chat composer,
+    Finish or Enter returns keyboard editing to that draft while final transcription and correction continue.
+    Append trailing streamed words at the dictated range and preserve the user's caret and edits when reconciling the final result.
+    During recording and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
     Send name. Choosing Send finishes capture if needed and requests exactly one submission of the complete draft
     after correction succeeds, through the normal composer send gates, without another button press. Repeated activation
     cannot duplicate submission. Do not create a recording embed or permanently upload/store the audio. Cancellation,
@@ -436,6 +439,8 @@ assertions:
   type: behavior
   must: For text-only dictation in the shared web composer, a fast Jev decision checks each transcript part.
     If it confidently needs no correction, insert the original words and skip the correction model.
+    For signed-in dictation, start the check on the available text at Finish if it can be handled as one pending batch.
+    Reuse that decision and correction when the batch is unchanged. If further words arrive, check and correct the complete batch.
     Obvious errors, names, numbers, mixed languages and uncertainty require the existing correction.
     A gate failure falls back to correction, subject to existing admission limits.
     Dictation correction generates no recording title. Saved audio recordings keep their title behavior.

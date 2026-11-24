@@ -12,9 +12,12 @@ scope:
     - Check each text-only web composer dictation batch with the configured Jev model before calling correction.
     - Preserve raw and corrected text semantics and first-party guest admission, and omit dictation titles.
     - Retain titles for saved audio and compatibility for existing realtime clients.
+    - Return signed-in chat dictation to the editor at Finish using the streamed words, with gate and correction work starting promptly.
+    - Continue receiving spoken words still in flight and preserve edits and caret position during reconciliation.
   out:
     - Changes to recording storage, client-side encryption or production deployment.
 required_checks:
   - Gate decision, provider failure, guest spend admission and transcript result tests.
   - Web composer E2E, Apple realtime and CLI audio compatibility checks.
   - Multilingual real-provider latency, supplier cost, skip rate and quality comparison.
+  - Sanity-check streamed text at Stop against completed text on the existing clips and record the deployed immediate-edit flow with audio.

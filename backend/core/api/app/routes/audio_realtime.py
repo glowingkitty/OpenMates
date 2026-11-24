@@ -470,6 +470,11 @@ async def realtime_transcription(
     billing_task: Optional[asyncio.Task[None]] = None
     chat_id = (websocket.query_params.get("chat_id") or None) if not guest else None
     requested_context = websocket.query_params.get("correction_context")
+    # The signed-in chat composer returns the editable transcript on Stop.
+    # Keep draining the provider in the background for words still in flight.
+    prefetch_dictation = (
+        not guest and report_quota is None and requested_context == DICTATION_CORRECTION_CONTEXT
+    )
     correction_context = None
     if requested_context == DICTATION_CORRECTION_CONTEXT or (not guest and requested_context == "workflow"):
         correction_context = requested_context
@@ -652,6 +657,8 @@ async def realtime_transcription(
                                 # A report dictation may already have ended at its cap.
                                 if not input_ended:
                                     input_ended = True
+                                    if prefetch_dictation and streaming_correction is not None:
+                                        streaming_correction.prefetch_finish()
                                     await provider.send_json({"type": "input_audio.end"})
                             elif event_type == "session.metadata" and not guest:
                                 candidate_chat_id = message.get("chat_id")

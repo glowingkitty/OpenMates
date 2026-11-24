@@ -49,6 +49,21 @@ class StreamingTranscriptCorrection:
         self._pending_since = asyncio.get_running_loop().time()
         self._finishing = False
         self._task: asyncio.Task[None] | None = None
+        self._prefetched: tuple[str, asyncio.Task[dict[str, str] | None]] | None = None
+
+    def prefetch_finish(self) -> None:
+        """Start the final batch at Stop while the provider flushes remaining words."""
+        text = self._raw.strip()
+        if self._offset or self._prefetched or not 0 < len(text) <= CORRECTION_BATCH_CHARACTERS:
+            return
+        task = asyncio.create_task(asyncio.wait_for(
+            self._correct(text, self._language), timeout=CORRECTION_TIMEOUT_SECONDS,
+        ))
+        self._prefetched = (text, task)
+
+    def _discard_stale_prefetch(self, text: str) -> None:
+        if self._prefetched and text != self._prefetched[0]:
+            self._prefetched[1].cancel()
 
     def append(self, delta: str, language: str | None = None) -> None:
         """Notify the worker of new transcript text without awaiting a provider."""
@@ -59,6 +74,8 @@ class StreamingTranscriptCorrection:
         if self._offset == len(self._raw):
             self._pending_since = asyncio.get_running_loop().time()
         self._raw += delta
+        if self._prefetched:
+            self._discard_stale_prefetch(self._raw.strip())
         if language:
             self._language = language
         self._changed.set()
@@ -73,6 +90,7 @@ class StreamingTranscriptCorrection:
         if not transcript.startswith(self._raw.rstrip()):
             raise ValueError("Final transcript changed the streamed prefix")
         self._raw = transcript
+        self._discard_stale_prefetch(transcript)
         self._offset = min(self._offset, len(transcript))
         self._language = language or self._language
         self._finishing = True
@@ -92,13 +110,17 @@ class StreamingTranscriptCorrection:
 
     async def cancel(self) -> None:
         """Cancel and observe any provider request when its recording goes away."""
-        if self._task is not None:
-            self._task.cancel()
-            await asyncio.gather(self._task, return_exceptions=True)
+        tasks = [task for task in (self._task, self._prefetched[1] if self._prefetched else None) if task]
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _run(self) -> None:
         while True:
             self._changed.clear()
+            if self._prefetched and not self._finishing:
+                await self._changed.wait()
+                continue
             pending = self._raw[self._offset :]
             if not pending:
                 if self._finishing:
@@ -136,7 +158,7 @@ class StreamingTranscriptCorrection:
                 continue
             try:
                 async with asyncio.timeout(CORRECTION_TIMEOUT_SECONDS):
-                    result = await self._correct(raw, self._language)
+                    result = await self._correct_batch(raw)
                 if result is not None and not result["transcript"].strip():
                     raise ValueError("Transcript correction returned empty text")
             except Exception as exc:
@@ -159,3 +181,13 @@ class StreamingTranscriptCorrection:
                 if self._result is None:
                     self._result = result
                 await self._on_progress(self._offset)
+
+    async def _correct_batch(self, raw: str) -> dict[str, str] | None:
+        prefetched, self._prefetched = self._prefetched, None
+        if prefetched:
+            text, task = prefetched
+            if raw == text and not task.cancelling():
+                return await task
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        return await self._correct(raw, self._language)

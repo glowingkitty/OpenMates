@@ -1,10 +1,15 @@
 schema_version: 1
-specification: feature.message-input@14
+specification: feature.message-input@15
 dictation_correction_gate:
 - id: clean-dictation-is-kept
   given: The web composer has recognized “Please close the window.” exactly as spoken.
   when: The user finishes dictation and Jev confirms the transcript is ready.
   then: The same sentence appears as editable text without a correction request or a recording title.
+- id: late-words-get-checked-at-finish
+  assertion_ids: [message-input.audio.correction-gate]
+  given: A signed-in user says “Book the room for Friday” and sees “Book the room” when they press Finish.
+  when: The fast check starts on the available phrase and the provider then delivers “for Friday”.
+  then: The returned draft includes “for Friday”, and the complete phrase is checked before applying any correction.
 - id: uncertain-dictation-still-gets-corrected
   given: The speaker says “Ask Maya to bring fifteen copies, sorry, fifty copies.”
   when: Jev detects a name, number or spoken correction, or its request fails.
@@ -396,6 +401,11 @@ live_editor_recording:
   given: A user dictates in one place and says an email address.
   when: The address is detected, then the user presses Finish.
   then: The address is highlighted and can be excluded by tapping, the recording Send control fades out leaving Cancel and Finish, and after Finish the dictated text shows an animated gradient above the still-colored recording controls until the corrected text replaces it.
+- id: edit-dictation-before-correction
+  assertion_ids: [message-input.audio.editable-transcript]
+  given: A signed-in user's chat composer shows the streamed words "review the plan", and final transcription is still pending.
+  when: The user presses Finish and immediately changes "plan" to "schedule" in the editor.
+  then: The editor accepts "review the schedule" while the recording controls indicate processing. The late word "tomorrow" appears after that phrase, and the late correction keeps the user's edit.
 
 workspace_dictation:
 - id: fullscreen-followup-dictation-matches-chat

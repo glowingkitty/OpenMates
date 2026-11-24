@@ -359,12 +359,14 @@ async def test_realtime_audio_rejects_balance_below_one_credit(
 )
 # contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,message-input.embeds.gated-send
 @pytest.mark.parametrize("credits", [1, 9, 100])
+@pytest.mark.parametrize("dictation", [False, True], ids=["legacy", "dictation"])
 async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     monkeypatch: pytest.MonkeyPatch,
     deltas: list[str],
     final_text: str | None,
     expected_transcript: str,
     credits: int,
+    dictation: bool,
 ) -> None:
     provider_messages: list[dict[str, object]] = []
     browser_messages: list[dict[str, object]] = []
@@ -372,6 +374,9 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     released: list[tuple[object, str, str]] = []
     corrected_batches: list[str] = []
     background_corrected = asyncio.Event()
+    deltas_delivered = asyncio.Event()
+    finish_correction_started = asyncio.Event()
+    snapshot = "".join(deltas).strip()
     long_stream = len("".join(deltas)) >= 800
 
     class FakeProvider:
@@ -400,10 +405,12 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
                 self.ended.set()
 
         async def receive(self) -> SimpleNamespace:
-            if not long_stream:
+            if not long_stream and not dictation:
                 await self.ended.wait()
             elif self.events[0]["type"] == "transcription.done":
                 await self.ended.wait()
+                if dictation and snapshot and not long_stream:
+                    await asyncio.wait_for(finish_correction_started.wait(), 2)
             event = self.events.pop(0)
             return SimpleNamespace(
                 type=audio_realtime.aiohttp.WSMsgType.TEXT,
@@ -435,7 +442,7 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     class BrowserSocket(_FakeWebSocket):
         def __init__(self) -> None:
             super().__init__()
-            self.query_params: dict[str, str] = {}
+            self.query_params = {"correction_context": "dictation"} if dictation else {}
             self.inputs = [
                 json.dumps(
                     {
@@ -459,12 +466,19 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
             await asyncio.sleep(0)
             if not self.inputs:
                 await asyncio.Future()
-            if long_stream and json.loads(self.inputs[0])["type"] == "input_audio.end":
-                await asyncio.wait_for(background_corrected.wait(), 2)
+            if json.loads(self.inputs[0])["type"] == "input_audio.end":
+                if long_stream:
+                    await asyncio.wait_for(background_corrected.wait(), 2)
+                if dictation and deltas:
+                    await asyncio.wait_for(deltas_delivered.wait(), 2)
             return self.inputs.pop(0)
 
         async def send_json(self, message: dict[str, object]) -> None:
             browser_messages.append(message)
+            if message["type"] == "transcription.text.delta" and sum(
+                frame["type"] == "transcription.text.delta" for frame in browser_messages
+            ) == len(deltas):
+                deltas_delivered.set()
             if message["type"] == "correction.progress" and not provider.ended.is_set():
                 background_corrected.set()
 
@@ -476,8 +490,10 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     ) -> dict[str, str]:
         assert raw in expected_transcript
         assert language in (None, "en")
-        assert context is None
+        assert context == ("dictation" if dictation else None)
         corrected_batches.append(raw)
+        if provider.ended.is_set():
+            finish_correction_started.set()
         return {"title": "Plans", "transcript": raw, "correction_model": "test"}
 
     class FakeBillingService:
@@ -525,6 +541,8 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
         assert " ".join(corrected_batches) == expected_transcript
         assert all(len(batch) <= 800 for batch in corrected_batches)
         assert len(corrected_batches) > 1
+    elif dictation and snapshot and snapshot != expected_transcript:
+        assert corrected_batches == [snapshot, expected_transcript]
     else:
         assert corrected_batches == [expected_transcript]
     assert [message["text"] for message in browser_messages if message["type"] == "transcription.text.delta"] == deltas

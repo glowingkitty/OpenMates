@@ -135,7 +135,7 @@ for (const { width, variant, compactHeight, phase } of [
       await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
       await expect(field).toHaveCSS('height', '180px');
       await expect(editor.getByTestId('recording-transcript-processing')).toHaveText(RAW_TRANSCRIPT);
-      await expect(editor).not.toBeFocused();
+      await expect(editor).toBeFocused();
       await expect(send).toBeEnabled();
     }
     await send.click();
@@ -180,9 +180,9 @@ for (const { width, variant, height } of [
   { width: 680, variant: 'recording', height: 60 },
 ]) {
   // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.audio.live-editor-transcript,message-input.layout.responsive-parity,message-input.recording.lifecycle
-  test(`Finish on the ${width}px composer shimmers dictated text until correction replaces it`, async ({ page }) => {
+  test(`Finish on the ${width}px composer returns the editor while correction is pending`, async ({ page }, testInfo) => {
     test.setTimeout(60000);
-    const { field, editor, overlay, release } = await openRecording(page, width, variant);
+    const { field, editor, overlay, emit, release } = await openRecording(page, width, variant);
     await expect(field).toHaveCSS('height', '180px');
     await expect(overlay).toHaveCSS('height', `${height}px`);
     await expect(editor).toBeVisible();
@@ -196,16 +196,32 @@ for (const { width, variant, height } of [
     await expect(field).toHaveCSS('height', '180px');
     await expectCentered(overlay, overlay.getByTestId('recording-processing-text'));
     await expect(editor.getByTestId('recording-transcript-processing')).toHaveText(RAW_TRANSCRIPT);
-    await expect(editor).not.toBeFocused();
+    await expect(editor).toBeFocused();
+    if (width < 400) {
+      await page.keyboard.press('ArrowLeft');
+      await page.keyboard.type('!');
+      emit(' tomorrow');
+      await expect(editor).toHaveText('Existing notes. please schedule the project revie!w tomorrow');
+    } else {
+      await page.keyboard.press('ControlOrMeta+Home');
+      await page.keyboard.type('Draft: ');
+    }
+    await testInfo.attach(`editing-while-correction-pending-${width}`, {
+      body: await field.screenshot(), contentType: 'image/png',
+    });
     await release();
     await expect(overlay).toHaveCount(0);
     await expect(field).toHaveCSS('height', '180px');
     await expect(field).toHaveAttribute('data-focused', 'true');
     await expect(editor).toBeFocused();
-    await expect(editor).toHaveText(`Existing notes. ${CORRECTED_TRANSCRIPT}`);
+    await expect(editor).toHaveText(width < 400
+      ? 'Existing notes. please schedule the project revie!w tomorrow'
+      : `Draft: Existing notes. ${CORRECTED_TRANSCRIPT}`);
     await expect(editor.getByTestId('recording-transcript-processing')).toHaveCount(0);
-    await page.keyboard.type(' Edited before sending.');
-    await expect(editor).toContainText('Edited before sending.');
+    await page.keyboard.type('Edited ');
+    await expect(editor).toHaveText(width < 400
+      ? 'Existing notes. please schedule the project revie!Edited w tomorrow'
+      : `Draft: Edited Existing notes. ${CORRECTED_TRANSCRIPT}`);
   });
 }
 
