@@ -13,6 +13,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
+from backend.core.api.app.services.stats_account_label import is_test_account_user
 from backend.core.api.app.services.sub_chat_orchestration_service import (
     SubChatOrchestrationProtocolError,
     SubChatOrchestrationService,
@@ -755,7 +756,10 @@ class BillingService:
 
             postcommit_started_at = time.monotonic()
             # Cache, stats, notifications, and top-up happen only after durable commit.
-            if self.server_stats_service:
+            _is_test_charge = await is_test_account_user(
+                self.cache_service, self.directus_service, user_id, user
+            )
+            if self.server_stats_service and not _is_test_charge:
                 await self.server_stats_service.increment_stat("credits_used", credits_to_deduct)
                 await self.server_stats_service.update_liability(-credits_to_deduct)
             if payment_enabled:
@@ -802,13 +806,13 @@ class BillingService:
 
             # 4.5. Update Server Global Stats (Incremental)
             # Track credits used and decrease total liability
-            if payment_enabled:
+            if payment_enabled and not _is_test_charge:
                 await self.cache_service.increment_stat("credits_used", credits_to_deduct)
                 await self.cache_service.update_liability(-credits_to_deduct)
 
             # 4.6. Track token usage for cost analytics (Phase 6)
             # Increment total_input_tokens and total_output_tokens from usage_details
-            if usage_details:
+            if usage_details and not _is_test_charge:
                 try:
                     input_tok = usage_details.get("input_tokens")
                     output_tok = usage_details.get("output_tokens")
@@ -1157,11 +1161,12 @@ class BillingService:
             if refund_result.get("idempotent"):
                 return
 
-            if self.server_stats_service:
-                await self.server_stats_service.increment_stat("credits_used", -credits_to_refund)
-                await self.server_stats_service.update_liability(credits_to_refund)
-            await self.cache_service.increment_stat("credits_used", -credits_to_refund)
-            await self.cache_service.update_liability(credits_to_refund)
+            if not await is_test_account_user(self.cache_service, self.directus_service, user_id, user):
+                if self.server_stats_service:
+                    await self.server_stats_service.increment_stat("credits_used", -credits_to_refund)
+                    await self.server_stats_service.update_liability(credits_to_refund)
+                await self.cache_service.increment_stat("credits_used", -credits_to_refund)
+                await self.cache_service.update_liability(credits_to_refund)
             await self.websocket_manager.broadcast_to_user(
                 user_id=user_id,
                 message={"type": "user_credits_updated", "payload": {"credits": new_credits}},

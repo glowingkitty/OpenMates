@@ -16,6 +16,7 @@ import hashlib
 import os
 from datetime import datetime, timezone
 from backend.core.api.app.services.embed_scoped_read_service import read_embed_uuid_page
+from backend.core.api.app.services.stats_account_label import is_test_account_hash
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus.directus import DirectusService
@@ -496,7 +497,10 @@ class EmbedMethods:
                 
                 # Update Global Stats (Incremental)
                 try:
-                    await self.directus_service.cache.increment_stat("embeds_created")
+                    if not await is_test_account_hash(
+                        self.directus_service.cache, embed_data.get("hashed_user_id")
+                    ):
+                        await self.directus_service.cache.increment_stat("embeds_created")
                 except Exception as stats_err:
                     logger.error(f"Error updating global stats after embed creation: {stats_err}")
                     

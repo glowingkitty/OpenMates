@@ -31,7 +31,7 @@ async def update_active_users_metrics(directus_service: DirectusService, metrics
 async def get_total_users(directus_service: DirectusService) -> int:
     """Get the total count of registered users"""
     try:
-        total = await directus_service.get_total_users_count()
+        total = await directus_service.get_total_users_count(exclude_test_accounts=True)
         return total
     except Exception as e:
         logger.error(f"Error getting total users: {str(e)}", exc_info=True)

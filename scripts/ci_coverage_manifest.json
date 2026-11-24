@@ -659,6 +659,8 @@
         "voice-call.spec.ts",
         "voice-call-existing-chat.spec.ts",
         "voice-call-ambient-sounds.spec.ts",
+        "voice-call-opening.spec.ts",
+        "voice-call-guest.spec.ts",
         "voice-call-screen-share.spec.ts",
         "authored-results-media.spec.ts",
         "real-inference-image-model.spec.ts"

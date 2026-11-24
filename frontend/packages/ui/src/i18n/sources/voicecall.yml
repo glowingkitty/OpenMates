@@ -226,30 +226,6 @@ close_chat:
   en: Close chat
   de: Chat schließen
   verified_by_human: []
-start_hint:
-  context: Accessible call launch description with separate transcription, speech output, ordinary AI routing and billing
-  en: "Voice calls use Mistral transcription, ElevenLabs v4 Turbo voice, normal OpenMates AI routing and usage-based billing."
-  de: "Sprachanrufe nutzen Mistral zur Transkription, ElevenLabs v4 Turbo für die Stimme, die normale KI-Auswahl von OpenMates und eine nutzungsabhängige Abrechnung."
-  zh: "语音通话使用 Mistral 转录、ElevenLabs v4 Turbo 语音、OpenMates 常规 AI 路由和按用量计费。"
-  es: "Las llamadas usan transcripción de Mistral, voz de ElevenLabs v4 Turbo, enrutamiento de IA habitual de OpenMates y facturación por uso."
-  fr: "Les appels utilisent la transcription Mistral, la voix ElevenLabs v4 Turbo, le routage IA habituel d’OpenMates et une facturation à l’usage."
-  pt: "As chamadas usam transcrição Mistral, voz ElevenLabs v4 Turbo, encaminhamento de IA habitual do OpenMates e cobrança por utilização."
-  ru: "Звонки используют расшифровку Mistral, голос ElevenLabs v4 Turbo, обычную маршрутизацию ИИ OpenMates и оплату по использованию."
-  ja: "音声通話は Mistral の文字起こし、ElevenLabs v4 Turbo の音声、通常の OpenMates AI ルーティング、従量課金を使用します。"
-  ko: "음성 통화는 Mistral 전사, ElevenLabs v4 Turbo 음성, 일반 OpenMates AI 라우팅 및 사용량 기반 청구를 사용합니다."
-  it: "Le chiamate usano trascrizione Mistral, voce ElevenLabs v4 Turbo, normale instradamento IA di OpenMates e fatturazione a consumo."
-  tr: "Sesli aramalar Mistral transkripsiyonu, ElevenLabs v4 Turbo sesi, OpenMates’in normal yapay zekâ yönlendirmesi ve kullanıma dayalı ücretlendirme kullanır."
-  vi: "Cuộc gọi dùng phiên âm Mistral, giọng ElevenLabs v4 Turbo, định tuyến AI thông thường của OpenMates và tính phí theo mức sử dụng."
-  id: "Panggilan memakai transkripsi Mistral, suara ElevenLabs v4 Turbo, perutean AI OpenMates biasa, dan penagihan berdasarkan penggunaan."
-  pl: "Połączenia używają transkrypcji Mistral, głosu ElevenLabs v4 Turbo, zwykłego routingu AI OpenMates i rozliczeń według użycia."
-  nl: "Gesprekken gebruiken Mistral-transcriptie, ElevenLabs v4 Turbo-spraak, normale OpenMates AI-routering en facturering op basis van gebruik."
-  ar: "تستخدم المكالمات نسخ Mistral وصوت ElevenLabs v4 Turbo وتوجيه الذكاء الاصطناعي المعتاد في OpenMates والفوترة حسب الاستخدام."
-  hi: "वॉइस कॉल में Mistral ट्रांसक्रिप्शन, ElevenLabs v4 Turbo की आवाज़, OpenMates की सामान्य AI रूटिंग और उपयोग आधारित बिलिंग होती है।"
-  th: "การโทรใช้การถอดเสียง Mistral เสียง ElevenLabs v4 Turbo การเลือกเส้นทาง AI ตามปกติของ OpenMates และคิดค่าบริการตามการใช้งาน"
-  cs: "Hovory používají přepis Mistral, hlas ElevenLabs v4 Turbo, běžné směrování AI OpenMates a účtování podle využití."
-  sv: "Samtal använder Mistral-transkribering, ElevenLabs v4 Turbo-röst, OpenMates vanliga AI-routning och användningsbaserad debitering."
-  he: "שיחות משתמשות בתמלול Mistral, בקול ElevenLabs v4 Turbo, בניתוב ה-AI הרגיל של OpenMates ובחיוב לפי שימוש."
-  verified_by_human: []
 retry:
   context: Retry a failed voice call from its visible error notice
   en: Try again

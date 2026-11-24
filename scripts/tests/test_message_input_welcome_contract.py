@@ -27,7 +27,10 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     workspace = re.search(r'<div\s+class="chat-side"\s+(.*?)\n\s*>', source, re.S)
     assert workspace, "ActiveChat must keep a shared workspace container"
     assert "composer-background-faded" not in source, "Ordinary focus must not dim the workspace"
-    assert "class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}" in workspace.group(1)
+    assert (
+        "class:composer-welcome-hidden={hideWelcomeForComposerOverlay && "
+        "(showWelcome || isActiveDraftOnlyChat) && !voiceCallBarInline}"
+    ) in workspace.group(1), "A composer overlay must not fade out the inline call bar"
     overlay = re.search(r"let\s+hideWelcomeForComposerOverlay\s*=\s*\$derived\((.*?)\);", source, re.S)
     assert overlay, "Welcome suppression must have a distinct overlay predicate"
     predicate = re.sub(r"\s+", "", overlay.group(1))

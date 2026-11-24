@@ -7,6 +7,7 @@ import hashlib
 import base64
 import binascii
 import secrets
+from backend.core.api.app.services.stats_account_label import is_test_account_hash
 from backend.core.api.app.services.direct_chat_access import (
     DIRECT_FIELDS,
     filter_direct_chat_metadata,
@@ -27,6 +28,17 @@ if False: # TYPE_CHECKING
 logger = logging.getLogger(__name__)
 _VAULT_CIPHERTEXT_PREFIX = "vault:v1:"
 _MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
+
+
+def _enqueue_assistant_speech_deletion(chat_id: str, user_id: str, message_id: str) -> None:
+    """Send the cancellation identity to the audio worker after tombstoning its segments."""
+    from backend.core.api.app.tasks.celery_config import app
+
+    app.send_task(
+        "apps.audio.tasks.assistant_speech_delete",
+        kwargs={"arguments": {"user_id": user_id, "chat_id": chat_id, "assistant_message_id": message_id}},
+        queue="app_music",
+    )
 
 
 def _encrypted_chat_field_names(payload: Dict[str, Any]) -> list[str]:
@@ -648,7 +660,10 @@ class ChatMethods:
                 
                 # Update Global Stats (Incremental)
                 try:
-                    await self.directus_service.cache.increment_stat("chats_created")
+                    if not await is_test_account_hash(
+                        self.directus_service.cache, chat_metadata.get("hashed_user_id")
+                    ):
+                        await self.directus_service.cache.increment_stat("chats_created")
                 except Exception as stats_err:
                     logger.error(f"Error updating global stats after chat creation: {stats_err}")
                     
@@ -937,7 +952,10 @@ class ChatMethods:
                 
                 # Update Global Stats (Incremental)
                 try:
-                    await self.directus_service.cache.increment_stat("messages_sent")
+                    if not await is_test_account_hash(
+                        self.directus_service.cache, message_data.get("hashed_user_id")
+                    ):
+                        await self.directus_service.cache.increment_stat("messages_sent")
                 except Exception as stats_err:
                     logger.error(f"Error updating global stats after message creation: {stats_err}")
                     
@@ -2294,8 +2312,6 @@ class ChatMethods:
         await self._cleanup_assistant_speech(chat_id, assistant_message_id=assistant_message_id)
 
     async def _cleanup_assistant_speech(self, chat_id: str, *, assistant_message_id: str | None = None) -> None:
-        from backend.core.api.app.tasks.celery_config import app
-
         params: Dict[str, Any] = {
             "filter[chat_id][_eq]": chat_id,
             "fields": "user_id,assistant_message_id",
@@ -2333,11 +2349,7 @@ class ChatMethods:
                         "assistant_speech_segments", str(row_id), {"status": "cancelled"},
                     ):
                         raise RuntimeError("Assistant speech cancellation failed")
-            app.send_task(
-                "apps.audio.tasks.assistant_speech_delete",
-                kwargs={"arguments": {"user_id": user_id, "chat_id": chat_id, "assistant_message_id": message_id}},
-                queue="app_music",
-            )
+            _enqueue_assistant_speech_deletion(chat_id, user_id, message_id)
 
     async def update_chat_read_status(self, chat_id: str, unread_count: int) -> bool:
         """

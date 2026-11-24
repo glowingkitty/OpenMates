@@ -152,16 +152,18 @@ ABSENT_LOGIN_TEXT = re.compile(r"(no account|does not exist|doesn't exist|not fo
 
 
 def validate_job(job: dict[str, Any]) -> str:
-    """Return the job mode ("run" or "delete_only"); raise ValueError for a job the worker cannot run."""
+    """Validate the browser job, including account lifecycle jobs without a persona."""
     mode = job.get("mode", "run")
-    if mode not in ("run", "delete_only"):
+    if mode not in ("run", "signup_only", "delete_only"):
         raise ValueError(f"Unknown job mode {mode!r}.")
-    if mode == "delete_only":
+    if mode in ("signup_only", "delete_only"):
         spec = job.get("signup") or {}
         if not spec.get("email") or not spec.get("password"):
-            raise ValueError("delete_only needs signup.email and signup.password.")
+            raise ValueError(f"{mode} needs signup.email and signup.password.")
         if job.get("persona") is not None:
-            raise ValueError("delete_only takes no persona.")
+            raise ValueError(f"{mode} takes no persona.")
+        if mode == "signup_only" and not (spec.get("username") and spec.get("gift_card_code")):
+            raise ValueError("signup_only needs a username and a test-account gift card.")
     elif not job.get("persona"):
         raise ValueError("A run job needs a persona.")
     return mode

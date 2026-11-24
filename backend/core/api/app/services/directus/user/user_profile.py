@@ -108,6 +108,8 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             
             # Email-related fields for passkey login and authentication
             "hashed_email": user_data.get("hashed_email"),  # SHA256(email) for user lookup
+            # Temporary test accounts are left out of usage stats (billing, messages)
+            "is_test_account": user_data.get("is_test_account") is True,
             "user_email_salt": user_data.get("user_email_salt"),  # Plaintext salt for email encryption key derivation
             
             # Keep sensitive data encrypted (don't decrypt these)

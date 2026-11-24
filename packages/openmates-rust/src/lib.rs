@@ -62,6 +62,8 @@ pub mod web_projects;
 #[cfg(test)]
 mod web_projects_tests;
 pub mod web_guest;
+/// Credential-free guest voice frames and speech request planning.
+pub mod guest_voice;
 #[cfg(test)]
 mod web_guest_tests;
 /// Continue-carousel reminder index and priority order of the web `continueDecide` op.
