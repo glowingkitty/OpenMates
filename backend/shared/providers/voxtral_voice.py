@@ -23,6 +23,7 @@ STREAMING_DELAY_MS = 240
 MAX_CONCURRENT_WINDOWS = 3
 STREAM_ACK_TIMEOUT = 4.0
 STREAM_RECEIVE_TIMEOUT = 35.0
+STREAM_CLOSE_TIMEOUT = 2.0
 logger = logging.getLogger(__name__)
 
 
@@ -138,7 +139,10 @@ class VoxtralVoiceSession:
                 self._active = None
             if not self._windows:
                 self._available.clear()
-        await asyncio.wait_for(window.socket.close(), 2)
+        try:
+            await asyncio.wait_for(window.socket.close(), STREAM_CLOSE_TIMEOUT)
+        except TimeoutError:
+            logger.info("Voxtral speech window close handshake timed out")
 
     async def receive(self) -> dict[str, Any]:
         """Return events in audio order, waiting locally between provider windows."""
@@ -150,6 +154,12 @@ class VoxtralVoiceSession:
         while True:
             try:
                 event = await asyncio.wait_for(self._read(window.socket), STREAM_RECEIVE_TIMEOUT)
+            except TimeoutError:
+                # An inactive provider window can stop emitting without closing.
+                # Retire it so the logical call can accept the next speech.
+                logger.info("Voxtral speech window received no events before its deadline")
+                await self._retire(window)
+                return {"type": "turn.end"}
             except VoxtralVoiceError as error:
                 if error.provider_category != "idle_timeout":
                     raise

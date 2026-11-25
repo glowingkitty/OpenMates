@@ -199,7 +199,7 @@ describe('VoiceCallAudioGate', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.audio.background-detection,video-call.audio.automatic-idle
-  it.each(['failed', 'stalled', 'overrun', 'invalid'] as const)('recovers continuous upload on %s detection without dropping buffered speech', async (failure) => {
+  it.each(['failed', 'stalled', 'overrun', 'invalid'] as const)('keeps %s detector fallback quiet and preserves buffered speech', async (failure) => {
     const h = harness(); await h.ready();
     for (let i = 0; i < 20; i++) h.frame();
     const prior = h.audio.length;
@@ -214,7 +214,29 @@ describe('VoiceCallAudioGate', () => {
     const current = h.audio.length;
     h.gate.push(pcm(999));
     expect(h.audio.slice(current)).toEqual([pcm(999)]);
+    for (let i = 0; i < 20; i++) h.gate.push(pcm(1));
+    expect(h.states.at(-1)).toEqual({ inputIdle: true, userSpeaking: false });
+    expect(h.events.slice(-2)).toEqual(['audio', 'end']);
+    const quiet = h.audio.length;
+    for (let i = 0; i < 100; i++) h.gate.push(pcm());
+    expect(h.audio).toHaveLength(quiet);
+    h.gate.push(pcm(2));
+    expect(values(h.audio.slice(quiet))).toEqual([...Array(6400).fill(0), ...Array(512).fill(2)]);
+    expect(h.states.at(-1)).toEqual({ inputIdle: false, userSpeaking: false });
     expect(h.error).not.toHaveBeenCalled();
+    h.gate.stop();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle
+  it('does not reopen a quiet stream when the detector fails with only silent history', async () => {
+    const h = harness(); await h.ready();
+    for (let i = 0; i < 20; i++) h.frame();
+    h.gate.push(pcm());
+    const quiet = h.audio.length;
+    h.callbacks().onFailure();
+    for (let i = 0; i < 20; i++) h.gate.push(pcm());
+    expect(h.audio).toHaveLength(quiet);
+    expect(h.states.at(-1)).toEqual({ inputIdle: true, userSpeaking: false });
     h.gate.stop();
   });
 

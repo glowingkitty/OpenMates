@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 22
+version: 23
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -18,7 +18,7 @@ scope:
     deterministic hangup.'
   - 'Phase 1: composer recording and independent message playback are unavailable while the call owns shared speech playback.'
   - Background-loaded web speech detection preserves immediate call startup and automatically suspends microphone uploads
-    after a short audio tail, with continuous-streaming fallback and truthful activity states.
+    after a short audio tail, with a conservative digital-silence fallback.
   - Inline, scroll-fixed and detached-pill call controls follow the approved call-strip design, with real audio bars,
     an active-duration counter and encrypted call-start/end history events.
   - 'Phase 2: shared Jev-backed capability discovery, authorized app skill execution, submitted-file processing and normal
@@ -337,7 +337,8 @@ assertions:
     is ready and healthy, unmuted audio streams normally to the selected provider. Detection attaches to the existing
     capture without a second microphone permission request or a new paid call. Assets are served by OpenMates, loaded
     only when calling is used and reused from a versioned cache when available. Detector failure, stalling or overload
-    restores continuous streaming without falsely claiming that input is idle. Detector work must not block the call
+    preserves buffered speech and passes audio with a signal. Only sustained digital silence pauses uploads in this
+    fallback. Detector work must not block the call
     UI; stale initialization and callbacks cannot affect another call.
   depends_on:
   - examples.background_detection

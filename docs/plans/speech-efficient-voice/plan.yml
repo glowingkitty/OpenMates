@@ -10,7 +10,7 @@ specifications: [feature.video-call, feature.message-input]
 scope:
   in:
     - Meter audio successfully forwarded to the provider. Apply dictation's per-second rate and cumulative rounding to signed-in call transcription.
-    - Gate web microphone uploads locally with roughly 400 ms of pre-roll, a short tail and a detector fallback.
+    - Gate web microphone uploads locally with roughly 400 ms of pre-roll, a short tail and a digital-silence fallback.
     - Keep a connected call open during quiet without periodic PCM or idle charges. End the upstream stream after its trailing words and reopen it on speech. Retain the guest cap and allowance.
     - Use Jev to recognize spoken hold and play the ready-made acknowledgment on web without starting an ordinary answer.
     - Let the user Finish dictation, preserving streamed and trailing words.
@@ -30,4 +30,4 @@ measurement_baseline:
   - The existing 42-clip English, German, Spanish and French suite recorded 31.58% word error rate on the Stop snapshot and 11.80% once trailing words arrived. The Stop snapshot remains visible while those words arrive.
 verification_in_progress:
   - The provider-free ten-minute browser gate fixture forwarded 131.728 seconds for 120 seconds of detected speech, equivalent to 33 transcription credits.
-  - Verify the web candidate in isolated browser CI, then measure audio latency and replay the paired 42-clip corpus on dev.
+  - The first live call exposed continuous quiet upload during detector fallback and an upstream receive timeout. Verify quiet fallback and provider-window retirement, then repeat the live latency measurement on dev.

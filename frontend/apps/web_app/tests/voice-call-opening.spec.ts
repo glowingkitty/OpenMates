@@ -200,7 +200,7 @@ test.describe('voice call opening', () => {
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.audio.automatic-idle,video-call.usage.provider-metering
+  // contract-test: direct surface=gui.web assertions=video-call.audio.automatic-idle,video-call.audio.background-detection,video-call.usage.provider-metering
   test('keeps one call open with a frozen transcription bill during quiet', async ({ page, context }, testInfo) => {
     test.setTimeout(150_000);
     await installNativeVoiceInput(page);
@@ -231,13 +231,19 @@ test.describe('voice call opening', () => {
     expect(seconds).toBeGreaterThan(0);
     await expect.poll(() => activity.usage).toEqual({ seconds, credits: Math.ceil(seconds * 0.25) });
     const quiet = { ...activity };
+    await page.evaluate(() => {
+      (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput.failDetector();
+    });
+    await expect.poll(async () => (await nativeVoiceInput(page)).workersTerminated).toBe(1);
     const quietStarted = Date.now();
     await expect.poll(() => Date.now() - quietStarted, { timeout: 41_000, intervals: [1_000] }).toBeGreaterThan(35_000);
     expect(activity).toEqual(quiet);
     expect(activity).toMatchObject({ starts: 1, ready: 1, endedOrWarned: 0 });
     await expect(status).toHaveText('Speak to resume call.');
     const bar = page.getByTestId('voice-call-bar');
-    await testInfo.attach('connected-during-quiet', { body: await bar.screenshot(), contentType: 'image/png' });
+    const quietScreenshot = testInfo.outputPath('connected-during-quiet.png');
+    await bar.screenshot({ path: quietScreenshot });
+    await testInfo.attach('connected-during-quiet', { path: quietScreenshot, contentType: 'image/png' });
 
     // The isolated transcription provider emits one request per call.
     // Use that request after quiet so it proves the resumed window.
@@ -257,7 +263,9 @@ test.describe('voice call opening', () => {
     expect(resumedSeconds).toBeGreaterThan(seconds);
     await expect.poll(() => activity.usage).toEqual({ seconds: resumedSeconds, credits: Math.ceil(resumedSeconds * 0.25) });
     expect(activity).toMatchObject({ starts: 1, ready: 1, endedOrWarned: 0 });
-    await testInfo.attach('answered-after-quiet', { body: await page.screenshot(), contentType: 'image/png' });
+    const answerScreenshot = testInfo.outputPath('answered-after-quiet.png');
+    await page.screenshot({ path: answerScreenshot });
+    await testInfo.attach('answered-after-quiet', { path: answerScreenshot, contentType: 'image/png' });
     await bar.getByTestId('voice-call-hangup').click();
     await expect(bar).toHaveCount(0);
   });

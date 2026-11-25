@@ -117,8 +117,20 @@ async def test_speech_resuming_during_flush_keeps_events_in_audio_order(monkeypa
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
-async def test_provider_idle_expiry_is_recoverable_without_replaying_audio(monkeypatch):
-    first = speech_window({"type": "error", "error": {"code": 3804}})
+@pytest.mark.parametrize("provider_notifies", [True, False])
+async def test_provider_idle_expiry_is_recoverable_without_replaying_audio(monkeypatch, provider_notifies):
+    if provider_notifies:
+        first = speech_window({"type": "error", "error": {"code": 3804}})
+    else:
+        first = speech_window()
+        monkeypatch.setattr(provider, "STREAM_RECEIVE_TIMEOUT", 0.01)
+
+        async def stalled_close() -> None:
+            first.closed = True
+            await asyncio.Event().wait()
+
+        monkeypatch.setattr(provider, "STREAM_CLOSE_TIMEOUT", 0.01)
+        monkeypatch.setattr(first, "close", stalled_close)
     second = speech_window({"type": "turn.start"})
     session, http = open_transport(monkeypatch, first, second)
     await session.open()

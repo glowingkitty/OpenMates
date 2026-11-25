@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@22
+specification: feature.video-call@23
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -162,8 +162,8 @@ background_detection:
 - id: detector-fails-during-call
   given: A connected call is using local speech detection.
   when: The detector fails or stops returning fresh results.
-  then: The call continues with ordinary unmuted audio streaming and visible pricing. It does not claim to be idle, reopen
-    the microphone, start another paid call or let a late result change a later call.
+  then: The same call streams unmuted audio with a signal and pauses uploads after sustained digital silence. Visible
+    pricing, existing microphone permission and isolation from late results remain in effect.
 automatic_idle:
 - id: quiet-pause-and-short-resume
   given: Healthy local detection is ready in Maya's unmuted call.

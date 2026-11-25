@@ -26,7 +26,7 @@ const SPEECH_DIR = process.env.VOICE_CALL_REAL_SPEECH_DIR || '';
 const SCENARIO = process.env.VOICE_CALL_REAL_SCENARIO || '';
 const QUESTIONS = Number(process.env.VOICE_LATENCY_QUESTIONS || '0');
 const CALL_SECONDS = Number(process.env.VOICE_LATENCY_CALL_SECONDS || '0');
-const SCALAR_FIELDS = ['final', 'is_final', 'is_last_chunk', 'sequence', 'status', 'kind', 'phase', 'speech_status',
+const SCALAR_FIELDS = ['final', 'is_final', 'is_last_chunk', 'sequence', 'status', 'kind', 'phase', 'speech_status', 'verified_silence',
   'state', 'stage', 'reason', 'category', 'decision', 'role', 'stt_duration_seconds', 'credits_accrued'];
 
 type Frame = { t: number; socket: string; dir: string; type: string; fields: Record<string, unknown>; textLen?: number };
@@ -91,8 +91,12 @@ test.describe('voice call latency probe', () => {
     const log = createSignupLogger('VOICE_LATENCY');
     const screenshot = createStepScreenshotter(log);
     const frames: Frame[] = [];
-    let micFrames = 0;
+    const microphoneTimes: number[] = [];
+    const detectorFallbackTimes: number[] = [];
     let sockets = 0;
+    page.on('console', (message) => {
+      if (message.text().startsWith('[VoiceCall] Local speech detection unavailable;')) detectorFallbackTimes.push(Date.now());
+    });
     page.on('websocket', (socket) => {
       const name = socket.url().includes('voice-call') ? `voice${sockets++}` : `main${sockets++}`;
       for (const [event, dir] of [['framesent', 'sent'], ['framereceived', 'received']] as const) {
@@ -102,7 +106,7 @@ test.describe('voice call latency probe', () => {
           let data: { type?: unknown; payload?: Record<string, unknown> } & Record<string, unknown>;
           try { data = JSON.parse(payload); } catch { return; }
           const type = typeof data.type === 'string' ? data.type.slice(0, 80) : '<untyped>';
-          if (type === 'mic_audio') { micFrames++; return; }
+          if (type === 'mic_audio') { microphoneTimes.push(t); return; }
           const body = (data.payload && typeof data.payload === 'object' ? data.payload : data) as Record<string, unknown>;
           const fields: Record<string, unknown> = {};
           for (const key of SCALAR_FIELDS) {
@@ -139,13 +143,18 @@ test.describe('voice call latency probe', () => {
       const userMessages = await page.getByTestId('message-user').count();
       log(`user messages after the script: ${userMessages} of ${QUESTIONS}`);
       const probe = await page.evaluate(() => (window as unknown as { __probe: unknown }).__probe);
-      const report = { clickedAt, listeningAt, micFrames, frames, probe, questions: QUESTIONS, userMessages };
+      const report = {
+        clickedAt, listeningAt, micFrames: microphoneTimes.length, microphoneTimes,
+        detectorFallbackTimes, frames, probe, questions: QUESTIONS, userMessages,
+      };
       fs.mkdirSync('artifacts', { recursive: true });
       fs.writeFileSync(path.join('artifacts', 'voice-latency-frames.json'), JSON.stringify(report));
       await testInfo.attach('voice-latency-frames', { body: JSON.stringify(report), contentType: 'application/json' });
-      log(`latency frames: ${frames.length}; mic frames: ${micFrames}; playing events: ${(probe as { playing: unknown[] }).playing.length}`);
+      log(`latency frames: ${frames.length}; mic frames: ${microphoneTimes.length}; playing events: ${(probe as { playing: unknown[] }).playing.length}`);
       log(`LATENCY_REPORT ${JSON.stringify(report)}`);
-      await page.getByTestId('voice-call-hangup').click();
+      const hangup = page.getByTestId('voice-call-hangup');
+      await expect(hangup, 'the call survives the replay and subsequent quiet').toBeVisible({ timeout: 5_000 });
+      await hangup.click();
       started = false;
     } finally {
       if (started) await page.getByTestId('voice-call-hangup').click({ timeout: 5_000 }).catch(() => undefined);
