@@ -246,6 +246,8 @@ services:
   clamav:
     container_name: clamav
     image: clamav/clamav-debian:stable
+    user: clamav
+    entrypoint: ["/init-unprivileged"]
     restart: unless-stopped
     environment:
       CLAMAV_NO_FRESHCLAMD: "false" # Enable virus database auto-updates via freshclam

@@ -132,8 +132,16 @@ stage that runs in each environment.
   scheduler, and their running processes use UID 1000. The worker read its
   scoped Vault handoff and answered a broker ping. Twenty-two Compose and
   image packaging tests passed (dev commit `45b4969`).
+- Document worker. Every process in the live dev container uses UID 1000
+  from startup. The worker read its Vault handoff, verified its writable
+  paths and answered a broker ping. API health remained HTTP 200 after
+  the restart. Twenty-two focused tests passed (dev commit `a837797`).
 - Admin sidecar. An isolated dev run of the prior published image under the
   mounted checkout owner's non-root UID passed health, writable Git home
   and a read-only Docker request with the socket group. The Dockerfile now
   defaults to UID 10005, and the release manifests specify the socket group
   or mounted checkout identity as needed. Ten sidecar tests passed.
+- ClamAV. The upload role's stable Debian image ran the upstream entrypoint
+  and scanner as UID/GID 1000 on disposable dev. The entrypoint inherited
+  the correct owner on a fresh signature volume. Readiness and a real
+  benign-file scan passed. The normal release verifies signature updates.

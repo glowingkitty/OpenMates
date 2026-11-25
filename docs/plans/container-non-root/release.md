@@ -8,6 +8,8 @@ both together.
 1. Use the matching server-management CLI and dry run the update for the
    affected services. Review setup-job order, mounted paths, ports, effective
    user and supplemental groups. Use the approved host paths and bind mounts.
+   For example, preview a core update with
+   `openmates server update --services api,task-worker --dry-run --json`.
 2. Check backup and restore readiness before touching persistent data. Compare
    the expected UID and GID against each mounted directory and file. Prepare
    only the affected writable paths with their intended ownership and keep the
@@ -63,3 +65,9 @@ app handoff volume for UID/GID 10003 before the first start. Keep the directorie
 at mode 0700 and private credential files at 0600. Verify that the root token
 is private to setup and the uploads app can read its scoped token through the
 read-only mount. Fresh volumes inherit the directories prepared in the image.
+
+ClamAV uses the upstream `clamav` account and unprivileged entrypoint. Check
+ownership of the existing virus database before updating the scanner. Confirm
+ClamAV health on port 3310, a benign-file scan and a successful signature
+update under that identity before resuming upload checks.
+[ClamAV container documentation](https://docs.clamav.net/manual/Installing/Docker.html).

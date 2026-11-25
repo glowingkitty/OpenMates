@@ -99,7 +99,7 @@
     {
       "path": "assets/selfhost/upload/docker-compose.yml",
       "source": "frontend/packages/openmates-cli/templates/upload/docker-compose.yml",
-      "sha256": "993c9ec448aab4863b21507f639443e4fca1ed55af68e63263c87c6afb55cf55"
+      "sha256": "49141236229de98c22150392045b79f653bd40a6df6ffcd59189dfc92906628e"
     },
     {
       "path": "tests/crypto_fixtures/chat_completion_recovery_vectors.json",

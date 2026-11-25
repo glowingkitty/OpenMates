@@ -31,6 +31,8 @@ services:
 
   clamav:
     image: clamav/clamav-debian:stable
+    user: clamav
+    entrypoint: ["/init-unprivileged"]
     container_name: clamav
     restart: unless-stopped
     networks: [uploads]
