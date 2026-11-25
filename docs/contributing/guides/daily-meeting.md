@@ -50,10 +50,13 @@ chats may take on.
    to FOCUS.md, Reminders and OpenMates Tasks. From 11:00 Berlin, the timer sends
    reminders every 30 minutes until the connector records today's submission or
    a dated decisions note is saved. The first reminder day is Tuesday, 24 November 2026.
-5. **Weekdays 22:00 Berlin:** the same timer sends an evening Discord check-in.
-   Follow the link and leave a comment in Activity on the private Evening check-in
-   Task. The next morning briefing includes the latest reply for the previous
-   weekday check-in. The first check-in is Monday, 23 November 2026.
+5. **Weekday evenings:** the same timer sends a Discord check-in at 22:00, 23:00,
+   00:00, 01:00 and 02:00 Berlin until you reply. Friday's final three slots
+   fall on Saturday. Leave a nonempty comment in Activity on the linked private
+   Evening check-in Task. The scheduler checks for an undeleted comment from
+   you posted since that evening's 22:00 before each send. If it cannot read
+   Activity, it defers the push and can retry within the slot. The next morning
+   briefing includes the latest reply for the previous weekday check-in.
 
 ## Pause or resume the pushes
 

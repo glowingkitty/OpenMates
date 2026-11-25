@@ -9,8 +9,9 @@ scope:
   - Count today's submitted decisions in Berlin time as the completion signal.
   - Send weekday reminders every 30 minutes from 11:00 until submission, starting 24 November 2026.
   - Reuse the briefing builder for weekday morning progress, missed commitments, priorities, mood and founder coaching.
-  - Send evening check-ins at 22:00 starting 23 November 2026. Save replies through private OpenMates Task activity and show them in the next briefing.
+  - Send weekday evening check-ins hourly from 22:00 to 02:00 Berlin, stopping once the owner replies in private OpenMates Task activity. Show replies in the next briefing.
 verification:
   - Run focused scheduler, submission and briefing tooling tests.
   - Validate the installed systemd calendar and confirm the first evening and reminder slots.
-  - Confirm the existing Discord webhook delivers a labeled dry-run push from the dev deployment.
+  - Dry-run the overnight slots on dev and verify a reply suppresses all subsequent slots in focused tooling tests.
+  - Confirm the notification source against the live Discord delivery journal without sending a preview push.

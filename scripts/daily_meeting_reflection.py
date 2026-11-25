@@ -45,6 +45,21 @@ def latest_reply(entries: list[dict], start: datetime, now: datetime) -> str:
     return latest.get("message", "").strip()[:4000]
 
 
+def read_reply(task_id: str, start: datetime, now: datetime) -> str:
+    """Read the private Task through the authenticated, locally decrypting CLI."""
+    try:
+        run = subprocess.run([find_cli(), "tasks", "activity", "list", task_id,
+                              "--max-entries", "50", "--newest-first", "--json"],
+                             capture_output=True, text=True, timeout=30, check=True)
+        entries = json.loads(run.stdout)["entries"]
+        if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+            raise ValueError("unexpected Task Activity output")
+        return latest_reply(entries, start, now)
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, TasksError) as error:
+        # The command and response can contain private Task information.
+        raise RuntimeError(f"Private evening check-in replies could not be read ({type(error).__name__})") from None
+
+
 def read_reflection(now: datetime, gaps: list[str]) -> dict:
     start = previous_evening(now.astimezone(TZ).date())
     if start.date() < FIRST_EVENING:
@@ -53,12 +68,8 @@ def read_reflection(now: datetime, gaps: list[str]) -> dict:
     try:
         if not (task_id := configured_task()):
             return {}
-        run = subprocess.run([find_cli(), "tasks", "activity", "list", task_id,
-                              "--max-entries", "50", "--newest-first", "--json"],
-                             capture_output=True, text=True, timeout=30, check=True)
-        entries = json.loads(run.stdout)["entries"]
-        result["text"] = latest_reply(entries, start, now)
-    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, TasksError, RuntimeError):
+        result["text"] = read_reply(task_id, start, now)
+    except (OSError, RuntimeError):
         gaps.append("Private evening check-in reply could not be read.")
         result["unavailable"] = True
     return result

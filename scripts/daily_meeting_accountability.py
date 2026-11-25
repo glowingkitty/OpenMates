@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 import fcntl
 import json
 import os
@@ -67,19 +67,28 @@ def submitted_decisions(out: Path, audit: Path, day: date) -> str:
     return latest
 
 
+def evening_day(local: datetime) -> date:
+    """The calendar date on which an overnight check-in started."""
+    return local.date() - timedelta(days=int(local.hour < EVENING_TIME.hour))
+
+
 def slots(local: datetime) -> list[str]:
     """Allow a short dispatch delay and never replay old reminder slots."""
-    if local.weekday() >= 5 or local.minute % 30 >= 5:
+    if local.minute % 30 >= 5:
         return []
     day = local.date()
     slot = time(local.hour, local.minute // 30 * 30)
     due = []
-    if day >= FIRST_MORNING and slot == BRIEFING_TIME:
-        due.append("briefing")
-    if day >= FIRST_EVENING and slot == EVENING_TIME:
+    night = evening_day(local)
+    if (night >= FIRST_EVENING and night.weekday() < 5
+            and local.hour in (22, 23, 0, 1, 2) and slot.minute == 0
+            and (local.hour != 2 or local.minute == 0)):
         due.append("evening")
-    if day >= FIRST_MORNING and local.hour >= 11:
-        due.append("reminder")
+    if day.weekday() < 5 and day >= FIRST_MORNING:
+        if slot == BRIEFING_TIME:
+            due.append("briefing")
+        if local.hour >= 11:
+            due.append("reminder")
     return due
 
 
@@ -93,17 +102,32 @@ def reminder(local: datetime) -> str:
 def evening_message(task_id: str) -> str:
     url = f"https://app.dev.openmates.org/#task-id={task_id}"
     return ("Evening check-in: What went well today? What didn’t, and what would you change tomorrow?\n"
-            f"[Leave a private Activity comment]({url}). I’ll bring it into your next morning briefing.")
+            f"[Leave a private Activity comment]({url}) to stop tonight’s reminders. "
+            "I’ll bring it into your next morning briefing.")
+
+
+def evening_stamp(local: datetime) -> str:
+    # Keep the existing 22:00 receipt so deploying during that slot cannot resend it.
+    return "evening" if local.hour == EVENING_TIME.hour else f"evening-{local.hour:02}00"
+
+
+def unanswered_evening_task(local: datetime) -> str:
+    """Return the Task to link if tonight has no reply."""
+    from daily_meeting_reflection import configured_task, read_reply
+
+    night = evening_day(local)
+    task_id = configured_task(required=True)
+    start = datetime.combine(night, EVENING_TIME, tzinfo=TZ)
+    return "" if read_reply(task_id, start, local) else task_id
 
 
 def dispatch(root: Path, local: datetime) -> int:
     from daily_meeting_briefing import main as briefing, post_discord
-    from daily_meeting_reflection import configured_task
 
     due = slots(local)
     if not due:
         return 0
-    day = local.date()
+    day = evening_day(local) if "evening" in due else local.date()
     out = root / "logs/daily-meetings"
     receipts = out / "accountability"
     receipts.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -113,7 +137,11 @@ def dispatch(root: Path, local: datetime) -> int:
     with (receipts / f"{day}.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         for kind in due:
-            stamp = f"{local.hour:02}{local.minute // 30 * 30:02}" if kind == "reminder" else kind
+            stamp = kind
+            if kind == "evening":
+                stamp = evening_stamp(local)
+            elif kind == "reminder":
+                stamp = f"{local.hour:02}{local.minute // 30 * 30:02}"
             receipt = receipts / f"{day}-{stamp}.json"
             if receipt.exists():
                 continue
@@ -123,7 +151,10 @@ def dispatch(root: Path, local: datetime) -> int:
                         failures.append(kind)
                     continue  # The existing builder records its own delivery.
                 if kind == "evening":
-                    message = evening_message(configured_task(required=True))
+                    task_id = unanswered_evening_task(local)
+                    if not task_id:
+                        continue
+                    message = evening_message(task_id)
                 else:
                     if submitted_decisions(out, audit_path(root), day):
                         continue
@@ -155,7 +186,16 @@ def main() -> int:
     root = canonical_root(Path(__file__).resolve().parents[1])
     if args.dry_run:
         due = slots(local)
-        if "reminder" in due and submitted_decisions(root / "logs/daily-meetings", audit_path(root), local.date()):
+        out = root / "logs/daily-meetings"
+        if "evening" in due:
+            receipt = out / "accountability" / f"{evening_day(local)}-{evening_stamp(local)}.json"
+            try:
+                if receipt.exists() or not unanswered_evening_task(local):
+                    due.remove("evening")
+            except (OSError, RuntimeError) as error:
+                print(f"{local.isoformat(timespec='minutes')} — evening check-in pending: {error}")
+                return 1
+        if "reminder" in due and submitted_decisions(out, audit_path(root), local.date()):
             due.remove("reminder")
         print(f"{local.isoformat(timespec='minutes')} — {', '.join(due) or 'nothing due'}")
         return 0

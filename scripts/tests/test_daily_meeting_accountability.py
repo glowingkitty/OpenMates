@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import agent_state  # noqa: E402 - scripts dir added above
 import daily_meeting_accountability as accountability  # noqa: E402 - scripts dir added above
 import daily_meeting_briefing as briefing  # noqa: E402 - scripts dir added above
 import daily_meeting_morning as morning  # noqa: E402 - scripts dir added above
@@ -80,6 +81,7 @@ def test_dispatch_deduplicates_and_stops_in_next_slot(tmp_path, monkeypatch):
 
 def test_failed_evening_push_can_retry_and_does_not_affect_reminders(tmp_path, monkeypatch):
     monkeypatch.setattr(reflection, "configured_task", lambda **_: "reply-task")
+    monkeypatch.setattr(reflection, "read_reply", lambda *_: "")
     deliveries = []
 
     def post(root, message):
@@ -94,6 +96,84 @@ def test_failed_evening_push_can_retry_and_does_not_affect_reminders(tmp_path, m
     assert len(deliveries) == 3
     assert deliveries[0] == deliveries[2]
     assert "#task-id=reply-task" in deliveries[2]
+
+
+def test_evening_dispatch_sends_all_five_slots_once_and_keeps_original_receipt(tmp_path, monkeypatch):
+    friday = date(2026, 11, 27)
+    saturday = friday + timedelta(days=1)
+    receipts = tmp_path / "logs/daily-meetings/accountability"
+    starts = []
+    deliveries = []
+
+    def read_reply(_, start, now):
+        starts.append(start)
+        return ""
+
+    def post(_, message):
+        deliveries.append(message)
+        return {"message_id": str(len(deliveries))}
+
+    monkeypatch.setattr(reflection, "configured_task", lambda **_: "reply-task")
+    monkeypatch.setattr(reflection, "read_reply", read_reply)
+    monkeypatch.setattr(briefing, "post_discord", post)
+    monkeypatch.setattr(accountability, "submitted_decisions", lambda *_: "already submitted")
+    for at in [local(friday, 22), local(friday, 23), *(local(saturday, hour) for hour in range(3))]:
+        assert accountability.dispatch(tmp_path, at) == 0
+        assert accountability.dispatch(tmp_path, at) == 0
+    for at in (local(friday, 23, 30), local(saturday, 2, 1), local(saturday, 3), local(saturday, 22),
+               local(MONDAY, 1)):
+        assert accountability.dispatch(tmp_path, at) == 0
+    assert len(deliveries) == 5
+    assert starts == [local(friday, 22)] * 5
+    assert sorted(path.name for path in receipts.glob("*.json")) == [
+        f"{friday}-evening-0000.json", f"{friday}-evening-0100.json", f"{friday}-evening-0200.json",
+        f"{friday}-evening-2300.json", f"{friday}-evening.json",
+    ]
+
+
+def test_dry_run_and_dispatch_stop_after_reply_for_that_night(tmp_path, monkeypatch, capsys):
+    wednesday = TUESDAY + timedelta(days=1)
+    reply = {"kind": "comment", "actor_type": "user", "message": "Done for today",
+             "created_at": int(local(TUESDAY, 23, 12).timestamp())}
+    def activity(command, **_):
+        assert command[:5] == ["openmates", "tasks", "activity", "list", "reply-task"]
+        return reflection.subprocess.CompletedProcess(command, 0, stdout=json.dumps({"entries": [reply]}))
+
+    monkeypatch.setattr(agent_state, "canonical_root", lambda _: tmp_path)
+    monkeypatch.setattr(reflection, "configured_task", lambda **_: "reply-task")
+    monkeypatch.setattr(reflection, "find_cli", lambda: "openmates")
+    monkeypatch.setattr(reflection.subprocess, "run", activity)
+    monkeypatch.setattr(accountability, "submitted_decisions", lambda *_: "already submitted")
+    for at, expected in (
+        (local(TUESDAY, 23), "evening"),
+        (local(wednesday, 0), "nothing due"),
+        (local(wednesday, 1), "nothing due"),
+        (local(wednesday, 2), "nothing due"),
+        (local(wednesday, 22), "evening"),
+    ):
+        monkeypatch.setattr(sys, "argv", ["accountability", "--dry-run", "--at", at.isoformat()])
+        assert accountability.main() == 0
+        assert capsys.readouterr().out.strip().endswith(f" — {expected}")
+    assert not (tmp_path / "logs").exists()
+
+    def unexpected_push(*_):
+        raise AssertionError("An answered check-in must not send another push")
+
+    monkeypatch.setattr(briefing, "post_discord", unexpected_push)
+    for hour in range(3):
+        assert accountability.dispatch(tmp_path, local(wednesday, hour)) == 0
+
+
+def test_unavailable_activity_defers_push(tmp_path, monkeypatch, capsys):
+    def unavailable(*_):
+        raise RuntimeError("Private evening check-in replies could not be read")
+
+    monkeypatch.setattr(reflection, "configured_task", lambda **_: "reply-task")
+    monkeypatch.setattr(reflection, "read_reply", unavailable)
+    night = TUESDAY + timedelta(days=1)
+    assert accountability.dispatch(tmp_path, local(night, 1)) == 1
+    assert "could not be read" in capsys.readouterr().out
+    assert not list((tmp_path / "logs/daily-meetings/accountability").glob("*.json"))
 
 
 def test_evening_reply_skips_deleted_bot_and_outside_window():
