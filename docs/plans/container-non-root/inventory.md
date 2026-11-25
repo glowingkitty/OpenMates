@@ -91,4 +91,8 @@ stage that runs in each environment.
   a restored disposable schema and Directus health passed. A separate empty
   database run reached schema writes before the local time limit. The focused
   mount test passed. Two unrelated permission-matrix assertions already
-  failed on the unchanged baseline.
+  failed on the unchanged baseline (dev commit `12cec9f`).
+- Published CMS setup. The published dev image started as UID 10002 and could
+  read the packaged schema and SQL on a read-only filesystem. Its Dockerfile
+  sets the same default user as the source-built variant. Trivy now scanned
+  all 18 tracked Dockerfiles, including the custom self-host recipe names.

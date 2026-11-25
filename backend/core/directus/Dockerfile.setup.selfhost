@@ -36,6 +36,11 @@ COPY setup/migrate_remove_quick_tips.sql /usr/src/app/migrations/migrate_remove_
 COPY setup/migrate_apps_workspace_result_indexes.sql /usr/src/app/migrations/migrate_apps_workspace_result_indexes.sql
 
 RUN pip install --no-cache-dir requests pyyaml python-dotenv "psycopg[binary]" \
-    && chmod +x setup_schemas.py
+    && chmod +x setup_schemas.py \
+    && groupadd --gid 10002 cmsschema \
+    && useradd --uid 10002 --gid cmsschema --no-create-home --shell /usr/sbin/nologin cmsschema
+
+ENV PYTHONDONTWRITEBYTECODE=1
+USER cmsschema
 
 CMD ["python", "setup_schemas.py"]

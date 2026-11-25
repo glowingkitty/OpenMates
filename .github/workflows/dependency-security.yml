@@ -13,6 +13,7 @@ on:
       - "**/package.json"
       - "**/requirements*.txt"
       - "**/Dockerfile*"
+      - "**/*.Dockerfile"
       - "**/docker-compose*.yml"
       - "pnpm-lock.yaml"
       - ".trivyignore.yaml"
@@ -27,6 +28,7 @@ on:
       - "**/package.json"
       - "**/requirements*.txt"
       - "**/Dockerfile*"
+      - "**/*.Dockerfile"
       - "**/docker-compose*.yml"
       - "pnpm-lock.yaml"
       - ".trivyignore.yaml"
@@ -83,6 +85,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Enforce Docker configuration policy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_FILE_PATTERNS: 'dockerfile:(^|/)Dockerfile(\.[^/]*)?$'
         with:
           scan-type: config
           scan-ref: .
