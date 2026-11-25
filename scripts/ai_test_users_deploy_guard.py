@@ -28,7 +28,6 @@ import argparse
 import json
 import subprocess
 import sys
-import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -38,8 +37,6 @@ MARKER = Path.home() / ".openmates" / "prod-update-in-progress"
 MARKER_MAX_AGE = timedelta(hours=4)
 SETTLE = timedelta(minutes=45)
 PENDING_MAX_AGE = timedelta(hours=12)
-WAIT_POLL_SECONDS = 300
-WAIT_MAX = timedelta(minutes=90)
 START_LOGGER = "chat_recovery_auto_cutover"
 LOG_TIMEOUT_SECONDS = 90
 
@@ -126,21 +123,6 @@ def current(marker_path: Path = MARKER) -> State:
     now = datetime.now(UTC)
     return State(now=now, marker=read_marker(marker_path, now), main_commit_at=main_commit_at(),
                  api_start_logs=api_start_logs())
-
-
-def wait_until_clear(read=current, sleep=time.sleep, poll_seconds: int = WAIT_POLL_SECONDS,
-                     max_wait: timedelta = WAIT_MAX, log=print) -> str | None:
-    """Pause while production is updating; None once clear, else the reason after `max_wait` (skip)."""
-    waited = 0.0
-    while True:
-        reason = blocker(read())
-        if reason is None:
-            return None
-        if waited >= max_wait.total_seconds():
-            return reason
-        log(f"prod run paused: {reason}")
-        sleep(poll_seconds)
-        waited += poll_seconds
 
 
 def main(argv: list[str] | None = None) -> int:

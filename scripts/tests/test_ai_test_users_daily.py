@@ -79,18 +79,26 @@ def test_password_only_in_secret_file(tmp_path):
 
 
 def test_prod_code_pop_and_low_push_once(tmp_path):
-    (tmp_path / accounts.PROD_CODES_FILE).write_text("".join(f"CODE-{i}\n" for i in range(8)))
+    path = tmp_path / accounts.PROD_CODES_FILE
+    path.write_text("".join(f"CODE-{i}\n" for i in range(22)))
     sent = []
-    for expected_remaining in (7, 6, 5, 4):
+
+    def push(message, _title):
+        sent.append(message)
+
+    for expected_remaining in (21, 20, 19, 18):
         code, remaining = accounts.pop_prod_code(tmp_path)
         assert remaining == expected_remaining
-        accounts.notify_low_codes(remaining, lambda msg, title: sent.append(msg), tmp_path)
-    assert code == "CODE-3" and len(sent) == 1 and sent[0].startswith("❓")
+        assert accounts.notify_low_codes(push, tmp_path) == (remaining == 20)
+    assert code == "CODE-3" and len(sent) == 1
+    assert "20 gift cards left (10 full weekday runs)" in sent[0]
+    assert "--count 160" in sent[0]
     assert "CODE-0" in (tmp_path / (accounts.PROD_CODES_FILE + ".used")).read_text()
-    (tmp_path / accounts.PROD_CODES_FILE).write_text("A\n" * 20)
-    accounts.notify_low_codes(20, lambda *a: sent.append("x"), tmp_path)  # refill clears the marker
-    accounts.notify_low_codes(3, lambda msg, title: sent.append(msg), tmp_path)
-    assert len(sent) == 2
+    path.write_text("A\n" * 160)
+    assert not accounts.notify_low_codes(push, tmp_path)  # refill rearms the warning
+    path.write_text("")
+    assert accounts.notify_low_codes(push, tmp_path)
+    assert len(sent) == 2 and "0 gift cards left" in sent[1]
 
 
 def test_pop_without_file_or_empty(tmp_path):
@@ -250,3 +258,62 @@ def test_scheduled_runs_only_monday_to_friday(monkeypatch):
     monkeypatch.setattr(ai_test_users.message_text, "push", must_not_run)
     for weekend in ("2026-11-21", "2026-11-22"):  # Persistent=true catch-up or a manual call on a weekend
         assert ai_test_users.main(["daily", "--date", weekend]) == 0
+
+
+def test_cli_resolves_with_systemd_path(tmp_path, monkeypatch):
+    import ai_test_users
+
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    expected = tmp_path / ".npm-global/bin/openmates"
+    assert ai_test_users.openmates_cli() == str(expected)
+
+
+@pytest.mark.parametrize("prod_blocked,expected_alerts", [(False, 0), (True, 1)])
+def test_daily_writes_summary_and_alerts_only_on_problems(tmp_path, monkeypatch, prod_blocked, expected_alerts):
+    import contextlib
+
+    import ai_test_users
+
+    monkeypatch.setattr(accounts, "HOME", tmp_path)
+    monkeypatch.setattr(accounts, "prod_enabled", lambda: True)
+    monkeypatch.setattr(accounts, "notify_low_codes", lambda: None)
+    monkeypatch.setattr(ai_test_users.dev_test_account, "server_is_development", lambda: True)
+    monkeypatch.setattr(ai_test_users, "dev_stack_lease", lambda _: contextlib.nullcontext())
+    monkeypatch.setattr(ai_test_users, "prod_update_blocker", lambda: "release not live" if prod_blocked else None)
+    monkeypatch.setattr(ai_test_users, "mark_prod_update_overlap", lambda *_: None)
+    monkeypatch.setattr(ai_test_users, "triage_run", lambda *_, **__: [])
+    observed = []
+
+    def run_groups(groups, *_):
+        observed.extend(groups)
+        return [{"target": target, "persona": p["id"], "status": "persona_finished"}
+                for target, personas in groups.items() for p in personas]
+
+    monkeypatch.setattr(ai_test_users, "run_groups", run_groups)
+    monkeypatch.setattr(execution, "retry_deletions", lambda *_, **__: [])
+    alerts = []
+    monkeypatch.setattr(message_text, "push", alerts.append)
+    assert ai_test_users.main(["daily", "--date", MONDAY.isoformat()]) == 0
+    assert observed == (["dev"] if prod_blocked else ["dev", "prod"])
+    assert len(alerts) == expected_alerts
+    if alerts:
+        assert "embeds" not in message_text.discord_payload(alerts[0])
+    summary, = tmp_path.glob("*/summary.txt")
+    report, = tmp_path.glob("*/report.md")
+    assert "release not live" in summary.read_text() if prod_blocked else summary.read_text().startswith("✅")
+    assert ("release not live" in report.read_text()) == prod_blocked
+
+
+def test_failed_task_lookup_still_produces_a_run_problem(tmp_path, monkeypatch):
+    import ai_test_users
+
+    def missing_cli():
+        raise FileNotFoundError("openmates")
+
+    monkeypatch.setattr(ai_test_users, "open_tasks", missing_cli)
+    monkeypatch.setattr(ai_test_users.triage, "running_chats", lambda: [])
+    monkeypatch.setattr(reporting, "report_markdown", lambda *_: "report")
+    run = {"personas": [], "problems": []}
+    assert ai_test_users.triage_run(run, tmp_path, dispatch=True) == []
+    assert run["problems"] == ["open Tasks could not be checked for duplicates: openmates"]

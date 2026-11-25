@@ -5,7 +5,7 @@ status: draft
 title: AI Test User Reports And Debug Chats
 summary: >
   The daily AI test users (simulated people on the dev and production web app)
-  file their findings as issue reports. Each run sends Marco one Discord message
+  file their findings as issue reports. A run with issues or harness problems sends Marco one Discord alert
   that separates DEV from PRODUCTION issues and says per issue whether a
   debugging chat started. Clear functional errors start a chat by themselves,
   subjective findings wait for his approval, and test-user reports never send
@@ -24,7 +24,7 @@ scope:
 assertions:
   - id: ai-test-users.message.dev-production-issues
     type: behavior
-    must: Every run sends one Discord message whose first line counts the DEV and PRODUCTION issues, the debugging chats started and the issues waiting for Marco's approval, and is marked as an alert whenever the run found an issue or had a harness problem (it never reads as clean then); below it a DEV and a PRODUCTION section list each issue with its title on its own plain line, then its environment, whether a debugging chat was started (and its title), is queued, deferred by the daily cap, already covered by a named open Task or chat, or waits for Marco's approval, its report id and a video link.
+    must: A scheduled run with issues or harness problems sends one Discord alert. Its first line counts the DEV and PRODUCTION issues, debugging chats started and issues waiting for approval. Its DEV and PRODUCTION sections list each issue title, environment, debug-chat status, report id and video link. A crash or timeout before the summary sends one plain alert. A clean scheduled run keeps its summary locally and sends no alert.
     depends_on: [examples.run_message]
   - id: ai-test-users.debug.functional-errors-start-chats
     type: behavior

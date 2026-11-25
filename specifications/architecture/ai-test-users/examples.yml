@@ -8,6 +8,9 @@ run_message:
   - id: covered-issue-is-linked
     given: The raw JSON issue is already the subject of the open Task TASK-2861.
     then: Its line says "no new chat, already covered by open Task TASK-2861" and no second chat starts.
+  - id: clean-scheduled-run-is-quiet
+    given: All scheduled personas finish without findings or harness problems.
+    then: The runner writes its report and summary locally and sends no Discord alert.
 
 debug_routing:
   - id: hang-starts-a-chat

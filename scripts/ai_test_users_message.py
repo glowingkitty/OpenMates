@@ -307,6 +307,8 @@ def run_message(title: str, results: list[dict], problems: list[str], flows: dic
         parts.append(problem_text(problems))
     parts.append(f"{dropped} finding{'s' if dropped != 1 else ''} dropped as not a bug (report.md).")
     lines = [first, " ".join(parts)]
+    if problems and not issues:
+        return "\n".join(lines)
     for env, name in ENV_NAMES.items():
         lines.append(f"## {name} issues ({len(per_env[env])})")
         for index, issue in enumerate(per_env[env][:MAX_CAUSES]):

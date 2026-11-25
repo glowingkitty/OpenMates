@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/ai-test-users
-    fingerprint: 03204e73b0ae7dc88d24a519148e7da36a5b9e87fa33f44c85dd5b46129f7aca
+    fingerprint: 9dd760f9e745abb2b7a0ead685f7a813f822b2aea0310776593b96a7fa826f95
     required_applies_to:
     - rest_api
     - cli
@@ -1319,7 +1319,7 @@ assertions:
     specification: architecture.ai-test-users@1
     specification_id: architecture.ai-test-users
     type: behavior
-    fingerprint: c4549101198c77ea3564b19b234838b266639e266d89fde85ddffd66cddf0860
+    fingerprint: 5a2dbe18d34b4406271846a1c160a58f7b974561049bd8ed3b2d528ade9246db
     required_applies_to:
     - rest_api
     - cli

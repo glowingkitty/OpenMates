@@ -53,14 +53,3 @@ def test_stale_marker_is_ignored(tmp_path):
     assert guard.read_marker(path, NOW) is None
     path.write_text(json.dumps({"started_at": (NOW - timedelta(hours=1)).isoformat(), "reason": "x"}))
     assert guard.read_marker(path, NOW)["reason"] == "x"
-
-
-def test_wait_pauses_until_clear_then_skips_after_max():
-    seq = iter([state(marker={"started_at": NOW.isoformat()}), state()])
-    sleeps = []
-    assert guard.wait_until_clear(read=lambda: next(seq), sleep=sleeps.append, log=lambda _m: None) is None
-    assert sleeps == [guard.WAIT_POLL_SECONDS]
-    always = state(marker={"started_at": NOW.isoformat(), "reason": "r"})
-    reason = guard.wait_until_clear(read=lambda: always, sleep=lambda _s: None, poll_seconds=60,
-                                    max_wait=timedelta(minutes=2), log=lambda _m: None)
-    assert "in progress" in reason

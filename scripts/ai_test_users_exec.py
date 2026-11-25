@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -64,10 +65,9 @@ def gate(target: str, base: Path | None) -> tuple[str | None, dict]:
     if target == "prod":
         if not accounts.prod_enabled(base):
             return "prod_disabled", {}
-        code, remaining = accounts.pop_prod_code(base)
+        code, _ = accounts.pop_prod_code(base)
         if code is None:
             return "no_gift_card", {}
-        accounts.notify_low_codes(remaining, base=base)
         return None, {"gift_card_code": code, "invite_code": ""}
     try:
         return None, accounts.create_dev_card()
@@ -187,10 +187,13 @@ def host_delete(email: str) -> str:
         return f"failed: {str(exc)[:200]}"
 
 
-def retry_deletions(run_id: str, run_dir: Path, cfg: Settings) -> list[dict]:
+def retry_deletions(run_id: str, run_dir: Path, cfg: Settings,
+                    targets: Collection[str] = ("dev", "prod")) -> list[dict]:
     """Fresh sandbox job in delete-only mode for each account whose deletion failed."""
     outcomes = []
     for entry in accounts.pending_deletions(cfg.base, run_id=run_id):
+        if entry["target"] not in targets:
+            continue
         if entry["target"] == "prod" and not accounts.prod_enabled(cfg.base):
             continue
         if entry["target"] == "dev":

@@ -88,15 +88,21 @@ def test_batch_cards_are_marked_single_use_and_credit_capped():
 
 def test_create_batch_marks_every_card_and_returns_codes():
     directus = MagicMock()
-    directus.get_gift_card_by_code = AsyncMock(return_value=None)
-    directus.create_gift_card = AsyncMock(side_effect=lambda **kw: {"id": kw["code"]})
-    directus.update_item = AsyncMock()
-    codes = asyncio.run(batch.create_batch(directus, 3, 1000, "ai-test-users batch x"))
-    assert len(set(codes)) == 3
-    assert all(c.kwargs["credits_value"] == 1000 and not c.kwargs.get("is_reusable")
-               for c in directus.create_gift_card.await_args_list)
-    assert all(c.args[2] == {"marks_test_account": True, "notes": "ai-test-users batch x"}
-               for c in directus.update_item.await_args_list)
+    directus.ensure_auth_token = AsyncMock(return_value="admin-token")
+    response = MagicMock(status_code=201)
+    response.json.return_value = {"data": [{"id": str(i)} for i in range(160)]}
+    directus._make_api_request = AsyncMock(return_value=response)
+    codes = asyncio.run(batch.create_batch(directus, 160, 1000, "ai-test-users batch x"))
+    assert len(set(codes)) == 160
+    request = directus._make_api_request.await_args
+    assert request.args[0] == "POST"
+    assert request.kwargs["headers"] == {"Authorization": "Bearer admin-token"}
+    assert request.kwargs["params"] == {"fields": "id"}
+    assert request.kwargs["json"] == [
+        {"code": code, "credits_value": 1000, "is_reusable": False, "marks_test_account": True,
+         "notes": "ai-test-users batch x"}
+        for code in codes
+    ]
 
 
 def test_active_users_and_completed_signups_exclude_test_accounts():

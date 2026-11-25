@@ -4,7 +4,7 @@ Every run creates a fresh account identity (never reused). `accounts.jsonl` is t
 registry (the briefing's growth exclusion reads its `email` field, so lines are never deleted).
 Passwords live only in a 0600 per-account secret file, removed after the account is deleted.
 Dev gift cards and invites are created inside the dev api container; prod gift cards come from
-a private code file the owner fills, one code per run.
+a private code file the operator fills, one code per production persona.
 """
 
 from __future__ import annotations
@@ -17,6 +17,9 @@ import string
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TextIO
+
+from ai_test_users_schedule import PROD_PER_DAY, WEEKEND
 
 HOME = Path.home() / ".openmates" / "ai-test-users"
 EMAIL_PREFIX = "omtestuser-"
@@ -24,7 +27,8 @@ EMAIL_DOMAIN = "inboxkitten.com"
 GIFT_CREDITS = 1000
 PROD_CODES_FILE = "prod-gift-cards.txt"
 PROD_ENABLED_FILE = "prod-enabled"
-LOW_CODES_THRESHOLD = 6
+LOW_CODES_THRESHOLD = 2 * WEEKEND * PROD_PER_DAY  # two weeks of scheduled runs
+PROD_REFILL_COUNT = 160
 LOW_MARKER = "prod-gift-cards-low-notified"
 RETENTION_DAYS = 90
 PUSH_SOURCE = "ai-test-users"
@@ -167,6 +171,10 @@ def prod_enabled(base: Path | None = None) -> bool:
     return (home(base) / PROD_ENABLED_FILE).exists()
 
 
+def _codes(handle: TextIO) -> list[str]:
+    return [line.strip() for line in handle if line.strip() and not line.lstrip().startswith("#")]
+
+
 def pop_prod_code(base: Path | None = None) -> tuple[str | None, int]:
     """Take one prod gift card code (consumed codes move to a .used file); returns (code, remaining)."""
     directory = home(base)
@@ -175,34 +183,51 @@ def pop_prod_code(base: Path | None = None) -> tuple[str | None, int]:
         return None, 0
     with path.open("r+") as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)
-        codes = [line.strip() for line in handle.read().splitlines() if line.strip() and not line.startswith("#")]
+        codes = _codes(handle)
         if not codes:
             return None, 0
         code, rest = codes[0], codes[1:]
         handle.seek(0)
         handle.truncate()
         handle.write("".join(c + "\n" for c in rest))
+        handle.flush()
     _private_write(directory / (PROD_CODES_FILE + ".used"), f"{code} {datetime.now(UTC).isoformat()}\n", append=True)
     os.chmod(path, 0o600)
     return code, len(rest)
 
 
-def low_codes_message() -> str:
-    return ("❓ Prod gift cards for the AI test users are running low. Please reconnect prod SSH and run "
-            "`create_test_gift_card_batch.py` to refill prod-gift-cards.txt.")
+def low_codes_message(remaining: int) -> str:
+    remote = f"docker exec api python /app/backend/scripts/create_test_gift_card_batch.py --count {PROD_REFILL_COUNT}"
+    path = f'$HOME/.openmates/ai-test-users/{PROD_CODES_FILE}'
+    command = (f"""(umask 077; codes=$(scripts/prod-ssh.sh '{remote}') && """
+               f"""printf '%s\\n' "$codes" | flock "{path}" tee -a "{path}" >/dev/null && chmod 600 "{path}")""")
+    runs = remaining // PROD_PER_DAY
+    return (f"Production AI test users have {remaining} gift cards left ({runs} full weekday runs). "
+            f"With production SSH open, run this on dev from the checkout:\n{command}")
 
 
-def notify_low_codes(remaining: int, post_push=None, base: Path | None = None) -> bool:
-    """Send ONE push per batch when <= LOW_CODES_THRESHOLD codes remain; the marker clears on refill."""
-    marker = home(base) / LOW_MARKER
-    if remaining > LOW_CODES_THRESHOLD:
-        marker.unlink(missing_ok=True)
-        return False
-    if marker.exists():
-        return False
-    (post_push or _push)(low_codes_message(), "AI test users gift cards")
-    _private_write(marker, datetime.now(UTC).isoformat())
-    return True
+def notify_low_codes(post_push=None, base: Path | None = None) -> bool:
+    """Send one warning per batch, including when the pool is empty. A refill rearms it."""
+    directory = home(base)
+    marker = directory / LOW_MARKER
+    # Serialize the read, delivery and marker write across daily and manual runs.
+    with (directory / f"{LOW_MARKER}.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        path = directory / PROD_CODES_FILE
+        try:
+            with path.open() as handle:
+                fcntl.flock(handle, fcntl.LOCK_SH)
+                remaining = len(_codes(handle))
+        except FileNotFoundError:
+            remaining = 0
+        if remaining > LOW_CODES_THRESHOLD:
+            marker.unlink(missing_ok=True)
+            return False
+        if marker.exists():
+            return False
+        (post_push or _push)(low_codes_message(remaining), "AI test users gift cards")
+        _private_write(marker, datetime.now(UTC).isoformat())
+        return True
 
 
 def _push(message: str, title: str) -> None:

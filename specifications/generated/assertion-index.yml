@@ -524,7 +524,7 @@ assertions:
     current_direct_proof: false
   ai-test-users.message.dev-production-issues:
     specification: architecture.ai-test-users@1
-    fingerprint: c4549101198c77ea3564b19b234838b266639e266d89fde85ddffd66cddf0860
+    fingerprint: 5a2dbe18d34b4406271846a1c160a58f7b974561049bd8ed3b2d528ade9246db
     direct_tests: []
     supporting_tests:
     - &id055
