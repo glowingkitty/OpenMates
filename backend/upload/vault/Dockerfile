@@ -21,6 +21,12 @@ WORKDIR /app
 RUN pip install --no-cache-dir httpx==0.28.1
 
 COPY backend/upload/vault/setup_vault.py .
-RUN chmod +x setup_vault.py
+RUN chmod +x setup_vault.py \
+    && groupadd --gid 10003 uploads \
+    && useradd --uid 10003 --gid uploads --no-create-home --shell /usr/sbin/nologin uploads \
+    && install -d -o uploads -g uploads -m 0700 /app/data /app/app-data
+
+ENV PYTHONDONTWRITEBYTECODE=1
+USER uploads
 
 CMD ["python", "setup_vault.py"]

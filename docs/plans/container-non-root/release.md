@@ -38,3 +38,15 @@ New named volumes inherit the directory prepared in the image. For an
 existing directory with a different owner, record the prior ownership and
 prepare the mounted directory before starting the new image. The service
 continues to listen on port 8055.
+
+The Core Vault data directory must be writable by the upstream `vault`
+account (UID 100, GID 1000), and its mounted configuration readable by that
+account. Record the mounted volume's ownership before updating. Verify the
+normal startup unseals Vault with its existing data and that the API returns
+to healthy. The deployed file-storage configuration keeps mlock disabled.
+
+For upload Vault setup, prepare the existing private setup volume and separate
+app handoff volume for UID/GID 10003 before the first start. Keep the directories
+at mode 0700 and private credential files at 0600. Verify that the root token
+is private to setup and the uploads app can read its scoped token through the
+read-only mount. Fresh volumes inherit the directories prepared in the image.

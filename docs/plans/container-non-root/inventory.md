@@ -102,3 +102,8 @@ stage that runs in each environment.
   returned HTTP 200 in a disposable dev container with no external network.
   The Dockerfile now prepares that data directory for its dedicated user
   (dev commit `a00a385`).
+- Upload Vault setup. The actual setup code ran as UID 10003 against a fresh
+  disposable Vault, including the existing on-failure startup retry and
+  recovery after Vault restarted with its persisted data. The app token and
+  unseal key kept mode 0600, and the separate app handoff had a scoped token
+  and no root token.
