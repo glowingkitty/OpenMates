@@ -82,4 +82,13 @@ stage that runs in each environment.
   returned HTTP 200 after recreation.
 - Docker web app. The published dev image served its static application on
   port 5173 with UID/GID 1000 in a network-isolated dev smoke. The Dockerfile
-  now sets the same user by default.
+  now sets the same user by default (dev commit `365cc0d`).
+- Preview was already non-root. The published dev image started with its
+  default user, ran all processes as UID 1000, returned HTTP 200 on port 8080
+  and could write to a fresh cache volume. This used a disposable dev container.
+- Source-built CMS setup. UID/GID 10002 read the mounted schema and migration
+  files with a read-only filesystem. The setup process exited successfully on
+  a restored disposable schema and Directus health passed. A separate empty
+  database run reached schema writes before the local time limit. The focused
+  mount test passed. Two unrelated permission-matrix assertions already
+  failed on the unchanged baseline.

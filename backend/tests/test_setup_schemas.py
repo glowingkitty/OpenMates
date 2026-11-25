@@ -61,6 +61,7 @@ def test_dev_cms_setup_mounts_every_default_sql_migration_read_only() -> None:
     setup_source = (backend_dir / "core/directus/setup/setup_schemas.py").read_text()
     compose_file = backend_dir / "core/docker-compose.yml"
     compose = yaml.safe_load(compose_file.read_text())
+    assert compose["services"]["cms-setup"]["user"] == "10002:10002"
     mounts = compose["services"]["cms-setup"]["volumes"]
 
     defaults = []

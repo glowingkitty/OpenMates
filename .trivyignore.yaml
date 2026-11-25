@@ -4,7 +4,6 @@ misconfigurations:
       - backend/admin_sidecar/Dockerfile
       - backend/core/api/Dockerfile
       - backend/core/api/Dockerfile.selfhost
-      - backend/core/directus/setup/Dockerfile
       - backend/core/vault/setup/Dockerfile
       - backend/status/Dockerfile
       - backend/upload/Dockerfile

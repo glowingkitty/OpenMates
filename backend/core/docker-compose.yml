@@ -179,6 +179,7 @@ services:
     build:
       context: ./directus/setup
       dockerfile: Dockerfile
+    user: 10002:10002
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
       - ./directus/setup/migrate_personal_privacy_generation.sql:/usr/src/app/migrations/migrate_personal_privacy_generation.sql:ro
