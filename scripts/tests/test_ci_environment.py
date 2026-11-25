@@ -395,10 +395,11 @@ def test_stack_start_retries_only_transient_registry_failures():
 
 def test_named_volumes_have_one_explicit_fixture_writer():
     services = compose_profile("a" * 40)["services"]
-    for service in services.values():
+    for name, service in services.items():
         for mount in service.get("volumes", []):
             if isinstance(mount, dict):
-                assert mount["volume"]["nocopy"] is True
+                database_volume = name == "cms-database" and mount["target"] == "/var/lib/postgresql/data"
+                assert mount["volume"]["nocopy"] is (not database_volume)
     for name in ("api", "core-worker"):
         assert (
             services[name]["depends_on"]["fixture-init"]["condition"]

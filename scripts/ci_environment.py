@@ -1285,7 +1285,13 @@ def compose_profile(
                 "POSTGRES_USER": "openmates",
                 "POSTGRES_PASSWORD": credentials["database"],
             },
-            "volumes": ["postgres:/var/lib/postgresql/data"],
+            # Fresh database volumes inherit the image's empty, Postgres-owned data directory.
+            "volumes": [{
+                "type": "volume",
+                "source": "postgres",
+                "target": "/var/lib/postgresql/data",
+                "volume": {"nocopy": False},
+            }],
             "healthcheck": {
                 "test": [
                     "CMD",
