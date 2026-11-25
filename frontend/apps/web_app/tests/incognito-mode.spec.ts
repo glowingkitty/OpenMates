@@ -13,17 +13,16 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
-const { openSignupInterface, isSignupInterfaceVisible, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
 /**
  * Incognito mode E2E test — single test, one login, all scenarios in sequence.
  *
  * Scenarios covered (in order):
  * 1. Enable via settings toggle → info screen → activate → settings closes → incognito banner visible
- * 2. Send a message → incognito label in sidebar + chat_id is a UUID (not a server ID)
+ * 2. Send a message → completed assistant reply, incognito label in sidebar, ephemeral chat ID
  * 3. Refresh page → sessionStorage persists (incognito chats + mode still active)
  * 4. Disable incognito → all incognito chats removed from sidebar immediately
  * 5. Active incognito chat banner disappears after disable
@@ -42,12 +41,6 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ---------------------------------------------------------------------------
 
 const SELECTORS = {
-	// Login / auth
-	emailInput: '#login-email-input',
-	passwordInput: '#login-password-input',
-	otpInput: '#login-otp-input',
-	submitLoginButton: 'button[type="submit"]:text-matches("log in|login", "i")',
-
 	// Chat UI
 	messageEditor: '[data-testid="message-editor"]',
 	sendButton: '[data-action="send-message"]',
@@ -76,6 +69,7 @@ const SELECTORS = {
 // The test
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
 test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
@@ -102,62 +96,8 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	// Login (once)
 	// -------------------------------------------------------------------------
 
-	await page.goto(getE2EDebugUrl('/'));
-	await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {
-		logCheckpoint('WARNING: networkidle timeout — continuing anyway.');
-	});
-	await takeStepScreenshot(page, '01-home');
-
-	await openSignupInterface(page);
-
-	// Click Login tab to switch from signup to login view
-	const loginTab = page.getByTestId('tab-login');
-	await expect(loginTab).toBeVisible({ timeout: 10000 });
-	await loginTab.click();
-
-	// Wait a moment for the login dialog to mount and render
-	await page.waitForTimeout(2000);
-	await takeStepScreenshot(page, '02-login-dialog');
-
-	// Diagnostic: dump DOM state to understand what rendered
-	const loginWrapperCount = await page.getByTestId('login-wrapper').count();
-	const emailInputCount = await page.locator(SELECTORS.emailInput).count();
-	const activeChatLoginMode = await page.locator('[data-testid="active-chat-container"].login-mode').count();
-	// Check the actual store value from inside the page context
-	const storeValues = await page.evaluate(() => {
-		// Try to access the Svelte store via window (if exported)
-		const w = window as any;
-		return {
-			loginInterfaceOpen: w.__loginInterfaceOpen ?? 'not exposed',
-			hasActiveChatContainer: !!document.querySelector('.active-chat-container'),
-			bodyChildren: document.body.children.length,
-			htmlSnippet:
-				document.querySelector('.active-chat-container')?.innerHTML?.slice(0, 500) ?? 'not found'
-		};
-	});
-	logCheckpoint('DOM diagnostic after login button click.', {
-		loginWrapperCount,
-		emailInputCount,
-		activeChatLoginMode,
-		storeValues,
-		url: page.url()
-	});
-
-	const emailInput = page.locator(SELECTORS.emailInput);
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator(SELECTORS.passwordInput);
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
-
-	await page.waitForTimeout(3000);
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	const messageEditor = page.locator(SELECTORS.messageEditor);
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
 	logCheckpoint('Logged in. Chat interface loaded.');
 	await takeStepScreenshot(page, '03-logged-in');
 
@@ -260,6 +200,11 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	expect(chatId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 	logCheckpoint('✓ Chat ID is a valid UUID (not a server ID).');
 
+	const assistantReply = await waitForAssistantMessage(page, { logCheckpoint });
+	await expect(assistantReply).toHaveAttribute('data-streaming', 'false', { timeout: 30000 });
+	await expect(assistantReply.getByTestId('message-content')).toHaveText(/\S/);
+	await expect(page.getByTestId('pending-assistant-response')).toBeHidden();
+
 	// Wait for sidebar to update with the new chat
 	await page.waitForTimeout(3000);
 
@@ -302,30 +247,6 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 
 	await page.reload();
 	logCheckpoint('Page reloaded.');
-	await page.waitForTimeout(4000);
-
-	// Re-login if session was lost
-	if (await isSignupInterfaceVisible(page, 5000)) {
-		logCheckpoint('Session lost — re-logging in.');
-		await openSignupInterface(page);
-
-		// Click Login tab to switch from signup to login view
-		const loginTabRelogin = page.getByTestId('tab-login');
-		await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
-		await loginTabRelogin.click();
-
-		const emailInput2 = page.locator(SELECTORS.emailInput);
-		await expect(emailInput2).toBeVisible();
-		await emailInput2.fill(TEST_EMAIL);
-		await page.getByRole('button', { name: /continue/i }).click();
-		const passwordInput2 = page.locator(SELECTORS.passwordInput);
-		await expect(passwordInput2).toBeVisible({ timeout: 15000 });
-		await passwordInput2.fill(TEST_PASSWORD);
-
-		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
-		logCheckpoint('Re-login successful.');
-		await page.waitForTimeout(3000);
-	}
 
 	await expect(messageEditor).toBeVisible({ timeout: 20000 });
 	logCheckpoint('Chat interface loaded after reload.');

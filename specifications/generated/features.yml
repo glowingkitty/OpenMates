@@ -2373,6 +2373,7 @@ features:
       - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-artifact-progress.spec.ts
       - frontend/apps/web_app/tests/example-chats-load.spec.ts
+      - frontend/apps/web_app/tests/incognito-mode.spec.ts
       - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
       - frontend/apps/web_app/tests/landing-web-phone.spec.ts
       - frontend/apps/web_app/tests/public-example-activity-summary.spec.ts
@@ -5319,6 +5320,7 @@ features:
         counted: 1
       key_tests:
       - frontend/apps/web_app/tests/incognito-mode.spec.ts
+      evidence: The incognito flow waits for a completed assistant reply before reloading its session history.
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0

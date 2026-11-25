@@ -5110,8 +5110,9 @@ async def _generate_fake_stream_for_harmful_content(
     # Save assistant response to cache for follow-up message context
     # Even harmful content responses should be cached so follow-ups have context
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
-    # EXTERNAL REQUESTS skip this.
-    if not request_data.is_external and directus_service and cache_service and predefined_response:
+    # Only saved chats have metadata and server-side assistant history.
+    if (not (request_data.is_external or request_data.is_incognito)
+            and directus_service and cache_service and predefined_response):
         timestamp = canonical_assistant_created_at
         content_tiptap = predefined_response  # Send as markdown
 
@@ -5243,8 +5244,9 @@ async def _generate_fake_stream_for_simple_message(
     # Save assistant response to cache for follow-up message context
     # Even simple messages (like insufficient credits) should be cached
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
-    # EXTERNAL REQUESTS skip this.
-    if not request_data.is_external and directus_service and cache_service and message_text:
+    # Only saved chats have metadata and server-side assistant history.
+    if (not (request_data.is_external or request_data.is_incognito)
+            and directus_service and cache_service and message_text):
         timestamp = canonical_assistant_created_at
         content_tiptap = message_text  # Send as markdown
 
@@ -11437,7 +11439,8 @@ async def _consume_main_processing_stream(
         # message (the focus activation embed). Without this, messages_v drifts: the
         # continuation task increments for its own message, but this one was skipped,
         # causing the health check to report "messages_v (N) != actual count (N+1)".
-        if not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
+        if (not (request_data.is_external or request_data.is_incognito)
+                and directus_service and cache_service and encryption_service and user_vault_key_id):
             category = preprocessing_result.category or "general_knowledge"
             timestamp = _assistant_response_created_at(request_data, int(time.time()))
             try:
@@ -12405,8 +12408,9 @@ async def _consume_main_processing_stream(
     # This is CRITICAL for the architecture where last 3 chats are cached in memory
     # Even partial responses (due to revocation/soft limit) should be saved for context
     # CRITICAL: Always save to AI cache, even if response is empty or interrupted
-    # EXTERNAL REQUESTS (REST API) skip this as they are stateless and don't use storage.
-    if not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
+    if request_data.is_incognito:
+        logger.debug("%s Incognito chat uses client-supplied history for follow-ups.", log_prefix)
+    elif not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
         # Use actual category from preprocessing, fallback to general_knowledge
         category = preprocessing_result.category or "general_knowledge"
         if not preprocessing_result.category:

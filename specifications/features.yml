@@ -351,6 +351,7 @@ features:
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
+      web: "The incognito flow waits for a completed assistant reply before reloading its session history."
       apple: "apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift, Settings/Views/SettingsIncognitoInfoView.swift"
       cli: "openmates chats incognito|incognito-clear|incognito-history"
       rest_api: "routes/sdk.py POST /v1/sdk/chats (chat:create_incognito, save_to_account=false)"
