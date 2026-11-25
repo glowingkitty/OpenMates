@@ -10,6 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/engineering_control_plane ./backend/engineering_control_plane
 
+RUN groupadd --gid 10001 controlplane \
+    && useradd --uid 10001 --gid controlplane --no-create-home --shell /usr/sbin/nologin controlplane
+
+USER controlplane
+
 EXPOSE 8000
 
 CMD ["python", "-m", "backend.engineering_control_plane.entrypoint"]

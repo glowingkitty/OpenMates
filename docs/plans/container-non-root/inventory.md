@@ -25,8 +25,8 @@ release. Root in this inventory means UID 0 inside the container.
 | `backend/admin_sidecar/Dockerfile` | Core, upload and preview maintenance | Root in the image. Docker socket group and checkout access need verification in all three manifests. Docker socket access conveys host Docker authority independently of the sidecar UID. |
 | `frontend/apps/web_app/Dockerfile` | Docker core/self-host frontend | Root in the serving stage. Serves static assets on port 5173. |
 | `backend/engineering_control_plane/Dockerfile` | Dev engineering control plane API | Python runs as root on dev. The separate Compose service has no application volume. |
-| `backend/status/Dockerfile` | Standalone source-build status app | Root. SQLite is on a named volume under `/app/data`. |
-| `deployment/status_server/Dockerfile` | Published status server | `status`. Includes Gatus and Caddy binaries and uses high ports inside the container. |
+| `backend/status/Dockerfile` | Legacy standalone status app, never deployed | Root. SQLite is on a named volume under `/app/data`. |
+| `deployment/status_server/Dockerfile` | Published status server | `status` (UID 10001). Gatus listens on 8080 and Caddy uses `CAP_NET_BIND_SERVICE` for 80 and 443. |
 | `scripts/ci_schema_image.Dockerfile` | Published Postgres schema carrier for isolated CI | Inherits root startup from Postgres, which then drops to the Postgres account. |
 
 ## Upstream runtime images
@@ -51,3 +51,10 @@ release. Root in this inventory means UID 0 inside the container.
 The Python and Node base images and the status server's Gatus and Caddy build
 stages supply binaries or build dependencies. The rows above record the final
 stage that runs in each environment.
+
+## Verified changes
+
+- CI schema carrier, dev commit `6e3fe61`. The pinned Postgres base restored a
+  compressed SQL fixture in a disposable fresh volume as UID/GID 70 and
+  accepted connections. The image's publish workflow also checks the identity
+  inside both fresh restore consumers.

@@ -7,7 +7,6 @@ misconfigurations:
       - backend/core/directus/Dockerfile
       - backend/core/directus/setup/Dockerfile
       - backend/core/vault/setup/Dockerfile
-      - backend/engineering_control_plane/Dockerfile
       - backend/status/Dockerfile
       - backend/upload/Dockerfile
       - backend/upload/vault/Dockerfile
