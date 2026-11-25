@@ -12,6 +12,9 @@
 #   @vercel/nft (adapter-vercel build tracing) uses glob, and it requires ^13.
 # - GHSA-g3hv-75wg-m249 (minimatch pattern DoS, fixed in 11.0.1): used by
 #   eslint, typescript-eslint and glob 13, which require ^3 or ^10.
+# - GHSA-3r8g-jcqq-3p5j (SvelteKit experimental remote functions, fixed in
+#   3.1.1): this workspace has no remote-function configuration or modules.
+#   Remove this exception and its guard when upgrading to a patched SvelteKit.
 #
 # Architecture: docs/architecture/github-actions-ci.md
 
@@ -36,6 +39,9 @@ jobs:
           node-version: "24"
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Verify SvelteKit advisory scope
+        run: ./scripts/check_sveltekit_audit_scope.sh
 
       - name: Audit pnpm workspace
         run: pnpm audit --audit-level moderate

@@ -15,6 +15,12 @@ on:
       - "**/Dockerfile*"
       - "**/docker-compose*.yml"
       - "pnpm-lock.yaml"
+      - ".trivyignore.yaml"
+      - ".github/workflows/dependency-security.yml"
+      - "scripts/check_sveltekit_audit_scope.sh"
+      - "frontend/**/svelte.config.*"
+      - "frontend/**/vite.config.*"
+      - "frontend/**/*.remote.*"
   pull_request:
     branches: [dev]
     paths:
@@ -23,6 +29,12 @@ on:
       - "**/Dockerfile*"
       - "**/docker-compose*.yml"
       - "pnpm-lock.yaml"
+      - ".trivyignore.yaml"
+      - ".github/workflows/dependency-security.yml"
+      - "scripts/check_sveltekit_audit_scope.sh"
+      - "frontend/**/svelte.config.*"
+      - "frontend/**/vite.config.*"
+      - "frontend/**/*.remote.*"
 
 permissions:
   contents: read
@@ -40,6 +52,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install frozen npm graph
         run: pnpm install --frozen-lockfile
+      - name: Verify SvelteKit advisory scope
+        run: ./scripts/check_sveltekit_audit_scope.sh
       - name: Audit resolved npm graph
         run: pnpm audit --audit-level high
 
