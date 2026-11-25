@@ -46,6 +46,8 @@
     /** Visible, safe result metadata only; never encryption keys or transport records. */
     result: Record<string, unknown>;
     summary?: Snippet;
+    /** Reading layout with a scroll-linked title and the source action below media. */
+    article?: boolean;
     media?: Snippet<[ResultFollowupChannel]>;
     /** Receives the follow-up channel so detail controls can send ordinary follow-up turns. */
     detailContent?: Snippet<[ResultFollowupChannel]>;
@@ -66,7 +68,7 @@
   let {
     authoring: authoringProp,
     authoringPlacement = "top",
-    result, summary, media, detailContent, identity, mediaLayout = "standard",
+    result, summary, media, detailContent, identity, mediaLayout = "standard", article = false, embedHeaderCta,
     mapCenter, mapMarkers = [], mapZoom = 15, mapPath = [], mapPaths = [],
     mapPathColor, mapScrollWheelZoom = false, onMapReady, staticMapImageUrl,
     ...fullscreen
@@ -80,6 +82,20 @@
     ? [...new Set([fullscreen.embedHeaderTitle, fullscreen.embedHeaderSubtitle].filter(Boolean))].join(' · ')
     : fullscreen.embedHeaderSubtitle);
   const appId = $derived(fullscreen.appId);
+  let articleHeading = $state<HTMLHeadingElement>();
+  let articleTitleScrolled = $state(false);
+  $effect(() => {
+    if (!article || !headerTitle || !articleHeading) return;
+    const scrollport = articleHeading.closest('[data-testid="embed-scrollport"]');
+    if (!scrollport) return;
+    articleTitleScrolled = articleHeading.getBoundingClientRect().bottom <= scrollport.getBoundingClientRect().top;
+    const observer = new IntersectionObserver(([entry]) => {
+      articleTitleScrolled = !entry.isIntersecting && !!entry.rootBounds
+        && entry.boundingClientRect.bottom <= entry.rootBounds.top;
+    }, { root: scrollport });
+    observer.observe(articleHeading);
+    return () => observer.disconnect();
+  });
   const currentEmbedId = $derived(fullscreen.currentEmbedId);
   const onClose = $derived(fullscreen.onClose);
   let contentElement = $state<HTMLDivElement>();
@@ -184,7 +200,9 @@
 </script>
 
 <UnifiedEmbedFullscreen {...fullscreen} headerKind="content" embedHeaderTitle={headerTitle}
-  embedHeaderSubtitle={headerSubtitle} followupSubmit={submitFollowup} followupSubmitting={submitting}>
+  embedHeaderSubtitle={headerSubtitle} embedHeaderCta={article ? undefined : embedHeaderCta}
+  readingTitleVisible={article ? articleTitleScrolled : undefined}
+  followupSubmit={submitFollowup} followupSubmitting={submitting}>
   {#snippet content()}
     <div
       bind:this={contentElement}
@@ -194,6 +212,9 @@
       data-testid="result-embed-content"
       data-app-id={appId}
     >
+      {#if article && headerTitle}
+        <h1 class="article-heading" data-testid="embed-article-heading" bind:this={articleHeading}>{headerTitle}</h1>
+      {/if}
       {#if summary}<div class="result-summary" data-testid="result-facts">
         {@render summary()}
       </div>{/if}
@@ -230,6 +251,9 @@
           {/if}
         </div>
       {/if}
+      {#if article && embedHeaderCta}
+        <div class="article-source-action" data-testid="embed-article-source-action">{@render embedHeaderCta()}</div>
+      {/if}
       {#if identity}<div class="result-identity-content">{@render identity()}</div>{/if}
       {#if detailContent}<div class="result-detail-content">{@render detailContent({ requestFollowup: (value) => submitFollowup(value, []), submitting })}</div>{/if}
       {#if authoring && authoringPlacement === "bottom"}<div class="result-sources-content" data-testid="result-sources"><AuthoredResultContextInfo {authoring} section /></div>{/if}
@@ -262,6 +286,17 @@
     max-width: 100%;
   }
   .result-summary:not(:has(> *)) { display: none; }
+  .article-heading {
+    width: min(100%, 34rem);
+    margin: 0;
+    font-size: var(--font-size-h2);
+    line-height: 1.18;
+    overflow-wrap: anywhere;
+  }
+  .article-source-action { display: flex; justify-content: center; max-width: 100%; }
+  @container fullscreen (max-width: 520px) {
+    .article-heading { font-size: var(--font-size-h2-mobile); }
+  }
   .result-media {
     width: 100%;
     min-width: 0;
@@ -312,13 +347,13 @@
     background: var(--color-grey-0);
     border-radius: var(--radius-5);
     padding: var(--spacing-6) var(--spacing-8);
-    font-size: 0.875rem;
+    font-size: var(--font-size-small);
     line-height: 1.4;
   }
   .result-detail-content :global(.result-description) {
     margin: 0;
     width: 100%;
-    font-size: 0.875rem;
+    font-size: var(--font-size-small);
     line-height: 1.55;
     white-space: pre-wrap;
   }

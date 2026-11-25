@@ -31,6 +31,11 @@
         "components/design-editor-performance.spec.ts"
       ]
     },
+    "shared_embed_fullscreen_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only previews exercise the shared fullscreen corner, menu actions, article scroll handoff and local file downloads. The Rust browser package supplies Design scene validation and Code filename planning.",
+      "specs": ["components/embed-fullscreen-header.spec.ts"]
+    },
     "design_embroidery_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare embroidery result card and opened view. Fixtures carry inline preview media; download-URL and follow-up requests are intercepted and asserted. No backend, E2B sandbox, account credentials or AI inference. The real conversion is verified separately against the sandbox template and in chat.",

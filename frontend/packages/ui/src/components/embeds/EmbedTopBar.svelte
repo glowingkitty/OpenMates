@@ -166,7 +166,7 @@
     onIncludeOriginalPII,
   }: Props = $props();
   const chatContext = getContext<EmbedChatContext | undefined>(EMBED_CHAT_CONTEXT);
-  const canRestoreChat = $derived(chatContext?.showChatButton ?? showChatButton);
+  const canRestoreChat = $derived(!identity && (chatContext?.showChatButton ?? showChatButton));
   const restoreChatHandler = $derived(chatContext?.onShowChat ?? onShowChat);
   let importPending = $state(false);
   async function handleImport(): Promise<void> {
@@ -229,7 +229,7 @@
 
 <div class="embed-top-bar" class:inline={!!identity} data-testid="embed-top-bar" use:headerOverlayControls>
   {@render identity?.()}
-  <HeaderActionMenu compactMoreOnly={!!identity} keepClose={!!identity} reportInMenu={reportInMore || !!identity} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} responsiveAction={onEnhance ? enhanceButton : undefined} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
+  <HeaderActionMenu compactMoreOnly={!!identity} keepClose={!!identity} reportInMenu={reportInMore || !!identity} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} responsiveAction={onEnhance ? enhanceButton : undefined} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport} menuTestId="embed-more-menu">
     {#snippet report()}
       <WorkspaceReportIssueButton testId="embed-report-issue-button" onOpen={onReportIssue} />
     {/snippet}
@@ -242,11 +242,11 @@
             use:tooltip
             data-testid="embed-share-button"
             onclick={onShare}
-            aria-label={$text('chat.share')}
+            aria-label={$text('settings.share.share_embed')}
             ><span
               class="clickable-icon icon_share top-button"
               aria-hidden="true"
-            ></span><span class="action-label">{$text('chat.share')}</span
+            ></span><span class="action-label">{$text('settings.share.share_embed')}</span
             ></button
           >
         </div>
@@ -510,13 +510,13 @@
   .button-wrapper.edit-active { background-color: var(--color-primary-start); }
   .button-wrapper.edit-active .clickable-icon.top-button { filter: brightness(0) invert(1); }
   .button-wrapper.edit-active:global([data-header-overlay]) {
-    background-color: rgb(255 255 255 / 45%) !important;
-    box-shadow: inset 0 0 0 2px #fff, var(--shadow-md);
+    background-color: color-mix(in srgb, var(--color-font-button) 45%, transparent) !important;
+    box-shadow: inset 0 0 0 2px var(--color-font-button), var(--shadow-md);
   }
   .enhance-spinner {
     display: block; width: 25px; height: 25px; box-sizing: border-box; border-radius: 50%;
     /* White on the dark header pill; the More menu rows have a light background. */
-    color: #fff; border: 3px solid color-mix(in srgb, currentColor 30%, transparent);
+    color: var(--color-font-button); border: 3px solid color-mix(in srgb, currentColor 30%, transparent);
     border-top-color: currentColor; animation: enhance-spin 0.9s linear infinite;
   }
   :global(.direct-action) .enhance-spinner, :global(.more-page) .enhance-spinner { color: var(--color-grey-60, #666); }
@@ -544,7 +544,7 @@
     z-index: var(--z-index-modal);
   }
 
-  .embed-top-bar.inline { position: relative; flex: none; gap: var(--spacing-4); padding: var(--spacing-4) var(--spacing-6);
+  .embed-top-bar.inline { position: relative; flex: none; min-height: 56px; gap: var(--spacing-4); padding: 0 var(--spacing-6) 0 0; direction: ltr;
     color: var(--color-font-primary); background: var(--color-grey-0); border-bottom: 1px solid var(--color-grey-25); }
   .inline :global(.header-action-menu) { margin-inline-start: auto; }
 
@@ -561,7 +561,7 @@
     position: relative;
     z-index: 1;
     background-color: var(--color-grey-10);
-    border-radius: 40px;
+    border-radius: var(--radius-full);
     padding: var(--spacing-4);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     display: flex;
@@ -605,7 +605,7 @@
 
   /* Preview toggle: primary tint when preview mode is active */
   .preview-active {
-    background-color: rgba(99, 102, 241, 0.25) !important;
+    background-color: color-mix(in srgb, var(--color-primary-start) 25%, transparent) !important;
   }
 
   :global(.clickable-icon.icon_calendar) {

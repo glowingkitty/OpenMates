@@ -221,7 +221,8 @@
       readOnly={!scope || !embedId || !!head.proposal || !!past || historyLoading}
       revision={scope && embedId && !head.proposal ? { version: headVersion, save } : undefined} {readImage} {versionHistory}
       assistantTools={head.proposal || scope && !past ? assistantTools : undefined}
-      allowExport={!head.proposal && !historyLoading} {readExportImage} {onClose} />
+      allowExport={!head.proposal && !historyLoading} allowShare={!past && !head.proposal && !historyLoading}
+      {readExportImage} {onClose} />
   {/key}
 {:else}
   <EmbedFullscreenLoading data={{ ...data, embedType: 'design-document' }} {failed} {onClose} />

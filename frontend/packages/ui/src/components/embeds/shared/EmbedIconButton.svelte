@@ -85,6 +85,7 @@
       aria-hidden="true"
     ></span>
   {/if}
+  <span class="embed-icon-button-label" aria-hidden="true">{label}</span>
   {#if badge}<span class="embed-icon-button-badge" data-testid={badgeTestId} aria-hidden="true"></span>{/if}
 </button>
 
@@ -101,7 +102,7 @@
     width: calc(25px + 2 * var(--spacing-4));
     height: calc(25px + 2 * var(--spacing-4));
     padding: var(--spacing-4);
-    border-radius: 40px;
+    border-radius: var(--radius-full);
     background-color: var(--color-grey-10);
     box-shadow: var(--shadow-md);
     color: var(--color-font-primary);
@@ -113,6 +114,22 @@
       box-shadow var(--duration-normal),
       opacity var(--duration-normal);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .embed-icon-button-label { display: none; }
+  :global(.more-actions) .embed-icon-button {
+    justify-content: flex-start;
+    gap: var(--spacing-4);
+    width: fit-content;
+    max-width: 100%;
+    height: auto;
+    min-height: calc(25px + 2 * var(--spacing-4));
+    padding-inline-end: var(--spacing-8);
+    transform-origin: left center;
+  }
+  :global(.more-actions) .embed-icon-button-label {
+    display: block;
+    overflow-wrap: anywhere;
   }
 
   .embed-icon-button:hover:not(:disabled) {

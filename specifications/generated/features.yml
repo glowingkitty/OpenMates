@@ -1792,7 +1792,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 2
+  assertions: 4
   surfaces:
     web:
       status: not_run
@@ -1801,12 +1801,13 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 2
+        not_run: 4
         missing: 0
-        counted: 2
+        counted: 4
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/design-document.spec.ts
+      - frontend/apps/web_app/tests/components/embed-fullscreen-header.spec.ts
       - frontend/apps/web_app/tests/embed-fullscreen-followup.spec.ts
       key_unit_tests: []
       unit_test_files: 0
@@ -12417,6 +12418,7 @@ features:
       - frontend/apps/web_app/tests/components/design-document.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
+      - frontend/apps/web_app/tests/components/embed-fullscreen-header.spec.ts
       - frontend/apps/web_app/tests/design-document-view.spec.ts
       - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
       - frontend/apps/web_app/tests/real-inference-design-editor.spec.ts

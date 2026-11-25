@@ -1064,7 +1064,7 @@ specifications:
     version: 1
     status: draft
     path: features/shared-embed-fullscreen
-    fingerprint: 54035b708304c3954a52ec4cd9921a71228001a3859094664af36a98a021fd6e
+    fingerprint: 1eadc1c5dfe18423f7786e39ddea126529f2fa646d4b8922806127cb19d5794b
     required_applies_to:
     - gui.web
   feature.slides:
@@ -14726,14 +14726,28 @@ assertions:
     specification: feature.shared-embed-fullscreen@1
     specification_id: feature.shared-embed-fullscreen
     type: behavior
-    fingerprint: 9b2ae473e0197fcd9d6030f724612c2b8b7a55edd153e5532f8f429139243b50
+    fingerprint: 96bd8a57fa492cd788d78fc58c0efc5837ff8baaab7ba7a4dd1d7b32f5d7d2e4
+    required_applies_to:
+    - gui.web
+  shared-embed-fullscreen.article:
+    specification: feature.shared-embed-fullscreen@1
+    specification_id: feature.shared-embed-fullscreen
+    type: behavior
+    fingerprint: 4f3497e87f4c22c28ffbbf665dc82e4c692fd1da5e68b1c962ee3c9f52492216
+    required_applies_to:
+    - gui.web
+  shared-embed-fullscreen.menu:
+    specification: feature.shared-embed-fullscreen@1
+    specification_id: feature.shared-embed-fullscreen
+    type: behavior
+    fingerprint: a06a9972ef9e69f93a6be7fdbb52e389dfcc89e8b1c070616f0151541a718ee3
     required_applies_to:
     - gui.web
   shared-embed-fullscreen.followup:
     specification: feature.shared-embed-fullscreen@1
     specification_id: feature.shared-embed-fullscreen
     type: security
-    fingerprint: 59053830f3b4d13e3987213f519c38f18e10c6aa591ad1a4c410683b5492497d
+    fingerprint: cbb22f9af2de0eb46fe6c5a9e1be96bb2b99913080c226e60426d5706dfb3d22
     required_applies_to:
     - gui.web
   slides.format.positioned-elements:

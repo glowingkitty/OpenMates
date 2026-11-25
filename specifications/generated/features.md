@@ -103,7 +103,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Chat share settings | **FAIL** 1/4 | partial 2/4 | tested 1/1 | not run 0/1 | ? | not run 0/1 | — | — | | | |
 | &nbsp;&nbsp;↳ Notification settings | **FAIL** 4/5 | partial 3/5 | ? | — | ? | partial 1/5 | — | — | | | |
 | &nbsp;&nbsp;↳ Language settings | **FAIL** 1/2 | ? | ? | — | ? | not run 0/2 | — | — | | | |
-| [Shared content embed fullscreen](#shared-embed-fullscreen) | not run 0/2 | planned |  | — | — | — | — | — | on (no flag) | on (no flag) | unreleased |
+| [Shared content embed fullscreen](#shared-embed-fullscreen) | not run 0/4 | planned |  | — | — | — | — | — | on (no flag) | on (no flag) | unreleased |
 | [Signed-out Web Welcome](#landing-onboarding) | **FAIL** 2/12 | partial 3/12 |  | — | — | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.7.0-alpha |
 | [Teams](#teams) | **FAIL** 12/21 | tested 4/4 |  | **FAIL** 1/21 | **FAIL** 0/8 | partial 9/21 | not run 0/21 | not run 0/21 | on | off | unreleased |
 | [Webhooks](#webhooks) | impl | impl |  | impl | impl | impl | — | — | on (no flag) | on (no flag) | unverified |
@@ -1380,7 +1380,7 @@ Find icons and visual assets, and read your Figma or Penpot designs to build the
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 5/46 | 5 pass · 0 fail · 21 not run · 20 no test | [design-editor.spec.ts](../../frontend/apps/web_app/tests/components/design-editor.spec.ts)<br>[design-editor-performance.spec.ts](../../frontend/apps/web_app/tests/components/design-editor-performance.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[content-image-gestures.spec.ts](../../frontend/apps/web_app/tests/components/content-image-gestures.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[design-embroidery-progress-card.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>[real-inference-design-editor.spec.ts](../../frontend/apps/web_app/tests/real-inference-design-editor.spec.ts)<br>8 unit test file(s), e.g. [test_design_scene.py](../../backend/tests/test_design_scene.py), [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py) |
+| Web | partial 5/46 | 5 pass · 0 fail · 21 not run · 20 no test | [design-editor.spec.ts](../../frontend/apps/web_app/tests/components/design-editor.spec.ts)<br>[design-editor-performance.spec.ts](../../frontend/apps/web_app/tests/components/design-editor-performance.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[content-image-gestures.spec.ts](../../frontend/apps/web_app/tests/components/content-image-gestures.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[design-embroidery-progress-card.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts)<br>[embed-fullscreen-header.spec.ts](../../frontend/apps/web_app/tests/components/embed-fullscreen-header.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>[real-inference-design-editor.spec.ts](../../frontend/apps/web_app/tests/real-inference-design-editor.spec.ts)<br>8 unit test file(s), e.g. [test_design_scene.py](../../backend/tests/test_design_scene.py), [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py) |
 | Apple | partial 1/18 | 1 pass · 0 fail · 0 not run · 17 no test | 1 unit test file(s), e.g. [HostingEmbedModelTests.swift](../../apple/OpenMatesTests/HostingEmbedModelTests.swift) |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 35 no test | — |
 | TUI | impl | — | — |
@@ -2752,14 +2752,14 @@ The settings shell on web and Apple: navigation, sections and footer.
 
 Compact identity, shared controls, and an embed-scoped follow-up composer.
 
-- Specifications: [feature.shared-embed-fullscreen](../../specifications/features/shared-embed-fullscreen/specification.yml) (draft) · 2 assertion(s)
+- Specifications: [feature.shared-embed-fullscreen](../../specifications/features/shared-embed-fullscreen/specification.yml) (draft) · 4 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unreleased
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | not run 0/2 | 0 pass · 0 fail · 2 not run · 0 no test | [design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[embed-fullscreen-followup.spec.ts](../../frontend/apps/web_app/tests/embed-fullscreen-followup.spec.ts) |
+| Web | not run 0/4 | 0 pass · 0 fail · 4 not run · 0 no test | [design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[embed-fullscreen-header.spec.ts](../../frontend/apps/web_app/tests/components/embed-fullscreen-header.spec.ts)<br>[embed-fullscreen-followup.spec.ts](../../frontend/apps/web_app/tests/embed-fullscreen-followup.spec.ts) |
 | Apple | planned | — | — |
 | CLI | — | — | — |
 | TUI | — | — | — |

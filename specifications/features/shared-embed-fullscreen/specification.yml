@@ -15,7 +15,13 @@ scope:
 assertions:
   - id: shared-embed-fullscreen.content
     type: behavior
-    must: Content uses the shared compact header and fullscreen shell in view and edit modes. Titles truncate before controls are squeezed. App skill executions retain their large header.
+    must: Content uses the shared compact header and fullscreen shell in view and edit modes. The preview tile keeps its original size, color and icon, sits flush against the top and left edges, and has only its bottom-right corner rounded. Titles truncate before controls are squeezed. App skill executions retain their large header.
+  - id: shared-embed-fullscreen.article
+    type: behavior
+    must: News and Website, including websites opened from search, show the large heading, image when available, source action, and body in that order. The fixed title fades in after the large heading scrolls out of view.
+  - id: shared-embed-fullscreen.menu
+    type: behavior
+    must: The shared More menu retains the embed's available actions and Report Issue. Share embed opens the existing link flow for the selected embed when sharing is available. Chat-only actions stay out of the embed menu.
   - id: shared-embed-fullscreen.followup
     type: security
     must: The shared composer stays below the scrollable content. Its request targets the open embed using the existing authorized chat or app path. Stored embed content remains client-side encrypted.

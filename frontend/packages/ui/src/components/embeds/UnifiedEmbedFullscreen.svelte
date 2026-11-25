@@ -201,6 +201,8 @@
      */
     embedHeaderTitle?: string;
     embedHeaderTitleTestId?: string;
+    /** Article titles live in the scrollport and appear in the fixed bar on scroll. */
+    readingTitleVisible?: boolean;
     
     /**
      * Subtitle displayed below the title in the header banner.
@@ -454,6 +456,7 @@
     // Embed header props
     embedHeaderTitle = '',
     embedHeaderTitleTestId,
+    readingTitleVisible,
     embedHeaderSubtitle = '',
     embedHeaderPresentation = 'embed',
     embedHeaderCompact = false,
@@ -1474,7 +1477,9 @@
 >
   <div class="fullscreen-container">
     {#snippet compactIdentity()}
-      <CompactEmbedIdentity {appId} {appIconName} title={embedHeaderTitle} subtitle={embedHeaderSubtitle} titleTestId={embedHeaderTitleTestId} />
+      <CompactEmbedIdentity {appId} {appIconName} title={embedHeaderTitle} subtitle={embedHeaderSubtitle}
+        titleTestId={embedHeaderTitleTestId} titleVisible={readingTitleVisible ?? true}
+        readingTitle={readingTitleVisible !== undefined} />
     {/snippet}
     {#snippet compactHeaderActions()}
       {@render headerActions?.()}
@@ -1490,7 +1495,7 @@
       headerActions={compactHeader && (hasPreviousEmbed || hasNextEmbed) ? compactHeaderActions : headerActions}
       headerActionCount={headerActionCount + Number(compactHeader && !!hasPreviousEmbed) + Number(compactHeader && !!hasNextEmbed)}
       {showChatButton}
-      {showShare}
+      showShare={showShare && (!compactHeader || !!currentEmbedId || !!onShare)}
       showCopy={!!onCopy}
       showDownload={!!onDownload}
       {downloadHref}
@@ -1539,7 +1544,8 @@
     <!-- ── Scrollable content area (header banner + embed content) ──
          Fills the full container height. EmbedTopBar overlays the top
          via position: absolute so no space is reserved for it here. -->
-    <div class="content-area" class:app-home-content={contentLayout === 'app-home'} bind:this={contentAreaElement}>
+    <div class="content-area" class:app-home-content={contentLayout === 'app-home'} bind:this={contentAreaElement}
+      data-testid="embed-scrollport">
 
       {#if $chatDebugStore.rawTextMode && $userProfile.is_admin}
         <div class="embed-debug-output selectable">
@@ -1723,7 +1729,7 @@
   /* Fills the full container height. EmbedTopBar overlays via position: absolute. */
   .apps-save-state { position: relative; z-index: 1000; flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; font-size: var(--font-size-xs); color: var(--color-font-secondary); background: var(--embed-content-background); }
   .apps-save-state button { padding: 4px 8px; border: 0; border-radius: 8px; background: var(--color-grey-10); color: var(--color-font-primary); cursor: pointer; }
-  .compact-header { --embed-header-overlay-height: 0px; }
+  .compact-header { --embed-header-overlay-height: 0px; border-top-left-radius: 0; }
   .compact-header-cta { display: flex; justify-content: center; padding: var(--spacing-4); }
   .fixed-bottom { flex-shrink: 0; position: relative; z-index: 1000; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)); background: var(--embed-content-background); }
   .fixed-bottom.floating-bottom { position: absolute; inset-inline: 0; bottom: 0; background: linear-gradient(transparent, var(--embed-content-background)); pointer-events: none; }

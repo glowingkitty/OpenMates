@@ -22,6 +22,7 @@
     readImage?: (id: string) => Promise<ImageBitmap | null>;
     readExportImage?: (id: string) => Promise<ImageBitmap | null>;
     allowExport?: boolean;
+    allowShare?: boolean;
     initialMode?: 'view' | 'edit';
     revision?: { version: number; save: (baseVersion: number, document: DesignDocument) => Promise<void> };
     versionNumber?: number;
@@ -30,7 +31,7 @@
     onClose: () => void;
   }
 
-  let { document: initialDocument, embedId, owningChatId, initialMode = 'view', readOnly = false, readImage, readExportImage, allowExport = true, revision, versionNumber, versionHistory, assistantTools, onClose }: Props = $props();
+  let { document: initialDocument, embedId, owningChatId, initialMode = 'view', readOnly = false, readImage, readExportImage, allowExport = true, allowShare = false, revision, versionNumber, versionHistory, assistantTools, onClose }: Props = $props();
   let document = $state.raw(untrack(() => initialDocument));
   let editing = $state(untrack(() => !readOnly && initialMode === 'edit'));
   let editingVersion = $state<number>();
@@ -304,11 +305,20 @@
 
 <svelte:window onkeydown={handleKeys} />
 
-<UnifiedEmbedFullscreen appId="design" {onClose} showShare={false} currentEmbedId={embedId} {owningChatId}
+<UnifiedEmbedFullscreen appId="design" {onClose} showShare={allowShare && !editing} currentEmbedId={embedId} {owningChatId}
   embedHeaderTitle={document.title} embedHeaderSubtitle={`${activePage.width} × ${activePage.height}`}
   testId="design-fullscreen" contentLayout="app-home"
+  headerActionCount={!editing && allowExport ? exportFormats.length : 0}
   onEdit={readOnly ? undefined : toggleMode} editActive={editing} editBusy={saving} editToggleOnly={!revision} editPlacement="close" editTestId="design-mode" reportInMore
   editLabel={editing ? revision ? 'Save design' : 'View design' : 'Edit design'} escapeScope={{ consume: escape }}>
+  {#snippet headerActions()}
+    {#if !editing && allowExport}
+      {#each exportFormats as format (format)}
+        <EmbedIconButton icon="download" label={`${$text('common.download')} ${format.toUpperCase()}`}
+          testId={`design-more-export-${format}`} disabled={!!exportTask} onclick={() => downloadDesign(format)} />
+      {/each}
+    {/if}
+  {/snippet}
   {#snippet content()}
     <div class="workspace" class:editing class:assistant-tools={!!assistantTools && !editing} bind:this={root} data-testid="design-workspace" data-mode={editing ? 'edit' : 'view'}
       data-selection={selectedId} data-layers={activePage.layers.length} data-version={versionNumber}>

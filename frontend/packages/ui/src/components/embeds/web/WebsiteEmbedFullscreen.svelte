@@ -552,6 +552,7 @@
   {/snippet}
 
 <ResultEmbedFullscreen
+  article
   media={imageUrl && !imageError ? imageMedia : undefined}
   appId="web"
   skillId="website"
