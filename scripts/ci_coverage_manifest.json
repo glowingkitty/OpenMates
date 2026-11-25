@@ -352,6 +352,7 @@
         "components/voice-call-speech-rendering.spec.ts",
         "components/svg-image-embed.spec.ts",
         "components/chat-header-image-lifecycle.spec.ts",
+        "components/idle-decorative-motion.spec.ts",
         "components/chat-message-results-width.spec.ts",
         "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",

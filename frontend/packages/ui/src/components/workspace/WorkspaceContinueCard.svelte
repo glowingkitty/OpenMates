@@ -1,8 +1,9 @@
 <!--
   WorkspaceContinueCard.svelte
+  figma-visual-proof: not-required. Idle-motion fix reviewed against the existing web card.
   Shared large continuation card used by workspace landing screens and linked
   workspace context inside read-only detail views. It preserves the established
-  gradient, icon, badge, and animated-orb treatment without duplicating markup.
+  gradient, icon, badge, and blurred highlights without duplicating markup.
   Links use native navigation while workspace buttons use an activation callback.
 -->
 
@@ -51,7 +52,7 @@
 
 {#snippet content()}
   {#if !processing}
-  <div class="resume-large-orbs" aria-hidden="true">
+  <div class="resume-large-orbs" aria-hidden="true" data-testid="start-card-glows">
     <div class="resume-orb resume-orb-1"></div>
     <div class="resume-orb resume-orb-2"></div>
     <div class="resume-orb resume-orb-3"></div>
@@ -120,11 +121,10 @@
   .resume-large-summary { display: -webkit-box; margin: 2px 0 0; overflow: hidden; color: rgba(255, 255, 255, 0.85); font-size: var(--workspace-card-summary-font-size, var(--font-size-xxs)); font-weight: 500; line-height: 1.4; text-align: center; -webkit-box-orient: vertical; -webkit-line-clamp: var(--workspace-card-summary-lines, 4); line-clamp: var(--workspace-card-summary-lines, 4); }
   .resume-large-orbs { position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: 30px; pointer-events: none; }
   .resume-orb { position: absolute; width: 280px; height: 240px; background: radial-gradient(ellipse at center, var(--orb-color-b) 0%, var(--orb-color-b) 40%, transparent 85%); filter: blur(22px); opacity: 0.35; }
-  .resume-orb-1 { top: -60px; left: -70px; animation: orbMorph1 11s ease-in-out infinite, resumeOrbDrift1 19s ease-in-out infinite; }
-  .resume-orb-2 { right: -80px; bottom: -80px; width: 260px; height: 220px; animation: orbMorph2 13s ease-in-out infinite, resumeOrbDrift2 23s ease-in-out infinite; }
-  .resume-orb-3 { top: -10px; left: 25%; width: 200px; height: 180px; opacity: 0.38; animation: orbMorph3 17s ease-in-out infinite, resumeOrbDrift3 29s ease-in-out infinite; }
+  .resume-orb-1 { top: -60px; left: -70px; border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  .resume-orb-2 { right: -80px; bottom: -80px; width: 260px; height: 220px; border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
+  .resume-orb-3 { top: -10px; left: 25%; width: 200px; height: 180px; opacity: 0.38; border-radius: 55% 45% 38% 62% / 48% 58% 62% 45%; }
   .resume-large-deco { position: absolute; z-index: var(--z-index-raised); bottom: -8px; display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; pointer-events: none; opacity: 0.3; }
   .resume-large-deco-left { left: -10px; transform: rotate(-15deg); }
   .resume-large-deco-right { right: -10px; transform: rotate(15deg); }
-  @media (prefers-reduced-motion: reduce) { .resume-orb { animation: none !important; } }
 </style>

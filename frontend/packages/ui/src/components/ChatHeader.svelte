@@ -1,5 +1,6 @@
 <!--
   ChatHeader.svelte
+  figma-visual-proof: not-required. Idle-motion fix reviewed against the existing web header.
 
   Full-width gradient banner displayed at the top of the active chat history.
   Shown only for new chats where the server generates title/category/icon.
@@ -27,7 +28,7 @@
       - Summary (14px, white) — fades in with max-height animation when available
       - Creation time (14px, white, 0.7 opacity) — relative formatting
     - Large decorative icons (126×126px) at left and right edges:
-      - 0.4 opacity, entrance animation: fade up from +50px Y offset
+      - 0.4 opacity with tilted corner icons that fade in once
       - overflow: hidden clips them at the banner edges
 
   Dimensions:
@@ -165,15 +166,12 @@
     onSaveDescription: (summary: string) => void | Promise<void>;
   } = $props();
 
-  /** True when the static-image slideshow should render inside the media frame. */
   const useTeaser = $derived(!!videoTeaserUrl || !!videoTeaserMp4Url || !!videoTeaserWebpUrl);
-  const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
+  const headerPoster = $derived(backgroundFrames?.[0] ?? null);
+  const teaserPoster = $derived(videoTeaserWebpUrl || headerPoster);
   /** True when the header should render the 16:9 media frame at all. */
-  const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
-  const IMAGE_BUBBLE_CYCLE_MS = 8000;
+  const hasHeaderMedia = $derived(useTeaser || !!headerPoster || !!videoMp4Url);
   const IMAGE_BUBBLE_FADE_MS = 1000;
-  let imageBubbleCycleIndex = $state(0);
-  let imageBubbleCycleInterval: ReturnType<typeof setInterval> | null = null;
   let imageBubbleFadeTimeout: ReturnType<typeof setTimeout> | null = null;
   let previousImageBubbles = $state<Array<{
     imageUrl: string;
@@ -223,15 +221,11 @@
     };
   });
 
-  function getImageBubblePair(index: number) {
+  const imageBubbles = $derived.by(() => {
     if (hasHeaderMedia || loadedImageBubbles.length === 0) return [];
     if (loadedImageBubbles.length <= 2) return loadedImageBubbles;
-    const leftIndex = index % loadedImageBubbles.length;
-    const rightIndex = (leftIndex + Math.ceil(loadedImageBubbles.length / 2)) % loadedImageBubbles.length;
-    return [loadedImageBubbles[leftIndex], loadedImageBubbles[rightIndex]];
-  }
-
-  const imageBubbles = $derived.by(() => getImageBubblePair(imageBubbleCycleIndex));
+    return [loadedImageBubbles[0], loadedImageBubbles[Math.ceil(loadedImageBubbles.length / 2)]];
+  });
   let displayedImageBubbles: NonNullable<typeof headerImageBubbles> = [];
   $effect(() => {
     const next = imageBubbles;
@@ -248,13 +242,6 @@
       imageBubbleFadeTimeout = null;
     }, IMAGE_BUBBLE_FADE_MS);
   });
-
-  function advanceImageBubbleCycle() {
-    const bubbleCount = loadedImageBubbles.length;
-    if (hasHeaderMedia || bubbleCount <= 2 || document.hidden ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    imageBubbleCycleIndex = (imageBubbleCycleIndex + 1) % bubbleCount;
-  }
 
   function getPreviousImageBubble(index: number) {
     return previousImageBubbles?.[index] ?? null;
@@ -297,9 +284,6 @@
   const TEASER_TILT_SCALE = 0.985;
   const TEASER_VERTICAL_EDGE_GAP = 10;
   const TEASER_MAX_WIDTH = 640;
-  const COMPACT_TEASER_TEXT_SECONDS = 6;
-  const COMPACT_TEASER_VIDEO_SECONDS = 7;
-  const COMPACT_TEASER_CYCLE_SECONDS = COMPACT_TEASER_TEXT_SECONDS + COMPACT_TEASER_VIDEO_SECONDS;
   const MEDIUM_HEADER_WIDTH = 900;
   const MOBILE_HEADER_WIDTH = 730;
   const COMPACT_TEASER_HEADER_WIDTH = 960;
@@ -381,9 +365,6 @@
 
   onMount(() => {
     if (browser) document.addEventListener('fullscreenchange', handleFullscreenChange);
-    if (browser) {
-      imageBubbleCycleInterval = setInterval(advanceImageBubbleCycle, IMAGE_BUBBLE_CYCLE_MS);
-    }
     if (autoplayVideo && videoMp4Url) {
       isVideoActive = true;
     }
@@ -391,26 +372,9 @@
 
   onDestroy(() => {
     if (browser) document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    if (imageBubbleCycleInterval !== null) {
-      clearInterval(imageBubbleCycleInterval);
-      imageBubbleCycleInterval = null;
-    }
     if (imageBubbleFadeTimeout !== null) {
       clearTimeout(imageBubbleFadeTimeout);
       imageBubbleFadeTimeout = null;
-    }
-  });
-
-  $effect(() => {
-    const bubbleCount = Array.isArray(headerImageBubbles) ? headerImageBubbles.length : 0;
-    if (bubbleCount === 0) {
-      imageBubbleCycleIndex = 0;
-      previousImageBubbles = null;
-      isImageBubbleFading = false;
-      return;
-    }
-    if (imageBubbleCycleIndex >= bubbleCount) {
-      imageBubbleCycleIndex = imageBubbleCycleIndex % bubbleCount;
     }
   });
 
@@ -751,16 +715,8 @@
   ontouchend={handleHeaderTouchEnd}
   ontouchcancel={handleHeaderTouchEnd}
 >
-  <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
-       Three soft radial-gradient blobs that slowly morph shape and drift
-       around the banner. Each uses --orb-color-b as the orb center color and
-       fades to transparent at the edges, glowing against --orb-color-a (the
-       background). Heavy blur removes all hard edges — you only see the light.
-       Prime-number durations (11s / 13s / 17s morph, 19s / 23s / 29s drift)
-       ensure the three orbs never synchronise, keeping the motion organic and
-       non-repeating within any reasonable viewing window.
-       z-index:0 keeps them behind all content (z-index:1+ for content). -->
-  <div class="banner-orbs" aria-hidden="true">
+  <!-- Blurred gradient highlights stay behind the header content. -->
+  <div class="banner-orbs" aria-hidden="true" data-testid="chat-header-glows">
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
     <div class="orb orb-3"></div>
@@ -837,11 +793,7 @@
            Mirrors the DailyInspirationBanner split: orbs provide the gradient
            backdrop, text on the left, teaser video in a rounded contained box
            on the right. The full MP4 is still mounted only after play click. -->
-      <div
-        class="teaser-split-layout"
-        class:is-video-active={isVideoActive}
-        style={`--compact-teaser-cycle-duration: ${COMPACT_TEASER_CYCLE_SECONDS}s;`}
-      >
+      <div class="teaser-split-layout" data-testid="chat-header-teaser">
 
         <!-- Left column: fixed intro teaser copy -->
         <div class="teaser-split-left">
@@ -906,13 +858,12 @@
             onmousemove={handleTeaserMouseMove}
             onmouseleave={handleTeaserMouseLeave}
           >
-            {#if videoTeaserUrl || videoTeaserMp4Url}
+            {#if teaserPoster}
+              <img class="teaser-video-preview" data-testid="chat-header-teaser-poster" src={teaserPoster} alt="" loading="eager" decoding="async" />
+            {:else if videoTeaserUrl || videoTeaserMp4Url}
               <video
                 class="teaser-video-preview"
-                poster={videoTeaserWebpUrl ?? undefined}
-                autoplay
                 muted
-                loop
                 playsinline
                 preload="metadata"
               >
@@ -923,8 +874,6 @@
                   <source src={videoTeaserMp4Url} type="video/mp4" />
                 {/if}
               </video>
-            {:else if videoTeaserWebpUrl}
-              <img class="teaser-video-preview" src={videoTeaserWebpUrl} alt="" loading="eager" decoding="async" />
             {/if}
 
             {#if videoMp4Url && !isVideoActive}
@@ -991,10 +940,10 @@
           </button>
         {/each}
       {:else if IconComponent}
-        <div class="deco-icon deco-icon-left">
+        <div class="deco-icon deco-icon-left" data-testid="chat-header-decoration">
           <IconComponent size={126} color="white" />
         </div>
-        <div class="deco-icon deco-icon-right">
+        <div class="deco-icon deco-icon-right" data-testid="chat-header-decoration">
           <IconComponent size={126} color="white" />
         </div>
       {/if}
@@ -1030,22 +979,11 @@
             </div>
           {/if}
 
-          {#if useSlideshow}
+          {#if headerPoster}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
-              <div class="header-slideshow" aria-hidden="true">
-                {#each backgroundFrames as frameUrl, i (frameUrl)}
-                  <img
-                    class="header-slide"
-                    src={frameUrl}
-                    alt=""
-                    loading={i === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
-                    style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
-                  />
-                {/each}
-              </div>
+              <img class="header-poster" src={headerPoster} alt="" loading="eager" decoding="async" />
 
               {#if videoMp4Url && !isVideoActive}
                 <button
@@ -1220,7 +1158,7 @@
     justify-content: center;
     /* Create an independent stacking + paint context for the banner. Without
        `isolation: isolate`, the blurred orbs (filter:blur(28px), mix with
-       animated gradient) share a compositor layer with the outer page, and
+       the gradient) share a compositor layer with the outer page, and
        Chrome can leave that layer in a stale state after a neighbouring
        layout disturbance (closing a fullscreen embed while the banner is
        scrolled off-screen) — the symptom is title/summary/icon rendered in
@@ -1502,21 +1440,7 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-color: rgba(255, 255, 255, 0.15);
-    /* Incognito icons settle at full opacity — override the shared default (0.4) */
     --deco-target-opacity: 1;
-    /* Orbital float radius for 126px icons */
-    --float-rx: 10px;
-    --float-ry: 12px;
-    /* Two-phase: entrance → circular orbit loop (keyframes in animations.css) */
-    animation:
-      decoEnter 0.6s ease-out 0.1s both,
-      decoFloat 16s linear 0.7s infinite;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .incognito-deco-icon {
-      animation: decoEnter 0.6s ease-out 0.1s both !important;
-    }
   }
 
   /* ─── Image result bubbles (replace decorative icons when image search exists) ─── */
@@ -1543,12 +1467,10 @@
       inset 0 0 0 8px rgba(255, 255, 255, 0.08),
       0 24px 54px rgba(0, 0, 0, 0.3),
       0 8px 18px rgba(255, 255, 255, 0.08);
-    --float-rx: 13px;
-    --float-ry: 16px;
     opacity: var(--image-bubble-opacity, 0.4);
-    animation:
-      decoEnter 0.6s ease-out 0.1s backwards,
-      imageBubbleFloat 16s linear 0.7s infinite;
+    transform: rotate(var(--deco-rotate));
+    --deco-target-opacity: var(--image-bubble-opacity, 0.4);
+    animation: decoEnter 0.6s ease-out 0.1s backwards;
     transition: transform var(--duration-fast) var(--easing-default),
                 scale var(--duration-fast) var(--easing-default),
                 opacity var(--duration-fast) var(--easing-default),
@@ -1630,49 +1552,6 @@
       0 10px 22px rgba(255, 255, 255, 0.1);
   }
 
-  @keyframes imageBubbleFloat {
-    0% {
-      transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
-        rotate(var(--deco-rotate, 0deg));
-    }
-    12.5% {
-      transform: translateX(calc(0.707 * var(--float-rx, 10px)))
-        translateY(calc(-0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) + 2deg));
-    }
-    25% {
-      transform: translateX(var(--float-rx, 10px)) translateY(0px)
-        rotate(calc(var(--deco-rotate, 0deg) + 3deg));
-    }
-    37.5% {
-      transform: translateX(calc(0.707 * var(--float-rx, 10px)))
-        translateY(calc(0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) + 2deg));
-    }
-    50% {
-      transform: translateX(0px) translateY(var(--float-ry, 12px))
-        rotate(var(--deco-rotate, 0deg));
-    }
-    62.5% {
-      transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
-        translateY(calc(0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) - 2deg));
-    }
-    75% {
-      transform: translateX(calc(-1 * var(--float-rx, 10px))) translateY(0px)
-        rotate(calc(var(--deco-rotate, 0deg) - 3deg));
-    }
-    87.5% {
-      transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
-        translateY(calc(-0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) - 2deg));
-    }
-    100% {
-      transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
-        rotate(var(--deco-rotate, 0deg));
-    }
-  }
-
   .image-bubble:focus-visible {
     outline: 3px solid rgba(255, 255, 255, 0.9);
     outline-offset: 5px;
@@ -1680,12 +1559,6 @@
 
   .image-bubble:active {
     scale: 0.97;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .image-bubble {
-      animation: decoEnter 0.6s ease-out 0.1s backwards !important;
-    }
   }
 
   .image-bubble-left {
@@ -1698,7 +1571,6 @@
     right: calc(50% - 240px - 154px);
     bottom: -42px;
     --deco-rotate: 15deg;
-    animation-delay: 0.1s, -8s;
   }
 
   /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */
@@ -1712,38 +1584,21 @@
     justify-content: center;
     z-index: var(--z-index-raised);
     pointer-events: none;
-    /* Orbital float radius for 126px banner icons */
-    --float-rx: 10px;
-    --float-ry: 12px;
-    /* Two-phase: decoEnter (one-shot) → decoFloat (circular orbit, infinite).
-       Keyframes defined in animations.css (shared across all three banner components). */
-    animation:
-      decoEnter 0.6s ease-out 0.1s both,
-      decoFloat 16s linear 0.7s infinite;
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: rotate(var(--deco-rotate));
+    animation: decoEnter 0.6s ease-out 0.1s backwards;
   }
 
   .deco-icon-left {
     left: calc(50% - 240px - 106px);
     bottom: -15px;
     --deco-rotate: -15deg;
-    /* Left icon starts at 0° of orbit (top) */
   }
 
   .deco-icon-right {
     right: calc(50% - 240px - 106px);
     bottom: -15px;
     --deco-rotate: 15deg;
-    /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
-       Positive delay would freeze the icon for 8.7s then snap — use negative
-       to begin mid-orbit immediately with no wait or jump. */
-    animation-delay: 0.1s, -8s;
-  }
-
-  /* Reduced-motion: entrance only, no float */
-  @media (prefers-reduced-motion: reduce) {
-    .deco-icon {
-      animation: decoEnter 0.6s ease-out 0.1s both !important;
-    }
   }
 
   /* ─── Chat navigation arrows ─────────────────────────────────────────────
@@ -1857,7 +1712,6 @@
        the color intensity. 28px is the sweet spot for a 240px tall banner. */
     filter: blur(28px);
     opacity: 0.55;
-    will-change: transform, border-radius;
   }
 
   /* Orb 1 — left-center area
@@ -1865,9 +1719,7 @@
   .orb-1 {
     top: -80px;
     left: -100px;
-    animation:
-      orbMorph1 11s ease-in-out infinite,
-      orbDrift1 19s ease-in-out infinite;
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
   }
 
   /* Orb 2 — right-bottom area */
@@ -1876,9 +1728,7 @@
     right: -120px;
     width: 460px;
     height: 400px;
-    animation:
-      orbMorph2 13s ease-in-out infinite,
-      orbDrift2 23s ease-in-out infinite;
+    border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%;
   }
 
   /* Orb 3 — center roamer, slightly smaller and more transparent
@@ -1889,15 +1739,7 @@
     width: 340px;
     height: 300px;
     opacity: 0.38;
-    animation:
-      orbMorph3 17s ease-in-out infinite,
-      orbDrift3 29s ease-in-out infinite;
-  }
-
-  /* Orb morph + drift @keyframes are in animations.css (shared globally).
-     Reduced-motion: stop all orb animations, keep as static glows. */
-  @media (prefers-reduced-motion: reduce) {
-    .orb { animation: none !important; }
+    border-radius: 55% 45% 38% 62% / 48% 58% 62% 45%;
   }
 
   /* ─── Mobile adjustments based on header width (≤730px) ─────────────────── */
@@ -1985,7 +1827,7 @@
   /* ─── Teaser split layout (text left + video right) ────────────────────────
      Mirrors DailyInspirationBanner's split: orbs are the gradient backdrop,
      text column on the left, teaser video in a rounded 16:9 box on the right.
-     On narrow mobile, text and video alternate because both cannot fit at once. */
+     On narrow screens, the title and play affordance stack. */
 
   .teaser-split-layout {
     position: relative;
@@ -2070,269 +1912,31 @@
   }
 
   .is-compact-teaser-header .teaser-split-layout {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    padding: 16px 48px;
-  }
-
-  .is-compact-teaser-header .teaser-split-left,
-  .is-compact-teaser-header .teaser-split-right {
-    position: absolute;
-    inset: 16px 48px;
-    width: auto;
-    margin: 0;
-    display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
+    gap: var(--spacing-4);
+    width: 100%;
+    padding: 8px 38px;
   }
 
   .is-compact-teaser-header .teaser-split-left {
-    animation: mobileTeaserTextCycle var(--compact-teaser-cycle-duration, 12s) infinite ease-in-out;
+    flex: 0 1 auto;
+    max-width: 100%;
+    align-items: center;
   }
 
   .is-compact-teaser-header .teaser-split-right {
-    opacity: 0;
-    animation: mobileTeaserVideoCycle var(--compact-teaser-cycle-duration, 12s) infinite ease-in-out;
+    flex: 0 1 auto;
+    width: min(54vw, 280px);
+    height: auto;
   }
 
-  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-left,
-  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-right {
-    animation: none;
-  }
-
-  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-left {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.985);
-  }
-
-  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-right {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  .is-compact-teaser-header .teaser-copy {
-    align-items: flex-start;
-    max-width: min(76vw, 460px);
-  }
-
-  .is-compact-teaser-header .teaser-video-box {
-    width: min(78vw, 560px);
-  }
-
-  .is-compact-teaser-header .teaser-video-box.hovering {
-    transform: none !important;
-  }
-
-  @keyframes mobileTeaserTextCycle {
-    0%, 42% { opacity: 1; transform: translateY(0) scale(1); }
-    46.154%, 96% { opacity: 0; transform: translateY(-10px) scale(0.985); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
-  @keyframes mobileTeaserVideoCycle {
-    0%, 42% { opacity: 0; transform: translateY(10px) scale(0.985); }
-    46.154%, 96% { opacity: 1; transform: translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateY(10px) scale(0.985); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .is-compact-teaser-header .teaser-split-layout {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: var(--spacing-4);
-    }
-
-    .is-compact-teaser-header .teaser-split-left,
-    .is-compact-teaser-header .teaser-split-right {
-      position: static;
-      inset: auto;
-      animation: none !important;
-      opacity: 1;
-    }
-  }
-
-  /* ─── Background slideshow (static-image Ken Burns) ─────────────────────────
-     Renders the intro frames inside the 16:9 .media-frame container. All N
-     frames share the same fade keyframe; each frame's start is offset by a
-     negative animation-delay so they sequence in. Per-frame Ken Burns
-     keyframes (headerSlideKB0–12) give each frame a unique pan/zoom direction.
-     Frame 0 is a locale-specific title card (zoom out). Dark #1a1a1a
-     background prevents gradient bleed during crossfades. Pure CSS — no JS
-     timers, no IntersectionObserver needed.
-
-     Crossfade design (13 frames, slot = 7.692% of 104s cycle):
-       • Incoming frame uses z-index 2 (on top) while fading in → old frame stays
-         fully opaque below it, so the background is never visible during transition.
-       • Old frame drops z-index to 1 once successor is fading in over it, then
-         becomes opacity 0 after successor is fully covering it at 9.49%.
-       • At the wrap-around (frame 11 → frame 0), frame 0 fades in with z-index 2
-         on top of frame 11 (z-index 1) — same seamless result. */
-  .header-slideshow {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    z-index: 0;
-    /* Dark fallback so the parent frame background never peeks through during crossfades */
-    background: #1a1a1a;
-  }
-
-  .header-slide {
+  .header-poster {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 0;
-    /* Each frame occupies an 8s slot. Negative delay staggers across the full cycle.
-       Per-frame Ken Burns keyframes are assigned via nth-child selectors below. */
-    animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear,
-               headerSlideKB1 calc(var(--slide-count) * 8s) infinite ease-in-out;
-    animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
-    will-change: opacity, transform;
-  }
-
-  /* Timing based on 13 frames (slot = 7.692% of cycle, fade-in window = 1.8%).
-     Incoming frame holds z-index: 2 while fading in over the still-opaque outgoing
-     frame (z-index: 1). Outgoing drops to opacity 0 only after successor fully covers
-     it at 9.49% — background is never peeking through.
-       0%      → opacity 0, z-index 2  (about to appear on top)
-       1.8%    → opacity 1, z-index 2  (fully in, ~1.87s)
-       7.692%  → opacity 1, z-index 2  (hold; successor now starting its fade-in below)
-       7.693%  → opacity 1, z-index 1  (drop below incoming successor)
-       9.49%   → opacity 1, z-index 1  (successor now fully opaque above)
-       9.50%   → opacity 0, z-index 0  (gone; covered by successor)
-       100%    → opacity 0, z-index 0 */
-  @keyframes headerSlideFade {
-    0%      { opacity: 0; z-index: 2; }
-    1.8%    { opacity: 1; z-index: 2; }
-    7.692%  { opacity: 1; z-index: 2; }
-    7.693%  { opacity: 1; z-index: 1; }
-    9.49%   { opacity: 1; z-index: 1; }
-    9.50%   { opacity: 0; z-index: 0; }
-    100%    { opacity: 0; z-index: 0; }
-  }
-
-  /* Ken-Burns motion — per-frame directional variants assigned via nth-child.
-     Scale moves from ~1.05 to ~1.3, giving extra image area to pan through.
-     Large translations reveal portions hidden at rest.
-     Each variant covers the full visible window (0% → 9.49%). */
-
-  /* Frame 0 (title frame): zoom out, stay centered */
-  @keyframes headerSlideKB0 {
-    0%      { transform: scale(1.3) translate3d(0, 0, 0); }
-    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
-    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
-  }
-
-  /* Frame 1: pan right → left */
-  @keyframes headerSlideKB1 {
-    0%      { transform: scale(1.15) translate3d(8%, 0, 0); }
-    9.49%  { transform: scale(1.15) translate3d(-8%, 0, 0); }
-    100%    { transform: scale(1.15) translate3d(-8%, 0, 0); }
-  }
-
-  /* Frame 2: zoom out, stay centered */
-  @keyframes headerSlideKB2 {
-    0%      { transform: scale(1.3) translate3d(0, 0, 0); }
-    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
-    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
-  }
-
-  /* Frame 3: pan bottom → top */
-  @keyframes headerSlideKB3 {
-    0%      { transform: scale(1.12) translate3d(0, 12%, 0); }
-    9.49%  { transform: scale(1.12) translate3d(0, -12%, 0); }
-    100%    { transform: scale(1.12) translate3d(0, -12%, 0); }
-  }
-
-  /* Frame 4: pan top-right → bottom-left */
-  @keyframes headerSlideKB4 {
-    0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
-    9.49%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
-    100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
-  }
-
-  /* Frame 5: pan bottom → top (default A) */
-  @keyframes headerSlideKB5 {
-    0%      { transform: scale(1.1) translate3d(0, 12%, 0); }
-    9.49%  { transform: scale(1.28) translate3d(0, -12%, 0); }
-    100%    { transform: scale(1.28) translate3d(0, -12%, 0); }
-  }
-
-  /* Frame 6: pan left → right */
-  @keyframes headerSlideKB6 {
-    0%      { transform: scale(1.15) translate3d(-8%, 0, 0); }
-    9.49%  { transform: scale(1.15) translate3d(8%, 0, 0); }
-    100%    { transform: scale(1.15) translate3d(8%, 0, 0); }
-  }
-
-  /* Frame 7: pan top → bottom */
-  @keyframes headerSlideKB7 {
-    0%      { transform: scale(1.12) translate3d(0, -12%, 0); }
-    9.49%  { transform: scale(1.28) translate3d(0, 12%, 0); }
-    100%    { transform: scale(1.28) translate3d(0, 12%, 0); }
-  }
-
-  /* Frame 8: pan bottom-left → top-right */
-  @keyframes headerSlideKB8 {
-    0%      { transform: scale(1.12) translate3d(-6%, 10%, 0); }
-    9.49%  { transform: scale(1.28) translate3d(6%, -10%, 0); }
-    100%    { transform: scale(1.28) translate3d(6%, -10%, 0); }
-  }
-
-  /* Frame 9: zoom out from bottom (content at bottom of image) */
-  @keyframes headerSlideKB9 {
-    0%      { transform: scale(1.3) translate3d(0, 12%, 0); }
-    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
-    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
-  }
-
-  /* Frame 10: pan top-right → bottom-left */
-  @keyframes headerSlideKB10 {
-    0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
-    9.49%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
-    100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
-  }
-
-  /* Frame 11: show top part, pan down to bottom */
-  @keyframes headerSlideKB11 {
-    0%      { transform: scale(1.15) translate3d(0, -12%, 0); }
-    9.49%  { transform: scale(1.15) translate3d(0, 12%, 0); }
-    100%    { transform: scale(1.15) translate3d(0, 12%, 0); }
-  }
-
-  /* Frame 12: focus on right side, zoom out from there */
-  @keyframes headerSlideKB12 {
-    0%      { transform: scale(1.3) translate3d(10%, 0, 0); }
-    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
-    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
-  }
-
-  /* Per-frame Ken Burns assignment — frame 0 is the locale-specific title frame (zoom out) */
-  .header-slide:nth-child(1)  { animation-name: headerSlideFade, headerSlideKB0; }
-  .header-slide:nth-child(2)  { animation-name: headerSlideFade, headerSlideKB1; }
-  .header-slide:nth-child(3)  { animation-name: headerSlideFade, headerSlideKB2; }
-  .header-slide:nth-child(4)  { animation-name: headerSlideFade, headerSlideKB3; }
-  .header-slide:nth-child(5)  { animation-name: headerSlideFade, headerSlideKB4; }
-  .header-slide:nth-child(6)  { animation-name: headerSlideFade, headerSlideKB5; }
-  .header-slide:nth-child(7)  { animation-name: headerSlideFade, headerSlideKB6; }
-  .header-slide:nth-child(8)  { animation-name: headerSlideFade, headerSlideKB7; }
-  .header-slide:nth-child(9)  { animation-name: headerSlideFade, headerSlideKB8; }
-  .header-slide:nth-child(10) { animation-name: headerSlideFade, headerSlideKB9; }
-  .header-slide:nth-child(11) { animation-name: headerSlideFade, headerSlideKB10; }
-  .header-slide:nth-child(12) { animation-name: headerSlideFade, headerSlideKB11; }
-  .header-slide:nth-child(13) { animation-name: headerSlideFade, headerSlideKB12; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .header-slide,
-    .header-slide:nth-child(n) {
-      animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear !important;
-      animation-delay: calc(var(--slide-index) * -8s) !important;
-    }
   }
 
   /* ─── Play button ──────────────────────────────────────────────────────── */

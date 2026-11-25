@@ -3206,9 +3206,9 @@ features:
       assertions:
         passing: 12
         failing: 15
-        not_run: 5
+        not_run: 6
         missing: 2
-        counted: 34
+        counted: 35
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -3286,7 +3286,8 @@ features:
         withholds acknowledgement for %s wrapper proof
       - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › publishes an initial root and
         its wrappers in one write (failure=%s)
-      key_tests: []
+      key_tests:
+      - frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
       - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
@@ -3334,6 +3335,7 @@ features:
       - frontend/apps/web_app/tests/components/event-reference-hydration.spec.ts
       - frontend/apps/web_app/tests/components/generated-media-generate-card.spec.ts
       - frontend/apps/web_app/tests/components/grouped-result-preview.spec.ts
+      - frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts
       - frontend/apps/web_app/tests/components/image-embed-message-actions.spec.ts
       - frontend/apps/web_app/tests/components/image-embed-preview-layout.spec.ts
       - frontend/apps/web_app/tests/components/image-result-fullscreen-proxy.spec.ts
@@ -4724,10 +4726,11 @@ features:
       assertions:
         passing: 1
         failing: 0
-        not_run: 2
+        not_run: 3
         missing: 0
-        counted: 3
-      key_tests: []
+        counted: 4
+      key_tests:
+      - frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-continue-carousel.spec.ts
@@ -4862,6 +4865,7 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
+      - frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts
       - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
       - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
       - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
@@ -11028,9 +11032,9 @@ features:
       assertions:
         passing: 6
         failing: 5
-        not_run: 0
+        not_run: 1
         missing: 3
-        counted: 14
+        counted: 15
       failing_tests:
       - frontend/apps/web_app/tests/apps-workspace.spec.ts › Show all replaces the home with the shared searchable grid and
         restores it after app close
@@ -11049,11 +11053,13 @@ features:
       - frontend/apps/web_app/tests/header-mobile-layout.spec.ts
       - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
       - frontend/apps/web_app/tests/guest-workspace-navigation.spec.ts
+      - frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/apps-workspace.spec.ts
       - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
       - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
       - frontend/apps/web_app/tests/components/header-mobile-layout-preview.spec.ts
+      - frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts
       - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
       - frontend/apps/web_app/tests/components/workflow-sidebar.spec.ts
       - frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
