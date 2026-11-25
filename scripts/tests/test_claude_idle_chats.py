@@ -191,6 +191,7 @@ def test_registry_forgets_resumed_chats_and_marks_old_stops_done():
 
 
 def test_counts_split_working_idle_stopped_done_and_archived(monkeypatch):
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
     monkeypatch.setattr(lc.codex_chats, "live", lambda: {"codex-1": {"pid": 9}})
     monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW, "working"))
     registry = {"a": {"state": "stopped"}, "b": {"state": "done"}, "c": {"state": "archived"}}
@@ -199,7 +200,7 @@ def test_counts_split_working_idle_stopped_done_and_archived(monkeypatch):
     assert (summary["running"], summary["working"], summary["idle_running"]) == (4, 3, 1)
     assert (summary["idle_stopped"], summary["done_to_archive"], summary["archived"]) == (1, 1, 1)
     assert summary["queued_new_chats"] == 2 and summary["max_running"] == 20
-    assert "4 running of max 20" in lc.status_line(summary)
+    assert "4 running of max 16" in lc.status_line(summary)
 
 
 def test_config_file_overrides_defaults_and_rejects_unknown_keys(tmp_path):
@@ -749,7 +750,9 @@ def test_zellij_cleanup_timeout_does_not_abort_chat_admission(tmp_path):
 
 def test_admission_reserves_last_slot_for_production(monkeypatch):
     monkeypatch.setattr(lc, "load_config", lambda: dict(CONFIG))
-    monkeypatch.setattr(lc.codex_chats, "live", lambda: {str(i): {} for i in range(19)})
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
+    monkeypatch.setattr(lc.host_load_guard, "gate", lambda _: None)
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {str(i): {} for i in range(15)})
     requests = []
 
     def reap(args, config, room):
@@ -759,11 +762,20 @@ def test_admission_reserves_last_slot_for_production(monkeypatch):
     monkeypatch.setattr(lc, "run_cycle", reap)
     assert lc.main(["admit"]) == lc.EXIT_NO_ROOM
     assert lc.main(["admit", "--production"]) == 0
-    assert requests == [2, 1]
+    assert requests == [6, 5]
+
+
+def test_chat_admission_holds_for_load_before_reaping(monkeypatch, capsys):
+    monkeypatch.setattr(lc, "load_config", lambda: dict(CONFIG))
+    monkeypatch.setattr(lc.host_load_guard, "gate", lambda _: "host overload")
+    monkeypatch.setattr(lc, "run_cycle", lambda *args: pytest.fail("reaping during admission"))
+    assert lc.main(["admit", "--production"]) == lc.EXIT_NO_ROOM
+    assert "host overload" in capsys.readouterr().out
 
 
 def test_only_production_waiter_may_use_last_free_slot(tmp_path, monkeypatch):
-    running = {str(i): {} for i in range(19)}
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
+    running = {str(i): {} for i in range(15)}
     monkeypatch.setattr(lc.codex_chats, "live", lambda: running)
     observed = []
 

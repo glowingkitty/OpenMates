@@ -10,6 +10,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import datetime as dt
+from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
@@ -30,6 +31,21 @@ except ModuleNotFoundError:
 DISK_RESERVE = 10 * 1024**3  # the host's one hard floor (resource_budget.MIN_FREE)
 MAX_CHANGED_BYTES = 100 * 1024**2
 MIN_REUSE_LIFETIME = dt.timedelta(minutes=30)
+
+
+@contextmanager
+def publication_lock(canonical: Path, session_id: str):
+    """Keep same-session publishers from regenerating files in the same worktree."""
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", session_id):
+        raise ValueError("Invalid session identity")
+    directory = canonical / "logs/ci-candidate-publication-locks"
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (directory / f"session-{session_id}.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError(f"CI source for session {session_id} is already being published") from error
+        yield
 
 
 def _specifications_module():

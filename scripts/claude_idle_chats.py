@@ -123,6 +123,7 @@ import claude_chat_pending  # noqa: E402  (path set above)
 import claude_chat_waiters  # noqa: E402  (path set above)
 import claude_weekly_model  # noqa: E402  (path set above)
 import codex_chats  # noqa: E402  (path set above)
+import host_load_guard  # noqa: E402  (path set above)
 import worktree_wip  # noqa: E402  (path set above)
 
 DEFAULTS = {
@@ -187,7 +188,7 @@ def load_config(path: Path | None = None) -> dict:
 
 def admission_limit(config: dict, *, production: bool = False) -> int:
     """Keep the last running-chat slot available for production releases."""
-    limit = int(config["max_running"])
+    limit = min(int(config["max_running"]), os.cpu_count() or 1)
     return limit if production or limit <= 1 else limit - 1
 
 
@@ -736,6 +737,7 @@ def counts(live: list[Chat], registry: dict[str, dict], now: float, config: dict
     return {
         "at": _utc(now), "running": running, "running_claude": len(live),
         "running_codex": len(codex_running), "max_running": int(config["max_running"]),
+        "admission_limit": admission_limit(config, production=True),
         "working": working, "idle_running": running - working,
         "idle_stopped": states.count("stopped"), "done_to_archive": states.count("done"),
         "archived": states.count("archived"), "queued_new_chats": queued,
@@ -1198,7 +1200,8 @@ def unfinished_stalled(registry: dict[str, dict], status: dict | None = None) ->
 
 
 def status_line(summary: dict) -> str:
-    return (f"Chats: {summary['running']} running of max {summary['max_running']} "
+    limit = summary.get("admission_limit", summary["max_running"])
+    return (f"Chats: {summary['running']} running of max {limit} "
             f"({summary['working']} working, {summary['idle_running']} idle but kept for an open question "
             f"or unanswered message), "
             f"{summary['idle_stopped']} idle-stopped, {summary['done_to_archive']} done to archive, "
@@ -1379,7 +1382,7 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
         return outcome
 
     live_codex = codex_chats.live()
-    free = int(config["max_running"]) - len({chat.session_id for chat in left} | live_codex.keys())
+    free = admission_limit(config, production=True) - len({chat.session_id for chat in left} | live_codex.keys())
     reserved = int(config["free_slots"])
     room = max(0, min(int(config["wake_batch"]), free - max(1, reserved)))
     owner_waits = {chat.session_id for chat in left if chat.protected or waiting_on_billing(chat)}
@@ -1517,6 +1520,9 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(summary, indent=1) if args.json else status_line(summary))
         return 0
     if args.command == "admit":
+        if message := host_load_guard.gate("starting a new work chat"):
+            print(message)
+            return EXIT_NO_ROOM
         args.command = "reap"
         limit = admission_limit(config, production=args.production)
         left, _ = run_cycle(args, config, room=1 + int(config["max_running"]) - limit)

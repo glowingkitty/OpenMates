@@ -41,6 +41,7 @@ import tempfile
 import time
 import uuid
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -250,9 +251,11 @@ def live(proc: Path = Path("/proc")) -> dict[str, dict[str, Any]]:
         if not entry.name.isdigit():
             continue
         pid = int(entry.name)
+        if not _is_codex_process(pid):
+            continue
         env = _proc_env(pid)
         chat_id = env.get("OPENMATES_CHAT_ID", "")
-        if env.get("OPENMATES_CHAT_ENGINE") != "codex" or not UUID_RE.match(chat_id) or not _is_codex_process(pid):
+        if env.get("OPENMATES_CHAT_ENGINE") != "codex" or not UUID_RE.match(chat_id):
             continue
         if chat_id not in found or pid < found[chat_id]["pid"]:
             found[chat_id] = {"pid": pid}
@@ -261,11 +264,27 @@ def live(proc: Path = Path("/proc")) -> dict[str, dict[str, Any]]:
 
 # ── Session files and transcripts ────────────────────────────────────────────
 
+@lru_cache(maxsize=256)
+def _find_rollout(sessions: Path, thread_id: str) -> Path:
+    matches = sorted(sessions.glob(f"**/rollout-*-{thread_id}.jsonl"))
+    if not matches:
+        raise FileNotFoundError(thread_id)
+    return matches[-1]
+
+
 def rollout_path(thread_id: str) -> Path | None:
+    """Resolve a unique thread's rollout without walking all archived sessions on each poll."""
     if not UUID_RE.match(thread_id):
         return None
-    matches = sorted((codex_home() / "sessions").glob(f"**/rollout-*-{thread_id}.jsonl"))
-    return matches[-1] if matches else None
+    sessions = codex_home() / "sessions"
+    try:
+        path = _find_rollout(sessions, thread_id)
+        if not path.is_file():
+            _find_rollout.cache_clear()
+            return _find_rollout(sessions, thread_id)
+    except FileNotFoundError:
+        return None
+    return path
 
 
 def _rollout_lines(path: Path) -> Iterator[dict[str, Any]]:

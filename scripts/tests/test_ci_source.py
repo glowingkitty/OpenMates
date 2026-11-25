@@ -110,6 +110,17 @@ def test_unchanged_source_uses_reachable_base_without_artifact(tmp_path, monkeyp
     assert result["source"] == ci_source.git(root, "rev-parse", "HEAD")
 
 
+def test_publication_rejects_a_second_writer_for_the_same_session(tmp_path):
+    from scripts import ci_source
+
+    with ci_source.publication_lock(tmp_path, "fixture"):
+        with pytest.raises(RuntimeError, match="already being published"):
+            with ci_source.publication_lock(tmp_path, "fixture"):
+                pytest.fail("concurrent publication reused the same worktree")
+    with ci_source.publication_lock(tmp_path, "fixture"):
+        pass
+
+
 def test_resolved_patch_uses_reviewed_base_without_touching_worktree(
     tmp_path, monkeypatch
 ):

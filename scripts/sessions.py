@@ -8489,7 +8489,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
 def cmd_ci_source(args: argparse.Namespace) -> None:
     """Publish this session's reviewed source without deploying shared dev."""
-    from ci_source import publish
+    from ci_source import publication_lock, publish
     from heavy_slot import ci_source_slot
 
     session = _load_sessions().get("sessions", {}).get(args.session)
@@ -8498,9 +8498,9 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     root = _session_checkout_root(session)
     if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
         raise RuntimeError("CI source publication requires the session's managed worktree")
-    tracked = _auto_track_lane_untracked_files(args.session, root, list(session.get("modified_files", [])))
     os.nice(max(0, 10 - os.nice(0)))
-    with ci_source_slot():
+    with publication_lock(CONTROL_PLANE_ROOT, args.session), ci_source_slot():
+        tracked = _auto_track_lane_untracked_files(args.session, root, list(session.get("modified_files", [])))
         result = publish(root, args.session, tracked,
                          base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
                          patch_sha256=args.patch_sha256 or "")
