@@ -117,3 +117,11 @@ stage that runs in each environment.
   administrative root token was absent from the handoff. The one-shot setup
   needs ownership privileges to prepare files for the application and
   synchronize the mounted operator dotenv file.
+- Dev API. The live API runs at UID/GID 1000 with the dev checkout's
+  supplemental group. Two tracked Python files in the mounted checkout
+  needed group read access. Vault validation, the configured writable
+  mounts, Docker health and `/v1/health` all passed (dev commit `f320ea0`).
+- Upload Vault. The matching Vault image initialized and restarted as the
+  upstream UID 100 with its existing fixture volume. The unprivileged setup
+  job restored Vault readiness and its scoped upload handoff. The upload
+  Compose templates use this identity in the normal release.

@@ -4,8 +4,11 @@ services:
   vault:
     image: hashicorp/vault:1.19
     container_name: uploads-vault
+    user: vault
     restart: unless-stopped
-    cap_add: [IPC_LOCK]
+    environment:
+      SKIP_CHOWN: "1"
+      SKIP_SETCAP: "1"
     command: ["vault", "server", "-config=/vault/config/vault.hcl"]
     volumes:
       - ./vault/config:/vault/config:ro
