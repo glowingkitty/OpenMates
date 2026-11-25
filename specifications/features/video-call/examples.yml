@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@23
+specification: feature.video-call@24
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -360,6 +360,11 @@ localized_waiting:
   when: The server starts processing her first German audio turn.
   then: A short sound and a neutral system voice saying "Dein Chat startet…" play at once, never a guessed Mate voice;
     no Mate acknowledgement follows, and the answer is spoken in the routed Mate's own voice.
+- id: web-categorized-feedback
+  given: Maya finishes a question or a request to do work in a web call with categorized feedback enabled.
+  when: Jev identifies the category and reply language before ordinary answer generation starts.
+  then: One of three prerecorded clips plays in the actual Mate's voice when routing has established it. If Jev times
+    out or selects none, the ordinary answer starts without a clip.
 waiting_language:
 - id: unknown-language-stays-silent
   given: The turn language is unknown and the interface language has no recorded clips.
@@ -549,6 +554,10 @@ waiting_merge:
   given: Maya missed the assistant's last spoken answer.
   when: She says "sorry, can you say that again?".
   then: The stored last answer is played and shown again without a new model request and without credits.
+- id: speaker-echo-of-feedback
+  given: Maya is on speakers and the microphone picks up the Mate's prerecorded clip.
+  when: She stays quiet during the clip and then begins to speak independently.
+  then: Echo creates no user or hold turn. The clip yields to her speech and her words continue through the call.
 
 guest_speech_windows:
 - id: guest-speech-and-quiet

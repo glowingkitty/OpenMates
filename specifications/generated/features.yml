@@ -10413,8 +10413,8 @@ features:
       assertions:
         passing: 33
         failing: 6
-        not_run: 15
-        missing: 11
+        not_run: 16
+        missing: 10
         counted: 65
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
@@ -10476,7 +10476,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 69
+      unit_test_files: 72
     apple:
       status: partial
       source: tests

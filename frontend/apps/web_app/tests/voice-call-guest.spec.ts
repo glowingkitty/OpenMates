@@ -80,7 +80,10 @@ async function mockGuestBackend(page: any, mode: 'answer' | 'limit' | 'hold') {
       if (frame.type === 'mic_audio' && !replied) {
         replied = true;
         if (mode === 'hold') {
-          ws.send(JSON.stringify({ type: 'waiting', active: true, line: 'waiting_start' }));
+          ws.send(JSON.stringify({ type: 'waiting', active: true, line: 'waiting_start', clip: {
+            clip_id: 'ace-en-US-voice_wait-1',
+            asset_url: '/audio/assistant-acknowledgements/ace/en-US/voice_wait-1.mp3',
+          } }));
           seen.releaseHold = () => ws.send(JSON.stringify({ type: 'waiting', active: false, line: 'waiting_resume' }));
           return;
         }
@@ -127,7 +130,7 @@ test.describe('guest voice call', () => {
     const bar = page.getByTestId('voice-call-bar');
     await expect(bar.getByTestId('voice-call-status-text')).toHaveText('Waiting for you');
     await expect.poll(() => page.evaluate(() => (window as any).__playedAudio.some(
-      (clip: { src: string }) => clip.src.includes('/waiting_start-1.mp3'),
+      (clip: { src: string }) => clip.src.includes('/ace/en-US/voice_wait-1.mp3'),
     ))).toBe(true);
     const screenshot = testInfo.outputPath('guest-spoken-hold.png');
     await bar.screenshot({ path: screenshot });

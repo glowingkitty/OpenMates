@@ -54,6 +54,29 @@ def test_low_confidence_and_unknown_choices_degrade_safely():
     assert vpd.parse_pause_decision({}).verdict == "unsure"
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
+async def test_feedback_uses_the_same_transcript_only_decision():
+    answers = response().answers | {"feedback": answer("working"), "feedback_language": answer("de")}
+    with patch(f"{MODULE}.JevDecisionClient") as client:
+        client.return_value.evaluate = AsyncMock(return_value=DecisionResponse(model="jev", answers=answers))
+        decision = await vpd.classify_voice_pause("Schreib mir eine Einladung.", None, with_feedback=True)
+        call = client.return_value.evaluate.call_args.kwargs
+    assert call["state"] == {"speech": "Schreib mir eine Einladung."}
+    assert set(call["questions"]) == {"verdict", "intent", "feedback", "feedback_language"}
+    assert (decision.feedback, decision.feedback_language) == ("working", "de")
+    result = vpd.parse_pause_decision(answers | {"feedback_language": answer("other")})
+    assert result.feedback_language is None
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+def test_feedback_switch_requires_capable_web_call_and_allows_disabling(monkeypatch):
+    monkeypatch.delenv("VOICE_CALL_INSTANT_FEEDBACK", raising=False)
+    assert vpd.instant_feedback_enabled({"instant_feedback": True})
+    assert not vpd.instant_feedback_enabled({})
+    monkeypatch.setenv("VOICE_CALL_INSTANT_FEEDBACK", "0")
+    assert not vpd.instant_feedback_enabled({"instant_feedback": True})
+
+
 # contract-test: supporting surface=rest_api assertions=video-call.audio.pause-verdict
 async def test_provider_failure_and_timeout_fail_open_without_private_text(caplog):
     with patch(f"{MODULE}.JevDecisionClient") as client:

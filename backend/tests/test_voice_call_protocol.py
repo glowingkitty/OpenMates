@@ -228,7 +228,7 @@ async def runtime(monkeypatch):
     monkeypatch.setattr(route, "CallInterpretationGate", QuietInterpretationGate)
 
     async def start(*, context=None, startup_ms=0, auth=None, wait_ready=True, transport=route.SPEECH_OUTPUT_TRANSPORT,
-                    likely_end_hints=None, chat_id=None):
+                    likely_end_hints=None, chat_id=None, instant_feedback=False):
         socket, provider = Socket(), Provider()
         sockets.append(socket)
         providers.append(provider)
@@ -249,6 +249,8 @@ async def runtime(monkeypatch):
             start_event["context"] = context
         if likely_end_hints is not None:
             start_event["likely_end_hints"] = likely_end_hints
+        if instant_feedback:
+            start_event["instant_feedback"] = True
         socket.push(start_event)
         task = asyncio.create_task(route.voice_call(socket, auth or {"user_id": "owner", "session_hash": "session", "logical_session_id": "session"}))
         tasks.append(task)
@@ -904,12 +906,12 @@ async def test_echo_of_a_playing_prerecorded_clip_is_discarded(runtime, monkeypa
                  "clip_audio_url": "/audio/assistant-acknowledgements/system/en-US/chat_start-1.mp3"})
     await socket.until(lambda events: any(event.get("processing") for event in events))
     provider.push("turn.start")
-    provider.push("transcription.text.delta", text="Starting")
-    await socket.event("transcript")
-    provider.push("transcription.text.delta", text=" your chat.")
+    provider.push("transcription.text.delta", text="Start")
+    provider.push("transcription.text.delta", text=" the chat.")
     provider.push("turn.end")
     assert (await socket.event("transcript.discarded"))["reason"] == "echo"
     assert not socket.finals() and not runtime.issued and not runtime.completion_texts
+    assert not any(event["type"] == "transcript" for event in socket.sent)
     assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
 
 
@@ -1611,6 +1613,25 @@ async def test_spoken_wait_intent_enters_waiting_and_starts_no_turn(runtime, mon
     discarded = await socket.event("transcript.discarded")
     assert discarded["reason"] == "waiting"
     await asyncio.sleep(0.4)
+    assert not socket.finals() and not runtime.issued
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.waiting.spoken-intent-and-merge
+async def test_web_hold_on_interrupts_a_playing_answer_and_admits_no_chat_turn(runtime, monkeypatch):
+    async def complete(text, _socket, _timeout, *, with_feedback):
+        assert text == "Hold on." and with_feedback
+        return route.PauseDecision("wait", "wait", None)
+
+    monkeypatch.setattr(route, "_complete", complete)
+    socket, provider, _ = await runtime.start(instant_feedback=True)
+    assistant(socket, text="This is a long answer.")
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Hold on.")
+    provider.push("turn.end")
+    assert (await socket.event("audio.interrupted"))["call_id"]
+    assert (await socket.event("waiting"))["active"] is True
+    assert (await socket.event("transcript.discarded"))["reason"] == "waiting"
     assert not socket.finals() and not runtime.issued
 
 

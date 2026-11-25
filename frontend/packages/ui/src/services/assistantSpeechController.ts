@@ -893,6 +893,12 @@ class AssistantSpeechController {
     });
   }
 
+  interruptCallClip(audioUrl: string): void {
+    if (!this.activeCallId || this.acknowledgementClip?.audioUrl !== audioUrl) return;
+    const segment = this.queue.state.activeSegmentId;
+    if (segment?.startsWith("acknowledgement:")) this.queue.skipWaitingConfirmation(segment);
+  }
+
   private handleAcknowledgement(payload: SpeechAcknowledgementPayload): void {
     if (this.callOwner && payload.chat_id !== this.callOwner) return;
     if (!payload.chat_id || !payload.message_id || !payload.clip_id || !payload.audio_url) return;
@@ -910,6 +916,7 @@ class AssistantSpeechController {
       durationMs: 0,
       audioUrl: payload.audio_url,
       playbackClass: "passive",
+      kind: "waiting_confirmation",
       chapter: { kind: "passive", type: "confirmation" },
       waveform: [],
     };

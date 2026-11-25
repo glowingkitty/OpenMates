@@ -595,6 +595,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // A resumed call omits the cleanup attempt: the server then never treats
       // the chat as an empty shell it may retire.
       this.send({ type: 'start', chat_id: chatId, startup_audio_allowance_ms: 10_000,
+        instant_feedback: true,
         ...(cleanupAttemptId ? { cleanup_attempt_id: cleanupAttemptId } : {}),
         speech_output_transport: SPEECH_OUTPUT_TRANSPORT,
         // Core builds prepare a turn early on `turn.likely_end`; the server sends
@@ -867,6 +868,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
           message.assistant_message_id === this.assistantMessageId;
         const sameTask = typeof message.assistant_task_id === 'string' &&
           message.assistant_task_id === taskId && message.assistant_task_id === this.assistantTaskId;
+        if (typeof message.clip_audio_url === 'string') {
+          assistantSpeechController.interruptCallClip(message.clip_audio_url);
+        }
         if (!sameMessage && !sameTask) return;
         const boundary = assistantSpeechController.playbackBoundary;
         if (boundary && boundary.assistant_message_id === this.assistantMessageId) this.pendingHeardBoundary = boundary;
@@ -960,13 +964,21 @@ export class VoiceCallController implements VoiceCallControllerLike {
         // invoke the canonical inference pipeline twice.
         return;
       }
+      case 'voice_feedback':
+        if (this.state.status === 'live' && message.call_id === this.state.callId) {
+          this.playCallFeedback(message.clip);
+        }
+        return;
       case 'waiting': {
         if (this.state.status !== 'live' || message.call_id !== this.state.callId ||
             typeof message.active !== 'boolean' || !isWaitingLine(message.line)) return;
         // Ready-made line: spoken and written locally, never inferred or charged.
-        void assistantSpeechController.stop();
+        void assistantSpeechController.stop().catch(() => {});
         this.update({ waiting: message.active, waitingLine: { kind: message.line, text: waitingLineText(message.line) } });
-        void playWaitingLine(message.line);
+        if ('clip' in message) this.playCallFeedback(message.clip);
+        else void playWaitingLine(message.line, async (url) => {
+          this.playCallFeedback({ clip_id: String(message.line), asset_url: url });
+        });
         this.recordLifecycle(message.line);
         return;
       }
@@ -1041,6 +1053,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // its approved words and treats their echo during playback as recapture (EYHC5).
       clip_audio_url: current ? speech.clipAudioUrl : null,
       language: speech.language });
+  }
+
+  private playCallFeedback(clip: unknown): void {
+    if (!clip || typeof clip !== 'object' || !this.state.chatId) return;
+    const item = clip as Record<string, unknown>;
+    if (typeof item.clip_id !== 'string' || typeof item.asset_url !== 'string') return;
+    assistantSpeechController.playCallPrompt(this.state.chatId, `${item.clip_id}:${crypto.randomUUID()}`, item.asset_url);
   }
 
   private bindCanonicalChat(): void {

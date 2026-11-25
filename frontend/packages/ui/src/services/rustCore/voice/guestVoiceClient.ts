@@ -10,14 +10,17 @@ export interface GuestVoiceSocketPlan {
   hangup: string;
 }
 
+export interface GuestVoiceFeedbackClip { id: string; url: string }
+
 export type GuestVoiceEvent =
   | { type: 'ready' | 'ended' | 'limit' }
   | { type: 'error'; code: string }
-  | { type: 'waiting'; active: boolean; line: VoiceCallWaitingLine }
+  | { type: 'waiting'; active: boolean; line: VoiceCallWaitingLine; clip?: GuestVoiceFeedbackClip | null }
+  | { type: 'voice_feedback' | 'voice_feedback_stop'; clip: GuestVoiceFeedbackClip }
   | { type: 'transcript'; messageId: string; text: string; submitted: boolean };
 
 interface GuestVoiceProtocol {
-  connect: { request: { base: string; anonymous_id: string }; response: GuestVoiceSocketPlan };
+  connect: { request: { base: string; anonymous_id: string; instant_feedback?: boolean }; response: GuestVoiceSocketPlan };
   receive: { request: { frame: string }; response: GuestVoiceEvent | null };
   speech: { request: { base: string; anonymous_id: string; markdown: string; language: string };
     response: { url: string; bodies: string[] } };

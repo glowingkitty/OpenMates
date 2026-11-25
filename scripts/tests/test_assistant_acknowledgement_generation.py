@@ -133,7 +133,9 @@ def test_localized_plan_has_expected_voice_category_variant_coverage(tmp_path, l
 
     full_plan = generator.build_plan(language, tmp_path)
     mate_plan = [item for item in full_plan if item["voice_profile_id"] != generator.SYSTEM_VOICE_PROFILE_ID]
-    assert len(full_plan) == len(mate_plan) + 1
+    assert {item["request_category"] for item in full_plan if item not in mate_plan} == {
+        "chat_start", "waiting_start", "waiting_resume",
+    }
     plan = [item for item in mate_plan if item["request_category"] in generator.ACKNOWLEDGEMENT_TEXTS[language]]
     assert len(mate_plan) == len(plan) + 17 * len(generator.PERMISSION_PROMPT_TEXTS[language])
     voices = {item["voice_profile_id"] for item in plan}
@@ -168,7 +170,8 @@ def test_chat_start_clip_uses_the_neutral_system_voice_with_a_leading_chime(tmp_
     generator = load_generator()
 
     [item] = [entry for entry in generator.build_plan(language, tmp_path)
-              if entry["voice_profile_id"] == generator.SYSTEM_VOICE_PROFILE_ID]
+              if entry["voice_profile_id"] == generator.SYSTEM_VOICE_PROFILE_ID
+              and entry["request_category"] == generator.CHAT_START_CATEGORY]
 
     assert item["clip_id"] == f"system-{language}-chat_start-1"
     assert item["relative_path"] == f"system/{language}/chat_start-1.mp3"
@@ -185,7 +188,8 @@ def test_chat_start_clip_uses_the_neutral_system_voice_with_a_leading_chime(tmp_
 def test_shipped_chat_start_clips_match_the_manifest():
     generator = load_generator()
     manifest = json.loads((generator.DEFAULT_OUTPUT_ROOT / generator.MANIFEST_FILENAME).read_text(encoding="utf-8"))
-    system = {clip["clip_id"]: clip for clip in manifest["clips"] if clip["voice_profile_id"] == "system"}
+    system = {clip["clip_id"]: clip for clip in manifest["clips"]
+              if clip["voice_profile_id"] == "system" and clip["request_category"] == generator.CHAT_START_CATEGORY}
 
     assert set(system) == {f"system-{language}-chat_start-1" for language in generator.CHAT_START_TEXTS}
     for clip in system.values():

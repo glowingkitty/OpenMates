@@ -541,6 +541,20 @@ describe("AssistantSpeechQueue", () => {
     queue.stop();
   });
 
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting,video-call.audio.intentional-interruption
+  it("cuts off the playing static clip and can still play the reply", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    const waiting: AssistantSpeechSegment = { ...segment(-1, "ready"), kind: "waiting_confirmation",
+      playbackClass: "passive", chapter: { kind: "passive", type: "confirmation" } };
+    queue.start("response-1", [waiting]);
+    await vi.waitFor(() => expect(queue.state).toMatchObject({ status: "playing", activeSegmentId: waiting.id }));
+    queue.skipWaitingConfirmation(waiting.id);
+    expect(audioByUrl.get("blob:segment--1")?.pause).toHaveBeenCalled();
+    queue.upsertSegment(segment(0, "ready"));
+    await vi.waitFor(() => expect(queue.state).toMatchObject({ status: "playing", activeSegmentId: "segment-0" }));
+    queue.stop();
+  });
+
 
   // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response
   it('reports only actually ended voice clauses and the current media offset without guessing heard words',async()=>{

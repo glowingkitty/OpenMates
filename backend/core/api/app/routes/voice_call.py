@@ -40,7 +40,11 @@ from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.core.api.app.routes.voice_call_terms import parse_terms
 from backend.shared.providers.voxtral_voice import VoxtralVoiceSession, VOXTRAL_VOICE_MODEL, STREAMING_DELAY_MS
-from backend.shared.python_utils.voice_pause_decision import PAUSE_WAIT_SECONDS, PauseDecision, as_pause_decision, classify_voice_pause
+from backend.shared.python_utils.voice_pause_decision import (
+    PAUSE_WAIT_SECONDS, PauseDecision, as_pause_decision, classify_voice_pause,
+    instant_feedback_enabled, voice_feedback_key,
+)
+from backend.shared.python_utils.voice_call_intent import is_prerecorded_clip_echo
 from backend.shared.providers.live_voice import LiveVoiceSession
 from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals
 from backend.shared.python_utils.voice_call_registry import (
@@ -444,6 +448,7 @@ class _SpeechTurn:
     completion_text: str = ""
     separate_next_delta: bool = False
     assistant_speaking: bool = False
+    clip_text: str = ""
     completion_retried: bool = False
     completion_started: float = 0.0
     submit_on_silence: bool = False
@@ -472,7 +477,8 @@ def _material_change(checked: str, current: str) -> bool:
     return words(checked) != words(current)
 
 
-async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION_CHECK_DEADLINE_SECONDS) -> PauseDecision:
+async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION_CHECK_DEADLINE_SECONDS,
+                    *, with_feedback: bool = False) -> PauseDecision:
     """Separate, bounded completion gate; never run ordinary preprocessing here."""
     try:
         if isolated_voice_fixture_enabled():
@@ -481,10 +487,15 @@ async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION
             fixture_intent = isolated_voice_intent_fixture(text)
             if fixture_intent is not None:
                 complete = as_pause_decision("complete")
-                return PauseDecision(complete.verdict, fixture_intent, complete.wait_seconds)  # type: ignore[arg-type]  # fixed CI intents
-            return as_pause_decision(isolated_voice_completion_fixture(text) or "uncertain")
+                return PauseDecision(complete.verdict, fixture_intent, complete.wait_seconds,  # type: ignore[arg-type]  # fixed CI intents
+                                     feedback_language="en" if with_feedback else None)
+            result = as_pause_decision(isolated_voice_completion_fixture(text) or "uncertain")
+            if with_feedback and result.completion == "complete":
+                return PauseDecision(result.verdict, result.intent, result.wait_seconds, "answering", "en")
+            return result
+        options = {"with_feedback": True} if with_feedback else {}
         return await asyncio.wait_for(classify_voice_pause(
-            text, websocket.app.state.secrets_manager, timeout), timeout=timeout + 0.05)
+            text, websocket.app.state.secrets_manager, timeout, **options), timeout=timeout + 0.05)
     except TimeoutError:
         logger.warning("VOICE_COMPLETION_CHECK timeout after=%.2fs", timeout)
         return as_pause_decision("unavailable")
@@ -569,6 +580,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     cleanup_attempt_id = None
     cleanup_tracking_started = False
     cleanup_eligible = False
+    feedback_enabled = False
     cleanup_task: list[asyncio.Task[None] | None] = [None]
     cleanup_ready_exposed = False
     ledger = SpeechUsageLedger()
@@ -580,7 +592,10 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     closed_local_turn = False
     seen_text_ids: dict[str, tuple[str, int]] = {}
     interrupted_ids: set[str] = set()
-    assistant: dict[str, Any] = {"speaking": False, "generating": False, "text": "", "assistant_message_id": None, "assistant_task_id": None}
+    assistant: dict[str, Any] = {"speaking": False, "generating": False, "text": "", "assistant_message_id": None,
+                                 "assistant_task_id": None, "clip_text": "", "clip_url": None}
+    recent_clip_text = ""
+    recent_clip_until = 0.0
     language = "auto"
     last_order = 0
     started = last_auth_check = time.monotonic()
@@ -592,7 +607,16 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     waiting = VoiceWaiting()
 
     async def send(event: dict[str, Any]) -> None:
+        nonlocal recent_clip_text, recent_clip_until
+        clip = event.get("clip")
+        if isinstance(clip, dict) and isinstance(clip.get("asset_url"), str):
+            from backend.apps.audio.assistant_speech.acknowledgements import prerecorded_clip_text
+            recent_clip_text = prerecorded_clip_text(clip["asset_url"])
+            recent_clip_until = time.monotonic() + 5.0
         await websocket.send_json(event)
+
+    def echo_reference() -> str:
+        return assistant["clip_text"] or (recent_clip_text if time.monotonic() <= recent_clip_until else "")
 
     async def activity() -> None:
         nonlocal last_activity
@@ -641,7 +665,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         turn = _SpeechTurn(message_id, _timestamp(), assistant["assistant_message_id"],
                            assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
                            assistant_task_id=assistant["assistant_task_id"],
-                           assistant_speaking=bool(assistant["speaking"]))
+                           assistant_speaking=bool(assistant["speaking"]), clip_text=echo_reference())
         turns[message_id] = turn
         return turn
 
@@ -662,7 +686,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         logger.info("Voice interruption call_id=%s user_message_id=%s reason=%s", call_id, turn.message_id, reason)
         await send({"type": "audio.interrupted", "call_id": call_id,
                     "assistant_message_id": turn.assistant_id, "assistant_task_id": turn.assistant_task_id,
-                    "user_message_id": turn.message_id})
+                    "user_message_id": turn.message_id,
+                    **({"clip_audio_url": assistant["clip_url"]} if turn.clip_text and assistant["clip_url"] else {})})
 
     async def settle_cleanup() -> None:
         task, cleanup_task[0] = cleanup_task[0], None
@@ -685,6 +710,27 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     "text": turn.text, "final": final, "interrupted": False})
         if final:
             await settle_cleanup()
+
+    async def send_voice_feedback(turn: _SpeechTurn, decision: PauseDecision | None) -> None:
+        if not feedback_enabled:
+            return
+        category = decision.feedback if decision else "none"
+        clip_language = decision.feedback_language if decision else None
+        clip = None
+        if cleanup_eligible and category in {"answering", "working"} and clip_language:
+            # An empty new chat has no routed Mate yet. Move its existing neutral
+            # startup cue ahead of ordinary chat admission while keeping one clip.
+            from backend.apps.audio.assistant_speech.acknowledgements import build_chat_start_clip
+            clip = build_chat_start_clip(language=clip_language)
+        try:
+            async with asyncio.timeout(0.15):
+                saved = await websocket.app.state.cache_service.set(
+                    voice_feedback_key(call_id, turn.message_id),
+                    {"category": category, "language": clip_language, "delivered": bool(clip)}, ttl=300)
+        except TimeoutError:
+            return
+        if saved and clip:
+            await send({"type": "voice_feedback", "call_id": call_id, "clip": clip})
 
     async def classify_latest(turn: _SpeechTurn) -> None:
         from backend.shared.python_utils.voice_call_intent import is_explicit_voice_stop, is_microphone_recapture
@@ -758,8 +804,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     def start_completion(turn: _SpeechTurn, text: str, timeout: float = COMPLETION_CHECK_DEADLINE_SECONDS) -> None:
         turn.completion_text = text
         turn.completion_started = turn.completion_started or time.monotonic()
-        turn.completion = asyncio.create_task(_complete(text, websocket) if timeout == COMPLETION_CHECK_DEADLINE_SECONDS
-                                              else _complete(text, websocket, timeout))
+        if feedback_enabled:
+            check = _complete(text, websocket, timeout, with_feedback=True)
+        elif timeout == COMPLETION_CHECK_DEADLINE_SECONDS:
+            check = _complete(text, websocket)
+        else:
+            check = _complete(text, websocket, timeout)
+        turn.completion = asyncio.create_task(check)
         completion_tasks.add(turn.completion)
         turn.completion.add_done_callback(completion_finished)
 
@@ -775,7 +826,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         turn.deadline = deadline
         turn.local_endpoint = local
         text = turn.text.strip()
-        if text and not turn.assistant_active and turn.completion is None and turn.completion_text != text:
+        if (text and not turn.assistant_active and turn.completion is None and turn.completion_text != text
+                and not is_prerecorded_clip_echo(text, turn.clip_text)):
             start_completion(turn, text)
 
     def completion_finished(task: asyncio.Task[str]) -> None:
@@ -798,10 +850,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             if turn.deadline is None or now < turn.deadline:
                 continue
             text = turn.text.strip()
+            explicit_stop = turn.assistant_active and is_explicit_voice_stop(text)
             reason = None
             if not text:
                 reason = "empty"
-            elif turn.assistant_active and is_explicit_voice_stop(text):
+            elif is_prerecorded_clip_echo(text, turn.clip_text):
+                reason = "echo"
+            elif explicit_stop and not feedback_enabled:
                 await interrupt(turn, "explicit_stop")
                 reason = "stop"
             elif (turn.verdict == "echo" and turn.assistant_speaking and assistant["speaking"]
@@ -854,6 +909,9 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 # The model-judged intent (hold, back, repeat) is acted on by the
                 # waiting state below, whatever the verdict.
                 intent = decision.intent if decision is not None else "none"
+                if explicit_stop and intent != "wait":
+                    await interrupt(turn, "explicit_stop")
+                    intent = "stop"
                 if verdict == "unavailable":
                     # Timeout/outage never blocks the turn: send it as complete.
                     logger.warning("VOICE_COMPLETION_CHECK fail_open call_id=%s verdict=complete", call_id)
@@ -874,12 +932,32 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 "reason": "incomplete" if verdict == "incomplete" or (
                                     decision is not None and decision.verdict == "wait") else "uncertain"})
                     continue
-                reason, text = await waiting.route(text, intent, send=send, call_id=call_id)
+                if intent == "wait" and turn.assistant_active:
+                    await interrupt(turn, "waiting")
+                clip = None
+                if feedback_enabled and intent == "wait" and decision and decision.feedback_language:
+                    from backend.apps.ai.assistant_speech.voice_status import select_categorized_voice_feedback
+                    try:
+                        async with asyncio.timeout(0.15):
+                            profile = await websocket.app.state.cache_service.get(f"voice_call_last_profile:{call_id}")
+                    except TimeoutError:
+                        profile = None
+                    if isinstance(profile, str):
+                        clip = select_categorized_voice_feedback(
+                            voice_profile_id=profile, category="wait", language=decision.feedback_language,
+                            seed=turn.message_id,
+                        )
+                    if clip is None:
+                        from backend.apps.audio.assistant_speech.acknowledgements import build_waiting_line_clip
+                        clip = build_waiting_line_clip(line="waiting_start", language=decision.feedback_language)
+                reason, text = await waiting.route(text, intent, send=send, call_id=call_id, clip=clip,
+                                                   categorized=feedback_enabled)
                 if reason == "waiting" and turn.assistant_active:
                     await interrupt(turn, "waiting")
                 if reason is None:
                     await interrupt(turn)
                     turn.text = text
+                    await send_voice_feedback(turn, decision)
                     await transcript(turn, final=True)
             if reason is not None:
                 # No transcript text is logged; the reason makes discards diagnosable.
@@ -911,7 +989,9 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         # Bind call admission before provider work under the same durable chat
         # lock as automatic cleanup. Older clients disqualify any prior attempt.
         from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
-        cleanup_attempt_id = json.loads(start_message).get("cleanup_attempt_id")
+        start_options = json.loads(start_message)
+        cleanup_attempt_id = start_options.get("cleanup_attempt_id")
+        feedback_enabled = instant_feedback_enabled(start_options)
         cleanup_state = await ChatRecoveryService(websocket.app.state.directus_service).execute(
             "update_call_cleanup_candidate", {"protocol_version": 1,
                 "hashed_user_id": user_hash, "chat_id": chat_id, "mode": "start",
@@ -1065,13 +1145,21 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             or (task_id is not None and (not isinstance(task_id, str) or not MESSAGE_ID.fullmatch(task_id)))
                             or (clip_audio_url is not None and (not isinstance(clip_audio_url, str) or len(clip_audio_url) > 256))):
                         raise ValueError("Invalid assistant state")
+                    clip_text = ""
                     if clip_audio_url:
                         # A playing prerecorded clip: its approved words join the
                         # spoken text so its microphone echo is recapture (EYHC5).
                         from backend.apps.audio.assistant_speech.acknowledgements import prerecorded_clip_text
-                        text = "\n".join(part for part in (prerecorded_clip_text(clip_audio_url), text) if part)
+                        clip_text = prerecorded_clip_text(clip_audio_url)
+                        text = "\n".join(part for part in (clip_text, text) if part)
+                    if clip_text:
+                        recent_clip_text = clip_text
+                        recent_clip_until = time.monotonic() + 1.0
+                    elif assistant["clip_text"]:
+                        recent_clip_until = time.monotonic() + 0.7
                     assistant.update(speaking=speaking, generating=generating, text=text,
-                                     assistant_message_id=identity, assistant_task_id=task_id)
+                                     assistant_message_id=identity, assistant_task_id=task_id,
+                                     clip_text=clip_text, clip_url=clip_audio_url if clip_text else None)
                 elif kind == "text_input":
                     try:
                         identity, text, created = _text_input(event)
@@ -1141,8 +1229,6 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     if not isinstance(delta, str):
                         raise ValueError("Invalid transcript delta")
                     if delta and not closed_local_turn:
-                        if gate is not None:
-                            gate.user_spoke()
                         if current is None:
                             current = await new_turn()
                         if (current.completion is not None and not current.completion.done()
@@ -1157,9 +1243,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         current.separate_next_delta = False
                         current.text = _bounded_transcript(current.text + separator + delta)
                         language = event.get("language") if isinstance(event.get("language"), str) and len(event["language"]) <= 32 else language
-                        await transcript(current, final=False)
-                        await barge_in(current)
-                        await classify_latest(current)
+                        if not current.clip_text:
+                            current.clip_text = echo_reference()
+                        if not is_prerecorded_clip_echo(current.text, current.clip_text):
+                            if gate is not None:
+                                gate.user_spoke()
+                            await transcript(current, final=False)
+                            await barge_in(current)
+                            await classify_latest(current)
                 elif kind == "turn.end":
                     if current is not None:
                         schedule_endpoint(current, time.monotonic(), local=False)
@@ -1168,6 +1259,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     # browser may only prepare the send (no model call) and
                     # commits it on the final transcript.
                     if (likely_end_hints and current is not None and current.text.strip()
+                            and not is_prerecorded_clip_echo(current.text, current.clip_text)
                             and not current.assistant_active and not current.likely_end_sent):
                         current.likely_end_sent = True
                         await send({"type": "turn.likely_end", "call_id": call_id,

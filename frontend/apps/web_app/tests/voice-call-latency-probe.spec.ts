@@ -26,27 +26,43 @@ const SPEECH_DIR = process.env.VOICE_CALL_REAL_SPEECH_DIR || '';
 const SCENARIO = process.env.VOICE_CALL_REAL_SCENARIO || '';
 const QUESTIONS = Number(process.env.VOICE_LATENCY_QUESTIONS || '0');
 const CALL_SECONDS = Number(process.env.VOICE_LATENCY_CALL_SECONDS || '0');
+const GUEST = process.env.VOICE_LATENCY_GUEST === '1';
+const SPEAKER_LOOPBACK = process.env.VOICE_LATENCY_SPEAKER_LOOPBACK === '1';
 const SCALAR_FIELDS = ['final', 'is_final', 'is_last_chunk', 'sequence', 'status', 'kind', 'phase', 'speech_status', 'verified_silence',
   'state', 'stage', 'reason', 'category', 'decision', 'role', 'stt_duration_seconds', 'credits_accrued'];
 
 type Frame = { t: number; socket: string; dir: string; type: string; fields: Record<string, unknown>; textLen?: number };
 
-function installRecorders() {
-  const w = window as unknown as { __probe: { gum: number[]; playing: { t: number; src: string }[] } };
-  w.__probe = { gum: [], playing: [] };
+function installRecorders(speakerLoopback: boolean) {
+  const w = window as unknown as { __probe: {
+    gum: number[]; playing: { t: number; src: string }[]; speakerFeeds: string[];
+  } };
+  w.__probe = { gum: [], playing: [], speakerFeeds: [] };
+  let echoPath: { context: AudioContext; microphone: MediaStreamAudioDestinationNode } | undefined;
   const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia = async (constraints?: MediaStreamConstraints) => {
     const stream = await original(constraints);
-    if (constraints && (constraints as { audio?: unknown }).audio) w.__probe.gum.push(Date.now());
+    if (constraints?.audio) {
+      w.__probe.gum.push(Date.now());
+      if (speakerLoopback) {
+        const context = new AudioContext();
+        const microphone = context.createMediaStreamDestination();
+        context.createMediaStreamSource(stream).connect(microphone);
+        echoPath = { context, microphone };
+        await context.resume();
+        return new MediaStream([...microphone.stream.getAudioTracks(), ...stream.getVideoTracks()]);
+      }
+    }
     return stream;
   };
   // The streaming player uses a detached HTMLAudioElement, so its events
   // do not reach the document. Capture actual playback from the player.
-  const speechUrls = new Set<string>();
+  const speechUrls = new Map<string, string>();
   const createObjectURL = URL.createObjectURL.bind(URL);
   URL.createObjectURL = (source) => {
     const url = createObjectURL(source);
-    if (source instanceof MediaSource) speechUrls.add(url);
+    if (source instanceof MediaSource) speechUrls.set(url, 'media-source');
+    if (source instanceof Blob && source.type === 'audio/mpeg') speechUrls.set(url, 'reply-blob');
     return url;
   };
   const revokeObjectURL = URL.revokeObjectURL.bind(URL);
@@ -55,16 +71,32 @@ function installRecorders() {
     revokeObjectURL(url);
   };
   const hooked = new WeakSet<HTMLMediaElement>();
+  const looped = new WeakSet<HTMLMediaElement>();
   const originalPlay = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
     if (!hooked.has(this)) {
       hooked.add(this);
       this.addEventListener('playing', () => {
         const src = this.currentSrc || this.src || '';
-        const kind = speechUrls.has(src) ? 'media-source' :
-          src.startsWith('blob:') ? 'blob' : src.startsWith('data:') ? 'data' : new URL(src || '/', location.href).pathname;
+        const kind = speechUrls.get(src) ?? (src.startsWith('blob:') ? 'blob'
+          : src.startsWith('data:') ? 'data' : new URL(src || '/', location.href).pathname);
         w.__probe.playing.push({ t: Date.now(), src: kind });
       });
+    }
+    if (echoPath && !looped.has(this)) {
+      const asset = new URL(this.currentSrc || this.src || '/', location.href);
+      if (asset.origin === location.origin && asset.pathname.startsWith('/audio/assistant-acknowledgements/')) {
+        const { context, microphone } = echoPath;
+        const speaker = context.createMediaElementSource(this);
+        const delay = context.createDelay();
+        delay.delayTime.value = 0.075;
+        const gain = context.createGain();
+        gain.gain.value = 0.22;
+        speaker.connect(context.destination);
+        speaker.connect(delay).connect(gain).connect(microphone);
+        looped.add(this);
+        w.__probe.speakerFeeds.push(asset.pathname);
+      }
     }
     return originalPlay.call(this);
   };
@@ -85,7 +117,7 @@ test.describe('voice call latency probe', () => {
   // contract-test: tooling
   test('one call with several spoken questions, every frame timestamped', async ({ page }: { page: Page }, testInfo: TestInfo) => {
     test.setTimeout((CALL_SECONDS + 240) * 1000);
-    expect(getTestAccount().email, 'test account credentials').toBeTruthy();
+    if (!GUEST) expect(getTestAccount().email, 'test account credentials').toBeTruthy();
     expect(fs.existsSync(path.join(SPEECH_DIR, `${SCENARIO}.wav`)), 'generated speaker audio').toBe(true);
     await page.setViewportSize({ width: 1400, height: 1000 });
     const log = createSignupLogger('VOICE_LATENCY');
@@ -118,16 +150,18 @@ test.describe('voice call latency probe', () => {
         });
       }
     });
-    await page.addInitScript(installRecorders);
+    await page.addInitScript(installRecorders, SPEAKER_LOOPBACK);
     await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-    await loginToTestAccount(page, log, screenshot);
-    await setChatSidebarOpen(page, false, log);
+    if (!GUEST) {
+      await loginToTestAccount(page, log, screenshot);
+      await setChatSidebarOpen(page, false, log);
+    }
     let started = false;
     try {
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       started = true;
       const clickedAt = Date.now();
-      const privacy = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });
+      const privacy = page.getByTestId('notification').filter({ hasText: GUEST ? 'Continue' : 'Before your first voice call' });
       const listening = page.getByTestId('voice-call-status-text').filter({ hasText: 'Listening · You can speak now' });
       await expect(privacy.or(listening).first()).toBeVisible({ timeout: 45_000 });
       if (await privacy.isVisible()) {
@@ -142,7 +176,9 @@ test.describe('voice call latency probe', () => {
       await page.waitForTimeout(20_000);
       const userMessages = await page.getByTestId('message-user').count();
       log(`user messages after the script: ${userMessages} of ${QUESTIONS}`);
-      const probe = await page.evaluate(() => (window as unknown as { __probe: unknown }).__probe);
+      const probe = await page.evaluate(() => (window as unknown as {
+        __probe: { playing: Array<{ t: number; src: string }>; speakerFeeds: string[] };
+      }).__probe);
       const report = {
         clickedAt, listeningAt, micFrames: microphoneTimes.length, microphoneTimes,
         detectorFallbackTimes, frames, probe, questions: QUESTIONS, userMessages,
@@ -152,13 +188,22 @@ test.describe('voice call latency probe', () => {
       await testInfo.attach('voice-latency-frames', { body: JSON.stringify(report), contentType: 'application/json' });
       log(`latency frames: ${frames.length}; mic frames: ${microphoneTimes.length}; playing events: ${(probe as { playing: unknown[] }).playing.length}`);
       log(`LATENCY_REPORT ${JSON.stringify(report)}`);
+      if (SPEAKER_LOOPBACK) {
+        expect(probe.speakerFeeds.length, 'a real static clip reached the speaker path').toBeGreaterThan(0);
+        expect(userMessages, 'the microphone echo did not create a chat turn').toBe(QUESTIONS);
+        expect(frames.filter(frame => frame.type === 'transcript' && frame.fields.final === true)).toHaveLength(QUESTIONS);
+      }
+      if (GUEST) {
+        expect(userMessages, 'the guest question turned into one chat message').toBe(QUESTIONS);
+        expect(probe.playing.some(event => event.src === 'reply-blob'), 'the guest heard the generated reply').toBe(true);
+      }
       const hangup = page.getByTestId('voice-call-hangup');
       await expect(hangup, 'the call survives the replay and subsequent quiet').toBeVisible({ timeout: 5_000 });
       await hangup.click();
       started = false;
     } finally {
       if (started) await page.getByTestId('voice-call-hangup').click({ timeout: 5_000 }).catch(() => undefined);
-      await deleteActiveChat(page, log, screenshot, 'latency-probe-cleanup').catch(() => undefined);
+      if (!GUEST) await deleteActiveChat(page, log, screenshot, 'latency-probe-cleanup').catch(() => undefined);
     }
   });
 });

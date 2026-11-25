@@ -1141,10 +1141,10 @@ specifications:
     - sdks.pip
     - gui.web
   feature.video-call:
-    version: 23
+    version: 24
     status: approved
     path: features/video-call
-    fingerprint: b4a8f39370e1a6d4a0bde3340b656a7400f2536c9ae9d79dfc87090ca5840ba8
+    fingerprint: db13b4581e6935f82ee92e0a3913a77255d135c29ad737c0f3b01e63df462e80
     required_applies_to:
     - gui.web
     - gui.apple
@@ -15914,7 +15914,7 @@ assertions:
     - sdks.pip
     - gui.web
   video-call.chat.launch-and-provider:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 50c6ed042c1005e1153ae5839f1681e4fa62f53fcb487eedee0e919c019edda2
@@ -15922,7 +15922,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.fixed-binding:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: a88b39e937685ef3b36835355fd55bb2526c57433c337b351f5a0c1358b7eab8
@@ -15930,7 +15930,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.call-strip-layout:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: d4cc228c575f7816241edda909314f508ea116181508af9a1a233ec891de2745
@@ -15938,7 +15938,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.call-strip-opening:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 464c74c19371496d0a6aba989e3903983cce2b48db8da0128f96cb59b6889c19
@@ -15946,7 +15946,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.call-events:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: d05b5385d0b2f6da4062711d02eb4829a5fe8ac56de817c28108c5db6c7eea0c
@@ -15954,7 +15954,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.skill-integration:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 87bd1bb769fe20c5f83431830aeb5ec18c5df05b2be102746d2e98cf3fcf3dce
@@ -15962,7 +15962,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.ethics:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: f95c17203d14b5d982d403d9a6c4557bb231a5cb120f16d1e58cd4b4f3978983
@@ -15970,7 +15970,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.compressed-context:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8337b9518698747ccacd1dc520ba7b8fe33734f5ed2c8c88929d3d962c01197c
@@ -15978,7 +15978,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.project-context:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 4e05d8875d1384b76cead35562d58f87f5553bc1069c0f077ceda2f0b40da9bc
@@ -15986,7 +15986,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.memories-and-focus:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: fe89014c7bf245c67124c41d8eb3e38dda2932be45301470e20bb93d98e9f48a
@@ -15994,7 +15994,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.permission-prompt:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 7d8fc87695efe81561905f7aed79861d8ae38022083eb1d11fcbc287dbd38fb0
@@ -16002,7 +16002,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.assistant-identity:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 89ca56d4b52f7077a8461ff1df8d5fe9d517a2b8463b7bc4b5d3298488723428
@@ -16010,7 +16010,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.recording.encrypted-whole-call:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: a05e2e359a6f28e8cf73abf60f287237b3a7ea1d5e13ff0ce8157472140da9de
@@ -16018,7 +16018,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.recording.open-and-download:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: e7954782b4dd8ee486f604ca93359bcdd054a7f79d659e328f4b1d325f9907e3
@@ -16026,7 +16026,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.privacy:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 2e896a5d08109eae9d9cf474e505a47a4f60adc16fc589a546864868fc8fddd6
@@ -16034,7 +16034,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.guest-calls:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 5a1189709b63bb01ba91974b50df3fbb951c9da7beaf15d026def5e65ea30baa
@@ -16042,7 +16042,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.privacy.first-call-warning:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 09a81c2884af33a70e76ae06f84d5c156ad68138d45518a96e78903868f01143
@@ -16050,7 +16050,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.transcripts:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: a49a14d5c05a072a7b6b14eccd4ffd5310138a690de980ba9a13dae4f7aac4cd
@@ -16058,7 +16058,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.typed-input:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8bc1ba5a1e96cbf6c8db1be7e96b6642677932747997e7a79d2fc9df532cc041
@@ -16066,7 +16066,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.stt-special-terms:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8788f6b08dc743ee7d5be769e6a2a265eecb7caf262c62042c1943d056d839cc
@@ -16074,7 +16074,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.pasted-text-not-read-aloud:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: afface71553404772b96a0dd39f340b737e98e54ec07009c34e999e69e4d1876
@@ -16082,7 +16082,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.single-owner:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 13ae8e2701ab21bb98bd490a3298aafa3540b31819cdc3de1764cb192a5046ab
@@ -16090,7 +16090,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.confirmation-sounds:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 813b771f6a10584e4f7d1c8310c0d3e8a4ed804ed8f7db401c9233032dae608a
@@ -16098,7 +16098,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.background-detection:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 963db04e1272ef0e02aa49b6ab0a7442379c3629ef87ccd00b4d5934ad2c8871
@@ -16106,7 +16106,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.automatic-idle:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 145cf2ba438b45df7ec87814abf27794616b594fe68252feb2f7568ed41cae8a
@@ -16114,7 +16114,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.startup-buffer:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 97cee3f17d0bdd6488f28c0d357ae25f55c06fd788b410fc3b33c873023bc240
@@ -16122,7 +16122,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.activity-status:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 182c7a34784f39a775c47c067d14c4105f3b8973689df7ba4a840073843b415e
@@ -16130,7 +16130,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.lifecycle.recovery-and-billing:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 4d2b377aac630ac86a949867f7dc4e66e3045234b95111cde68ccbc2508cf4e0
@@ -16138,7 +16138,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.usage.provider-metering:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 37bd7a85caf6660c2336955dcfa641524f393a040b759eee299201ab74afea04
@@ -16146,7 +16146,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.input-and-output:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 14ba278036557879bc16b0374a6f69b1cf94e4a385cf438f285a8e5b8e51653f
@@ -16154,7 +16154,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.apple-screen-share:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 4bf01fd5d6c3e331153a1ab55776385a22ff148aa3f011e1a644b083dd0ac9a1
@@ -16162,7 +16162,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.web-screen-share:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 886aefe7494558aaa64d7b7fa632a828b99ef7a7ce30232473a6876db3b3efcb
@@ -16170,7 +16170,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.source-frame-provenance:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 8b19e09bf137104bd406014f06a8f64377454b616e6a4d64da2218aeac49f145
@@ -16178,7 +16178,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.generated-media-stage:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 18cfb11b77eed89f9c7774115dbd2ed8c529fe6dfebb3e7f1d6110ed6df69fdc
@@ -16186,7 +16186,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.fast-generation-default:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 786130fa12035a635377f3c863941733d3f9aafdbc9c6d56cb5452432e15e5ba
@@ -16194,7 +16194,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.provider.boundary:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 0b94c57dc2deca6665c46d0721b0e31ea61339064422e3c6ff0bd68cd97b85f1
@@ -16202,7 +16202,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.metadata-generation:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: be764e43be17ec965c2433ae55ae275fdcf0807da5c84499687e6f16fdb433d4
@@ -16210,7 +16210,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.metadata-lifecycle:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 11e39fd9b7187d801fd48400ae50308ef0614e2188300e627f51bc558f564043
@@ -16218,15 +16218,15 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.intentional-interruption:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
-    fingerprint: cc57e41034f8f2eb44607b02abbf9091dd6cda6c92cb2e892e05515557f072d3
+    fingerprint: 836e33eb68c3b720de4bf6bc9772014f1d2f32207abd731d705456ff75621737
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.audio.spoken-rich-response:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 89d3187ac4efceb6499bd573f66a2dbb14620922c25a4e1014b69fa35979cf0e
@@ -16234,23 +16234,23 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.localized-waiting:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
-    fingerprint: 88a64b922eed5967128a0d58bdacb3ab4f84c64fbc8a214d192d79c7b3d361ef
+    fingerprint: af5b94e4a5525ab474f1bcaf7d5911e6f11693dae53c6ea9a7c7157348739d37
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.audio.waiting-language:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
-    fingerprint: fb2fa33489768aff966c0006f59065540cfbecb2d67013842f954a82cfe31f97
+    fingerprint: 716e2397bc6b7818811d69d88fee930c2a43d760c8da8b036ad71d39ab2bab21
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.audio.skills-announcement:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: b17de30383c2ce675b4226934f904a7810325ea0bcd30a97eed8ac9d7341598f
@@ -16258,7 +16258,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.background-resume:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 18902a58fdaa011b1a58d31c19de63e38fc76529a76a32d7f6c3e73e14c5776f
@@ -16266,7 +16266,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.apple.live-activity:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 7f9f18a504ea21bc1583f47d1b13005a9e9c7d1f1de2051ae56345b8b6a42832
@@ -16274,7 +16274,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.orchestration-continuity:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: cc9302e53f19e1a89e0e3d17730dfece8b81613ce045f0008a5954a2f25f2ca3
@@ -16282,7 +16282,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.complete-turn-admission:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 705408a82b45a477a312ae66a75c2d9dacd730bbb4dde07e4e6daa12b78263c1
@@ -16290,7 +16290,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.pause-verdict:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 031a61e8d1ebb28119184c1fbf771aa7fad67daf609dda7e97b0458d1de110ec
@@ -16298,7 +16298,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.sounds.ambient-skill-loop:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: d19ee9839e6a841c2276955ffc170adf72571df4866957732613c97099676224
@@ -16306,7 +16306,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.sounds.ambient-focus-chime:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: behavior
     fingerprint: 5c72df02ef755dc839d3da4276b0b21d1988c0f98ce41d4b27dfe201ec50477e
@@ -16314,7 +16314,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.sounds.local-only:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
     fingerprint: 64da7694ee63d7a8e3db161e0cf6c53cafb8bffb5c3eaad0c1c4b8d0604aed88
@@ -16322,10 +16322,10 @@ assertions:
     - gui.web
     - gui.apple
   video-call.waiting.spoken-intent-and-merge:
-    specification: feature.video-call@23
+    specification: feature.video-call@24
     specification_id: feature.video-call
     type: invariant
-    fingerprint: 8ddb505249bbb9777968d2617ab836167e94e2e5a47b8a7f0232ebdbe4428194
+    fingerprint: e546b4ebc9bdbf462be2445c6c3e86bb4ea3ed208f0c26b6126f802eaf25d3bd
     required_applies_to:
     - gui.web
     - gui.apple

@@ -16,9 +16,11 @@ from collections.abc import Iterable, Mapping
 
 from backend.apps.ai.assistant_speech.projection import select_prerecorded_acknowledgement
 from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips, build_chat_start_clip
+from backend.apps.audio.assistant_speech.voice_profiles import ASSISTANT_VOICE_PROVIDER_IDS
 
 # Pre-recorded categories that suit a turn whose needs are not yet known.
 _INSTANT_CATEGORIES = ("general", "reasoning")
+_FEEDBACK_CATEGORIES = {"wait": "voice_wait", "answering": "reasoning", "working": "action"}
 
 APP_USE_ANNOUNCEMENTS: dict[str, tuple[str, ...]] = {
     "en": ("I'm going to use some apps for this request.", "I'll use a few apps to answer that."),
@@ -111,6 +113,25 @@ def select_instant_acknowledgement(
         language=language, request_category=category, selection_seed=seed,
     )
     return choice if choice and choice.get("asset_url") else None
+
+
+def select_categorized_voice_feedback(
+    *, voice_profile_id: str, category: str, language: str | None, seed: str,
+) -> dict[str, object] | None:
+    """Select one cached variant only for the requested voice, category and locale."""
+    asset_category = _FEEDBACK_CATEGORIES.get(category)
+    if asset_category is None or not language or voice_profile_id not in ASSISTANT_VOICE_PROVIDER_IDS:
+        return None
+    clips = build_acknowledgement_clips(
+        voice_profile_id=voice_profile_id, voice_profile_version=3, language=language, voice_feedback=True,
+    )
+    if not clips:
+        return None
+    return select_prerecorded_acknowledgement(
+        clips=[clip for clip in clips if clip["request_category"] == asset_category],
+        voice_profile_id=voice_profile_id, voice_profile_version=3, language=str(clips[0]["language"]),
+        request_category=asset_category, selection_seed=seed,
+    )
 
 
 def select_chat_start_confirmation(*, language: str) -> dict[str, object] | None:

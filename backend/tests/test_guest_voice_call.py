@@ -69,9 +69,9 @@ def call_setup(monkeypatch):
     monkeypatch.setattr(voice_call_guest, "VoxtralVoiceSession", FakeProvider)
     monkeypatch.setattr(voice_call_guest, "isolated_voice_fixture_enabled", lambda: False)
     async def no_control_intent(*_args):
-        return "none"
+        return voice_call_guest.PauseDecision("finished", "none", 0.5)
 
-    monkeypatch.setattr(voice_call_guest, "_guest_pause_intent", no_control_intent)
+    monkeypatch.setattr(voice_call_guest, "_guest_pause_decision", no_control_intent)
     return services
 
 
@@ -260,9 +260,10 @@ async def test_guest_spoken_hold_does_not_admit_an_answer_turn(call_setup, monke
 
     async def intent(words, _socket, _meter):
         heard.append(words)
-        return {"Give me a second.": "wait", "I'm back.": "resume"}.get(words, "none")
+        selected = "wait" if words == "Give me a second." else "resume" if words == "I'm back." else "none"
+        return voice_call_guest.PauseDecision("finished", selected, 0.5)
 
-    monkeypatch.setattr(voice_call_guest, "_guest_pause_intent", intent)
+    monkeypatch.setattr(voice_call_guest, "_guest_pause_decision", intent)
     monkeypatch.setattr(voice_call_guest, "GUEST_TURN_SILENCE_SECONDS", 0.01)
     socket = CallSocket()
     task = asyncio.create_task(voice_call_guest.guest_voice_call(socket))
@@ -384,3 +385,44 @@ async def test_speech_provider_failure_finalizes_at_quote(speech_setup):
         await call_speech(speech_request())
     assert exc.value.status_code == 502
     assert service.events[-1][0] == "settle" and service.events[-1][2] >= 1
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge,video-call.audio.localized-waiting
+async def test_guest_categorized_clip_echo_never_reaches_transcript_or_jev(call_setup, monkeypatch):
+    from backend.apps.audio.assistant_speech.acknowledgements import prerecorded_clip_text
+
+    heard = []
+
+    async def decide(words, _socket, _meter, *, with_feedback=False):
+        assert with_feedback
+        heard.append(words)
+        return voice_call_guest.PauseDecision("finished", "none", 0.5, "answering", "en")
+
+    monkeypatch.setattr(voice_call_guest, "_guest_pause_decision", decide)
+    monkeypatch.setattr(voice_call_guest, "GUEST_TURN_SILENCE_SECONDS", 0.01)
+    socket = CallSocket(start={"type": "start", "privacy_ack_version": 3, "instant_feedback": True})
+    task = asyncio.create_task(voice_call_guest.guest_voice_call(socket))
+    async with asyncio.timeout(3):
+        while "ready" not in kinds(socket):
+            await asyncio.sleep(0.01)
+        provider = FakeProvider.instances[0]
+
+        def heard_words(text):
+            provider.events.put_nowait({"type": "turn.start"})
+            provider.events.put_nowait({"type": "transcription.text.delta", "text": text})
+            provider.events.put_nowait({"type": "turn.end"})
+
+        question = "What is the capital of France?"
+        heard_words(question)
+        while not any(event.get("final") for event in socket.messages):
+            await asyncio.sleep(0.01)
+        [clip] = [event["clip"] for event in socket.messages if event["type"] == "voice_feedback"]
+        assert "/ace/en-US/reasoning-" in clip["asset_url"]
+        before = list(socket.messages)
+        heard_words(prerecorded_clip_text(clip["asset_url"]))
+        # Allow the normal provider endpoint to settle the echo.
+        await asyncio.sleep(0.05)
+        assert socket.messages == before
+        assert heard == [question]
+        socket.inputs.append({"type": "hangup"})
+        await task

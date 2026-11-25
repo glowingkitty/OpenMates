@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 23
+version: 24
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -524,21 +524,26 @@ assertions:
   - examples.spoken_rich_response
 - id: video-call.audio.localized-waiting
   type: behavior
-  must: Every call turn plays one brief pre-recorded acknowledgement, picked at random from several variants, in the
+  must: A call using legacy acknowledgement playback plays one brief pre-recorded acknowledgement, picked at random from several variants, in the
     voice of the Mate that answers, never a guessed one (a previous turn's, a default or a gender-based Mate). It plays as
     soon as processing of the user's audio turn starts when that Mate is already chosen, otherwise right after routing.
     A turn that starts a chat still being created, with no Mate yet, instead plays at once one short sound plus a neutral
     system voice saying the chat is starting, and no Mate clip follows; all later speech uses the routed Mate's voice.
     These clips are never loops, never overlap or delay useful speech, never falsely claim an action finished, are not
     stored in the transcript or chat, and are cancelled on interruption or hangup. None of them is a second assistant
-    answer.
+    answer. Categorized web feedback uses the bounded Jev check over the completed utterance. It chooses answer, work
+    or none independently of the existing wait intent. Play one of three static variants in the answering Mate's
+    voice once that Mate is known. A new chat may use its existing neutral startup cue before a Mate is known when
+    that cue exists in the detected language. None, an unavailable decision or an unsupported language skips the clip and follows
+    the ordinary reply path. A categorized clip never submits a chat turn or uses runtime speech synthesis.
   depends_on:
   - examples.localized_waiting
 - id: video-call.audio.waiting-language
   type: behavior
   must: The acknowledgement's language follows the spoken turn, then the previous turn of the same call, then the
     interface language; when none of these is known or no recorded clip exists for it, the call stays silent and never
-    defaults to English.
+    defaults to English. Categorized web feedback uses the detected reply language and has recordings in English,
+    German, Spanish, French and Mandarin Chinese.
   depends_on:
   - examples.waiting_language
 - id: video-call.audio.skills-announcement
@@ -639,6 +644,9 @@ assertions:
     from keyword lists, and a hard signal always wins. What the caller said before waiting and what they say after it
     are sent as one turn. The intent "repeat" replays the stored last answer's audio and text without new inference
     and without credits.
+    Categorized web feedback uses a matching Mate's prerecorded wait clip when the current voice and supported language
+    are known. A playing clip cannot become user input or trigger a completion or hold decision. Confirmed independent
+    caller speech interrupts the clip.
   depends_on:
   - examples.waiting_merge
 applies_to:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from difflib import SequenceMatcher
 import re
 import unicodedata
 from typing import Any, Literal
@@ -91,6 +92,22 @@ def is_microphone_recapture(text: str, assistant_text: str, *, minimum_words: in
     spoken = _words(assistant_text).split()
     size = len(words)
     return any(spoken[index:index + size] == words for index in range(len(spoken) - size + 1))
+
+
+def is_prerecorded_clip_echo(text: str, clip_text: str) -> bool:
+    """Recognize a clip-only transcription, including subword deltas and Mandarin."""
+    speech = _words(text).replace(" ", "")
+    clip = _words(clip_text).replace(" ", "")
+    if not speech or not clip:
+        return False
+    if speech in clip:
+        return True
+    if clip == "startingyourchat" and any(
+        speech in recapture for recapture in ("startthechat", "startingthechat", "startyourchat")
+    ):
+        return True  # Short recaptures observed with the English startup announcement.
+    return (len(speech) >= 8 and abs(len(speech) - len(clip)) <= 3
+            and SequenceMatcher(None, speech, clip, autojunk=False).ratio() >= 0.88)
 
 
 def is_immediate_barge_in(text: str, assistant_text: str, *, assistant_speaking: bool) -> bool:

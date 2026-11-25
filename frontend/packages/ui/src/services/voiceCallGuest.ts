@@ -16,7 +16,10 @@ import { CallAudio } from '../components/videocall/callAudio';
 import { initialVoiceCallState, voicePcmEnvelope, type VoiceCallControllerLike, type VoiceCallState } from './voiceCall';
 import { ensureGuestVoiceAck } from './voiceCallGuestConsent';
 import { VoiceCallAudioGate } from './voiceCallAudioGate';
-import { guestVoiceMicrophoneFrame, guestVoicePlan, type GuestVoiceEvent, type GuestVoiceSocketPlan } from './rustCore/voice/guestVoiceClient';
+import {
+  guestVoiceMicrophoneFrame, guestVoicePlan,
+  type GuestVoiceEvent, type GuestVoiceFeedbackClip, type GuestVoiceSocketPlan,
+} from './rustCore/voice/guestVoiceClient';
 
 const READY_TIMEOUT_MS = 10_000;
 const PING_INTERVAL_MS = 15_000;
@@ -64,6 +67,7 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
   private player: HTMLAudioElement | null = null;
   private playerUrl: string | null = null;
   private playerDone: (() => void) | null = null;
+  private feedbackClip: GuestVoiceFeedbackClip | null = null;
   private queue: string[] = [];
   private turnGeneration: number | null = null;
   private guestChatId: string | undefined;
@@ -129,7 +133,9 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
   }
 
   private async connect(generation: number): Promise<void> {
-    const plan = await guestVoicePlan('connect', { base: getApiUrl(), anonymous_id: anonymousChatStorage.getAnonymousId() });
+    const plan = await guestVoicePlan('connect', {
+      base: getApiUrl(), anonymous_id: anonymousChatStorage.getAnonymousId(), instant_feedback: true,
+    });
     if (generation !== this.generation) return;
     const socket = new WebSocket(plan.url);
     this.socket = socket;
@@ -179,6 +185,10 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
       case 'limit': this.exhausted(); break;
       case 'error': this.fail(message.code); break;
       case 'ended': this.finish(); break;
+      case 'voice_feedback': this.playFeedback(message.clip); break;
+      case 'voice_feedback_stop':
+        if (this.feedbackClip?.id === message.clip.id) this.stopFeedback();
+        break;
       case 'waiting':
         if (this.state.status !== 'live' || !!this.state.waiting === message.active) break;
         this.update({
@@ -186,7 +196,10 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
           waitingLine: { kind: message.line, text: waitingLineText(message.line) },
           liveTranscript: null,
         });
-        void playWaitingLine(message.line);
+        if (message.clip) this.playFeedback(message.clip);
+        else if (message.clip === undefined) {
+          void playWaitingLine(message.line, async (url) => this.playFeedback({ id: message.line, url }));
+        }
         break;
     }
   }
@@ -258,6 +271,7 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
 
   private async speak(generation: number, markdown: string): Promise<void> {
     const current = () => generation === this.generation;
+    this.stopFeedback();
     this.speaking = true;
     this.audioGate?.setMuted(true);
     this.update({ assistantSpeaking: true, userSpeaking: false });
@@ -290,16 +304,37 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
     }
   }
 
-  private play(blob: Blob): Promise<void> {
+  private playFeedback(clip: GuestVoiceFeedbackClip): void {
+    if (this.state.status !== 'live' || this.speaking) return;
+    this.stopFeedback();
+    this.feedbackClip = clip;
+    this.update({ assistantSpeaking: true });
+    void this.play(clip.url).catch(() => {}).finally(() => {
+      if (this.feedbackClip !== clip) return;
+      this.feedbackClip = null;
+      this.update({ assistantSpeaking: false });
+    });
+  }
+
+  private stopFeedback(): void {
+    if (!this.feedbackClip) return;
+    this.feedbackClip = null;
+    this.player?.pause();
+    this.playerDone?.();
+    this.update({ assistantSpeaking: false });
+  }
+
+  private play(source: Blob | string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      const url = URL.createObjectURL(blob);
+      const generated = typeof source !== 'string';
+      const url = typeof source === 'string' ? source : URL.createObjectURL(source);
       const player = new Audio(url);
       this.player = player;
       this.playerUrl = url;
       const done = () => {
         player.onended = null; player.onerror = null;
         if (this.player === player) { this.player = null; this.playerDone = null; }
-        URL.revokeObjectURL(url);
+        if (generated) URL.revokeObjectURL(url);
         if (this.playerUrl === url) this.playerUrl = null;
       };
       this.playerDone = () => { done(); resolve(); };
@@ -337,6 +372,7 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
     this.abort = null;
     this.player?.pause();
     this.playerDone?.();
+    this.feedbackClip = null;
     this.speaking = false;
     this.queue = [];
     const socket = this.socket;

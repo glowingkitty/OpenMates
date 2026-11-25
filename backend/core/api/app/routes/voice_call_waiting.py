@@ -43,21 +43,29 @@ class VoiceWaiting:
         parts, self.held = [*self.held, text.strip()], []
         return " ".join(part for part in parts if part)
 
-    async def set_active(self, active: bool, *, send: Send, call_id: str, pending_text: str = "") -> bool:
+    async def set_active(self, active: bool, *, send: Send, call_id: str, pending_text: str = "",
+                         clip: dict[str, object] | None = None, categorized: bool = False) -> bool:
         """Enter or leave waiting; `pending_text` is unsent speech to keep."""
         if active == self.active:
             return False
         self.active = active
         if active:
             self._hold(pending_text)
-        await send({"type": "waiting", "call_id": call_id, "active": active,
-                    "line": WAITING_START_LINE if active else WAITING_RESUME_LINE})
+        event = {"type": "waiting", "call_id": call_id, "active": active,
+                 "line": WAITING_START_LINE if active else WAITING_RESUME_LINE}
+        if active and categorized:
+            event["clip"] = clip
+        await send(event)
         return True
 
-    async def route(self, text: str, intent: str, *, send: Send, call_id: str) -> tuple[str | None, str]:
+    async def route(self, text: str, intent: str, *, send: Send, call_id: str,
+                    clip: dict[str, object] | None = None, categorized: bool = False) -> tuple[str | None, str]:
         """Decide a complete utterance: (discard reason or None, text to send)."""
+        if intent == "stop":
+            return "stop", text
         if intent == "wait":
-            await self.set_active(True, send=send, call_id=call_id, pending_text=text)
+            await self.set_active(True, send=send, call_id=call_id, pending_text=text,
+                                  clip=clip, categorized=categorized)
             return "waiting", text
         if intent == "resume" and self.active:
             await self.set_active(False, send=send, call_id=call_id)

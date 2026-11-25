@@ -52,6 +52,25 @@ fn waiting_frames_require_a_matching_known_clip() {
 }
 
 #[test]
+fn guest_voice_feedback_accepts_only_static_paths() {
+    let event = |clip: Value| {
+        let frame = json!({"type":"voice_feedback","clip":clip});
+        plan(json!({"operation":"receive","frame":frame.to_string()}))
+    };
+    let path = "/audio/assistant-acknowledgements/ace/en-US/reasoning-1.mp3";
+    assert_eq!(
+        event(json!({"clip_id":"ace-en-US-reasoning-1","asset_url":path})),
+        json!({"type":"voice_feedback","clip":{"id":"ace-en-US-reasoning-1","url":path}})
+    );
+    assert_eq!(
+        event(
+            json!({"clip_id":"invalid","asset_url":"/audio/assistant-acknowledgements/../ace/a.mp3"})
+        ),
+        Value::Null
+    );
+}
+
+#[test]
 fn speech_contains_no_markdown_urls_or_oversized_request() {
     let result = plan(json!({
         "operation":"speech","base":"https://api.example.org","anonymous_id":"test",

@@ -28,7 +28,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 from backend.apps.audio.assistant_speech.acknowledgements import (  # noqa: E402
     ACKNOWLEDGEMENT_TEXTS, CHAT_START_CATEGORY, CHAT_START_TEXTS, PERMISSION_PROMPT_TEXTS,
-    PERMISSION_PROMPT_VARIANT, SYSTEM_VOICE_PROFILE_ID, WAITING_LINE_TEXTS,
+    PERMISSION_PROMPT_VARIANT, SYSTEM_VOICE_PROFILE_ID, VOICE_FEEDBACK_TEXTS, WAITING_LINE_TEXTS,
 )
 from backend.apps.audio.assistant_speech.voice_profiles import (  # noqa: E402
     ASSISTANT_VOICE_PROVIDER_IDS, SYSTEM_VOICE_PROVIDER_ID,
@@ -62,8 +62,9 @@ def build_generation_prompt(*, language: str, category: str, text: str) -> dict[
     }
 
 
-def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
-    language_catalog = ACKNOWLEDGEMENT_TEXTS.get(language)
+def build_plan(language: str, output_root: Path, *, voice_feedback: bool = False) -> list[dict[str, Any]]:
+    catalog = VOICE_FEEDBACK_TEXTS if voice_feedback else ACKNOWLEDGEMENT_TEXTS
+    language_catalog = catalog.get(language)
     if language_catalog is None:
         raise ValueError(f"No approved acknowledgement text exists for {language}.")
 
@@ -86,6 +87,8 @@ def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
                     }
                     | build_generation_prompt(language=language, category=category, text=text)
                 )
+        if voice_feedback:
+            continue
         for category, text in PERMISSION_PROMPT_TEXTS.get(language, {}).items():
             relative_path = Path(profile_key) / language / f"{category}-{PERMISSION_PROMPT_VARIANT}.mp3"
             plan.append(
@@ -103,6 +106,8 @@ def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
                     "generation_tags": (),
                 }
             )
+    if voice_feedback:
+        return plan
     chat_start_text = CHAT_START_TEXTS.get(language)
     if chat_start_text:
         # Neutral system voice with a leading chime: a new chat has no Mate yet.
@@ -288,14 +293,25 @@ async def run(
     generate: bool,
     verify_only: bool = False,
     allow_missing_user_read: bool = False,
+    voice_feedback: bool = False,
+    estimate_only: bool = False,
+    max_credits: int | None = None,
 ) -> int:
-    plan = build_plan(language, output_root)
+    plan = build_plan(language, output_root, voice_feedback=voice_feedback)
     existing_entries = _load_manifest_entries(output_root)
     repaired_manifest = _reconcile_existing_assets(plan, existing_entries)
-    if repaired_manifest:
+    if repaired_manifest and not estimate_only:
         _write_manifest(output_root, existing_entries)
     pending_plan = [item for item in plan if item["clip_id"] not in existing_entries]
     required_characters = sum(len(item["generation_prompt"]) for item in pending_plan)
+    if estimate_only:
+        print(json.dumps({"language": language, "clip_count": len(plan),
+                          "pending_clip_count": len(pending_plan), "estimated_credits": required_characters}))
+        return 0
+    if max_credits is not None and required_characters > max_credits:
+        print(json.dumps({"status": "fail", "error": "estimated cost exceeds run limit",
+                          "estimated_credits": required_characters, "max_credits": max_credits}))
+        return 1
     if verify_only:
         if pending_plan:
             print(
@@ -412,19 +428,28 @@ async def run(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--language", required=True, choices=sorted(ACKNOWLEDGEMENT_TEXTS))
+    parser.add_argument("--language", required=True, choices=sorted(ACKNOWLEDGEMENT_TEXTS.keys() | VOICE_FEEDBACK_TEXTS.keys()))
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument("--voice-feedback-only", action="store_true", help="Only the call wait, answer and work clips.")
+    parser.add_argument("--max-credits", type=int, help="Refuse when missing clips exceed this estimate.")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--generate", action="store_true")
     mode.add_argument("--verify-only", action="store_true")
+    mode.add_argument("--estimate-only", action="store_true", help="Count missing clips without Vault or changes.")
     parser.add_argument(
         "--allow-missing-user-read",
         action="store_true",
         help="Explicitly waive the quota preflight when a restricted key lacks user_read.",
     )
     arguments = parser.parse_args()
+    if not arguments.voice_feedback_only and arguments.language not in ACKNOWLEDGEMENT_TEXTS:
+        parser.error("this language requires --voice-feedback-only")
     if arguments.allow_missing_user_read and not arguments.generate:
         parser.error("--allow-missing-user-read requires --generate")
+    if arguments.generate and arguments.voice_feedback_only and arguments.max_credits is None:
+        parser.error("--voice-feedback-only generation requires --max-credits")
+    if arguments.max_credits is not None and arguments.max_credits < 0:
+        parser.error("--max-credits must be nonnegative")
     return asyncio.run(
         run(
             language=arguments.language,
@@ -432,6 +457,9 @@ def main() -> int:
             generate=arguments.generate,
             verify_only=arguments.verify_only,
             allow_missing_user_read=arguments.allow_missing_user_read,
+            voice_feedback=arguments.voice_feedback_only,
+            estimate_only=arguments.estimate_only,
+            max_credits=arguments.max_credits,
         )
     )
 

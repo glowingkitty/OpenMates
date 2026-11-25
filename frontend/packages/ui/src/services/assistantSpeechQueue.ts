@@ -466,6 +466,12 @@ export class AssistantSpeechQueue {
     }
   }
 
+  skipWaitingConfirmation(segmentId: string): void {
+    const segment = this.segments.get(segmentId);
+    if (segment?.kind !== "waiting_confirmation") return;
+    this.upsertSegment({ ...segment, status: "failed", audioUrl: undefined });
+  }
+
   retireSegmentVersion(segmentId: string): void {
     const stream = this.streams.get(segmentId);
     const segment = this.segments.get(segmentId);

@@ -323,6 +323,19 @@ def _speaks_call_confirmations(request_data: AskSkillRequest) -> bool:
         and not request_data.is_external and not request_data.is_incognito
 
 
+async def _cached_voice_feedback(request_data: AskSkillRequest, cache_service: Any) -> dict[str, Any] | None:
+    """Read category metadata from the accepted speech turn, with a short fallback deadline."""
+    if not request_data.voice_call_id or not request_data.voice_turn_id or cache_service is None:
+        return None
+    from backend.shared.python_utils.voice_pause_decision import voice_feedback_key
+    try:
+        async with asyncio.timeout(0.15):
+            value = await cache_service.get(voice_feedback_key(request_data.voice_call_id, request_data.voice_turn_id))
+    except TimeoutError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
 async def _call_confirmation_language(
     request_data: AskSkillRequest, preprocessing_result: Any, cache_service: Any,
 ) -> str | None:
@@ -395,17 +408,33 @@ async def publish_instant_voice_acknowledgement(
     """
     if not _speaks_call_confirmations(request_data) or mate is None:
         return False
-    from backend.apps.ai.assistant_speech.voice_status import select_instant_acknowledgement
-
-    language = await _call_confirmation_language(request_data, preprocessing_result, cache_service)
-    if not language:
-        return False
-    acknowledgement = select_instant_acknowledgement(
-        voice_profile_id=mate.voice_profile.key,
-        voice_profile_version=mate.voice_profile.version,
-        language=language,
-        seed=_assistant_message_id(task_id, request_data),
+    from backend.apps.ai.assistant_speech.voice_status import (
+        select_categorized_voice_feedback, select_instant_acknowledgement,
     )
+
+    seed = _assistant_message_id(task_id, request_data)
+    feedback = await _cached_voice_feedback(request_data, cache_service)
+    if feedback is not None:
+        try:
+            async with asyncio.timeout(0.15):
+                await cache_service.set(f"voice_call_last_profile:{request_data.voice_call_id}",
+                                        mate.voice_profile.key, ttl=90 * 60)
+        except TimeoutError:
+            pass  # A future hold can use the existing neutral voice.
+        if feedback.get("delivered") is True:
+            return False
+        language = feedback.get("language")
+        acknowledgement = select_categorized_voice_feedback(
+            voice_profile_id=mate.voice_profile.key, category=feedback.get("category", "none"),
+            language=(getattr(preprocessing_result, "output_language", None) or language) if language else None,
+            seed=seed,
+        )
+    else:
+        language = await _call_confirmation_language(request_data, preprocessing_result, cache_service)
+        acknowledgement = select_instant_acknowledgement(
+            voice_profile_id=mate.voice_profile.key, voice_profile_version=mate.voice_profile.version,
+            language=language, seed=seed,
+        ) if language else None
     if acknowledgement is None:
         return False
     await _publish_call_confirmation_clip(
@@ -429,6 +458,8 @@ async def publish_chat_start_voice_confirmation(
     routing is spoken in the routed Mate's own voice.
     """
     if not _speaks_call_confirmations(request_data):
+        return False
+    if await _cached_voice_feedback(request_data, cache_service) is not None:
         return False
     from backend.apps.ai.assistant_speech.voice_status import select_chat_start_confirmation
 
@@ -7027,7 +7058,9 @@ async def _consume_main_processing_stream(
                     f"voice_call_last_language:{request_data.voice_call_id}", speech_language, ttl=6 * 3600,
                 )
             instant_ack_played = False
+            categorized_call = False
             if request_data.voice_mode and request_data.auto_speak_response:
+                categorized_call = await _cached_voice_feedback(request_data, cache_service) is not None
                 # Already played when the turn started (explicitly chosen Mate, or
                 # the neutral system clip of a new chat); otherwise it plays now,
                 # in the routed Mate's voice.
@@ -7195,7 +7228,7 @@ async def _consume_main_processing_stream(
                 finalize_speech=finalize_speech_segments,
                 sequence_offset=1 if app_use_announcement else 0,
             )
-            if request_data.voice_mode and request_data.auto_speak_response and not instant_ack_played:
+            if request_data.voice_mode and request_data.auto_speak_response and not instant_ack_played and not categorized_call:
                 from backend.apps.ai.assistant_speech.voice_waiting import DelayedVoiceWaiting
 
                 voice_waiting = DelayedVoiceWaiting(
