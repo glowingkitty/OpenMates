@@ -387,6 +387,21 @@ def test_restore_readiness_rejects_temporary_socket_only_server(monkeypatch):
     assert all("PGPASSWORD" not in argument for call in calls for argument in call)
 
 
+def test_schema_consumer_startup_failure_reports_only_entrypoint_errors(monkeypatch):
+    def compose(*args):
+        if args[0] == "up":
+            raise subprocess.CalledProcessError(1, args, stderr=b"container exited")
+        return subprocess.CompletedProcess(
+            args, 0, stdout=b"DETAIL: private SQL data", stderr=b"chmod: permission denied"
+        )
+
+    monkeypatch.setattr(bundle, "compose", compose)
+
+    with pytest.raises(RuntimeError, match="container exited.*chmod: permission denied") as error:
+        bundle.start_schema_consumer_database()
+    assert "private SQL data" not in str(error.value)
+
+
 def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeypatch):
     source = "a" * 40
     dump = b"CREATE TABLE example ();\n"
