@@ -100,4 +100,5 @@ stage that runs in each environment.
 - Legacy status app. The backend started as UID 10004 on port 8000, created
   and wrote its SQLite database in a directory owned by that UID, and
   returned HTTP 200 in a disposable dev container with no external network.
-  The Dockerfile now prepares that data directory for its dedicated user.
+  The Dockerfile now prepares that data directory for its dedicated user
+  (dev commit `a00a385`).

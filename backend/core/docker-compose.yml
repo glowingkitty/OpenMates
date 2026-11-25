@@ -912,10 +912,11 @@ services:
   vault:
     container_name: vault
     image: hashicorp/vault:1.19
+    user: vault
     restart: unless-stopped
-    cap_add:
-      - IPC_LOCK
     environment:
+      SKIP_CHOWN: '1'
+      SKIP_SETCAP: '1'
       VAULT_LOG_LEVEL: warn
     command: vault server -log-level=warn -config=/vault/config/vault.hcl
     volumes:
