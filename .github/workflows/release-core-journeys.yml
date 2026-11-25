@@ -72,7 +72,10 @@ jobs:
           }
       - name: Build canonical core matrix
         id: matrix
-        run: echo "matrix=$(python3 scripts/run_tests.py --list-core-journeys)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          matrix="$(python3 -c 'from scripts.run_tests import print_core_journey_matrix; print_core_journey_matrix()')"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   deployment-ready:
     name: Verify release candidate deployment

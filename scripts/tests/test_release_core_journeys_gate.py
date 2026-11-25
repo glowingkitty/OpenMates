@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -157,7 +159,8 @@ def test_release_workflow_has_stable_fail_closed_gate() -> None:
         step for step in jobs["deployment-ready"]["steps"]
         if step.get("name") == "Require release candidate commit statuses"
     )
-    assert 'require_context "Vercel"' in status_step["run"]
+    assert 'require_context "Vercel – open-mates-webapp"' in status_step["run"]
+    assert 'require_context "Vercel – openmates-website"' in status_step["run"]
     assert 'require_context "$RELEASE_CONTEXT"' in status_step["run"]
     assert jobs["core-journeys"]["strategy"]["fail-fast"] is False
     assert jobs["core-journeys"]["with"]["checkout_ref"]
@@ -170,7 +173,23 @@ def test_release_workflow_has_stable_fail_closed_gate() -> None:
     assert 'test "$CORE_RESULT" = "success"' in aggregate_step["run"]
 
 
-def test_single_spec_workflow_is_reusable_and_serializes_accounts() -> None:
+def test_release_workflow_runs_the_canonical_matrix_command(tmp_path: Path) -> None:
+    workflow = load_workflow("release-core-journeys.yml")
+    step = next(
+        step for step in workflow["jobs"]["validate-source"]["steps"]
+        if step.get("id") == "matrix"
+    )
+    output = tmp_path / "output"
+    subprocess.run(
+        ["bash", "-c", step["run"]], cwd=ROOT,
+        env={**os.environ, "GITHUB_OUTPUT": str(output)}, check=True,
+    )
+    key, value = output.read_text(encoding="utf-8").split("=", 1)
+    assert key == "matrix"
+    assert EXPECTED_RELEASE_BASELINE <= {entry["spec"] for entry in json.loads(value)["include"]}
+
+
+def test_single_spec_workflow_rejects_retired_shared_dev_execution() -> None:
     workflow = load_workflow("playwright-spec.yml")
     triggers = workflow_triggers(workflow)
 
@@ -180,16 +199,11 @@ def test_single_spec_workflow_is_reusable_and_serializes_accounts() -> None:
     assert "inputs.account" in workflow["concurrency"]["group"]
     assert workflow["concurrency"]["cancel-in-progress"] is False
 
-    steps = workflow["jobs"]["run-spec"]["steps"]
-    checkout = next(step for step in steps if step.get("uses") == "actions/checkout@v4")
-    assert checkout["with"]["ref"] == "${{ inputs.checkout_ref }}"
-    assert checkout["with"]["persist-credentials"] is False
-    mutation_steps = [step for step in steps if step.get("name", "").startswith("Update ")]
-    assert mutation_steps
-    assert all("inputs.allow_credential_updates" in step["if"] for step in mutation_steps)
-    account_env = next(step["env"] for step in steps if step.get("name") == "Load selected test account credentials")
-    assert "secrets.TEST_ACCOUNT_EMAIL != ''" in account_env["DIRECT_EMAIL"]
-    assert "github.event_name" not in account_env["DIRECT_EMAIL"]
+    assert set(workflow["jobs"]) == {"migration-guard"}
+    steps = workflow["jobs"]["migration-guard"]["steps"]
+    assert len(steps) == 1
+    assert "No shared-dev or self-hosted-runner fallback is permitted" in steps[0]["run"]
+    assert steps[0]["run"].strip().endswith("exit 1")
 
 
 def test_backend_attestation_preflight_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -266,6 +280,7 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
         "reminder-worker",
         "task-scheduler",
         "app-ai-worker",
+        "app-ai-routing-worker",
     )
     assert prepare.RELEASE_STATUS_CONTEXT == "Dev Release Candidate / Prepared"
     assert prepare.managed_setup_command("f563") == [
