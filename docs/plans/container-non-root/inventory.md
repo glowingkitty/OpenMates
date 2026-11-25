@@ -29,6 +29,7 @@ normal release. Root in this inventory means UID 0 inside the container.
 | `backend/status/Dockerfile` | Legacy standalone status app, never deployed | Root. SQLite is on a named volume under `/app/data`. |
 | `deployment/status_server/Dockerfile` | Published status server | `status` (UID 10001). Gatus listens on 8080 and Caddy uses `CAP_NET_BIND_SERVICE` for 80 and 443. |
 | `scripts/ci_schema_image.Dockerfile` | Published Postgres schema carrier for isolated CI | Inherits root startup from Postgres, which then drops to the Postgres account. |
+| `openmates-ci-formula-worker:local` | Optional isolated formula-worker test profile | Compose specifies UID/GID 65532, a read-only filesystem and no added capabilities. The profile references a formula-worker recipe absent from the baseline checkout. |
 
 ## Upstream runtime images
 
@@ -67,4 +68,10 @@ stage that runs in each environment.
 - Engineering control plane PostgreSQL starts as `postgres` (UID/GID 70).
   A disposable database initialized and passed a SQL write/read with the
   same image and UID. The live PostgreSQL container restarted with its existing
-  volume and both PostgreSQL and the engineering API returned to healthy.
+  volume and both PostgreSQL and the engineering API returned to healthy
+  (dev commit `2d8bd4b`).
+- Directus, dev commit `98e2e3b`. All 29 runtime verifier tests passed.
+  Dev reused its cached image with Compose running the startup script as
+  `node`. Docker reports a healthy container, UID 1000 for each CMS process
+  and a writable existing upload directory. The API health endpoint returned
+  HTTP 200.

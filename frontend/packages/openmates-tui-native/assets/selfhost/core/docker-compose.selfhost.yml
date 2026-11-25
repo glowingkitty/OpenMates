@@ -155,6 +155,7 @@ services:
   cms-database:
     container_name: cms-database
     image: postgres:13-alpine
+    user: postgres
     restart: unless-stopped
     env_file: ../../.env
     environment:

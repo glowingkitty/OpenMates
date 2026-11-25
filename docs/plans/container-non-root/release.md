@@ -31,3 +31,10 @@ both together.
 
 The CI Postgres schema carrier is released by its dev CI publisher and uses
 fresh volumes. It has no production, upload or preview rollout step.
+
+Directus runs its startup script as `node` (UID/GID 1000). Before rollout,
+confirm that identity can write the mounted `/directus/uploads` directory.
+New named volumes inherit the directory prepared in the image. For an
+existing directory with a different owner, record the prior ownership and
+prepare the mounted directory before starting the new image. The service
+continues to listen on port 8055.
