@@ -79,7 +79,13 @@ services:
     volumes: *development-notification-spool
 
   api:
+    user: "1000:1000"
+    group_add:
+      # The runtime checkout and host-owned dev queues use this group.
+      - "1001"
     environment:
+      # The cached development image may lack a passwd entry for UID 1000.
+      HOME: /tmp
       # Enable pre-release platform gates only on the local development stack.
       BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
       # Send recipient-held newsletter confirmations to the standalone dev website.
