@@ -1063,6 +1063,7 @@ services:
   admin-sidecar:
     container_name: core-admin-sidecar
     restart: unless-stopped
+    user: ${OPENMATES_SIDECAR_UID:-10005}:${OPENMATES_SIDECAR_GID:-10005}
     environment:
       ADMIN_LOG_API_KEY: ${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}
       COMPOSE_PROJECT: openmates

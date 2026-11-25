@@ -186,6 +186,7 @@ services:
       context: ../../
       dockerfile: backend/admin_sidecar/Dockerfile
     restart: unless-stopped
+    user: "${OPENMATES_SIDECAR_UID:-10005}:${OPENMATES_SIDECAR_GID:-10005}"
     environment:
       # Admin authentication — same key as SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY
       # on the core server (set in .env on this VM).

@@ -129,6 +129,10 @@ services:
       # from the same frame-00 image the for-everyone chat header uses.
       - ../../frontend/apps/web_app/static/intro-frames:/app/frontend/apps/web_app/static/intro-frames:ro
 
+  admin-sidecar:
+    # This dev bind mount is owned by the operator's workspace account.
+    user: "1001:1001"
+
   cms:
     environment:
       # Reuse immutable schema metadata; normal schema/permission invalidation stays active.

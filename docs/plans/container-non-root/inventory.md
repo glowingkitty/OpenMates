@@ -121,7 +121,19 @@ stage that runs in each environment.
   supplemental group. Two tracked Python files in the mounted checkout
   needed group read access. Vault validation, the configured writable
   mounts, Docker health and `/v1/health` all passed (dev commit `f320ea0`).
+  The source Dockerfile now defaults to its UID 1000 account. Its account and
+  directory commands passed against its Python base. The dev rollout used
+  the cached image with the explicit Compose identity (dev commit `df84b51`).
 - Upload Vault. The matching Vault image initialized and restarted as the
   upstream UID 100 with its existing fixture volume. The unprivileged setup
   job restored Vault readiness and its scoped upload handoff. The upload
   Compose templates use this identity in the normal release.
+- Shared Celery image. All 15 dev service containers, including the beat
+  scheduler, and their running processes use UID 1000. The worker read its
+  scoped Vault handoff and answered a broker ping. Twenty-two Compose and
+  image packaging tests passed (dev commit `45b4969`).
+- Admin sidecar. An isolated dev run of the prior published image under the
+  mounted checkout owner's non-root UID passed health, writable Git home
+  and a read-only Docker request with the socket group. The Dockerfile now
+  defaults to UID 10005, and the release manifests specify the socket group
+  or mounted checkout identity as needed. Ten sidecar tests passed.

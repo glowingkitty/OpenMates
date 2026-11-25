@@ -74,7 +74,7 @@
     {
       "path": "assets/selfhost/core/docker-compose.selfhost.yml",
       "source": "backend/core/docker-compose.selfhost.yml",
-      "sha256": "524a287d4c22c96d5326f170af5a33f5f1ed0d34ce04705329ae5669718f67fc"
+      "sha256": "0040e5a0c5dfde46b90b0573b30eb33038b917fede4c25c9bfdbe245e91f21bc"
     },
     {
       "path": "assets/selfhost/core/monitoring/alertmanager/alertmanager.yml",
@@ -94,12 +94,12 @@
     {
       "path": "assets/selfhost/preview/docker-compose.preview.yml",
       "source": "frontend/packages/openmates-cli/templates/preview/docker-compose.preview.yml",
-      "sha256": "adb5c388ca07897c23c091b89fdbc1e706e1f84b6ae781eb2d3c9c13f187084e"
+      "sha256": "6df7ad2a3b14c86c335cd5bd7cc1f988e003534ca47b9b73618e5d2a4d61756d"
     },
     {
       "path": "assets/selfhost/upload/docker-compose.yml",
       "source": "frontend/packages/openmates-cli/templates/upload/docker-compose.yml",
-      "sha256": "9b16f19363a244770ea1fac3e41cce69c183814a3d09bb5fcb42552f5839b76e"
+      "sha256": "993c9ec448aab4863b21507f639443e4fca1ed55af68e63263c87c6afb55cf55"
     },
     {
       "path": "tests/crypto_fixtures/chat_completion_recovery_vectors.json",

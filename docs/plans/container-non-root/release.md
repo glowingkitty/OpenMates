@@ -51,6 +51,13 @@ Run the matching Vault setup before the API and workers so it assigns
 application handoff files to UID 1000 and preserves their existing modes.
 Verify worker heartbeats, a queued task and the scheduler after the update.
 
+For source deployments with a checkout mounted into the maintenance sidecar,
+set `OPENMATES_SIDECAR_UID` and `OPENMATES_SIDECAR_GID` to the non-root
+checkout owner's numeric IDs. Set `DOCKER_GID` to the Docker socket's group.
+The published image defaults to UID/GID 10005 for installations without a
+checkout bind mount. Check the actual groups and a read-only log request
+before attempting the next service update.
+
 For upload Vault setup, prepare the existing private setup volume and separate
 app handoff volume for UID/GID 10003 before the first start. Keep the directories
 at mode 0700 and private credential files at 0600. Verify that the root token

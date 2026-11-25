@@ -69,6 +69,7 @@ services:
       - "127.0.0.1:8001:8001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    group_add: ["${DOCKER_GID:-999}"]
     networks: [uploads]
 
 networks:
