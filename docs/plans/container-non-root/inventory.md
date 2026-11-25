@@ -95,4 +95,9 @@ stage that runs in each environment.
 - Published CMS setup. The published dev image started as UID 10002 and could
   read the packaged schema and SQL on a read-only filesystem. Its Dockerfile
   sets the same default user as the source-built variant. Trivy now scanned
-  all 18 tracked Dockerfiles, including the custom self-host recipe names.
+  all 18 tracked Dockerfiles, including the custom self-host recipe names
+  (dev commit `a68bc28`).
+- Legacy status app. The backend started as UID 10004 on port 8000, created
+  and wrote its SQLite database in a directory owned by that UID, and
+  returned HTTP 200 in a disposable dev container with no external network.
+  The Dockerfile now prepares that data directory for its dedicated user.

@@ -5,7 +5,6 @@ misconfigurations:
       - backend/core/api/Dockerfile
       - backend/core/api/Dockerfile.selfhost
       - backend/core/vault/setup/Dockerfile
-      - backend/status/Dockerfile
       - backend/upload/Dockerfile
       - backend/upload/vault/Dockerfile
     expired_at: 2026-11-26

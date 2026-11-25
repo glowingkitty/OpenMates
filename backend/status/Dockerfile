@@ -22,7 +22,11 @@ COPY app ./app
 COPY main.py ./main.py
 COPY --from=frontend-build /frontend/dist ./static
 
-RUN mkdir -p /app/data
+RUN groupadd --gid 10004 status \
+    && useradd --uid 10004 --gid status --no-create-home --shell /usr/sbin/nologin status \
+    && install -d -o status -g status -m 0700 /app/data
+
+USER status
 
 EXPOSE 8000
 
