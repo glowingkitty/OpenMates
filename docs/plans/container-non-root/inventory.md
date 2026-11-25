@@ -149,3 +149,7 @@ stage that runs in each environment.
   socket and core log groups. It could read both mounts, returned HTTP 200
   on its readiness endpoint, and reported delivered log entries with zero
   dropped entries after recreation (dev commit `51ae534`).
+- Dragonfly. Both the entrypoint and daemon use UID/GID 999 on dev. The
+  rollout kept the running image digest and recovered a synthetic test key
+  from the existing volume snapshot. Authenticated cache and API health
+  passed (dev commit `609e0a5`).

@@ -70,6 +70,13 @@ is owned by UID/GID 999 on the release image. Save its current state to
 the existing volume before recreating the service. Check authenticated
 cache health and the core API afterward.
 
+OpenObserve uses UID/GID 10007. Before recreating an existing service,
+record the data volume's numeric owner and modes, then prepare its private
+data volume for that account while the old process is stopped. Confirm
+`/healthz` on port 5080, ownership of newly written state, and renewed
+Promtail delivery. When pre-provisioning an empty volume, mount it with
+Docker's no-copy option so the prepared ownership is retained.
+
 For upload Vault setup, prepare the existing private setup volume and separate
 app handoff volume for UID/GID 10003 before the first start. Keep the directories
 at mode 0700 and private credential files at 0600. Verify that the root token

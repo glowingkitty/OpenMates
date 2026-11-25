@@ -896,6 +896,7 @@ services:
   openobserve:
     container_name: openobserve
     image: public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
+    user: 10007:10007
     restart: unless-stopped
     env_file: ../../.env
     environment:
