@@ -71,6 +71,7 @@ overloaded, or no local slot or E2B slot became free, before --timeout.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import fcntl
 import json
 import os
@@ -144,9 +145,13 @@ def slot_dir() -> Path:
 
 def pools(directory: Path) -> dict[str, tuple[Path, int]]:
     """Slot pools: heavy runs, and browser/light runs."""
-    light = directory / "light"
-    light.mkdir(parents=True, exist_ok=True)
-    return {"heavy": (directory, MAX_SLOTS), "light": (light, LIGHT_SLOTS)}
+    cpus = os.cpu_count() or 1
+    return {
+        "heavy": (directory, min(MAX_SLOTS, max(1, cpus // 4))),
+        "light": (directory / "light", min(LIGHT_SLOTS, max(1, cpus // 4))),
+        "browser": (directory / "browser", max(1, cpus // 8)),
+        "ci-source": (directory / "ci-source", max(1, cpus // 8)),
+    }
 
 
 def try_acquire(directory: Path, count: int = MAX_SLOTS) -> tuple[int, int] | None:
@@ -176,6 +181,7 @@ def _slot_record(text: str) -> dict:
 
 def holders(directory: Path, count: int = MAX_SLOTS) -> list[dict]:
     result = []
+    directory.mkdir(parents=True, exist_ok=True)
     for slot in range(count):
         path = directory / f"slot-{slot}.lock"
         fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
@@ -196,7 +202,9 @@ def holders(directory: Path, count: int = MAX_SLOTS) -> list[dict]:
 def recent_reserved(directory: Path, now: float) -> int:
     """Bytes reserved by busy slots (any pool) whose run started less than SETTLE_SECONDS ago."""
     total = 0
-    for pool_dir, count in pools(directory).values():
+    for kind, (pool_dir, count) in pools(directory).items():
+        if kind == "ci-source":
+            continue
         for slot in holders(pool_dir, count):
             if slot["busy"] and now - slot["started"] < SETTLE_SECONDS:
                 total += slot["cap"]
@@ -222,7 +230,7 @@ def admit(directory: Path, cls: str = "heavy", command: str = "") -> tuple[tuple
     the gate is released, so two waiting runs cannot both count the same free memory.
     """
     cap = class_cap_bytes(cls)
-    pool_dir, count = pools(directory)["heavy" if cls == "heavy" else "light"]
+    pool_dir, count = pools(directory)[cls]
     gate = os.open(directory / "admission.lock", os.O_RDWR | os.O_CREAT, 0o644)
     try:
         fcntl.flock(gate, fcntl.LOCK_EX)
@@ -234,7 +242,7 @@ def admit(directory: Path, cls: str = "heavy", command: str = "") -> tuple[tuple
             return None, shortfall
         acquired = try_acquire(pool_dir, count)
         if acquired is None:
-            return None, f"all {count} {'heavy' if cls == 'heavy' else 'browser/light'} slots busy"
+            return None, f"all {count} {cls} slots busy"
         os.ftruncate(acquired[0], 0)
         os.write(acquired[0], json.dumps({"cap": cap, "class": cls, "command": command[:300]}).encode())
         os.utime(acquired[0])  # mtime = start time for recent_reserved()
@@ -242,6 +250,25 @@ def admit(directory: Path, cls: str = "heavy", command: str = "") -> tuple[tuple
     finally:
         fcntl.flock(gate, fcntl.LOCK_UN)
         os.close(gate)
+
+
+@contextmanager
+def ci_source_slot():
+    """Limit concurrent source generation and uploads across all worktrees."""
+    directory, count = pools(slot_dir())["ci-source"]
+    deadline = time.monotonic() + DEFAULT_TIMEOUT_SECONDS
+    acquired = try_acquire(directory, count)
+    if acquired is None:
+        say(f"waiting for one of {count} CI source publication slots")
+    while acquired is None:
+        if time.monotonic() >= deadline:
+            raise TimeoutError("timed out waiting for a CI source publication slot")
+        time.sleep(POLL_SECONDS)
+        acquired = try_acquire(directory, count)
+    try:
+        yield
+    finally:
+        os.close(acquired[0])
 
 
 def wrapped_command(command: list[str], cls: str = "heavy") -> list[str]:
@@ -391,6 +418,10 @@ def run(command: list[str], timeout: float, local: bool = False, run_timeout: fl
     if not command:
         say("missing command after --")
         return 2
+    cls = command_class(command)
+    if cls == "browser" and (reason := host_load_guard.gate("starting a CI browser")):
+        say(reason)
+        return EXIT_UNAVAILABLE
     remote_code = try_remote(command, timeout, local, run_timeout)
     if remote_code is not None:
         return remote_code
@@ -399,7 +430,6 @@ def run(command: list[str], timeout: float, local: bool = False, run_timeout: fl
         return 127
     deadline = time.monotonic() + timeout
     directory = slot_dir()
-    cls = command_class(command)
     announced = False
     while True:
         acquired, why = admit(directory, cls, " ".join(command))

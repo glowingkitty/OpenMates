@@ -108,3 +108,18 @@ def test_light_runs_use_their_own_pool(tmp_path: Path, monkeypatch) -> None:
 def test_old_slot_files_count_as_a_full_heavy_cap() -> None:
     record = heavy_slot._slot_record("cargo test -p openmates-sdk")
     assert record["cap"] == heavy_slot.MEMORY_MAX_BYTES
+
+
+def test_cpu_scaled_browser_and_ci_source_slots(tmp_path, monkeypatch):
+    monkeypatch.setattr(heavy_slot.os, "cpu_count", lambda: 16)
+    pools = heavy_slot.pools(tmp_path)
+    assert pools["browser"] == (tmp_path / "browser", 2)
+    assert pools["ci-source"] == (tmp_path / "ci-source", 2)
+    monkeypatch.setattr(heavy_slot.os, "cpu_count", lambda: 4)
+    assert heavy_slot.pools(tmp_path)["browser"][1] == 1
+
+
+def test_overload_blocks_remote_browser_before_launch(monkeypatch):
+    monkeypatch.setattr(heavy_slot.host_load_guard, "gate", lambda _: "host overloaded")
+    monkeypatch.setattr(heavy_slot, "try_remote", lambda *args: pytest.fail("launched a browser"))
+    assert heavy_slot.run(["npx", "playwright", "test"], 60) == heavy_slot.EXIT_UNAVAILABLE

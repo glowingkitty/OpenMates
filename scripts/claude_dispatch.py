@@ -52,6 +52,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:  # imported as scripts.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_weekly_model  # noqa: E402 - sibling script, found through the path line above
 import codex_chats  # noqa: E402 - sibling script (Codex engine: registry, command, transcripts)
+import host_load_guard  # noqa: E402 - sibling script, found through the path line above
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 STATE_ROOT = Path(os.getenv("CLAUDE_DISPATCH_ROOT", REPO_ROOT / "logs" / "claude-dispatch"))
@@ -297,7 +298,7 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for path in sorted(PENDING_DIR.glob("*.json"))[:limit]:
         entry = json.loads(path.read_text(encoding="utf-8"))
-        why = None if force else admit_new_chat()
+        why = host_load_guard.gate("starting a queued chat") or (None if force else admit_new_chat())
         if why:
             results.append({"file": path.name, "status": "still queued", "why": why})
             break
@@ -324,7 +325,7 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
 def launch_claude_chat(
     title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
     change_scope: str = "", force: bool = False, *, live_voice: bool = False, admitted: bool = False,
-    images: tuple[str, ...] = (),
+    images: tuple[str, ...] = (), queue_if_unavailable: bool = True,
 ) -> str:
     """Open the chat as an interactive Remote Control session in its own tab of the
     persistent zellij session; returns `<session>/<tab title>`.
@@ -347,13 +348,15 @@ def launch_claude_chat(
     return _launch_routed_chat(
         title, prompt, engine, model, effort, explicit_model, change_scope,
         force=force, live_voice=live_voice, admitted=admitted, images=images,
+        queue_if_unavailable=queue_if_unavailable,
     )
 
 
 def _launch_routed_chat(title: str, prompt: str, engine: str, model: str, effort: str,
                         explicit_model: bool = False, change_scope: str = "", *,
                         force: bool = False, live_voice: bool = False, admitted: bool = False,
-                        images: tuple[str, ...] = (), queue_default: tuple[str, str] | None = None) -> str:
+                        images: tuple[str, ...] = (), queue_default: tuple[str, str] | None = None,
+                        queue_if_unavailable: bool = True) -> str:
     """Apply the shared admission and durable queue after the caller selects a route."""
     unavailable = codex_wait_reason() if engine == "codex" else ""
     if engine == "codex":
@@ -364,10 +367,13 @@ def _launch_routed_chat(title: str, prompt: str, engine: str, model: str, effort
         model = claude_weekly_model.new_chat_model(model, explicit_model)
         effort = cap_effort(effort)
     prompt = with_push_rule(prompt)
-    why = unavailable or (None if force or admitted else admit_new_chat())
+    why = (host_load_guard.gate("starting a new chat") or unavailable
+           or (None if force or admitted else admit_new_chat()))
     if force and not why:
         _record_launch({"kind": "forced", "title": title, "model": model, "why": "owner force: slot limit skipped"})
     if why:
+        if not queue_if_unavailable:
+            raise DispatchError(why)
         media = {"images": images} if images else {}
         pending_model, pending_effort = queue_default or (model, effort)
         path = queue_launch(title, prompt, pending_model, pending_effort, explicit_model, why, change_scope, engine,

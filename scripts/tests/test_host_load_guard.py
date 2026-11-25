@@ -34,7 +34,7 @@ def sample(mem_gib: float = 20, load_per_cpu: float = 0.5, psi: float | None = 1
     ("kwargs", "fragment"),
     [
         ({"mem_gib": 1.4}, "MemAvailable"),
-        ({"load_per_cpu": 3.1}, "load1"),
+        ({"load_per_cpu": 1.001}, "load1"),
         ({"psi": 21}, "memory PSI"),
     ],
 )
@@ -47,7 +47,7 @@ def test_any_block_threshold_trips(kwargs: dict, fragment: str) -> None:
 def test_healthy_host_is_not_overloaded_and_missing_psi_is_ignored() -> None:
     assert not guard.evaluate(sample(psi=None), was_overloaded=False).overloaded
     # Between block and resume thresholds: OK when not previously overloaded.
-    assert not guard.evaluate(sample(mem_gib=2, load_per_cpu=2), was_overloaded=False).overloaded
+    assert not guard.evaluate(sample(mem_gib=2, load_per_cpu=1), was_overloaded=False).overloaded
 
 
 def test_low_free_ram_without_memory_pressure_is_healthy() -> None:
@@ -58,9 +58,9 @@ def test_low_free_ram_without_memory_pressure_is_healthy() -> None:
 
 def test_hysteresis_holds_until_every_resume_threshold_is_met() -> None:
     assert guard.evaluate(sample(mem_gib=2, load_per_cpu=1), was_overloaded=True).overloaded
-    assert guard.evaluate(sample(mem_gib=8, load_per_cpu=2), was_overloaded=True).overloaded
+    assert guard.evaluate(sample(mem_gib=8, load_per_cpu=0.99), was_overloaded=True).overloaded
     assert guard.evaluate(sample(mem_gib=8, load_per_cpu=1, psi=15), was_overloaded=True).overloaded
-    assert not guard.evaluate(sample(mem_gib=2.6, load_per_cpu=1.4, psi=9), was_overloaded=True).overloaded
+    assert not guard.evaluate(sample(mem_gib=2.6, load_per_cpu=0.84, psi=9), was_overloaded=True).overloaded
 
 
 def test_proc_parsers() -> None:

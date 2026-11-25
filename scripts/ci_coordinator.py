@@ -22,6 +22,11 @@ import sys
 import time
 import uuid
 
+try:
+    from scripts import host_load_guard
+except ImportError:
+    import host_load_guard
+
 POLL_SECONDS = 30
 MAX_ACTIVE = 20  # Confirmed GitHub Free hosted-job entitlement.
 MAX_SELFHOSTED = 1
@@ -1545,6 +1550,10 @@ class Queue:
                             )
                         pending.append(job)
                     db.commit()
+                    if any(job["mode"] in {"component", "e2e", "visual-smoke"} for job in pending):
+                        if host_load_guard.gate("dispatching CI browsers"):
+                            pending = [job for job in pending
+                                       if job["mode"] not in {"component", "e2e", "visual-smoke"}]
                     active_jobs = [job for job in current if job["id"] in reservations]
                     local = {"hosted": 0, "selfhosted": 0, "e2b": 0}
                     for job in active_jobs:

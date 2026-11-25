@@ -571,7 +571,7 @@ assertions:
       surface: cli
     - &id060
       path: scripts/tests/test_claude_dispatch.py
-      line: 617
+      line: 618
       name: test_ai_test_user_run_starts_chats_directly_and_marco_approved_ones_skip_the_cap
       surface: cli
     tests:
@@ -140587,92 +140587,92 @@ assertions:
       surface: gui.web
     - &id17796
       path: scripts/tests/test_claude_dispatch.py
-      line: 36
+      line: 37
       name: test_claude_bin_prefers_user_install_over_stale_path_binary
       surface: tooling
     - &id17797
       path: scripts/tests/test_claude_dispatch.py
-      line: 48
+      line: 49
       name: test_claude_bin_explicit_override_wins_and_path_is_the_fallback
       surface: tooling
     - &id17798
       path: scripts/tests/test_claude_dispatch.py
-      line: 58
+      line: 59
       name: test_issue_queue_launches_one_chat_per_valid_request
       surface: gui.web
     - &id17799
       path: scripts/tests/test_claude_dispatch.py
-      line: 71
+      line: 72
       name: test_issue_queue_rejects_tampered_identifiers_without_launching
       surface: gui.web
     - &id17800
       path: scripts/tests/test_claude_dispatch.py
-      line: 151
+      line: 152
       name: test_launch_opens_persistent_remote_control_tab_with_opus_5_5_medium
       surface: gui.web
     - &id17801
       path: scripts/tests/test_claude_dispatch.py
-      line: 167
+      line: 168
       name: test_issue_chat_runs_on_opus_5_5_at_medium_effort
       surface: tooling
     - &id17802
       path: scripts/tests/test_claude_dispatch.py
-      line: 260
+      line: 261
       name: test_launch_refuses_fable_unless_explicitly_requested
       surface: tooling
     - &id17803
       path: scripts/tests/test_claude_dispatch.py
-      line: 272
+      line: 273
       name: test_fable_env_override_for_issue_chats_fails_the_request_instead_of_launching
       surface: tooling
     - &id17804
       path: scripts/tests/test_claude_dispatch.py
-      line: 284
+      line: 285
       name: test_no_launcher_default_is_fable
       surface: tooling
     - &id17805
       path: scripts/tests/test_claude_dispatch.py
-      line: 291
+      line: 292
       name: test_launched_chat_gets_user_bin_folders_first_on_path
       surface: tooling
     - &id17806
       path: scripts/tests/test_claude_dispatch.py
-      line: 303
+      line: 304
       name: test_launch_recreates_missing_or_exited_session_with_bridge
       surface: gui.web
     - &id17807
       path: scripts/tests/test_claude_dispatch.py
-      line: 320
+      line: 321
       name: test_full_chat_cap_queues_the_chat_instead_of_dropping_it
       surface: tooling
     - &id17808
       path: scripts/tests/test_claude_dispatch.py
-      line: 333
+      line: 334
       name: test_queued_chats_start_oldest_first_once_a_slot_frees
       surface: tooling
     - &id17809
       path: scripts/tests/test_claude_dispatch.py
-      line: 353
+      line: 354
       name: test_issue_request_is_queued_not_failed_when_the_cap_is_full
       surface: tooling
     - &id17810
       path: scripts/tests/test_claude_dispatch.py
-      line: 365
+      line: 366
       name: test_admission_check_errors_fail_loudly
       surface: tooling
     - &id17811
       path: scripts/tests/test_claude_dispatch.py
-      line: 373
+      line: 374
       name: test_new_zellij_server_starts_in_its_own_systemd_scope
       surface: tooling
     - &id17812
       path: scripts/tests/test_claude_dispatch.py
-      line: 397
+      line: 398
       name: test_chat_layout_has_one_terminal_pane_and_no_plugins
       surface: tooling
     - &id17813
       path: scripts/tests/test_claude_dispatch.py
-      line: 405
+      line: 406
       name: test_zellij_scope_start_failure_is_an_error
       surface: tooling
     tests:

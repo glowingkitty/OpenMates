@@ -8490,6 +8490,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 def cmd_ci_source(args: argparse.Namespace) -> None:
     """Publish this session's reviewed source without deploying shared dev."""
     from ci_source import publish
+    from heavy_slot import ci_source_slot
 
     session = _load_sessions().get("sessions", {}).get(args.session)
     if not session:
@@ -8498,9 +8499,11 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
         raise RuntimeError("CI source publication requires the session's managed worktree")
     tracked = _auto_track_lane_untracked_files(args.session, root, list(session.get("modified_files", [])))
-    result = publish(root, args.session, tracked,
-                     base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
-                     patch_sha256=args.patch_sha256 or "")
+    os.nice(max(0, 10 - os.nice(0)))
+    with ci_source_slot():
+        result = publish(root, args.session, tracked,
+                         base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
+                         patch_sha256=args.patch_sha256 or "")
     # Presigned candidate URLs are credentials. The dispatcher reads them from
     # the mode-0600 local manifest; never print them into chat or shell logs.
     print(json.dumps({key: value for key, value in result.items() if key != "patch_url"}, sort_keys=True))

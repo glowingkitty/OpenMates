@@ -21,6 +21,7 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch, "PROD_STATE_FILE", tmp_path / "prod-state.json")
     monkeypatch.setattr(dispatch, "LAUNCH_LOG", tmp_path / "launches.jsonl")
     monkeypatch.setattr(dispatch, "PENDING_DIR", tmp_path / "pending")
+    monkeypatch.setattr(dispatch.host_load_guard, "gate", lambda _: None)
     monkeypatch.setattr(dispatch, "admit_new_chat", lambda: None)  # room for a new chat
     monkeypatch.setattr(dispatch.codex_chats, "exhausted_windows", lambda: [])
     monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path / "usage-guard"))  # weekly switch off
@@ -730,3 +731,13 @@ def test_force_resume_bypasses_the_slot_cap_but_ordinary_resume_checks_it(tmp_pa
     assert opened == []
     assert dispatch.resume_codex_chat(cid, "owner follow-up", force=True) == "ok"
     assert opened[0][-3:] == ("codex", "resume", thread)
+
+
+def test_overload_refuses_even_forced_synchronous_chat(monkeypatch):
+    monkeypatch.setattr(dispatch.host_load_guard, "gate", lambda _: "host overloaded")
+    monkeypatch.setattr(dispatch, "queue_launch", lambda *a, **kw: pytest.fail("queued a synchronous start"))
+    monkeypatch.setattr(dispatch, "_open_chat_tab", lambda *a, **kw: pytest.fail("launched under overload"))
+
+    with pytest.raises(dispatch.DispatchError, match="host overloaded"):
+        dispatch._launch_routed_chat("Host check", "Run now", "claude", dispatch.CLAUDE_MODEL,
+                                     dispatch.CLAUDE_EFFORT, force=True, queue_if_unavailable=False)
