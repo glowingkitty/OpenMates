@@ -116,6 +116,7 @@ const cases = [
   ['docs/DocsEmbedFullscreen', 'editableInChat'],
   ['images/ImageEmbedFullscreen', ''],
   ['events/EventEmbedFullscreen', ''],
+  ['diagrams/MermaidDiagramEmbedFullscreen', ''],
   ['web/WebsiteEmbedFullscreen', ''],
   ['news/NewsEmbedFullscreen', ''],
   ['design/editor/DesignEditorFullscreen', 'saved-edit'],

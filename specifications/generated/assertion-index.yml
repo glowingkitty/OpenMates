@@ -180562,17 +180562,17 @@ assertions:
     supporting_tests:
     - &id22804
       path: frontend/apps/web_app/tests/components/design-document.spec.ts
-      line: 127
+      line: 128
       name: ${fixture} uses the shared content shell at ${width}px
       surface: gui.web
     - &id22805
       path: frontend/apps/web_app/tests/components/design-document.spec.ts
-      line: 169
+      line: 170
       name: the news execution retains its large header and uses the shared composer
       surface: gui.web
     - &id22806
       path: frontend/apps/web_app/tests/components/design-document.spec.ts
-      line: 179
+      line: 180
       name: a website opened from search uses the compact shell and keeps its image
       surface: gui.web
     tests:
@@ -180600,7 +180600,7 @@ assertions:
     supporting_tests:
     - &id22807
       path: frontend/apps/web_app/tests/components/design-document.spec.ts
-      line: 127
+      line: 128
       name: ${fixture} uses the shared content shell at ${width}px
       surface: gui.web
     tests:
