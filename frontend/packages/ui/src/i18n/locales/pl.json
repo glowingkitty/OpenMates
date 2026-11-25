@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Pobierz projekt"
+        },
+        "current_page": {
+          "text": "Bieżąca strona"
+        },
+        "all_pages": {
+          "text": "Wszystkie strony"
+        },
+        "image_unavailable": {
+          "text": "Jeden z obrazów jest niedostępny na tym urządzeniu. Otwórz stronę, poczekaj na wczytanie obrazów i spróbuj ponownie."
+        },
+        "failed": {
+          "text": "Nie udało się pobrać projektu. Spróbuj ponownie."
+        }
+      }
     }
   },
   "embeds_input": {},

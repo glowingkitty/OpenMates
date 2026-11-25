@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "تنزيل التصميم"
+        },
+        "current_page": {
+          "text": "الصفحة الحالية"
+        },
+        "all_pages": {
+          "text": "كل الصفحات"
+        },
+        "image_unavailable": {
+          "text": "إحدى الصور غير متاحة على هذا الجهاز. افتح الصفحة وانتظر تحميل الصور ثم حاول مجددًا."
+        },
+        "failed": {
+          "text": "تعذر تنزيل التصميم. حاول مجددًا."
+        }
+      }
     }
   },
   "embeds_input": {},

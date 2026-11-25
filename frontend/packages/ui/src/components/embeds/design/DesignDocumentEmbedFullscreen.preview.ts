@@ -19,5 +19,12 @@ export const variants = {
   proposal: { data: { decodedContent: {
     ...document, proposal: { embedId: 'e235e2bd-c404-42db-8ca5-1c091abb9228', baseVersion: 1 },
   } }, onClose },
+  'missing-image-export': { data: { decodedContent: {
+    ...document,
+    pages: document.pages.map((page, index) => index === 0 ? { ...page, layers: [...page.layers, {
+      kind: 'image', id: 'missing-image', name: 'Unavailable image', x: 50, y: 260, width: 90, height: 96,
+      rotation: 0, assetId: 'e235e2bd-c404-42db-8ca5-1c091abb9228',
+    }] } : page),
+  } }, onClose },
   unsupported: { data: { decodedContent: { ...document, schemaVersion: 12 } }, onClose }
 };

@@ -12381,6 +12381,9 @@ features:
   - id: feature.design-editor-assistant
     status: draft
     path: specifications/features/design-editor-assistant
+  - id: feature.design-editor-export
+    status: draft
+    path: specifications/features/design-editor-export
   apps:
   - design
   product_features: []
@@ -12390,7 +12393,7 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 39
+  assertions: 42
   surfaces:
     web:
       status: partial
@@ -12399,9 +12402,9 @@ features:
       assertions:
         passing: 5
         failing: 0
-        not_run: 18
+        not_run: 21
         missing: 20
-        counted: 43
+        counted: 46
       key_tests:
       - frontend/apps/web_app/tests/components/design-editor.spec.ts
       - frontend/apps/web_app/tests/components/design-editor-performance.spec.ts
@@ -12805,6 +12808,84 @@ features:
           not_run: 0
           missing: 3
           counted: 3
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: editor-export
+    name: Export Design artboards
+    description: Local SVG and PNG artboards and PDF documents.
+    assertion_ids:
+    - design-editor.export.artboard
+    - design-editor.export.local
+    - design-editor.export.pdf
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 3
+          missing: 0
+          counted: 3
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
       tui:
         status: unverified
         source: intent

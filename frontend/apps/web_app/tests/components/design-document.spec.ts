@@ -1,4 +1,5 @@
 // playwright-account: not_required reason=isolated_component_preview
+import { readFile } from 'node:fs/promises';
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 
@@ -198,4 +199,45 @@ test('a website opened from search uses the compact shell and keeps its image', 
   await child.getByTestId('embed-minimize').click();
   await expect(child).toHaveCount(0);
   await expect(parent).toBeVisible();
+});
+
+for (const profile of [{ width: 1280, height: 860 }, { width: 390, height: 844 }]) {
+  // contract-test: supporting surface=gui.web assertions=design-editor.export.artboard,design-editor.export.pdf
+  test(`shows local export controls at ${profile.width}px`, async ({ page }, info) => {
+    await page.setViewportSize(profile);
+    await page.goto(path('Fullscreen', profile.width));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('design-canvas')).toHaveAttribute('data-painted-page', 'explore');
+    const toggle = page.getByTestId('design-export-toggle');
+    await toggle.click();
+    const menu = page.getByTestId('design-export-menu');
+    await expect(menu).toBeInViewport({ ratio: 1 });
+    await expect(menu.getByRole('button')).toHaveText(['SVG Current page', 'PNG Current page', 'PDF All pages']);
+    await info.attach(`design-export-${profile.width}`, {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await toggle.click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('design-export-svg').click(),
+    ]);
+    const xml = await readFile((await download.path())!, 'utf8');
+    expect(xml).toContain('viewBox="0 0 390 700"');
+    expect(xml).toContain('<path ');
+    expect(xml).toContain('Find a trail');
+    await expect(menu).toHaveCount(0);
+  });
+}
+
+
+// contract-test: supporting surface=gui.web assertions=design-editor.export.local
+test('explains when a required local image prevents export', async ({ page }) => {
+  await page.goto(path('Fullscreen', 390, 'missing-image-export'));
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('design-canvas')).toHaveAttribute('data-missing-assets', 'true');
+  await page.getByTestId('design-export-toggle').click();
+  await page.getByTestId('design-export-png').click();
+  await expect(page.getByTestId('design-export-error')).toContainText('An image is unavailable on this device.');
 });

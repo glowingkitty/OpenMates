@@ -16,9 +16,9 @@ function isBoundedPng(bytes: Uint8Array): boolean {
   return width > 0 && height > 0 && width <= 4096 && height <= 4096 && width * height <= MAX_ASSET_PIXELS;
 }
 
-export async function readDesignImage(assetId: string, embedId: string, chatId: string): Promise<ImageBitmap | null> {
+export async function readDesignImage(assetId: string, embedId: string, chatId: string, options: { localOnly?: boolean } = {}): Promise<ImageBitmap | null> {
   const epoch = getWorkspaceCacheEpoch();
-  const row = await resolveEmbedForOpen(assetId, { chatId });
+  const row = await resolveEmbedForOpen(assetId, { chatId, ...options });
   if (getWorkspaceCacheEpoch() !== epoch || row?.parent_embed_id !== embedId ||
     row.type !== 'design-raster' || row.status !== 'finished' || typeof row.content !== 'string' ||
     row.content.length > MAX_ASSET_BASE64 + 128) return null;

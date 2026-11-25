@@ -1,4 +1,5 @@
-import type { Locator, Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 import { test, expect } from './helpers/cookie-audit';
 import { createIsolatedBrowserContext, declareTestState } from './helpers/chat-test-helpers';
 import { seedViaPairedCli, type Seed } from './helpers/owned-encrypted-embed-fixture';
@@ -56,7 +57,72 @@ async function editHeadline(page: Page, headline: string) {
   await expect(text).toHaveValue(headline);
 }
 
-// contract-test: direct surface=gui.web assertions=design-editor.view.validated-scene,design-editor.view.client-side-encrypted,design-editor.edit.typed-layers,design-editor.edit.revision
+async function downloadDesign(page: Page, format: 'svg' | 'png' | 'pdf', info: TestInfo) {
+  await page.getByTestId('design-export-toggle').click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId(`design-export-${format}`).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(new RegExp(`[.]${format}$`));
+  const output = info.outputPath(download.suggestedFilename());
+  await download.saveAs(output);
+  await info.attach(`design-export-${format}`, { path: output, contentType: {
+    svg: 'image/svg+xml', png: 'image/png', pdf: 'application/pdf',
+  }[format] });
+  return readFile(output);
+}
+
+async function exportedCenterPixel(page: Page, base64: string, mime: string) {
+  return page.evaluate(async ({ base64, mime }) => {
+    const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d')!;
+      context.drawImage(image, 0, 0);
+      return { width: canvas.width, height: canvas.height, pixel: [...context.getImageData(320, 276, 1, 1).data] };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }, { base64, mime });
+}
+
+async function verifyExports(page: Page, info: TestInfo) {
+  const context = page.context();
+  // The design and raster are cached by the authenticated view. Attempt the
+  // first exports with every server connection unavailable.
+  await context.setOffline(true);
+  try {
+    const expected = { width: 640, height: 480, pixel: [235, 120, 94, 255] };
+    const svg = await downloadDesign(page, 'svg', info);
+    const xml = svg.toString('utf8');
+    expect(xml).toContain('viewBox="0 0 640 480"');
+    expect(xml).toContain('<text ');
+    expect(xml).toContain('Open Studio');
+    expect(xml).toContain('data:image/png;base64,');
+    expect(xml).not.toMatch(/(?:href|src)="(?:https?:|\/\/)/);
+    expect(await exportedCenterPixel(page, svg.toString('base64'), 'image/svg+xml')).toEqual(expected);
+
+    const png = await downloadDesign(page, 'png', info);
+    expect(await exportedCenterPixel(page, png.toString('base64'), 'image/png')).toEqual(expected);
+
+    await page.getByTestId('design-page-chooser').click();
+    await page.getByTestId('design-page-schedule').click();
+    const pdf = await downloadDesign(page, 'pdf', info);
+    expect(pdf.toString('latin1')).toMatch(/^%PDF-1\./);
+    expect(pdf.toString('latin1')).toMatch(/\/Count 2\b/);
+    expect(pdf.toString('latin1')).toMatch(/\/MediaBox \[0 0 480(?:\.0*)? 360(?:\.0*)?\]/);
+  } finally {
+    await context.setOffline(false);
+  }
+}
+
+// contract-test: direct surface=gui.web assertions=design-editor.view.validated-scene,design-editor.view.client-side-encrypted,design-editor.edit.typed-layers,design-editor.edit.revision,design-editor.export.artboard,design-editor.export.pdf,design-editor.export.local
 test('views and edits a client-side encrypted Design, then reloads its revisions', async ({ page, browser }, info) => {
   test.setTimeout(300_000);
   test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.CI_TEST_MODE !== 'e2e',
@@ -76,6 +142,16 @@ test('views and edits a client-side encrypted Design, then reloads its revisions
     await expect(canvas).not.toHaveAttribute('data-missing-assets', 'true');
     await expect.poll(() => centerPixel(canvas)).toEqual([235, 120, 94, 255]);
     await expect(page.getByTestId('design-workspace')).toHaveAttribute('data-mode', 'view');
+    const shell = page.getByTestId('design-fullscreen');
+    const sharedTitle = shell.getByTestId('embed-compact-identity').getByTestId('embed-header-title');
+    const topBar = shell.getByTestId('embed-top-bar');
+    await expect(shell).toHaveClass(/\bunified-embed-fullscreen-overlay\b/);
+    await expect(sharedTitle).toHaveText(scene.title);
+    await expect(topBar.getByTestId('embed-minimize')).toBeVisible();
+    const more = topBar.getByRole('button', { name: 'More', exact: true });
+    await more.click();
+    await expect(topBar.getByTestId('embed-report-issue-button')).toBeVisible();
+    await more.click();
     await page.getByTestId('design-page-chooser').click();
     await page.getByTestId('design-page-schedule').click();
     await expect(canvas).toHaveAttribute('data-painted-page', 'schedule');
@@ -89,12 +165,18 @@ test('views and edits a client-side encrypted Design, then reloads its revisions
     const screenshot = info.outputPath('saved-design-after-reload.png');
     await page.getByTestId('design-fullscreen').screenshot({ path: screenshot, animations: 'disabled' });
     await info.attach('saved-design-after-reload', { path: screenshot, contentType: 'image/png' });
+    await verifyExports(page, info);
+    await page.getByTestId('design-page-chooser').click();
+    await page.getByTestId('design-page-cover').click();
+    await expect(canvas).toHaveAttribute('data-painted-page', 'cover');
 
     const stale = await page.context().newPage();
     try {
       await stale.goto(route, { waitUntil: 'domcontentloaded' });
       await editHeadline(stale, 'Concurrent stale edit');
       await editHeadline(page, 'Open Studio Saturday');
+      await expect(sharedTitle).toHaveText(scene.title);
+      await expect(topBar.getByTestId('embed-minimize')).toBeVisible();
       const x = page.getByTestId('design-property-x');
       await x.fill('62');
       await x.press('Tab');

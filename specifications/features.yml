@@ -762,7 +762,7 @@ features:
     name: "Design"
     kind: app
     description: "Find icons and visual assets, and read your Figma or Penpot designs to build them."
-    specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma, feature.design-editor, feature.design-editor-edit, feature.design-editor-assistant]
+    specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma, feature.design-editor, feature.design-editor-edit, feature.design-editor-assistant, feature.design-editor-export]
     apps: [design]
     release: v0.19.0
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
@@ -796,6 +796,11 @@ features:
         description: "Dedicated authoring model and visual review for editable, client-side encrypted Design documents."
         assertions: ["design-editor.assistant.*"]
         surfaces: {web: in_progress, cli: in_progress, apple: planned}
+      - id: editor-export
+        name: "Export Design artboards"
+        description: "Local SVG and PNG artboards and PDF documents."
+        assertions: ["design-editor.export.*"]
+        surfaces: {web: in_progress, apple: planned}
   - id: diagrams
     name: "Diagrams"
     kind: app

@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Ontwerp downloaden"
+        },
+        "current_page": {
+          "text": "Huidige pagina"
+        },
+        "all_pages": {
+          "text": "Alle pagina’s"
+        },
+        "image_unavailable": {
+          "text": "Een afbeelding is niet beschikbaar op dit apparaat. Open de pagina, wacht tot de afbeeldingen zijn geladen en probeer het opnieuw."
+        },
+        "failed": {
+          "text": "Het ontwerp kon niet worden gedownload. Probeer het opnieuw."
+        }
+      }
     }
   },
   "embeds_input": {},

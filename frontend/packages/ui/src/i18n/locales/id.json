@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Unduh desain"
+        },
+        "current_page": {
+          "text": "Halaman saat ini"
+        },
+        "all_pages": {
+          "text": "Semua halaman"
+        },
+        "image_unavailable": {
+          "text": "Sebuah gambar tidak tersedia di perangkat ini. Buka halaman dan tunggu hingga gambar dimuat, lalu coba lagi."
+        },
+        "failed": {
+          "text": "Desain tidak dapat diunduh. Coba lagi."
+        }
+      }
     }
   },
   "embeds_input": {},

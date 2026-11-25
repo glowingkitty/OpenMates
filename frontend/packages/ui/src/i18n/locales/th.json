@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "ดาวน์โหลดดีไซน์"
+        },
+        "current_page": {
+          "text": "หน้าปัจจุบัน"
+        },
+        "all_pages": {
+          "text": "ทุกหน้า"
+        },
+        "image_unavailable": {
+          "text": "มีรูปภาพที่ไม่พร้อมใช้งานบนอุปกรณ์นี้ เปิดหน้าและรอให้รูปภาพโหลด แล้วลองอีกครั้ง"
+        },
+        "failed": {
+          "text": "ดาวน์โหลดดีไซน์ไม่ได้ โปรดลองอีกครั้ง"
+        }
+      }
     }
   },
   "embeds_input": {},

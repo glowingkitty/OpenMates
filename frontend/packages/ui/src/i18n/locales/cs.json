@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Stáhnout návrh"
+        },
+        "current_page": {
+          "text": "Aktuální stránka"
+        },
+        "all_pages": {
+          "text": "Všechny stránky"
+        },
+        "image_unavailable": {
+          "text": "Některý obrázek není v tomto zařízení dostupný. Otevřete stránku, počkejte na načtení obrázků a zkuste to znovu."
+        },
+        "failed": {
+          "text": "Návrh se nepodařilo stáhnout. Zkuste to znovu."
+        }
+      }
     }
   },
   "embeds_input": {},

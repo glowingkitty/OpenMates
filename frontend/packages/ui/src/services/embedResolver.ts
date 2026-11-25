@@ -73,8 +73,9 @@ function pruneExpiredPersonalRequests(now: number): void {
 /**
  * `refresh`: the server holds a newer head than this device (a version saved
  * just now), so read it even when an older copy is stored locally.
+ * `localOnly`: return an already available copy without starting server recovery.
  */
-type EmbedReadOptions = { chatId?: string | null; refresh?: boolean };
+type EmbedReadOptions = { chatId?: string | null; refresh?: boolean; localOnly?: boolean };
 
 // An explicit null is an unknown source (for example an older saved result),
 // not permission to reinterpret the ID in the currently open chat.
@@ -737,13 +738,14 @@ export async function resolveEmbed(
       // transient state retryable instead of poisoning the permanent error set.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime-only flag from EmbedStore
       if ((cachedEmbed as any)._decryptionPending) {
-        void requestEmbedFromServerOnce(bareId, "missing-embed-key", options);
+        if (!options.localOnly) void requestEmbedFromServerOnce(bareId, "missing-embed-key", options);
         return null;
       }
       // Suppress repeated decrypt attempts only for this source/account and
       // unchanged local readiness, with finite expiry and no permanent error.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime-only flag from EmbedStore
       if ((cachedEmbed as any)._decryptionFailed) {
+        if (options.localOnly) return null;
         const readiness = await decryptionReadiness(bareId, context);
         decryptionFailures.set(context.requestKey, {
           readiness, retryAfter: Date.now() + EMBED_REQUEST_COOLDOWN_MS,
@@ -765,7 +767,7 @@ export async function resolveEmbed(
     // IMPORTANT: Only request via WebSocket if user is authenticated.
     // For unauthenticated users viewing demo chats, embeds will be available
     // once the example chat store finishes loading from server.
-    void requestEmbedFromServerOnce(bareId, "resolveEmbed-miss", options);
+    if (!options.localOnly) void requestEmbedFromServerOnce(bareId, "resolveEmbed-miss", options);
 
     // Return null for now - the embed will be available after server responds
     // The renderer should handle null gracefully and show a loading/error state
@@ -782,7 +784,7 @@ export async function resolveEmbedForOpen(
   options: EmbedReadOptions = {},
 ): Promise<EmbedData | null> {
   const local = await resolveEmbed(embedId, options);
-  if (local || (options.chatId && isExampleChat(options.chatId))) return local;
+  if (local || options.localOnly || (options.chatId && isExampleChat(options.chatId))) return local;
 
   // resolveEmbed starts recovery without blocking rendering. A user selection
   // must await that operation, including when it outlasts a short render retry.

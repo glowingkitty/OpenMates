@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Tasarımı indir"
+        },
+        "current_page": {
+          "text": "Geçerli sayfa"
+        },
+        "all_pages": {
+          "text": "Tüm sayfalar"
+        },
+        "image_unavailable": {
+          "text": "Bir görsel bu cihazda kullanılamıyor. Sayfayı açıp görsellerin yüklenmesini bekleyin ve tekrar deneyin."
+        },
+        "failed": {
+          "text": "Tasarım indirilemedi. Tekrar deneyin."
+        }
+      }
     }
   },
   "embeds_input": {},

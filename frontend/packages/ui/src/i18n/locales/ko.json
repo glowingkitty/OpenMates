@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "디자인 다운로드"
+        },
+        "current_page": {
+          "text": "현재 페이지"
+        },
+        "all_pages": {
+          "text": "모든 페이지"
+        },
+        "image_unavailable": {
+          "text": "이 기기에서 사용할 수 없는 이미지가 있습니다. 페이지를 열고 이미지가 로드될 때까지 기다린 다음 다시 시도하세요."
+        },
+        "failed": {
+          "text": "디자인을 다운로드하지 못했습니다. 다시 시도하세요."
+        }
+      }
     }
   },
   "embeds_input": {},

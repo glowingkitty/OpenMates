@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Tải thiết kế xuống"
+        },
+        "current_page": {
+          "text": "Trang hiện tại"
+        },
+        "all_pages": {
+          "text": "Tất cả các trang"
+        },
+        "image_unavailable": {
+          "text": "Một hình ảnh không có trên thiết bị này. Hãy mở trang, đợi hình ảnh tải xong rồi thử lại."
+        },
+        "failed": {
+          "text": "Không tải được thiết kế xuống. Hãy thử lại."
+        }
+      }
     }
   },
   "embeds_input": {},

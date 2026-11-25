@@ -11093,6 +11093,25 @@
     },
     "slides_remote_close": {
       "text": "Fernbedienung schließen"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Design herunterladen"
+        },
+        "current_page": {
+          "text": "Aktuelle Seite"
+        },
+        "all_pages": {
+          "text": "Alle Seiten"
+        },
+        "image_unavailable": {
+          "text": "Ein Bild ist auf diesem Gerät nicht verfügbar. Öffne die Seite und warte, bis die Bilder geladen sind. Versuche es dann erneut."
+        },
+        "failed": {
+          "text": "Das Design konnte nicht heruntergeladen werden. Versuche es erneut."
+        }
+      }
     }
   },
   "embeds_input": {

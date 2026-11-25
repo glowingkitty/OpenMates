@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "डिज़ाइन डाउनलोड करें"
+        },
+        "current_page": {
+          "text": "वर्तमान पेज"
+        },
+        "all_pages": {
+          "text": "सभी पेज"
+        },
+        "image_unavailable": {
+          "text": "इस डिवाइस पर एक इमेज उपलब्ध नहीं है। पेज खोलें, इमेज लोड होने तक इंतज़ार करें और दोबारा कोशिश करें।"
+        },
+        "failed": {
+          "text": "डिज़ाइन डाउनलोड नहीं हो सका। दोबारा कोशिश करें।"
+        }
+      }
     }
   },
   "embeds_input": {},

@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "下载设计"
+        },
+        "current_page": {
+          "text": "当前页面"
+        },
+        "all_pages": {
+          "text": "所有页面"
+        },
+        "image_unavailable": {
+          "text": "此设备上缺少一张图片。打开该页面并等待图片加载后重试。"
+        },
+        "failed": {
+          "text": "无法下载设计。请重试。"
+        }
+      }
     }
   },
   "embeds_input": {},

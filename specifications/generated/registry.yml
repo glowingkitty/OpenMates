@@ -798,6 +798,13 @@ specifications:
     fingerprint: 1ae092c3725c8f9bc6ad18f8721f670700edd8468795474c7bf48e4352f74227
     required_applies_to:
     - gui.web
+  feature.design-editor-export:
+    version: 1
+    status: draft
+    path: features/design-editor-export
+    fingerprint: 732a814b94880edc01d3305cd9b71825f3489a498a8b9fc46bb0b613f036c9ce
+    required_applies_to:
+    - gui.web
   feature.doc-editor:
     version: 1
     status: draft
@@ -10752,6 +10759,27 @@ assertions:
     specification_id: feature.design-editor-edit
     type: security
     fingerprint: c91b2008492d925e3ad84908aa5360988276ac293ab62fd29cb0f9347773ddc8
+    required_applies_to:
+    - gui.web
+  design-editor.export.artboard:
+    specification: feature.design-editor-export@1
+    specification_id: feature.design-editor-export
+    type: behavior
+    fingerprint: d1d865945113dfd3464d03fb2507de59c7ad0f9faa6e075f6a06dd4f1fd080ee
+    required_applies_to:
+    - gui.web
+  design-editor.export.pdf:
+    specification: feature.design-editor-export@1
+    specification_id: feature.design-editor-export
+    type: behavior
+    fingerprint: 1b7a6e13ea53daafdb915bd503690b92336f74f843fb8617a4e4acf78eab70ed
+    required_applies_to:
+    - gui.web
+  design-editor.export.local:
+    specification: feature.design-editor-export@1
+    specification_id: feature.design-editor-export
+    type: security
+    fingerprint: c8e44d6b7feb316dfd34e54a551f4f16cb4bbaa17b44dbe22e604a8665e4b4ea
     required_applies_to:
     - gui.web
   doc-editor.edit.rich-text:

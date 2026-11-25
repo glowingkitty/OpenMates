@@ -56,6 +56,12 @@
     return (asset: string) => id && sourceChat ? readDesignImage(asset, id, sourceChat) : Promise.resolve(null);
   });
 
+  const readExportImage = $derived.by(() => {
+    const id = embedId;
+    const sourceChat = chatId;
+    return (asset: string) => id && sourceChat ? readDesignImage(asset, id, sourceChat, { localOnly: true }) : Promise.resolve(null);
+  });
+
   $effect(() => {
     const owner = ownerChat;
     const epoch = getWorkspaceCacheEpoch();
@@ -214,7 +220,8 @@
     <DesignEditorFullscreen {embedId} owningChatId={chatId ?? undefined} document={past?.design ?? head} versionNumber={past?.version ?? headVersion}
       readOnly={!scope || !embedId || !!head.proposal || !!past || historyLoading}
       revision={scope && embedId && !head.proposal ? { version: headVersion, save } : undefined} {readImage} {versionHistory}
-      assistantTools={head.proposal || scope && !past ? assistantTools : undefined} {onClose} />
+      assistantTools={head.proposal || scope && !past ? assistantTools : undefined}
+      allowExport={!head.proposal && !historyLoading} {readExportImage} {onClose} />
   {/key}
 {:else}
   <EmbedFullscreenLoading data={{ ...data, embedType: 'design-document' }} {failed} {onClose} />

@@ -1,5 +1,7 @@
+// figma-visual-proof: not-required. Shared typed Canvas renderer.
 import { registerWorkspaceCacheClear } from '../../../../services/workspaceCacheLifecycle';
-import { designFonts, type DesignLayer, type DesignPage } from './designDocument';
+import type { DesignLayer, DesignPage } from './designDocument';
+import { designFont, designTextLines } from './designText';
 
 export type DecodedImages = ReadonlyMap<string, HTMLImageElement | ImageBitmap | null>;
 type Context = CanvasRenderingContext2D;
@@ -39,29 +41,13 @@ export async function decodeImages(layers: DesignLayer[], existing: DecodedImage
 }
 
 function drawText(ctx: Context, layer: Extract<DesignLayer, { kind: 'text' }>) {
-  const { width, height, fontSize } = layer;
   ctx.beginPath();
-  ctx.rect(0, 0, width, height);
+  ctx.rect(0, 0, layer.width, layer.height);
   ctx.clip();
-  ctx.font = `${layer.weight} ${fontSize}px ${designFonts[layer.font]}`;
+  ctx.font = designFont(layer);
   ctx.textBaseline = 'alphabetic';
-  let y = fontSize;
-  for (const paragraph of layer.text.split('\n')) {
-    let line = '';
-    for (const word of paragraph.split(' ')) {
-      const next = line ? `${line} ${word}` : word;
-      if (line && ctx.measureText(next).width > width) {
-        ctx.fillText(line, 0, y);
-        y += fontSize * 1.13;
-        if (y - fontSize >= height) return;
-        line = word;
-      } else {
-        line = next;
-      }
-    }
-    ctx.fillText(line, 0, y);
-    y += fontSize * 1.13;
-    if (y - fontSize >= height) return;
+  for (const line of designTextLines(layer, (value) => ctx.measureText(value).width)) {
+    ctx.fillText(line.text, 0, line.baseline);
   }
 }
 

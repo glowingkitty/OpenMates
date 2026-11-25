@@ -8656,6 +8656,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Télécharger le design"
+        },
+        "current_page": {
+          "text": "Page actuelle"
+        },
+        "all_pages": {
+          "text": "Toutes les pages"
+        },
+        "image_unavailable": {
+          "text": "Une image est indisponible sur cet appareil. Ouvrez la page, attendez le chargement des images et réessayez."
+        },
+        "failed": {
+          "text": "Impossible de télécharger le design. Réessayez."
+        }
+      }
     }
   },
   "embeds_input": {},

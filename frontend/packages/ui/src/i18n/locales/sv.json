@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Ladda ner designen"
+        },
+        "current_page": {
+          "text": "Aktuell sida"
+        },
+        "all_pages": {
+          "text": "Alla sidor"
+        },
+        "image_unavailable": {
+          "text": "En bild är inte tillgänglig på den här enheten. Öppna sidan, vänta tills bilderna har laddats och försök igen."
+        },
+        "failed": {
+          "text": "Det gick inte att ladda ner designen. Försök igen."
+        }
+      }
     }
   },
   "embeds_input": {},

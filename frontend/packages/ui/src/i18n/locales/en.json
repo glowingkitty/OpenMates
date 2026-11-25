@@ -11152,6 +11152,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Download design"
+        },
+        "current_page": {
+          "text": "Current page"
+        },
+        "all_pages": {
+          "text": "All pages"
+        },
+        "image_unavailable": {
+          "text": "An image is unavailable on this device. Open the page and wait for its images to load, then try again."
+        },
+        "failed": {
+          "text": "Could not download the design. Try again."
+        }
+      }
     }
   },
   "embeds_input": {

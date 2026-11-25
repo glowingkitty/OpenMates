@@ -127,11 +127,12 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Create, update and delete | ? | ? |  | ? | ? | **live** 4/4 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Workflows | ? | ? |  | ? | ? | ? | ? | ? | | | |
 | [Code](#code) | **FAIL** 7/41 | partial 9/39 |  | partial 9/39 | impl | partial 17/39 | not run 0/39 | impl | on | on | v0.1-alpha-1 |
-| [Design](#design) | partial 5/43 | partial 1/18 |  | impl | impl | partial 23/30 | impl | impl | on | on | v0.19.0 |
+| [Design](#design) | partial 5/46 | partial 1/18 |  | impl | impl | partial 23/30 | impl | impl | on | on | v0.19.0 |
 | &nbsp;&nbsp;↳ Figma and Penpot designs | not run 0/14 | planned |  | wip | ? | partial 7/14 | wip | wip | | | |
 | &nbsp;&nbsp;↳ Design editor preview | wip | ? |  | ? | ? | ? | ? | ? | | | |
 | &nbsp;&nbsp;↳ View a saved design | not run 0/2 | planned |  | ? | ? | ? | ? | ? | | | |
 | &nbsp;&nbsp;↳ Create and revise with the assistant | not run 0/3 | planned |  | wip | ? | ? | ? | ? | | | |
+| &nbsp;&nbsp;↳ Export Design artboards | not run 0/3 | planned |  | ? | ? | ? | ? | ? | | | |
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
 | [Docs](#docs) | partial 2/5 | impl |  | — | — | not run 0/1 | impl | impl | on | on | v0.5.0-alpha |
 | [Electronics](#electronics) | not run 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.11.0-alpha |
@@ -1371,7 +1372,7 @@ Scheduled test runs with critical flows first, truthful outcomes and recovery.
 
 Find icons and visual assets, and read your Figma or Penpot designs to build them.
 
-- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (approved), [feature.app-skills.design-figma](../../specifications/features/app-skills/design-figma/specification.yml) (draft), [feature.design-editor](../../specifications/features/design-editor/specification.yml) (approved), [feature.design-editor-edit](../../specifications/features/design-editor-edit/specification.yml) (draft), [feature.design-editor-assistant](../../specifications/features/design-editor-assistant/specification.yml) (draft) · 39 assertion(s)
+- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (approved), [feature.app-skills.design-figma](../../specifications/features/app-skills/design-figma/specification.yml) (draft), [feature.design-editor](../../specifications/features/design-editor/specification.yml) (approved), [feature.design-editor-edit](../../specifications/features/design-editor-edit/specification.yml) (draft), [feature.design-editor-assistant](../../specifications/features/design-editor-assistant/specification.yml) (draft), [feature.design-editor-export](../../specifications/features/design-editor-export/specification.yml) (draft) · 42 assertion(s)
 - Apps: `design`
 - Flags: `app:design` · dev on · prod on · release v0.19.0
 
@@ -1379,7 +1380,7 @@ Find icons and visual assets, and read your Figma or Penpot designs to build the
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 5/43 | 5 pass · 0 fail · 18 not run · 20 no test | [design-editor.spec.ts](../../frontend/apps/web_app/tests/components/design-editor.spec.ts)<br>[design-editor-performance.spec.ts](../../frontend/apps/web_app/tests/components/design-editor-performance.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[content-image-gestures.spec.ts](../../frontend/apps/web_app/tests/components/content-image-gestures.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[design-embroidery-progress-card.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>[real-inference-design-editor.spec.ts](../../frontend/apps/web_app/tests/real-inference-design-editor.spec.ts)<br>8 unit test file(s), e.g. [test_design_scene.py](../../backend/tests/test_design_scene.py), [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py) |
+| Web | partial 5/46 | 5 pass · 0 fail · 21 not run · 20 no test | [design-editor.spec.ts](../../frontend/apps/web_app/tests/components/design-editor.spec.ts)<br>[design-editor-performance.spec.ts](../../frontend/apps/web_app/tests/components/design-editor-performance.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[content-image-gestures.spec.ts](../../frontend/apps/web_app/tests/components/content-image-gestures.spec.ts)<br>[design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[design-embroidery-progress-card.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts)<br>[design-document-view.spec.ts](../../frontend/apps/web_app/tests/design-document-view.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>[real-inference-design-editor.spec.ts](../../frontend/apps/web_app/tests/real-inference-design-editor.spec.ts)<br>8 unit test file(s), e.g. [test_design_scene.py](../../backend/tests/test_design_scene.py), [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py) |
 | Apple | partial 1/18 | 1 pass · 0 fail · 0 not run · 17 no test | 1 unit test file(s), e.g. [HostingEmbedModelTests.swift](../../apple/OpenMatesTests/HostingEmbedModelTests.swift) |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 35 no test | — |
 | TUI | impl | — | — |

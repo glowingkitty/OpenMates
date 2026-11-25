@@ -8629,6 +8629,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "הורדת העיצוב"
+        },
+        "current_page": {
+          "text": "העמוד הנוכחי"
+        },
+        "all_pages": {
+          "text": "כל העמודים"
+        },
+        "image_unavailable": {
+          "text": "אחת התמונות אינה זמינה במכשיר הזה. יש לפתוח את העמוד, להמתין לטעינת התמונות ולנסות שוב."
+        },
+        "failed": {
+          "text": "לא ניתן היה להוריד את העיצוב. נסו שוב."
+        }
+      }
     }
   },
   "embeds_input": {},

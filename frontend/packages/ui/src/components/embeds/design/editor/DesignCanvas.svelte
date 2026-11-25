@@ -46,6 +46,10 @@
     zoom = next.scale;
   }
 
+  export function decodedPreviewImages(): DecodedImages | undefined {
+    if (!readImage && decodedPage === page.id) return images;
+  }
+
   export function fit() {
     setView(fitted(width, height, page.width, page.height));
   }

@@ -1,6 +1,9 @@
 <!-- figma-visual-proof: not-required. Original OpenMates preview with browser proof. -->
 <script lang="ts">
-  import { untrack, type Snippet } from 'svelte';
+  import { onDestroy, untrack, type Snippet } from 'svelte';
+  import { text } from '../../../../i18n/translations';
+  import { getWorkspaceCacheEpoch } from '../../../../services/workspaceCacheLifecycle';
+  import { saveBlob } from '../embroideryDownload';
   import UnifiedEmbedFullscreen from '../../UnifiedEmbedFullscreen.svelte';
   import EmbedIconButton from '../../shared/EmbedIconButton.svelte';
   import EmbedZoomControls from '../../shared/EmbedZoomControls.svelte';
@@ -8,6 +11,7 @@
   import DesignLayers from './DesignLayers.svelte';
   import DesignProperties from './DesignProperties.svelte';
   import DesignPageThumbnail from './DesignPageThumbnail.svelte';
+  import { DesignExportImageError, exportDesign, type DesignExportFormat } from './designExport';
   import { DEFAULT_LAYER_COLOR, DESIGN_PAGE_CAP, PREVIEW_LAYER_CAP, type DesignDocument, type DesignLayer } from './designDocument';
 
   interface Props {
@@ -16,6 +20,8 @@
     owningChatId?: string;
     readOnly?: boolean;
     readImage?: (id: string) => Promise<ImageBitmap | null>;
+    readExportImage?: (id: string) => Promise<ImageBitmap | null>;
+    allowExport?: boolean;
     initialMode?: 'view' | 'edit';
     revision?: { version: number; save: (baseVersion: number, document: DesignDocument) => Promise<void> };
     versionNumber?: number;
@@ -24,7 +30,7 @@
     onClose: () => void;
   }
 
-  let { document: initialDocument, embedId, owningChatId, initialMode = 'view', readOnly = false, readImage, revision, versionNumber, versionHistory, assistantTools, onClose }: Props = $props();
+  let { document: initialDocument, embedId, owningChatId, initialMode = 'view', readOnly = false, readImage, readExportImage, allowExport = true, revision, versionNumber, versionHistory, assistantTools, onClose }: Props = $props();
   let document = $state.raw(untrack(() => initialDocument));
   let editing = $state(untrack(() => !readOnly && initialMode === 'edit'));
   let editingVersion = $state<number>();
@@ -36,6 +42,11 @@
   let mobilePanel = $state<'layers' | 'properties' | null>(null);
   let pagesOpen = $state(false);
   let clipboardOpen = $state(false);
+  let exportOpen = $state(false);
+  let exportTask = $state<AbortController>();
+  let exportError = $state<'image_unavailable' | 'failed'>();
+  const exportFormats = ['svg', 'png', 'pdf'] as const;
+  onDestroy(() => exportTask?.abort());
   let copied = $state.raw<DesignLayer | null>(null);
   let history = $state.raw<{ past: Revision[]; future: Revision[] }>({ past: [], future: [] });
   let zoom = $state(1);
@@ -179,6 +190,8 @@
     if (readOnly || saving) return;
     saveError = '';
     if (!editing) {
+      exportOpen = false;
+      exportError = undefined;
       editingVersion = revision?.version;
       editStart = document;
       history = { past: [], future: [] };
@@ -216,7 +229,35 @@
     pagesOpen = false;
   }
 
+  async function downloadDesign(format: DesignExportFormat) {
+    if (exportTask || editing || !allowExport) return;
+    const controller = new AbortController();
+    const epoch = getWorkspaceCacheEpoch();
+    const design = document;
+    const page = activePage;
+    const imageSource = { readAsset: readExportImage, previewImages: canvas?.decodedPreviewImages() };
+    exportTask = controller;
+    exportOpen = false;
+    exportError = undefined;
+    try {
+      const blob = await exportDesign(format, design, page, imageSource, controller.signal);
+      if (controller.signal.aborted || getWorkspaceCacheEpoch() !== epoch) return;
+      const title = format === 'pdf' ? design.title : `${design.title} - ${page.name}`;
+      const filename = title.replace(/[^\p{L}\p{N} ._–—-]+/gu, ' ').trim().slice(0, 120) || 'Design';
+      saveBlob(blob, `${filename}.${format}`);
+    } catch (error) {
+      if (controller.signal.aborted || getWorkspaceCacheEpoch() !== epoch) return;
+      exportError = error instanceof DesignExportImageError ? 'image_unavailable' : 'failed';
+    } finally {
+      exportTask = undefined;
+    }
+  }
+
   function escape() {
+    if (exportOpen) {
+      exportOpen = false;
+      return true;
+    }
     if (pagesOpen || clipboardOpen || mobilePanel || (editing && selectedId !== null)) {
       if (pagesOpen) pagesOpen = false;
       else if (clipboardOpen) clipboardOpen = false;
@@ -276,6 +317,9 @@
       {/if}
       {#if saveError}
         <p class="save-error" role="alert" data-testid="design-save-error">{saveError}</p>
+      {/if}
+      {#if exportError}
+        <p class="save-error" role="alert" data-testid="design-export-error">{$text(`embeds.design_document.export.${exportError}`)}</p>
       {/if}
       {#if editing}
         <div class="layers panel-slot" class:open={mobilePanel === 'layers'}>
@@ -341,6 +385,21 @@
               {/if}
             </div>
             <span class="divider" aria-hidden="true"></span>
+          {:else if allowExport}
+            <div class="export">
+              <EmbedIconButton icon="download" label={$text('embeds.design_document.export.label')} testId="design-export-toggle"
+                expanded={exportOpen} controls="design-export-menu" disabled={!!exportTask}
+                onclick={() => exportOpen = !exportOpen} />
+              {#if exportOpen}
+                <div class="export-menu" id="design-export-menu" data-testid="design-export-menu" aria-label={$text('embeds.design_document.export.label')} role="group">
+                  {#each exportFormats as format (format)}
+                    <button type="button" data-testid={`design-export-${format}`} onclick={() => downloadDesign(format)}>
+                      {format.toUpperCase()} <span>{$text(format === 'pdf' ? 'embeds.design_document.export.all_pages' : 'embeds.design_document.export.current_page')}</span>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
           {/if}
           <div class="zoom">
             <EmbedZoomControls zoomOut={() => canvas?.adjustZoom(1 / 1.25)} zoomIn={() => canvas?.adjustZoom(1.25)}
@@ -399,7 +458,7 @@
   .zoom :global(.doc-zoom-level) { min-width: 42px; padding-inline: 6px; }
   .mobile-tools { display: none; }
   .pages { position: absolute; top: 14px; left: 14px; z-index: 2; }
-  .page-toggle, .page-menu, .clipboard-menu {
+  .page-toggle, .page-menu, .clipboard-menu, .export-menu {
     background: var(--color-grey-0); color: inherit;
     border: 1px solid var(--color-grey-25); box-shadow: var(--shadow-lg);
   }
@@ -417,16 +476,19 @@
     background: var(--color-grey-10); color: inherit; border-radius: var(--radius-3); font-size: var(--font-size-xxs); cursor: pointer;
   }
   .page-menu button[aria-current='page'] { background: color-mix(in srgb, var(--color-primary-start) 18%, var(--color-grey-0)); }
-  .clipboard { position: relative; }
-  .clipboard-menu {
+  .clipboard, .export { position: relative; }
+  .clipboard-menu, .export-menu {
     position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%);
     display: grid; min-width: 130px; padding: 5px; border-radius: var(--radius-3);
   }
-  .clipboard-menu button {
+  .clipboard-menu button, .export-menu button {
     border: 0; border-radius: var(--radius-3); background: var(--color-grey-0); color: inherit;
     margin: 0; filter: none; padding: 9px; font: inherit; font-size: var(--font-size-xs); cursor: pointer;
   }
-  .clipboard-menu button:hover { background: var(--color-grey-20); }
+  .clipboard-menu button:hover, .export-menu button:hover { background: var(--color-grey-20); }
+  .export-menu { left: 0; transform: none; min-width: 170px; }
+  .export-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .export-menu button span { color: var(--color-font-tertiary); }
   .clipboard-menu button:disabled { opacity: .45; cursor: default; }
   .clipboard-menu span { font-size: var(--font-size-tiny); padding: 6px; }
 
