@@ -3,6 +3,7 @@ name: openmates-engineering-control-plane
 services:
   database:
     image: postgres:16-alpine
+    user: postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: engineering_control_plane

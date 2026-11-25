@@ -63,4 +63,8 @@ stage that runs in each environment.
   control-plane tests passed. The recreated live container has a single
   UID 10001 process and reports database readiness with no writable application
   volume. The dev rollout reused the cached image and enforced the new UID
-  through Compose.
+  through Compose in dev commit `504c3f7`.
+- Engineering control plane PostgreSQL starts as `postgres` (UID/GID 70).
+  A disposable database initialized and passed a SQL write/read with the
+  same image and UID. The live PostgreSQL container restarted with its existing
+  volume and both PostgreSQL and the engineering API returned to healthy.
