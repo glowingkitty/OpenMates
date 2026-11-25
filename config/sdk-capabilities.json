@@ -6641,7 +6641,6 @@
             "client.Client.rewind_chat",
             "client.Client.rotate_team_key_if_pending",
             "client.Client.run_browser_task_jobs",
-            "client.Client.run_code_with_status",
             "client.Client.run_prepared_saved_send",
             "client.Client.save_draft",
             "client.Client.save_draft_record",
