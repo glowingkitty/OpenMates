@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 import sys
+import hashlib
+import io
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -22,12 +24,12 @@ from scripts import response_media as media
 
 
 @pytest.mark.parametrize("access", ["owner", "public_acl", "bucket_policy", "missing_expiry"])
-def test_container_verifies_bucket_privacy_without_rewriting_acl(tmp_path, monkeypatch, access):
+def test_container_verifies_bucket_privacy_without_rewriting_acl(monkeypatch, access):
     class StorageError(Exception):
         response = {"Error": {"Code": "NoSuchBucketPolicy"}}
 
-    document = tmp_path / "briefing.pdf"
-    document.write_bytes(b"%PDF-1.4 test")
+    document = b"%PDF-1.4 test"
+    monkeypatch.setattr(sys, "stdin", SimpleNamespace(buffer=io.BytesIO(document)))
     client = Mock()
     grants = [{"Grantee": {"Type": "CanonicalUser", "ID": "owner"}}]
     if access == "public_acl":
@@ -58,14 +60,15 @@ def test_container_verifies_bucket_privacy_without_rewriting_acl(tmp_path, monke
     )
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
     monkeypatch.setenv("AGENT_RESPONSE_MEDIA_REQUEST", json.dumps({
-        "container_path": str(document), "bucket": media.BUCKET_NAME, "dev_bucket": media.DEV_BUCKET_NAME,
-        "lifecycle_days": 2, "media_kind": "document", "sha256": "a" * 64,
+        "size": len(document), "bucket": media.BUCKET_NAME, "dev_bucket": media.DEV_BUCKET_NAME,
+        "lifecycle_days": 2, "media_kind": "document", "sha256": hashlib.sha256(document).hexdigest(),
         "key": "review-responses/test.pdf", "content_type": "application/pdf", "expires_in": 172800,
     }))
 
     if access == "owner":
         exec(media.INNER_UPLOAD_CODE, {})
         assert client.put_object.call_args.kwargs["ACL"] == "private"
+        assert client.put_object.call_args.kwargs["Body"] == document
         assert boto.client.call_args.kwargs["region_name"] == "nbg1"
         assert manager.get_secret.call_args.kwargs["log_missing"] is False
     else:

@@ -2,7 +2,7 @@
 # scripts/response_media.py
 #
 # Upload temporary media/documents for agent responses without making a
-# public bucket. The host script copies a local response file into the API
+# public bucket. The host script streams a local response file into the API
 # container, where Vault-backed Hetzner S3 credentials are available, then
 # creates/reconciles a private 48-hour bucket and returns a presigned URL.
 #
@@ -21,6 +21,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from typing import BinaryIO
 import uuid
 
 
@@ -32,7 +33,6 @@ DEFAULT_EXPIRES_SECONDS = 48 * 60 * 60
 MIN_EXPIRES_SECONDS = 60
 MAX_EXPIRES_SECONDS = DEFAULT_EXPIRES_SECONDS
 DEFAULT_CONTAINER = "api"
-CONTAINER_TMP_DIR = "/tmp/agent-response-media"
 MAX_MEDIA_BYTES = 500 * 1024 * 1024
 RUN_KEY_PREFIX = "review-responses/runs"
 LATEST_RUN_TYPE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
@@ -60,9 +60,10 @@ ALLOWED_CONTENT_TYPES = set(CONTENT_TYPES.values())
 
 INNER_UPLOAD_CODE = r'''
 import asyncio
+import hashlib
 import json
 import os
-from pathlib import Path
+import sys
 import time
 
 import boto3
@@ -177,6 +178,9 @@ def ensure_cors(client, name, origins):
 
 
 async def main():
+    content = sys.stdin.buffer.read(REQUEST["size"] + 1)
+    if len(content) != REQUEST["size"] or hashlib.sha256(content).hexdigest() != REQUEST["sha256"]:
+        raise RuntimeError("Response-media stream differs from the verified file")
     manager = SecretsManager()
     await manager.initialize()
     access_key = await manager.get_secret(
@@ -216,7 +220,6 @@ async def main():
     ensure_lifecycle(client, target_bucket)
     ensure_cors(client, target_bucket, allowed_origins(environment))
 
-    content = Path(REQUEST["container_path"]).read_bytes()
     metadata = {
         "media-kind": REQUEST["media_kind"],
         "purpose": "agent-review-media",
@@ -342,10 +345,6 @@ def run_poster_object_key(run_type: str, video_sha256: str, poster_path: Path, p
     return f"review-responses/runs/{run_type}/{video_sha256}/poster-{poster_sha256}{poster_path.suffix.lower()}"
 
 
-def container_path_for(source: Path, key: str) -> str:
-    return f"{CONTAINER_TMP_DIR}/{Path(key).name}"
-
-
 def ensure_expires(value: int) -> int:
     if value < MIN_EXPIRES_SECONDS:
         raise ValueError(f"--expires-in must be at least {MIN_EXPIRES_SECONDS} seconds")
@@ -383,13 +382,16 @@ def validate_webvtt(text: str) -> None:
         previous_end = end
 
 
-def run_command(command: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def run_command(
+    command: list[str], *, env: dict[str, str] | None = None, stdin: BinaryIO | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         check=False,
         capture_output=True,
         text=True,
         env=env,
+        stdin=stdin,
     )
 
 
@@ -399,20 +401,14 @@ def upload_via_api_container(
     container: str,
     request: dict[str, object],
 ) -> dict[str, str]:
-    mkdir = run_command(["docker", "exec", container, "mkdir", "-p", CONTAINER_TMP_DIR])
-    if mkdir.returncode != 0:
-        raise RuntimeError(mkdir.stderr.strip() or mkdir.stdout.strip())
-
-    copy = run_command(["docker", "cp", str(source), f"{container}:{request['container_path']}"])
-    if copy.returncode != 0:
-        raise RuntimeError(copy.stderr.strip() or copy.stdout.strip())
-
     env = os.environ.copy()
     env["AGENT_RESPONSE_MEDIA_REQUEST"] = json.dumps(request, sort_keys=True)
-    upload = run_command(
-        ["docker", "exec", "-e", "AGENT_RESPONSE_MEDIA_REQUEST", container, "python", "-c", INNER_UPLOAD_CODE],
-        env=env,
-    )
+    with source.open("rb") as media:
+        upload = run_command(
+            ["docker", "exec", "-i", "-e", "AGENT_RESPONSE_MEDIA_REQUEST", container, "python", "-c", INNER_UPLOAD_CODE],
+            env=env,
+            stdin=media,
+        )
     if upload.returncode != 0:
         raise RuntimeError(upload.stderr.strip() or upload.stdout.strip())
     lines = [line for line in upload.stdout.splitlines() if line.strip().startswith("{")]
@@ -565,11 +561,9 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         if latest_run_type
         else object_key(source, content)
     )
-    container_path = container_path_for(source, key)
     request = {
         "bucket": BUCKET_NAME,
         "bucket_key": BUCKET_KEY,
-        "container_path": container_path,
         "content_type": content_type,
         "dev_bucket": DEV_BUCKET_NAME,
         "expires_in": expires_in,
@@ -577,6 +571,7 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         "lifecycle_days": LIFECYCLE_DAYS,
         "media_kind": kind,
         "sha256": sha256,
+        "size": len(content),
     }
 
     captions_result: dict[str, object] | None = None
@@ -607,10 +602,10 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         )
         poster_request = {
             **request,
-            "container_path": container_path_for(poster_source, poster_key),
             "content_type": poster_content_type,
             "key": poster_key,
             "sha256": poster_sha256,
+            "size": len(poster_content),
         }
     if args.captions:
         if kind != "video":
@@ -637,10 +632,10 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         )
         captions_request = {
             **request,
-            "container_path": container_path_for(captions_source, captions_key),
             "content_type": captions_content_type,
             "key": captions_key,
             "sha256": captions_sha256,
+            "size": len(captions_content),
         }
     if not re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", args.captions_language):
         raise ValueError("--captions-language must be a valid BCP-47 language tag")
