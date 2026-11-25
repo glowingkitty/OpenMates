@@ -325,7 +325,7 @@ def _speaks_call_confirmations(request_data: AskSkillRequest) -> bool:
 
 async def _cached_voice_feedback(request_data: AskSkillRequest, cache_service: Any) -> dict[str, Any] | None:
     """Read category metadata from the accepted speech turn, with a short fallback deadline."""
-    if not request_data.voice_call_id or not request_data.voice_turn_id or cache_service is None:
+    if cache_service is None or not request_data.voice_call_id or not request_data.voice_turn_id:
         return None
     from backend.shared.python_utils.voice_pause_decision import voice_feedback_key
     try:
