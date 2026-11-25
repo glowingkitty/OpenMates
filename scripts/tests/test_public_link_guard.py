@@ -160,7 +160,7 @@ def test_reserved_name_spelling_variants(separator):
     assert guard.main(["branch", f"refs/heads/{name}"]) == 1
 
 
-def test_range_and_pre_push_reject_an_intermediate_blob(tmp_path):
+def test_range_and_pre_push_reject_an_intermediate_blob(tmp_path, monkeypatch):
     def git(*args, data=None):
         return subprocess.check_output(["git", *args], input=data, cwd=tmp_path).strip().decode()
 
@@ -169,8 +169,8 @@ def test_range_and_pre_push_reject_an_intermediate_blob(tmp_path):
     env = {**os.environ, "GIT_AUTHOR_NAME": "A", "GIT_AUTHOR_EMAIL": "a@example.org",
            "GIT_COMMITTER_NAME": "A", "GIT_COMMITTER_EMAIL": "a@example.org"}
 
-    def commit(tree, *parents):
-        return subprocess.check_output(["git", "commit-tree", tree, *parents], input=b"clean message\n",
+    def commit(tree, *parents, message=b"clean message\n"):
+        return subprocess.check_output(["git", "commit-tree", tree, *parents], input=message,
                                        cwd=tmp_path, env=env).strip().decode()
 
     base = commit(empty)
@@ -183,3 +183,25 @@ def test_range_and_pre_push_reject_an_intermediate_blob(tmp_path):
         run = subprocess.run([sys.executable, str(SCRIPT), *args], cwd=tmp_path, input=push,
                              capture_output=True, text=True)
         assert run.returncode == 1 and "Rephrase" in run.stderr
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(guard, "LEGACY_RESERVED_COMMITS", frozenset({middle}))
+    guard.check_published_range(base, head)
+    guard.check_push("origin", push)
+    with pytest.raises(guard.ChatLinkError, match="published tree"):
+        guard.check_published_range(base, middle)
+
+    new_middle = commit(dirty, "-p", head)
+    new_head = commit(empty, "-p", new_middle)
+    with pytest.raises(guard.ChatLinkError, match="reserved external project name"):
+        guard.check_published_range(base, new_head)
+
+    known = commit(empty, "-p", head, message=BLOCKED["claude code session"].encode())
+    other = commit(empty, "-p", known, message=BLOCKED["openmates key in hash"].encode())
+    monkeypatch.setattr(guard, "LEGACY_CLAUDE_COMMIT_MESSAGES", frozenset({known, other}))
+    guard.check_published_range(base, known)
+    with pytest.raises(guard.ChatLinkError, match="OpenMates chat or share link"):
+        guard.check_published_range(base, other)
+    new_link = commit(empty, "-p", known, message=BLOCKED["claude chat"].encode())
+    with pytest.raises(guard.ChatLinkError, match="Claude chat"):
+        guard.check_published_range(base, new_link)

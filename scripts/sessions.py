@@ -13148,6 +13148,72 @@ def _check_public_tree(checkout_root: Path) -> None:
             raise RuntimeError(stderr.strip() or "Repository naming policy check failed")
 
 
+def _deploy_main_reconciliation(args: argparse.Namespace, session: dict, checkout: Path) -> None:
+    """Publish an exact-tree main reconciliation through the ordinary dev locks."""
+    sid = args.session
+    main = args.reconcile_main
+    if not re.fullmatch(r"[0-9a-f]{40}", main):
+        raise RuntimeError("Main reconciliation requires a full reviewed origin/main SHA.")
+    if any(getattr(args, option, None) for option in (
+        "reviewed_candidate", "reviewed_base", "only", "exclude", "use_staged",
+        "no_verify", "end_session", "expected_manifest_id",
+    )):
+        raise RuntimeError("Main reconciliation cannot be combined with patch deployment options.")
+    validate_worktree_binding_mode(session)
+    if not is_valid_managed_worktree_path(checkout):
+        raise RuntimeError("Main reconciliation requires this session's isolated worktree.")
+
+    def git(*argv: str) -> str:
+        rc, stdout, stderr = _run_cmd(["git", *argv], cwd=str(checkout), timeout=300)
+        if rc:
+            raise RuntimeError(f"Main reconciliation could not run git {argv[0]}: {stderr or stdout}")
+        return stdout
+
+    try:
+        from scripts.deploy_admission import admission_lock
+    except ModuleNotFoundError:
+        from deploy_admission import admission_lock
+
+    timeout = getattr(args, "lock_timeout", None)
+    with admission_lock(CONTROL_PLANE_ROOT / ".git" / "openmates-deploy-admission.lock", timeout=timeout or 900):
+        _wait_and_acquire_session_lock(
+            "vercel_deploy", sid, phase="reconciling_main_into_dev", timeout=timeout,
+            poll=getattr(args, "lock_poll", 30),
+        )
+        published = ""
+        try:
+            git("fetch", "origin", "main")
+            dev = _fetch_origin_dev_commit()
+            _enforce_control_plane_deploy_protocol_compatible(dev)
+            if git("rev-parse", "origin/main") != main:
+                raise RuntimeError("origin/main moved after review. Resolve again against current main.")
+            dev_tree = git("rev-parse", f"{dev}^{{tree}}")
+            if git("status", "--porcelain") or git("rev-parse", "HEAD^{tree}") != dev_tree:
+                raise RuntimeError("Resolve and stage the merge with the exact current dev tree before publishing.")
+            head = git("rev-parse", "HEAD")
+            if head == dev:
+                if git("rev-parse", "MERGE_HEAD") != main:
+                    raise RuntimeError("The staged merge does not use the reviewed origin/main commit.")
+                message = _integration_commit_message(args, session)
+                _refuse_chat_links(message, "merge message", check_name=True)
+                _check_public_tree(checkout)
+                git("commit", "-m", message)
+                head = git("rev-parse", "HEAD")
+            if git("show", "-s", "--format=%P", head).split() != [dev, main]:
+                raise RuntimeError("Expected exactly the current dev and reviewed main parents.")
+            if git("rev-parse", "HEAD^{tree}") != dev_tree:
+                raise RuntimeError("The merge changed the dev tree. Deploy content changes separately.")
+            _enforce_control_plane_sync_ready(dev)
+            git("push", "origin", "HEAD:refs/heads/dev")
+            published = head
+            _fast_forward_control_plane(head)
+        finally:
+            _release_session_lock("vercel_deploy", commit_sha=published, released_by=sid)
+    _save_last_deploy_sha(published)
+    _mark_worktree_deployed(sid, "", published)
+    _print_deployed_commit_handoff(published)
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
     _refuse_chat_links(f"{getattr(args, 'title', '') or ''}\n{getattr(args, 'message', '') or ''}",
@@ -13170,6 +13236,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     is_control_plane_repo = _session_is_control_plane_repo(session)
     worktree_metadata = session.get("worktree") if is_control_plane_repo and isinstance(session.get("worktree"), dict) else None
     checkout_root = _session_checkout_root(session)
+
+    if getattr(args, "reconcile_main", None):
+        if not worktree_metadata:
+            raise RuntimeError("Main reconciliation requires an OpenMates worktree.")
+        _deploy_main_reconciliation(args, session, checkout_root)
+        return
 
     reviewed_candidate = str(getattr(args, "reviewed_candidate", "") or "")
     reviewed_base = str(getattr(args, "reviewed_base", "") or "")
@@ -16119,6 +16191,10 @@ def main() -> None:
     p_deploy.add_argument("--full", action="store_true", help="Include the deployed file inventory")
     p_deploy.add_argument("--reviewed-candidate", help="Exact session CI candidate to deploy without changing its source worktree")
     p_deploy.add_argument("--reviewed-base", help="Exact reviewed candidate parent; selected upstream drift blocks deployment")
+    p_deploy.add_argument(
+        "--reconcile-main", metavar="MAIN_SHA",
+        help="Publish a resolved main-to-dev merge whose tree equals current origin/dev",
+    )
     p_deploy.add_argument(
         "--session", "-s", help="Session ID"
     )
