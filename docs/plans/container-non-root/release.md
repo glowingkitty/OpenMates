@@ -45,6 +45,12 @@ account. Record the mounted volume's ownership before updating. Verify the
 normal startup unseals Vault with its existing data and that the API returns
 to healthy. The deployed file-storage configuration keeps mlock disabled.
 
+Core API and Celery use UID/GID 1000. Check that existing API logs,
+recommendation data and the Celery beat schedule are writable by this user.
+Run the matching Vault setup before the API and workers so it assigns
+application handoff files to UID 1000 and preserves their existing modes.
+Verify worker heartbeats, a queued task and the scheduler after the update.
+
 For upload Vault setup, prepare the existing private setup volume and separate
 app handoff volume for UID/GID 10003 before the first start. Keep the directories
 at mode 0700 and private credential files at 0600. Verify that the root token

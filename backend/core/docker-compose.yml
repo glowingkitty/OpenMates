@@ -210,7 +210,7 @@ services:
         condition: none
   task-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -259,13 +259,7 @@ services:
       - sh
       - -c
       - |
-        mkdir -p /app/data/apps-recommendations && chmod 700 /app/data/apps-recommendations && chown -R celeryuser:celeryuser /app/data/apps-recommendations /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=email \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -286,13 +280,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=user_init \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -312,13 +300,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=persistence,health_check,server_stats,demo,e2e_tests,push,leaderboard \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -337,13 +319,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=user_tasks \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -362,13 +338,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=reminder \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -378,7 +348,7 @@ services:
     extends: *id001
   workflow-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -413,11 +383,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=workflow \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -459,7 +425,7 @@ services:
     build: *id004
   app-ai-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -499,11 +465,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_ai \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -513,7 +475,7 @@ services:
     build: *id004
   app-ai-routing-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -552,11 +514,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_ai_routing \
         --concurrency=${APP_AI_ROUTING_CONCURRENCY:-2} \
@@ -566,7 +524,7 @@ services:
     build: *id004
   app-images-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -603,11 +561,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_images \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -617,7 +571,7 @@ services:
     build: *id004
   app-music-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -654,11 +608,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_music \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -668,7 +618,7 @@ services:
     build: *id004
   app-videos-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -697,11 +647,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_videos \
         --concurrency=${CELERY_VIDEOS_AUTOSCALE_MAX:-2} \
@@ -711,7 +657,7 @@ services:
     build: *id004
   app-pdf-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -738,11 +684,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_pdf \
         --concurrency=2 \
@@ -795,7 +737,7 @@ services:
       dockerfile: Dockerfile.docs
   app-code-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -822,11 +764,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_code \
         --concurrency=2 \
@@ -836,7 +774,7 @@ services:
     build: *id004
   app-social-media-worker:
     restart: unless-stopped
-    user: root
+    user: celeryuser
     env_file: ../../.env
     environment:
       PYTHONPATH: /app
@@ -863,11 +801,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=app_social_media \
         --concurrency=2 \

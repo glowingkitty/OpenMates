@@ -6,6 +6,7 @@ services:
   # gates consistent, including services inherited from task-worker.
   task-worker:
     image: &development-celery-image openmates-dev-celery-worker:local
+    group_add: &development-runtime-groups ["1001"]
     environment: &development-worker-environment
       BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
       # Send recipient-held newsletter confirmations to the standalone dev website.
@@ -20,50 +21,62 @@ services:
 
   core-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   user-init-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   user-tasks-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   reminder-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   workflow-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   task-scheduler:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-ai-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-ai-routing-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-images-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-music-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-videos-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-pdf-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-docs-worker:
@@ -71,10 +84,12 @@ services:
     volumes: *development-notification-spool
   app-code-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-social-media-worker:
     image: *development-celery-image
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
 

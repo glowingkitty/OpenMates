@@ -108,13 +108,7 @@ services:
       - sh
       - -c
       - |
-        mkdir -p /app/data/apps-recommendations && chmod 700 /app/data/apps-recommendations && chown -R celeryuser:celeryuser /app/data/apps-recommendations /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -167,13 +161,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -190,13 +178,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -211,13 +193,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -232,13 +208,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
-        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -261,11 +231,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=$${CELERY_AUTOSCALE_MAX} \
@@ -327,11 +293,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -364,11 +326,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=${APP_AI_ROUTING_CONCURRENCY:-2} \
@@ -401,11 +359,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -440,11 +394,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=${CELERY_AUTOSCALE_MAX} \
@@ -482,11 +432,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=${CELERY_VIDEOS_AUTOSCALE_MAX:-2} \
@@ -511,11 +457,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=2 \
@@ -573,11 +515,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=2 \
@@ -603,11 +541,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=2 \

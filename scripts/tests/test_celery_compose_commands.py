@@ -15,7 +15,8 @@ QUEUES = {
     "task-worker": "email", "user-init-worker": "user_init",
     "core-worker": "persistence,health_check,server_stats,demo,e2e_tests,push,leaderboard",
     "user-tasks-worker": "user_tasks", "reminder-worker": "reminder", "workflow-worker": "workflow",
-    "app-ai-worker": "app_ai", "app-images-worker": "app_images", "app-music-worker": "app_music",
+    "app-ai-worker": "app_ai", "app-ai-routing-worker": "app_ai_routing",
+    "app-images-worker": "app_images", "app-music-worker": "app_music",
     "app-videos-worker": "app_videos", "app-pdf-worker": "app_pdf", "app-docs-worker": "app_docs",
     "app-code-worker": "app_code", "app-social-media-worker": "app_social_media",
     "task-scheduler": None,
@@ -55,13 +56,14 @@ def test_resolved_shell_passes_every_execution_bound_to_one_celery_process(name,
     assert command[:2] == ["sh", "-c"] and len(command) == 3
     executable_dir = tmp_path / "bin"
     executable_dir.mkdir()
-    for operation in ("chown", "mkdir", "chmod", "find"):
-        stub = executable_dir / operation
-        stub.write_text("#!/bin/sh\nexit 0\n")
-        stub.chmod(0o700)
-    gosu = executable_dir / "gosu"
-    gosu.write_text('#!/bin/sh\ntest "$1" = celeryuser || exit 91\nshift\nexec "$@"\n')
-    gosu.chmod(0o700)
+    if name == "app-docs-worker":
+        for operation in ("chown", "mkdir", "chmod"):
+            stub = executable_dir / operation
+            stub.write_text("#!/bin/sh\nexit 0\n")
+            stub.chmod(0o700)
+        gosu = executable_dir / "gosu"
+        gosu.write_text('#!/bin/sh\ntest "$1" = celeryuser || exit 91\nshift\nexec "$@"\n')
+        gosu.chmod(0o700)
     python = executable_dir / "python"
     python.write_text(f"#!{sys.executable}\nimport json, sys\nprint(json.dumps(sys.argv[1:]))\n")
     python.chmod(0o700)
@@ -83,3 +85,18 @@ def test_resolved_shell_passes_every_execution_bound_to_one_celery_process(name,
         assert flags == {"loglevel": "info", "queues": QUEUES[name], "concurrency": "2",
                          "max-tasks-per-child": str(tasks), "max-memory-per-child": str(memory),
                          "prefetch-multiplier": "1"}
+
+
+def test_core_workers_use_the_image_account_in_both_compose_profiles():
+    core = ROOT / "backend/core"
+    published = yaml.safe_load((core / "docker-compose.selfhost.yml").read_text())["services"]
+    development = yaml.safe_load((core / "docker-compose.yml").read_text())["services"]
+    for name in QUEUES.keys() - {"app-docs-worker"}:
+        assert published[name]["user"] == "celeryuser"
+        config = development[name]
+        while "user" not in config and "extends" in config:
+            config = development[config["extends"]["service"]]
+        if name == "task-scheduler":
+            assert "USER celeryuser\n" in (core / "api/Dockerfile.celery").read_text()
+        else:
+            assert config["user"] == "celeryuser"
