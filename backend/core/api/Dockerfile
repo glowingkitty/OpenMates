@@ -17,10 +17,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Celery workers start as root only long enough to fix mounted volume ownership,
-# then drop to this unprivileged runtime user via gosu in docker-compose.
-RUN groupadd --system celeryuser && \
-    useradd --system --gid celeryuser --create-home --shell /usr/sbin/nologin celeryuser
+# Use the same UID and GID as the core Vault handoff and worker account.
+RUN groupadd --gid 1000 celeryuser && \
+    useradd --uid 1000 --gid celeryuser --create-home --shell /usr/sbin/nologin celeryuser
 
 # Copy the requirements file from its location within the backend/core/api directory
 # (relative to the new build context, which is the project root)
@@ -47,8 +46,8 @@ COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.ym
 COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 COPY frontend/packages/ui/src/i18n/locales /app/frontend/packages/ui/src/i18n/locales
 
-# Create a directory for logs. The application should be configured to write logs here.
-RUN mkdir -p /app/logs && chown -R celeryuser:celeryuser /app/logs
+# Runtime-owned directories also seed fresh Docker volumes with the right owner.
+RUN install -d -o celeryuser -g celeryuser -m 0750 /app/logs /app/backend/core/api/logs /app/data/apps-recommendations
 
 # Set environment variables for Python
 ENV BUILD_COMMIT_SHA=${BUILD_COMMIT_SHA}
@@ -60,6 +59,8 @@ ENV PYTHONPATH "/app"
 
 # Expose the port the API will run on
 EXPOSE 8000
+
+USER celeryuser
 
 # Default command to run the application.
 # This is typically overridden by the 'command' in docker-compose.yml.
