@@ -294,6 +294,11 @@ export class AssistantSpeechQueue {
       : "replayable_track_queue";
   }
 
+  get activeAcknowledgementUrl(): string | null {
+    const segment = this.activeSegment;
+    return segment?.id.startsWith("acknowledgement:") ? segment.audioUrl ?? null : null;
+  }
+
   get hasReplayableTracks(): boolean {
     return this.orderedSegments.some((segment) => segment.playbackClass === "replayable");
   }
@@ -356,7 +361,8 @@ export class AssistantSpeechQueue {
     // Delayed confirmations are optional: useful speech wins as soon as ready,
     // and a failed confirmation must never fail the canonical response track.
     const realReady = segment.sequence >= 0 && segment.playbackClass === "replayable" && segment.status === "ready";
-    const lateWaiting = segment.sequence === -1 && segment.kind === "waiting_confirmation" && this.orderedSegments.some((item) => item.sequence >= 0 && item.status === "ready");
+    const lateWaiting = segment.sequence === -1 && segment.kind === "waiting_confirmation"
+      && this.orderedSegments.some((item) => item.sequence >= 0 && item.status === "ready" && !this.completedSegmentIds.has(item.id));
     const waitingFailed = segment.sequence === -1 && segment.kind === "waiting_confirmation" && segment.status === "failed";
     const skipped = this.orderedSegments.filter((item) => item.sequence === -1 && item.kind === "waiting_confirmation"
       && (realReady || waitingFailed || lateWaiting));

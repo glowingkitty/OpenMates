@@ -197,6 +197,33 @@ async def test_instant_acknowledgement_uses_only_the_answering_mates_voice(monke
     assert published[0]["payload"]["audio_url"].startswith("/audio/assistant-acknowledgements/sophia/")
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+async def test_reasoning_clip_is_call_bound_and_uses_the_routed_voice_and_language(monkeypatch):
+    from types import SimpleNamespace
+
+    from backend.apps.ai.tasks import stream_consumer
+
+    published = []
+
+    async def capture(_cache, _channel, event, *_args):
+        published.append(event["payload"])
+
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", capture)
+    request = SimpleNamespace(chat_id="chat", user_id_hash="owner", voice_call_id="call")
+    kwargs = dict(task_id="task", request_data=request, voice_profile_id="george",
+                  cache_service=None, log_prefix="[test]")
+    await stream_consumer.publish_voice_reasoning_confirmation(language="de-DE", phase=1, **kwargs)
+    await stream_consumer.publish_voice_reasoning_confirmation(language="de-DE", phase=2, **kwargs)
+    await stream_consumer.publish_voice_reasoning_confirmation(language="ja-JP", phase=3, **kwargs)
+
+    assert len(published) == 2
+    assert all(payload["voice_call_id"] == "call" for payload in published)
+    assert all(payload["audio_url"].startswith("/audio/assistant-acknowledgements/george/de-DE/reasoning-")
+               for payload in published)
+    assert len({payload["clip_id"] for payload in published}) == 2
+    assert "task" not in stream_consumer._INSTANT_ACK_SENT
+
+
 # contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
 def test_new_chat_is_confirmed_in_the_neutral_system_voice_never_a_mate_voice():
     from backend.apps.ai.assistant_speech.voice_status import select_chat_start_confirmation

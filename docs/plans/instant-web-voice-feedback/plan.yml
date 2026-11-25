@@ -13,6 +13,7 @@ scope:
     - Reuse the existing ElevenLabs catalog, generator and playback path. Match the speaking Mate and supported language and select one of three prerecorded variants.
     - Keep audio captured from a playing clip out of user turns, completion checks and hold decisions. Verify real caller interruption with the same playback path.
     - Keep categorized feedback independently deployable and switchable. Prove signed-in and guest web calls on dev.
+    - Play the routed Mate's cached thinking confirmation from the actual signed-in answer model's reasoning dispatch, independent of Jev.
   out:
     - Apple application changes, client-side encryption changes and production operations.
     - A new chat-generation route, new runtime synthesis for acknowledgment audio or locale analytics collection.
@@ -20,3 +21,4 @@ required_checks:
   - Check all required catalog entries and their voice and locale. Calculate the cost of missing clips before generation and leave existing recordings in place.
   - Unit and isolated browser checks for the feedback decisions, timeout fallback, hold without chat inference, clip echo rejection and caller interruption.
   - Compare speech end to first audible feedback or answer using the same dev recordings before and after. Prove signed-in, guest and startup speaker playback with no echo turn.
+  - Record a real signed-in web call with a reasoning model, proving that its cached clip plays before the generated answer and a microphone replay of the clip creates no transcript.

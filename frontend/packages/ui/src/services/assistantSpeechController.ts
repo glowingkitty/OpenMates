@@ -68,6 +68,7 @@ interface SpeechStatusPayload extends SpeechStatusSegment {
 }
 
 interface SpeechAcknowledgementPayload {
+  voice_call_id?: string;
   chat_id?: string;
   message_id?: string;
   clip_id?: string;
@@ -139,8 +140,6 @@ class AssistantSpeechController {
   private activeCallId: string | null = null;
   private canonicalSource: { chatId: string; messageId: string; text: string } | null = null;
   private callSpeechSource: { messageId: string; text: string } | null = null;
-  /** The prerecorded clip spoken for a message before (or instead of) its answer. */
-  private acknowledgementClip: { messageId: string; audioUrl: string } | null = null;
   private readonly queue = new AssistantSpeechQueue({
     onStateChange: () => this.publish(),
     onNeedSegment: (segment) => { void this.requestGeneration(segment); },
@@ -395,7 +394,6 @@ class AssistantSpeechController {
 
   async close(): Promise<void> {
     this.canonicalSource = null;
-    this.acknowledgementClip = null;
     if (this.messageId) this.dismissedMessageIds.add(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
@@ -443,7 +441,6 @@ class AssistantSpeechController {
 
   async stop(): Promise<void> {
     this.canonicalSource = null;
-    this.acknowledgementClip = null;
     if (this.messageId) this.rememberStoppedMessage(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
@@ -894,12 +891,13 @@ class AssistantSpeechController {
   }
 
   interruptCallClip(audioUrl: string): void {
-    if (!this.activeCallId || this.acknowledgementClip?.audioUrl !== audioUrl) return;
+    if (!this.activeCallId || this.queue.activeAcknowledgementUrl !== audioUrl) return;
     const segment = this.queue.state.activeSegmentId;
     if (segment?.startsWith("acknowledgement:")) this.queue.skipWaitingConfirmation(segment);
   }
 
   private handleAcknowledgement(payload: SpeechAcknowledgementPayload): void {
+    if (payload.voice_call_id && payload.voice_call_id !== this.activeCallId) return;
     if (this.callOwner && payload.chat_id !== this.callOwner) return;
     if (!payload.chat_id || !payload.message_id || !payload.clip_id || !payload.audio_url) return;
     if (this.stoppedMessageIds.has(payload.message_id)) return;
@@ -908,7 +906,6 @@ class AssistantSpeechController {
     this.chatId = payload.chat_id;
     this.messageId = payload.message_id;
     this.error = null;
-    this.acknowledgementClip = { messageId: payload.message_id, audioUrl: payload.audio_url };
     const acknowledgement: AssistantSpeechSegment = {
       id: `acknowledgement:${payload.clip_id}`,
       sequence: -1,
@@ -1080,15 +1077,15 @@ class AssistantSpeechController {
     // A clip for a new answer plays before that answer's text arrives: report
     // the playing message and its clip, not the previous answer as silent, so
     // a live call can recognise the clip in its microphone (EYHC5).
-    const clip = this.acknowledgementClip?.messageId === this.messageId ? this.acknowledgementClip : null;
-    const source = (clip || this.activeCallId) && this.canonicalSource?.messageId !== this.messageId
+    const clipAudioUrl = this.queue.activeAcknowledgementUrl;
+    const source = (clipAudioUrl || this.activeCallId) && this.canonicalSource?.messageId !== this.messageId
       ? null : this.canonicalSource;
     const callSource = this.callSpeechSource?.messageId === this.messageId ? this.callSpeechSource : null;
     this.activity.set({
       chatId: source?.chatId ?? this.chatId,
       messageId: source?.messageId ?? this.messageId,
       text: this.activeCallId ? callSource?.text ?? "" : source?.text ?? "",
-      clipAudioUrl: this.queue.state.activeSegmentId?.startsWith("acknowledgement:") ? clip?.audioUrl ?? null : null,
+      clipAudioUrl,
       speaking: this.queue.state.status === "playing" && (!source || source.messageId === this.messageId),
       language: get(locale) || "en",
     });

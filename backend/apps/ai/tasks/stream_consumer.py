@@ -364,6 +364,7 @@ async def _call_confirmation_language(
 async def _publish_call_confirmation_clip(
     *, task_id: str, request_data: AskSkillRequest, clip: dict[str, object],
     cache_service: Any, log_prefix: str, description: str,
+    reasoning_phase: int | None = None,
 ) -> None:
     message_id = _assistant_message_id(task_id, request_data)
     await _publish_to_redis(
@@ -377,17 +378,42 @@ async def _publish_call_confirmation_clip(
             "payload": {
                 "chat_id": request_data.chat_id,
                 "message_id": message_id,
-                "clip_id": clip["clip_id"],
+                "clip_id": clip["clip_id"] if reasoning_phase is None else f"{clip['clip_id']}-{task_id}-{reasoning_phase}",
                 "audio_url": clip["asset_url"],
+                **({"voice_call_id": request_data.voice_call_id} if reasoning_phase is not None else {}),
             },
         },
         log_prefix,
         description,
     )
-    # One confirmation per turn: the speech setup after routing plays no second one.
+    if reasoning_phase is not None:
+        return
+    # One early confirmation per turn: the speech setup after routing plays no second one.
     if len(_INSTANT_ACK_SENT) >= _INSTANT_ACK_SENT_LIMIT:
         _INSTANT_ACK_SENT.pop(next(iter(_INSTANT_ACK_SENT)))
     _INSTANT_ACK_SENT[message_id] = None
+
+
+async def publish_voice_reasoning_confirmation(
+    *, task_id: str, request_data: AskSkillRequest, voice_profile_id: str,
+    language: str | None, phase: int, cache_service: Any, log_prefix: str,
+) -> None:
+    """Play the routed Mate's cached thinking line when the answer actually starts reasoning."""
+    from backend.apps.ai.assistant_speech.voice_status import select_categorized_voice_feedback
+
+    clip = select_categorized_voice_feedback(
+        voice_profile_id=voice_profile_id, category="answering", language=language,
+        seed=f"{task_id}:{phase}",
+    )
+    if clip:
+        try:
+            async with asyncio.timeout(0.15):
+                await _publish_call_confirmation_clip(
+                    task_id=task_id, request_data=request_data, clip=clip, cache_service=cache_service,
+                    log_prefix=log_prefix, description="voice reasoning confirmation", reasoning_phase=phase,
+                )
+        except TimeoutError:
+            logger.warning("%s Voice reasoning confirmation timed out", log_prefix)
 
 
 async def publish_instant_voice_acknowledgement(
@@ -423,9 +449,18 @@ async def publish_instant_voice_acknowledgement(
             pass  # A future hold can use the existing neutral voice.
         if feedback.get("delivered") is True:
             return False
+        category = feedback.get("category", "none")
+        if category == "answering":
+            from backend.apps.ai.utils.llm_utils import _is_reasoning_model
+
+            # Let the concrete provider dispatch announce a routed reasoning model.
+            if preprocessing_result is None or _is_reasoning_model(
+                getattr(preprocessing_result, "selected_main_llm_model_id", None),
+            ):
+                return False
         language = feedback.get("language")
         acknowledgement = select_categorized_voice_feedback(
-            voice_profile_id=mate.voice_profile.key, category=feedback.get("category", "none"),
+            voice_profile_id=mate.voice_profile.key, category=category,
             language=(getattr(preprocessing_result, "output_language", None) or language) if language else None,
             seed=seed,
         )
@@ -6959,6 +6994,21 @@ async def _consume_main_processing_stream(
             user_vault_key_id=user_vault_key_id
         )
 
+    # Main processing is lazy, so speech setup below establishes the cue eligibility
+    # and the selected voice before the first provider dispatch.
+    reasoning_profile: str | None = None
+    reasoning_phase = 0
+
+    async def announce_voice_reasoning() -> None:
+        nonlocal reasoning_phase
+        if reasoning_profile is None:
+            return
+        reasoning_phase += 1
+        await publish_voice_reasoning_confirmation(
+            task_id=task_id, request_data=request_data, voice_profile_id=reasoning_profile,
+            language=voice_status_language, phase=reasoning_phase, cache_service=cache_service, log_prefix=log_prefix,
+        )
+
     # Normal processing flow for other non-harmful content
     main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
         task_id=task_id,
@@ -6975,6 +7025,7 @@ async def _consume_main_processing_stream(
         always_include_skills=always_include_skills,  # Pass always-include skills from config
         user_overrides=user_overrides,  # Pass user overrides for skip-permission logic
         skill_config_dict=skill_config_dict,
+        on_reasoning_dispatch=announce_voice_reasoning if _speaks_call_confirmations(request_data) else None,
     )
 
     stream_chunk_count = int((request_data.same_turn_checkpoint or {}).get("published_stream_chunk_count") or 0)
@@ -7063,6 +7114,20 @@ async def _consume_main_processing_stream(
             categorized_call = False
             if request_data.voice_mode and request_data.auto_speak_response:
                 categorized_call = await _cached_voice_feedback(request_data, cache_service) is not None
+                if cache_service is not None and request_data.voice_call_id and _speaks_call_confirmations(request_data):
+                    from backend.shared.python_utils.voice_call_registry import active_call_session
+                    from redis.exceptions import RedisError
+
+                    try:
+                        async with asyncio.timeout(0.15):
+                            if await active_call_session(
+                                cache_service, user_id=request_data.user_id, chat_id=request_data.chat_id,
+                                call_id=request_data.voice_call_id, require_instant_feedback=True,
+                            ):
+                                reasoning_profile = selected_mate.voice_profile.key
+                                categorized_call = True
+                    except (TimeoutError, OSError, RuntimeError, RedisError):
+                        logger.warning("%s Voice reasoning confirmation capability unavailable", log_prefix)
                 # Already played when the turn started (explicitly chosen Mate, or
                 # the neutral system clip of a new chat); otherwise it plays now,
                 # in the routed Mate's voice.

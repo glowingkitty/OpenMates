@@ -680,7 +680,7 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "execution_version",
 )
 SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error", "sealed"}
-SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
+SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url", "voice_call_id")
 MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
 

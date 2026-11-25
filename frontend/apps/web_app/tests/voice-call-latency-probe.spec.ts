@@ -28,12 +28,14 @@ const QUESTIONS = Number(process.env.VOICE_LATENCY_QUESTIONS || '0');
 const CALL_SECONDS = Number(process.env.VOICE_LATENCY_CALL_SECONDS || '0');
 const GUEST = process.env.VOICE_LATENCY_GUEST === '1';
 const SPEAKER_LOOPBACK = process.env.VOICE_LATENCY_SPEAKER_LOOPBACK === '1';
+const THINKING = process.env.VOICE_LATENCY_THINKING === '1';
+const REASONING_CLIP = /^\/audio\/assistant-acknowledgements\/(?!system\/)[^/]+\/[^/]+\/reasoning-[1-3]\.mp3$/;
 const SCALAR_FIELDS = ['final', 'is_final', 'is_last_chunk', 'sequence', 'status', 'kind', 'phase', 'speech_status', 'verified_silence',
   'state', 'stage', 'reason', 'category', 'decision', 'role', 'stt_duration_seconds', 'credits_accrued'];
 
 type Frame = { t: number; socket: string; dir: string; type: string; fields: Record<string, unknown>; textLen?: number };
 
-function installRecorders(speakerLoopback: boolean) {
+function installRecorders({ speakerLoopback, thinking }: { speakerLoopback: boolean; thinking: boolean }) {
   const w = window as unknown as { __probe: {
     gum: number[]; playing: { t: number; src: string }[]; speakerFeeds: string[];
   } };
@@ -71,7 +73,7 @@ function installRecorders(speakerLoopback: boolean) {
     revokeObjectURL(url);
   };
   const hooked = new WeakSet<HTMLMediaElement>();
-  const looped = new WeakSet<HTMLMediaElement>();
+  const looped = new WeakMap<HTMLMediaElement, GainNode>();
   const originalPlay = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
     if (!hooked.has(this)) {
@@ -83,9 +85,13 @@ function installRecorders(speakerLoopback: boolean) {
         w.__probe.playing.push({ t: Date.now(), src: kind });
       });
     }
-    if (echoPath && !looped.has(this)) {
-      const asset = new URL(this.currentSrc || this.src || '/', location.href);
-      if (asset.origin === location.origin && asset.pathname.startsWith('/audio/assistant-acknowledgements/')) {
+    if (echoPath) {
+      const asset = new URL(this.src || this.currentSrc || '/', location.href);
+      const loopback = asset.origin === location.origin && asset.pathname.startsWith('/audio/assistant-acknowledgements/')
+        && (!thinking || /\/reasoning-[1-3]\.mp3$/.test(asset.pathname));
+      const existingGain = looped.get(this);
+      if (existingGain) existingGain.gain.value = loopback ? 0.22 : 0;
+      if (loopback && !existingGain) {
         const { context, microphone } = echoPath;
         const speaker = context.createMediaElementSource(this);
         const delay = context.createDelay();
@@ -94,9 +100,9 @@ function installRecorders(speakerLoopback: boolean) {
         gain.gain.value = 0.22;
         speaker.connect(context.destination);
         speaker.connect(delay).connect(gain).connect(microphone);
-        looped.add(this);
-        w.__probe.speakerFeeds.push(asset.pathname);
+        looped.set(this, gain);
       }
+      if (loopback) w.__probe.speakerFeeds.push(asset.pathname);
     }
     return originalPlay.call(this);
   };
@@ -145,12 +151,16 @@ test.describe('voice call latency probe', () => {
             const value = body[key];
             if (typeof value === 'boolean' || typeof value === 'number' || (typeof value === 'string' && value.length <= 40)) fields[key] = value;
           }
+          if (type === 'assistant_speech_acknowledgement' && typeof body.audio_url === 'string'
+            && REASONING_CLIP.test(body.audio_url) && typeof body.voice_call_id === 'string') {
+            fields.reasoningClip = body.audio_url;
+          }
           const text = typeof body.text === 'string' ? body.text : undefined;
           frames.push({ t, socket: name, dir, type, fields, ...(text !== undefined ? { textLen: text.length } : {}) });
         });
       }
     });
-    await page.addInitScript(installRecorders, SPEAKER_LOOPBACK);
+    await page.addInitScript(installRecorders, { speakerLoopback: SPEAKER_LOOPBACK, thinking: THINKING });
     await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
     if (!GUEST) {
       await loginToTestAccount(page, log, screenshot);
@@ -192,6 +202,20 @@ test.describe('voice call latency probe', () => {
         expect(probe.speakerFeeds.length, 'a real static clip reached the speaker path').toBeGreaterThan(0);
         expect(userMessages, 'the microphone echo did not create a chat turn').toBe(QUESTIONS);
         expect(frames.filter(frame => frame.type === 'transcript' && frame.fields.final === true)).toHaveLength(QUESTIONS);
+      }
+      if (THINKING) {
+        const dispatch = frames.find(frame => typeof frame.fields.reasoningClip === 'string');
+        const clip = probe.playing.find(event => event.src === dispatch?.fields.reasoningClip);
+        const answer = probe.playing.find(event => event.src === 'media-source' || event.src === 'reply-blob');
+        expect(dispatch, 'the real model dispatch sent a call-bound reasoning acknowledgement').toBeDefined();
+        expect(clip, 'the routed Mate clip played audibly').toBeDefined();
+        expect(answer, 'the generated answer played').toBeDefined();
+        expect(clip!.t, 'the cached clip played before the generated answer').toBeLessThan(answer!.t);
+        expect(probe.speakerFeeds).toContain(clip!.src);
+        expect(frames.filter(frame => frame.type === 'transcript' && frame.t >= clip!.t),
+          'the thinking clip did not produce even a partial user transcript').toHaveLength(0);
+        await expect(page.getByTestId('message-assistant').last().getByTestId('generated-by'))
+          .toContainText(/Gemini|Mercury|Claude|GPT-5/i);
       }
       if (GUEST) {
         expect(userMessages, 'the guest question turned into one chat message').toBe(QUESTIONS);

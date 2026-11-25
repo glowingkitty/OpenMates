@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 24
+version: 25
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -534,8 +534,11 @@ assertions:
     answer. Categorized web feedback uses the bounded Jev check over the completed utterance. It chooses answer, work
     or none independently of the existing wait intent. Play one of three static variants in the answering Mate's
     voice once that Mate is known. A new chat may use its existing neutral startup cue before a Mate is known when
-    that cue exists in the detected language. None, an unavailable decision or an unsupported language skips the clip and follows
-    the ordinary reply path. A categorized clip never submits a chat turn or uses runtime speech synthesis.
+    that cue exists in the detected language. None or an unavailable decision skips the early categorized clip.
+    When the live signed-in web call actually starts an answer-model reasoning phase, including later phases after a skill,
+    play one of three cached thinking clips in the routed Mate's voice and reply language independently of Jev or any startup cue.
+    Retries within that phase do not repeat it. An unsupported language skips the clip. A cached clip never submits a chat turn,
+    counts as caller speech when recaptured by the microphone, or uses runtime speech synthesis.
   depends_on:
   - examples.localized_waiting
 - id: video-call.audio.waiting-language
@@ -707,6 +710,8 @@ examples:
   - permission_prompt
 
 notes:
+  version_25_reasoning_confirmation: >-
+    Verified owner receipt cf01bcea73ed78fd requires the cached Mate thinking confirmation at actual reasoning dispatch.
   version_12_scope_authorization: >-
     Direct user instruction on 2026-10-25 authorizes Eleven v4 Turbo call speech and
     incremental text input while retaining Voxtral transcription and shared processing.

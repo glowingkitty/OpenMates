@@ -41,6 +41,7 @@ async def _client(cache: Any) -> Any:
 async def register_active_call(
     cache: Any, *, user_id: str, session_id: str, chat_id: str, call_id: str,
     ttl_seconds: int = ACTIVE_TTL_SECONDS,
+    instant_feedback: bool = False,
 ) -> None:
     key, _ = _keys(call_id)
     if not all(isinstance(value, str) and value for value in (user_id, session_id, chat_id)):
@@ -48,9 +49,9 @@ async def register_active_call(
     client = await _client(cache)
     created = await client.eval(
         "if redis.call('EXISTS', KEYS[1]) ~= 0 then return 0 end "
-        "redis.call('HSET', KEYS[1], 'user', ARGV[1], 'session', ARGV[2], 'chat', ARGV[3], 'state', 'active') "
+        "redis.call('HSET', KEYS[1], 'user', ARGV[1], 'session', ARGV[2], 'chat', ARGV[3], 'state', 'active', 'instant_feedback', ARGV[5]) "
         "redis.call('EXPIRE', KEYS[1], ARGV[4]) return 1",
-        1, key, user_id, session_id, chat_id, ttl_seconds,
+        1, key, user_id, session_id, chat_id, ttl_seconds, int(instant_feedback),
     )
     if created != 1:
         raise RuntimeError("Call identity already exists")
@@ -143,7 +144,9 @@ async def finalize_active_call(
         raise RuntimeError("Voice call authority lost")
 
 
-async def active_call_session(cache: Any, *, user_id: str, chat_id: str, call_id: str) -> str | None:
+async def active_call_session(
+    cache: Any, *, user_id: str, chat_id: str, call_id: str, require_instant_feedback: bool = False,
+) -> str | None:
     """Return the owning session only while this owner/chat call is active.
 
     Speech status delivery uses call ownership rather than the visible chat.
@@ -156,9 +159,11 @@ async def active_call_session(cache: Any, *, user_id: str, chat_id: str, call_id
     except ValueError:
         return None
     client = await _client(cache)
-    values = await client.hmget(key, "user", "session", "chat", "state")
+    values = await client.hmget(key, "user", "session", "chat", "state", "instant_feedback")
     values = [value.decode() if isinstance(value, bytes) else value for value in values]
-    if values[0] != user_id or values[2:] != [chat_id, "active"]:
+    if values[0] != user_id or values[2:4] != [chat_id, "active"]:
+        return None
+    if require_instant_feedback and values[4] != "1":
         return None
     session_id = values[1]
     return session_id if isinstance(session_id, str) and session_id else None

@@ -3954,6 +3954,7 @@ async def handle_main_processing(
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
     user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax (for skip-permission logic)
     skill_config_dict: Optional[dict[str, Any]] = None,
+    on_reasoning_dispatch: Optional[Callable[[], Awaitable[None]]] = None,
 ) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]]:
     """
     Handles the main processing of an AI skill request after preprocessing.
@@ -7094,6 +7095,14 @@ async def handle_main_processing(
     # Hashes of file calls the sandbox ran inline in this run (not checkpointed: after a resume a
     # repeated call is charged normally, the conservative side).
     sandbox_inline_call_hashes: set[str] = set()
+    announced_reasoning_iteration = None
+
+    async def announce_reasoning() -> None:
+        nonlocal announced_reasoning_iteration
+        if on_reasoning_dispatch is not None and announced_reasoning_iteration != iteration:
+            announced_reasoning_iteration = iteration
+            await on_reasoning_dispatch()
+
     for iteration in itertools.count(start_iteration):
         budget_iteration = iteration - sandbox_free_iterations
         if budget_iteration >= max_iterations_with_recovery:
@@ -7690,6 +7699,7 @@ async def handle_main_processing(
                         customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
                         native_cache_context=native_prepared_context,
                         failed_servers_in_turn=failed_servers_in_turn,
+                        on_reasoning_dispatch=announce_reasoning if on_reasoning_dispatch is not None else None,
                     )
                 # Stream created successfully - break out of retry loop
                 break
@@ -8447,6 +8457,9 @@ async def handle_main_processing(
                     logger.error(f"{log_prefix} INLINE: Error creating placeholder during stream: {e}", exc_info=True)
                 
             elif isinstance(chunk, UnifiedStreamChunk):
+                if chunk.type in {StreamChunkType.THINKING, StreamChunkType.THINKING_REDACTED}:
+                    # Some adapters reveal reasoning only when their first thought arrives.
+                    await announce_reasoning()
                 # Handle thinking/reasoning content from models like Gemini 3 Pro
                 # These chunks contain the model's internal reasoning process
                 # Pass them through to stream_consumer which will publish to thinking Redis channel

@@ -2068,6 +2068,7 @@ async def call_main_llm_stream(
     first_substantive_timeout_seconds: Optional[float] = None,
     allowed_server_ids: Optional[set[str]] = None,
     server_region_preference: str = "eu",
+    on_reasoning_dispatch: Optional[Callable[[], Awaitable[None]]] = None,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2725,6 +2726,14 @@ async def call_main_llm_stream(
 
         try:
             logger.info(f"{attempt_log_prefix} Attempting to call provider client")
+            if on_reasoning_dispatch is not None:
+                effort = server_llm_input_details.get(
+                    "reasoning_effort", (reasoning_model_config or {}).get("reasoning_effort"),
+                )
+                if server_llm_input_details.get("thinking_level") or (
+                    effort not in {"none", "off"} and (effort or is_reasoning_model)
+                ):
+                    await on_reasoning_dispatch()
             if (original_model_id == MERCURY_MODEL and server_provider_prefix == "inception"
                     and first_substantive_timeout_seconds is not None):
                 raw_chunk_stream = _dispatch_with_substantive_deadline(

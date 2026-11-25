@@ -73,6 +73,42 @@ def test_main_stream_forwards_profile_only_to_matching_native_google_server(
     assert calls[0].get("thinking_level") == expected_level
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+@pytest.mark.parametrize("model_id,reasoning,expected", [
+    ("google/gemini-3.8-flash", True, True),
+    ("google/gemini-3.8-flash", False, False),
+    ("openai/gpt-5.4", True, False),
+])
+async def test_reasoning_confirmation_runs_after_admission_and_before_provider(monkeypatch, reasoning_catalog, model_id, reasoning, expected):
+    events = []
+
+    async def admit(_model, _limit, **_kwargs):
+        events.append("admitted")
+        return 100
+
+    async def announce():
+        events.append("thinking")
+
+    async def provider(**_kwargs):
+        events.append("provider")
+
+        async def stream():
+            yield "Answer"
+
+        return stream()
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _provider: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda *_: (None, None))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda *_: [])
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model: reasoning)
+    assert [chunk async for chunk in llm_utils.call_main_llm_stream(
+        task_id="task", model_id=model_id, system_prompt="system",
+        message_history=[{"role": "user", "content": "hello"}], temperature=1.0,
+        pre_dispatch_admission=admit, on_reasoning_dispatch=announce,
+    )] == ["Answer"]
+    assert events == (["admitted", "thinking", "provider"] if expected else ["admitted", "provider"])
+
+
 def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch):
     calls = []
 
@@ -877,7 +913,7 @@ def reasoning_catalog(monkeypatch):
     providers = Path(__file__).resolve().parents[1] / "providers"
     monkeypatch.setattr(llm_utils.config_manager, "_provider_configs", {
         provider: yaml.safe_load((providers / f"{provider}.yml").read_text())
-        for provider in ("google", "inception")
+        for provider in ("google", "inception", "openai")
     })
 
 

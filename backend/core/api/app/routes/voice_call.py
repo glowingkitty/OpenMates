@@ -1015,7 +1015,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         lock_client, lock_key, lock_token = await _acquire_lock(websocket, user_hash)
         lease_task = asyncio.create_task(_renew_lock(lock_client, lock_key, lock_token))
         await register_active_call(websocket.app.state.cache_service, user_id=user_id,
-                                   session_id=session_id, chat_id=chat_id, call_id=call_id)
+                                   session_id=session_id, chat_id=chat_id, call_id=call_id,
+                                   instant_feedback=feedback_enabled)
         registered = True
         # Updates from chats this chat started are spoken at quiet moments.
         gate = CallInterpretationGate(

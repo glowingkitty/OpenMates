@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@24
+specification: feature.video-call@25
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -364,7 +364,9 @@ localized_waiting:
   given: Maya finishes a question or a request to do work in a web call with categorized feedback enabled.
   when: Jev identifies the category and reply language before ordinary answer generation starts.
   then: One of three prerecorded clips plays in the actual Mate's voice when routing has established it. If Jev times
-    out or selects none, the ordinary answer starts without a clip.
+    out or selects none, there is no early category clip. If the routed answer model starts a thinking phase, a cached
+    thinking line still plays in that Mate's voice and reply language. Any microphone recapture of the line produces
+    no caller transcript. A later thinking phase can play a fresh variant.
 waiting_language:
 - id: unknown-language-stays-silent
   given: The turn language is unknown and the interface language has no recorded clips.
