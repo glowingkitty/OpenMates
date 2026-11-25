@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 16
+version: 17
 status: approved
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -433,7 +433,7 @@ assertions:
   depends_on: [examples.composer_ghost]
 - id: message-input.audio.realtime-voxtral3
   type: behavior
-  must: Web microphone dictation streams through the first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Display the existing ten-credit-per-minute realtime transcription rate, but charge proportionally to measured audio seconds, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation. Official-cloud guests may use the same pipeline under the guest admission and metering requirements.
+  must: Web cloud microphone dictation streams speech windows through the first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. A healthy local detector buffers roughly 400 ms of speech onset in memory and streams a short tail before pausing upload. A detector fault falls back to ordinary streaming. Settings are acknowledged before forwarding audio. Partial text is editable after Finish while trailing text and correction continue in the background. A quiet pause does not automatically Finish the composer draft. Finish retains the streamed and trailing words. If the transcription connection fails, already streamed words stay editable and unsent. Preserve the Audio transcribe app skill and its model. Charge 0.25 credits per second of microphone audio forwarded to the transcription provider, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation. Official-cloud guests may use the same pipeline under the guest admission and metering requirements.
   depends_on: [examples.voxtral3_dictation]
 - id: message-input.audio.correction-gate
   type: behavior

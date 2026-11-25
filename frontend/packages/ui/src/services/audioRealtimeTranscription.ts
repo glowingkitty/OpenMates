@@ -1,3 +1,4 @@
+import { VoiceCallAudioGate } from './voiceCallAudioGate';
 import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
@@ -150,6 +151,7 @@ export function startAudioRealtimeTranscription(
   let source: MediaStreamAudioSourceNode | null = null;
   let processor: ScriptProcessorNode | null = null;
   let silentGain: GainNode | null = null;
+  let speechGate: VoiceCallAudioGate | null = null;
   let ready = false;
   let finished = false;
   let cancelled = false;
@@ -179,6 +181,8 @@ export function startAudioRealtimeTranscription(
   void correction.catch(() => undefined);
 
   const stopAudioGraph = () => {
+    speechGate?.stop();
+    speechGate = null;
     processor?.disconnect();
     source?.disconnect();
     silentGain?.disconnect();
@@ -350,16 +354,14 @@ export function startAudioRealtimeTranscription(
     if (!AudioContextConstructor) throw new Error('Web Audio API is unavailable');
     context = new AudioContextConstructor();
     source = context.createMediaStreamSource(stream);
-    processor = context.createScriptProcessor(4096, 1, 1);
+    processor = context.createScriptProcessor(2048, 1, 1);
     silentGain = context.createGain();
     silentGain.gain.value = 0;
     source.connect(processor);
     processor.connect(silentGain);
     silentGain.connect(context.destination);
-    processor.onaudioprocess = (event) => {
+    const sendAudio = (audio: string) => {
       if (finished || cancelled) return;
-      const samples = downsampleAudio(event.inputBuffer.getChannelData(0), event.inputBuffer.sampleRate);
-      const audio = pcm16Base64(samples);
       if (ready && socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'input_audio.append', audio }));
       } else if (queuedChunks.length < MAX_QUEUED_CHUNKS) {
@@ -369,6 +371,24 @@ export function startAudioRealtimeTranscription(
         fail('Realtime transcription did not become ready in time');
         socket?.close(1000, 'audio queue full');
       }
+    };
+    if (options.correctionContext === 'dictation' || options.correctionContext === 'workflow' || options.purpose === 'report_issue') {
+      speechGate = new VoiceCallAudioGate({
+        onAudio: sendAudio,
+        // Dictation keeps one provider session across pauses. Finish ends input.
+        onAudioEnd: () => {},
+        onState: () => {},
+        onError: () => fail('Realtime transcription microphone input is invalid'),
+      });
+      speechGate.setLive(true);
+      speechGate.start();
+    }
+    processor.onaudioprocess = (event) => {
+      if (finished || cancelled) return;
+      const samples = downsampleAudio(event.inputBuffer.getChannelData(0), event.inputBuffer.sampleRate);
+      const audio = pcm16Base64(samples);
+      if (speechGate) speechGate.push(audio);
+      else sendAudio(audio);
     };
     if (context.state === 'suspended') void context.resume();
 

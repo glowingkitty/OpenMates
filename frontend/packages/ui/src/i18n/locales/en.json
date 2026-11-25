@@ -29035,7 +29035,7 @@
       "text": "Usage-based pricing"
     },
     "pricing_explanation": {
-      "text": "Microphone transcription is billed per started minute of streamed audio, plus normal AI chat and generated speech usage. Listening includes silence until automatic idle pauses audio input. Muting pauses microphone input charges; replies, skills and speech can still cost credits. There is no flat fee for staying connected."
+      "text": "Microphone transcription costs 0.25 credits per second of audio sent for transcription. Normal AI chat, skills, and generated speech are billed separately. Staying connected has no flat fee."
     },
     "return_to_chat": {
       "text": "Return to chat"

@@ -28,6 +28,7 @@ async function rejectPermanentRecordingStorage(page: Page): Promise<string[]> {
 }
 
 async function mockRealtimeRecording(page: Page, options: {
+	captureFailure?: Promise<void>;
 	correctionRelease?: Promise<void>;
 	failCorrection?: boolean;
 	skipCorrection?: boolean;
@@ -41,6 +42,10 @@ async function mockRealtimeRecording(page: Page, options: {
 			if (message.type === 'input_audio.append' && !sentLiveDelta) {
 				sentLiveDelta = true;
 				socket.send(JSON.stringify({ type: 'transcription.text.delta', text: RAW_TRANSCRIPT }));
+				if (options.captureFailure) {
+					await options.captureFailure;
+					socket.send(JSON.stringify({ type: 'session.error', code: 'recording_timeout' }));
+				}
 				return;
 			}
 			if (message.type !== 'input_audio.end') return;
@@ -141,6 +146,25 @@ test.use({
 		args: proofAudioLaunchArgs()
 	},
 	permissions: ['microphone']
+});
+
+// contract-test: supporting surface=gui.web assertions=message-input.audio.realtime-voxtral3,message-input.audio.live-editor-transcript
+test('keeps admitted words in the draft after dictation transport fails', async ({ page }, testInfo) => {
+	const storageRequests = await rejectPermanentRecordingStorage(page);
+	const notes = 'Keep the interrupted dictation notes.';
+	let interruptCapture!: () => void;
+	const captureFailure = new Promise<void>((resolve) => { interruptCapture = resolve; });
+	await mockRealtimeRecording(page, { captureFailure });
+	await openAuthenticatedRecording(page, notes);
+	interruptCapture();
+	await expect(page.getByTestId('record-overlay')).toHaveCount(0);
+	const field = page.getByTestId('message-field').last();
+	await expect(field.getByTestId('message-editor').getByRole('textbox')).toHaveText(`${notes} ${RAW_TRANSCRIPT}`);
+	await expect(page.getByTestId('message-user')).toHaveCount(0);
+	expect(storageRequests).toEqual([]);
+	await testInfo.attach('retained-dictation-draft', {
+		body: await field.screenshot(), contentType: 'image/png',
+	});
 });
 
 // contract-test: direct surface=gui.web assertions=message-input.audio.correction-gate,message-input.audio.editable-transcript

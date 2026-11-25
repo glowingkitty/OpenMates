@@ -5634,12 +5634,15 @@
                 if (!(error instanceof AnonymousTranscriptionUsageError)) console.error('[MessageInput] Recording transcription failed:', error);
                 void showTranscriptionError(error);
                 context.live.setProcessing(false);
-                if (error instanceof AnonymousTranscriptionUsageError) {
-                    // Guest dictation without admitted allowance yields no transcript.
+                if (error instanceof AnonymousTranscriptionUsageError && error.signupRequired) {
                     context.live.discard();
-                } else if (context.live.hasText() && !queuedEdit) {
-                    // Already streamed words stay editable; persist them as the draft.
-                    triggerSaveDraft(currentChatId, context.editor);
+                } else if (context.live.hasText()) {
+                    // A failed completion cannot send, but already streamed
+                    // words from this recording stay editable in the draft.
+                    await context.overlayRemoved;
+                    if (isCurrentRecordingContext(context) && !queuedEdit) {
+                        triggerSaveDraft(currentChatId, context.editor);
+                    }
                 }
             }
         } finally {

@@ -15,6 +15,7 @@ import { anonymousChatStorage, type AnonymousPendingSendResult } from './anonymo
 import { CallAudio } from '../components/videocall/callAudio';
 import { initialVoiceCallState, voicePcmEnvelope, type VoiceCallControllerLike, type VoiceCallState } from './voiceCall';
 import { ensureGuestVoiceAck } from './voiceCallGuestConsent';
+import { VoiceCallAudioGate } from './voiceCallAudioGate';
 import { guestVoiceMicrophoneFrame, guestVoicePlan, type GuestVoiceEvent, type GuestVoiceSocketPlan } from './rustCore/voice/guestVoiceClient';
 
 const READY_TIMEOUT_MS = 10_000;
@@ -54,6 +55,9 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
   private socket: WebSocket | null = null;
   private socketPlan: GuestVoiceSocketPlan | null = null;
   private audio: CallAudio | null = null;
+  private audioGate: VoiceCallAudioGate | null = null;
+  private audioFrames = Promise.resolve();
+  private queuedAudioFrames = 0;
   private abort: AbortController | null = null;
   private timers: ReturnType<typeof setInterval>[] = [];
   private readyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -84,10 +88,21 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
     if (!isGuestVoiceCallSupported()) { this.fail('call_unavailable'); return; }
     const abort = new AbortController();
     this.abort = abort;
-    const audio = new CallAudio(
-      (data) => this.onMic(generation, data),
-      (user) => { if (current() && this.state.userSpeaking !== user) this.update({ userSpeaking: user && !this.speaking }); },
-    );
+    const gate = new VoiceCallAudioGate({
+      onAudio: (data) => this.queueAudioFrame(generation, () => guestVoiceMicrophoneFrame(data), true),
+      onAudioEnd: (verifiedQuiet) => this.queueAudioFrame(generation,
+        () => verifiedQuiet ? this.socketPlan?.quiet : this.socketPlan?.pause),
+      onState: (state) => {
+        if (current()) this.update(state);
+      },
+      onError: () => { if (current()) this.fail('connection_failed'); },
+    });
+    const audio = new CallAudio((data) => {
+      if (!current()) return;
+      this.update({ audioLevels: voicePcmEnvelope(data) });
+      gate.push(data);
+    }, () => {});
+    this.audioGate = gate;
     this.audio = audio;
     // Unlock audio output inside the initiating gesture, before any await.
     audio.unlock();
@@ -142,17 +157,19 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
     if (frame && this.socket?.readyState === WebSocket.OPEN) this.socket.send(frame);
   }
 
-  private onMic(generation: number, data: string): void {
-    if (generation !== this.generation || this.state.status !== 'live') return;
-    this.update({ audioLevels: voicePcmEnvelope(data) });
-    // Muted or while the reply plays: nothing is transcribed (pings keep the socket alive).
-    if (this.state.muted || this.speaking) return;
-    void guestVoiceMicrophoneFrame(data).then(
-      (frame) => {
-        if (generation === this.generation && !this.state.muted && !this.speaking) this.send(frame);
-      },
-      () => { if (generation === this.generation) this.fail('connection_failed'); },
-    );
+  private queueAudioFrame(generation: number, frame: () => string | undefined | Promise<string>, microphone = false): void {
+    if (this.queuedAudioFrames >= 300) {
+      this.fail('connection_failed');
+      return;
+    }
+    this.queuedAudioFrames += 1;
+    this.audioFrames = this.audioFrames.then(async () => {
+      if (generation !== this.generation) return;
+      const payload = await frame();
+      if (generation === this.generation && (!microphone || (!this.state.muted && !this.speaking))) this.send(payload);
+    }).catch(() => { if (generation === this.generation) this.fail('connection_failed'); }).finally(() => {
+      if (generation === this.generation) this.queuedAudioFrames -= 1;
+    });
   }
 
   private onMessage(message: GuestVoiceEvent): void {
@@ -162,6 +179,15 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
       case 'limit': this.exhausted(); break;
       case 'error': this.fail(message.code); break;
       case 'ended': this.finish(); break;
+      case 'waiting':
+        if (this.state.status !== 'live' || !!this.state.waiting === message.active) break;
+        this.update({
+          waiting: message.active,
+          waitingLine: { kind: message.line, text: waitingLineText(message.line) },
+          liveTranscript: null,
+        });
+        void playWaitingLine(message.line);
+        break;
     }
   }
 
@@ -170,10 +196,13 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
     if (this.readyTimer) clearTimeout(this.readyTimer);
     this.readyTimer = null;
     this.update({ status: 'live' });
+    this.audioGate?.setLive(true);
+    this.audioGate?.start();
     this.timers.push(setInterval(() => {
       this.update({
         elapsedSeconds: this.state.elapsedSeconds + 1,
-        activeElapsedSeconds: this.state.activeElapsedSeconds + (this.state.muted ? 0 : 1),
+        activeElapsedSeconds: this.state.activeElapsedSeconds +
+          ((!this.state.muted && !this.state.inputIdle) || this.turnGeneration === this.generation ? 1 : 0),
       });
     }, 1000));
     this.timers.push(setInterval(() => this.send(this.socketPlan?.ping), PING_INTERVAL_MS));
@@ -230,7 +259,7 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
   private async speak(generation: number, markdown: string): Promise<void> {
     const current = () => generation === this.generation;
     this.speaking = true;
-    this.send(this.socketPlan?.pause);
+    this.audioGate?.setMuted(true);
     this.update({ assistantSpeaking: true, userSpeaking: false });
     try {
       const plan = await guestVoicePlan('speech', {
@@ -253,7 +282,11 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
       if (!current()) return;
       this.fail('speech_failed');
     } finally {
-      if (current()) { this.speaking = false; this.update({ assistantSpeaking: false }); }
+      if (current()) {
+        this.speaking = false;
+        this.audioGate?.setMuted(this.state.muted);
+        this.update({ assistantSpeaking: false });
+      }
     }
   }
 
@@ -314,6 +347,10 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
       socket.onmessage = null; socket.onclose = null; socket.onerror = null; socket.onopen = null;
       if (socket.readyState === 0 || socket.readyState === 1) socket.close();
     }
+    this.audioGate?.stop();
+    this.audioGate = null;
+    this.audioFrames = Promise.resolve();
+    this.queuedAudioFrames = 0;
     this.audio?.stop();
     this.audio = null;
   }
@@ -330,7 +367,7 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
   setMuted(muted: boolean): void {
     if (muted === this.state.muted) return;
     this.update({ muted, userSpeaking: false });
-    if (muted) this.send(this.socketPlan?.pause);
+    this.audioGate?.setMuted(muted || this.speaking);
   }
   setWaiting(): void {}
   setMinimized(minimized: boolean): void { this.update({ minimized }); }
@@ -343,3 +380,4 @@ class GuestVoiceCallController implements VoiceCallControllerLike {
 }
 
 export const guestVoiceCallController = new GuestVoiceCallController();
+import { playWaitingLine, waitingLineText } from './voiceCallWaiting';

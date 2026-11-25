@@ -233,6 +233,27 @@ describe('audio realtime transcription', () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.audio.realtime-voxtral3
+  it('keeps a paused dictation open and preserves trailing words after Finish', async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = startAudioRealtimeTranscription({} as MediaStream, {});
+      const socket = FakeWebSocket.last;
+      socket.emit({ type: 'session.ready' });
+      socket.emit({ type: 'transcription.text.delta', text: 'Keep going' });
+      await vi.advanceTimersByTimeAsync(27_000);
+      expect(socket.sent).toEqual([]);
+      handle.finish();
+      expect(socket.sent.map((frame) => JSON.parse(frame).type)).toEqual(['input_audio.end']);
+      socket.emit({ type: 'transcription.text.delta', text: ' tomorrow.' });
+      socket.emit({ type: 'transcription.done', transcript: 'Keep going tomorrow.' });
+      await expect(handle.transcription).resolves.toMatchObject({ transcript: 'Keep going tomorrow.' });
+      handle.cancel();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
   it('refreshes an expired iOS WebSocket token before opening the audio stream', async () => {
     authMocks.token = `hash:${Math.floor(Date.now() / 1000) - 1}:expired-signature`;

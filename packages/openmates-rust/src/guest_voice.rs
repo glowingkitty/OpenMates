@@ -50,6 +50,7 @@ fn connect(base: &str, anonymous_id: &str) -> Result<Value, &'static str> {
         "url": url.as_str(),
         "start": json!({"type":"start","privacy_ack_version":PRIVACY_VERSION}).to_string(),
         "pause": json!({"type":"audio_stream_end"}).to_string(),
+        "quiet": json!({"type":"audio_stream_end","verified_silence":true}).to_string(),
         "ping": json!({"type":"ping"}).to_string(),
         "hangup": json!({"type":"hangup"}).to_string(),
     }))
@@ -60,6 +61,15 @@ fn receive(frame: &str) -> Result<Value, &'static str> {
     Ok(match frame["type"].as_str() {
         Some("ready") => json!({"type":"ready"}),
         Some("ended") => json!({"type":"ended"}),
+        Some("waiting") => match (frame["active"].as_bool(), frame["line"].as_str()) {
+            (Some(true), Some("waiting_start")) => {
+                json!({"type":"waiting","active":true,"line":"waiting_start"})
+            }
+            (Some(false), Some("waiting_resume")) => {
+                json!({"type":"waiting","active":false,"line":"waiting_resume"})
+            }
+            _ => return Err("invalid_frame"),
+        },
         Some("error")
             if frame["signup_required"] == true || frame["code"] == "anonymous_usage_limit" =>
         {

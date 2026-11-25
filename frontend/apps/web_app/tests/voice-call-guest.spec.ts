@@ -28,8 +28,8 @@ const usage = () => ({
   cta: 'Create an account to keep using OpenMates.'
 });
 
-async function mockGuestBackend(page: any, mode: 'answer' | 'limit') {
-  const seen = { socketUrls: [] as string[], speechRequests: [] as any[], speechCookies: [] as (string | undefined)[], streamRequests: [] as any[], frames: [] as any[] };
+async function mockGuestBackend(page: any, mode: 'answer' | 'limit' | 'hold') {
+  const seen = { socketUrls: [] as string[], speechRequests: [] as any[], speechCookies: [] as (string | undefined)[], streamRequests: [] as any[], frames: [] as any[], releaseHold: () => {} };
   await page.route('**/v1/settings/server-status', (route: any) => route.fulfill({
     status: 200, contentType: 'application/json',
     body: JSON.stringify({
@@ -79,6 +79,11 @@ async function mockGuestBackend(page: any, mode: 'answer' | 'limit') {
       if (frame.type === 'start') ws.send(JSON.stringify({ type: 'ready' }));
       if (frame.type === 'mic_audio' && !replied) {
         replied = true;
+        if (mode === 'hold') {
+          ws.send(JSON.stringify({ type: 'waiting', active: true, line: 'waiting_start' }));
+          seen.releaseHold = () => ws.send(JSON.stringify({ type: 'waiting', active: false, line: 'waiting_resume' }));
+          return;
+        }
         if (mode === 'limit') {
           ws.send(JSON.stringify({ type: 'error', code: 'anonymous_usage_limit', signup_required: true }));
           return;
@@ -115,6 +120,30 @@ test.describe('guest voice call', () => {
     { name: 'desktop', size: { width: 1280, height: 720 } },
     { name: 'phone', size: { width: 390, height: 844 } }
   ];
+  // contract-test: supporting surface=gui.web assertions=video-call.guest-calls,video-call.waiting.spoken-intent-and-merge
+  test('plays the guest hold and resume clips without requesting a chat or speech generation', async ({ page }, testInfo) => {
+    const seen = await mockGuestBackend(page, 'hold');
+    await startGuestCall(page);
+    const bar = page.getByTestId('voice-call-bar');
+    await expect(bar.getByTestId('voice-call-status-text')).toHaveText('Waiting for you');
+    await expect.poll(() => page.evaluate(() => (window as any).__playedAudio.some(
+      (clip: { src: string }) => clip.src.includes('/waiting_start-1.mp3'),
+    ))).toBe(true);
+    const screenshot = testInfo.outputPath('guest-spoken-hold.png');
+    await bar.screenshot({ path: screenshot });
+    await testInfo.attach('guest-spoken-hold', { path: screenshot, contentType: 'image/png' });
+    seen.releaseHold();
+    await expect.poll(() => page.evaluate(() => (window as any).__playedAudio.some(
+      (clip: { src: string }) => clip.src.includes('/waiting_resume-1.mp3'),
+    ))).toBe(true);
+    await expect(bar).toBeVisible();
+    expect(seen.streamRequests).toHaveLength(0);
+    expect(seen.speechRequests).toHaveLength(0);
+    await expectNoCredentials(page, seen);
+    await bar.getByTestId('voice-call-hangup').click();
+    await expect(bar).toHaveCount(0);
+  });
+
   for (const viewport of viewports) {
     // contract-test: direct surface=gui.web assertions=video-call.guest-calls
     test(`signed-out visitor asks by voice and hears the answer (${viewport.name})`, async ({ page }: any, testInfo: any) => {

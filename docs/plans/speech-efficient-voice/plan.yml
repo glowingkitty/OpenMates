@@ -1,0 +1,33 @@
+schema_version: 2
+profile: concise
+id: speech-efficient-voice
+title: Speech-based billing and faster voice turns
+status: implementing
+goal: Faster and cheaper voice calling and dictation on web.
+approved_by_user: true
+approval_basis: Marco approved implementation, testing, dev deployment, quiet calls and spoken hold in TASK-1968.
+specifications: [feature.video-call, feature.message-input]
+scope:
+  in:
+    - Meter audio successfully forwarded to the provider. Apply dictation's per-second rate and cumulative rounding to signed-in call transcription.
+    - Gate web microphone uploads locally with roughly 400 ms of pre-roll, a short tail and a detector fallback.
+    - Keep a connected call open during quiet without periodic PCM or idle charges. End the upstream stream after its trailing words and reopen it on speech. Retain the guest cap and allowance.
+    - Use Jev to recognize spoken hold and play the ready-made acknowledgment on web without starting an ordinary answer.
+    - Let the user Finish dictation, preserving streamed and trailing words.
+    - Submit streamed call text at end of speech and synthesize the first ready sentence. Preserve the shipped dictate-to-edit behavior and background reconciliation.
+  out:
+    - Apple app changes follow separately after verified web deployment, per the owner's web-first decision.
+    - Platform-local dictation inference. Cloud guest dictation and voice calls keep the existing free allowance.
+    - Production deployment and changes to the client-side encryption boundary. Hand verified dev commits and evidence to the publisher of the single production PR.
+    - Reimplementation of the shipped web composer dictation default.
+required_checks:
+  - Provider-free coverage of web and backend capture, settlement, long quiet, spoken hold, trailing words and reply start.
+  - Comparable dev measurements for speech end to first spoken reply audio, transcription credits for 120 seconds of speech in a 600-second call, and 42-clip word error rate in four languages.
+  - Use the existing recorded fixtures and only a few short real calls. Capture recorded proof of the changed flows.
+measurement_baseline:
+  - Two signed-in dev baseline calls received the first reply audio chunk 4.72 and 8.97 seconds after the fixture speech ended. In the second run, the detached player emitted a playback event at 8.98 seconds, immediately after the first reply chunk. These are single-question observations on two served revisions.
+  - Continuous upload of ten connected minutes costs 150 STT credits under the old started-minute rate. A single two-minute web speech window with its old quiet tail costs 45 credits. The old window lengths and billing formula would cost 60 credits on the twelve-window replay.
+  - The existing 42-clip English, German, Spanish and French suite recorded 31.58% word error rate on the Stop snapshot and 11.80% once trailing words arrived. The Stop snapshot remains visible while those words arrive.
+verification_in_progress:
+  - The provider-free ten-minute browser gate fixture forwarded 131.728 seconds for 120 seconds of detected speech, equivalent to 33 transcription credits.
+  - Verify the web candidate in isolated browser CI, then measure audio latency and replay the paired 42-clip corpus on dev.

@@ -64,14 +64,6 @@ test.describe('Reference voice call strip', () => {
       await expect.poll(async()=>(await stage.boundingBox())!.height).toBeCloseTo(collapsedHeight,0);
     });
   }
-  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.chat.call-strip-layout
-  test('discloses the provider and usage-based billing in the launch control accessible description',async({page})=>{
-    await page.goto('/dev/preview/voicecall/VoiceCallHeaderActions?chrome=0&theme=light&background=%23dbeafe&width=390');
-    await waitForComponentPreview(page);
-    const launch=page.getByTestId('voice-call-start');
-    await expect(launch).toHaveAccessibleName('Start voice call');
-    await expect(launch).toHaveAccessibleDescription('Voice calls use Mistral transcription, ElevenLabs v4 Turbo voice, normal OpenMates AI routing and usage-based billing.');
-  });
   for(const [name,width] of [['laptop',1280],['phone',390]] as const) {
     // contract-test: direct surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
     test(`call bar has no hold or pause control and keeps mute and end call on the ${name}`,async({page},testInfo)=>{

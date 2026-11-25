@@ -5,6 +5,7 @@ export interface GuestVoiceSocketPlan {
   url: string;
   start: string;
   pause: string;
+  quiet: string;
   ping: string;
   hangup: string;
 }
@@ -12,6 +13,7 @@ export interface GuestVoiceSocketPlan {
 export type GuestVoiceEvent =
   | { type: 'ready' | 'ended' | 'limit' }
   | { type: 'error'; code: string }
+  | { type: 'waiting'; active: boolean; line: VoiceCallWaitingLine }
   | { type: 'transcript'; messageId: string; text: string; submitted: boolean };
 
 interface GuestVoiceProtocol {
@@ -32,3 +34,4 @@ export async function guestVoicePlan<K extends keyof GuestVoiceProtocol>(
 export function guestVoiceMicrophoneFrame(data: string): Promise<string> {
   return parseCall('guestVoice', { input: JSON.stringify({ operation: 'microphone', data }) });
 }
+import type { VoiceCallWaitingLine } from '../../voiceCallWaiting';

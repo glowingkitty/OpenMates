@@ -1,7 +1,6 @@
 """Voxtral realtime provider handshake, endpoint lifecycle and privacy boundary."""
 from types import SimpleNamespace
 import asyncio
-import base64
 import json
 
 import aiohttp
@@ -28,268 +27,120 @@ class Socket:
         self.closed = True
 
 
-# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.audio.complete-turn-admission
-async def test_open_uses_voxtral3_turn_detection_low_delay_and_no_chat_prompt(monkeypatch):
-    socket = Socket({"type": "session.created"}, {"type": "session.updated"})
-    connection = {}
-    class HTTP:
-        closed = False
-        async def ws_connect(self, url, **kwargs):
-            connection.update(url=url, **kwargs)
-            return socket
-        async def close(self):
-            self.closed = True
-    http = HTTP()
+class HTTP:
+    def __init__(self, *sockets):
+        self.sockets = iter(sockets)
+        self.connections = []
+        self.closed = False
+
+    async def ws_connect(self, url, **kwargs):
+        self.connections.append({"url": url, **kwargs})
+        return next(self.sockets)
+
+    async def close(self):
+        self.closed = True
+
+
+def speech_window(*events):
+    return Socket({"type": "session.created"}, {"type": "session.updated"}, *events)
+
+
+def open_transport(monkeypatch, *sockets):
+    http = HTTP(*sockets)
     monkeypatch.setattr(provider.aiohttp, "ClientSession", lambda **_: http)
-    session = provider.VoxtralVoiceSession("server-secret")
+    return provider.VoxtralVoiceSession("server-secret"), http
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.audio.complete-turn-admission
+async def test_first_audio_negotiates_voxtral_turn_detection_and_hints(monkeypatch):
+    socket = speech_window()
+    session, http = open_transport(monkeypatch, socket)
     await session.open()
-    idle_task = session._idle_audio_task
-    assert idle_task is not None
-    assert connection["url"].endswith("?model=voxtral-mini-transcribe-realtime-3-0")
-    assert connection["headers"] == {"Authorization": "Bearer server-secret"}
-    assert socket.sent == [{"type": "session.update", "session": {
-        "audio_format": {"encoding": "pcm_s16le", "sample_rate": 16000},
-        "target_streaming_delay_ms": 240, "turn_detection": {},
-    }}]
-    assert "systemInstruction" not in str(socket.sent) and "messages" not in str(socket.sent)
+    await session.set_context_bias(["Kyiv"])
+    assert not http.connections
+    await session.send_audio("first-captured-frame")
+    assert http.connections[0]["url"].endswith("?model=voxtral-mini-transcribe-realtime-3-0")
+    assert http.connections[0]["headers"] == {"Authorization": "Bearer server-secret"}
+    assert socket.sent == [
+        {"type": "session.update", "session": {
+            "audio_format": {"encoding": "pcm_s16le", "sample_rate": 16000},
+            "target_streaming_delay_ms": 240, "turn_detection": {}, "context_bias": ["Kyiv"],
+        }},
+        {"type": "input_audio.append", "audio": "first-captured-frame"},
+    ]
     await session.close()
     assert socket.closed and http.closed and session._key == ""
-    assert idle_task.done() and session._idle_audio_task is None
 
 
-# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.audio.complete-turn-admission
-async def test_mute_flush_is_bounded_unbilled_padding_and_never_ends_provider_session():
-    socket = Socket()
-    session = provider.VoxtralVoiceSession("key")
-    session._socket = socket
-    chunk = base64.b64encode(bytes(320)).decode()
-    await session.send_audio(chunk)
+# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.usage.provider-metering
+async def test_quiet_parks_provider_without_pcm_and_resumes_the_same_logical_call(monkeypatch):
+    first = speech_window({"type": "transcription.text.delta", "text": "Book for"},
+                          {"type": "transcription.done", "text": "Book for two."})
+    second = speech_window({"type": "turn.start"}, {"type": "transcription.text.delta", "text": "Thanks."})
+    session, http = open_transport(monkeypatch, first, second)
+    await session.open()
+    await session.end_audio()
+    assert not http.connections
+    await session.send_audio("first-speech")
     await session.end_audio()
     await session.end_audio()
-    await session.send_audio(chunk)
-    assert [event["type"] for event in socket.sent] == ["input_audio.append"] * 3
-    assert socket.sent[0]["audio"] == socket.sent[2]["audio"] == chunk
-    padding = base64.b64decode(socket.sent[1]["audio"])
-    assert len(padding) == provider.FLUSH_SILENCE_BYTES and not any(padding)
-    assert not socket.closed
+    assert await session.receive() == {"type": "transcription.text.delta", "text": "Book for"}
+    assert await session.receive() == {"type": "transcription.text.delta", "text": " two."}
+    assert await session.receive() == {"type": "turn.end"}
+    assert first.closed and not http.closed
+    idle_receive = asyncio.create_task(session.receive())
+    await asyncio.sleep(0)
+    assert not idle_receive.done() and len(http.connections) == 1
+    assert first.sent[1:] == [{"type": "input_audio.append", "audio": "first-speech"},
+                             {"type": "input_audio.end"}]
+    await session.send_audio("resumed-speech")
+    assert await asyncio.wait_for(idle_receive, 1) == {"type": "turn.start"}
+    assert await session.receive() == {"type": "transcription.text.delta", "text": "Thanks."}
+    assert second.sent[1:] == [{"type": "input_audio.append", "audio": "resumed-speech"}]
+    await session.close()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.lifecycle.recovery-and-billing
+async def test_speech_resuming_during_flush_keeps_events_in_audio_order(monkeypatch):
+    first = speech_window({"type": "turn.end"}, {"type": "transcription.text.delta", "text": "First."},
+                          {"type": "transcription.done", "text": "First."})
+    second = speech_window({"type": "turn.start"})
+    session, _ = open_transport(monkeypatch, first, second)
+    await session.open()
+    await session.send_audio("first")
+    await session.end_audio()
+    await session.send_audio("second")
+    events = [await session.receive() for _ in range(4)]
+    assert [event["type"] for event in events] == ["turn.end", "transcription.text.delta", "turn.end", "turn.start"]
+    assert first.closed and not second.closed
+    await session.close()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+async def test_provider_idle_expiry_is_recoverable_without_replaying_audio(monkeypatch):
+    first = speech_window({"type": "error", "error": {"code": 3804}})
+    second = speech_window({"type": "turn.start"})
+    session, http = open_transport(monkeypatch, first, second)
+    await session.open()
+    await session.send_audio("before-expiry")
+    assert await session.receive() == {"type": "turn.end"}
+    assert first.closed and len(http.connections) == 1
+    await session.send_audio("after-expiry")
+    assert await session.receive() == {"type": "turn.start"}
+    assert second.sent[1:] == [{"type": "input_audio.append", "audio": "after-expiry"}]
     await session.close()
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.privacy
-async def test_setup_failure_closes_both_resources_without_leaking_provider_payload(monkeypatch):
-    socket = Socket({"type": "error", "message": "PRIVATE PROVIDER DATA"})
-    class HTTP:
-        closed = False
-        async def ws_connect(self, *args, **kwargs):
-            return socket
-        async def close(self):
-            self.closed = True
-    http = HTTP()
-    monkeypatch.setattr(provider.aiohttp, "ClientSession", lambda **_: http)
-    session = provider.VoxtralVoiceSession("secret")
-    with pytest.raises(RuntimeError) as error:
-        await session.open()
-    assert "PRIVATE" not in str(error.value)
-    assert http.closed and socket.closed
-    assert session._idle_audio_task is None
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.audio.complete-turn-admission
-async def test_turn_end_and_trailing_delta_reach_controller_in_provider_order():
-    events = [{"type": "turn.end", "time_s": 1.2, "end_reason": "threshold"},
-              {"type": "transcription.text.delta", "text": " no, Paris instead"}]
-    socket = Socket(*events)
-    session = provider.VoxtralVoiceSession("key")
-    session._socket = socket
-    assert [await session.receive(), await session.receive()] == events
-    assert not session.capabilities.audio_output and not session.capabilities.tools and not session.capabilities.video_input
-    await session.close()
-
-
-class IdleClock:
-    """Advance only the provider's monotonic clock and sleep, without wall waits."""
-
-    def __init__(self):
-        self.now = 100.0
-        self.sleeps = asyncio.Queue()
-
-    async def sleep(self, delay):
-        wake = asyncio.get_running_loop().create_future()
-        self.sleeps.put_nowait((delay, wake))
-        await wake
-
-    async def next_sleep(self):
-        return await asyncio.wait_for(self.sleeps.get(), 1)
-
-
-async def open_idle_session(monkeypatch, socket):
-    clock = IdleClock()
-    monkeypatch.setattr(provider, "monotonic", lambda: clock.now)
-    monkeypatch.setattr(provider, "asyncio", SimpleNamespace(
-        Lock=asyncio.Lock, create_task=asyncio.create_task, wait_for=asyncio.wait_for,
-        CancelledError=asyncio.CancelledError, sleep=clock.sleep,
-    ))
-    class HTTP:
-        closed = False
-        async def ws_connect(self, *args, **kwargs):
-            return socket
-        async def close(self):
-            self.closed = True
-    http = HTTP()
-    monkeypatch.setattr(provider.aiohttp, "ClientSession", lambda **_: http)
-    session = provider.VoxtralVoiceSession("key")
+async def test_setup_failure_closes_socket_without_exposing_provider_text(monkeypatch):
+    socket = Socket({"type": "error", "error": {"message": "PRIVATE PROVIDER DATA"}})
+    session, http = open_transport(monkeypatch, socket)
     await session.open()
-    return session, clock, http
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.audio.complete-turn-admission
-async def test_idle_audio_is_periodic_bounded_silence_without_an_extra_flush(monkeypatch):
-    socket = Socket({"type": "session.created"}, {"type": "session.updated"})
-    session, clock, http = await open_idle_session(monkeypatch, socket)
-    try:
-        await session.send_audio("real-microphone-pcm")
-        await session.end_audio()
-        for _ in range(3):
-            delay, wake = await clock.next_sleep()
-            assert delay == provider.IDLE_AUDIO_INTERVAL_SECONDS
-            clock.now += delay
-            wake.set_result(None)
-            await asyncio.sleep(0)
-            assert not session._unflushed_audio
-            count = len(socket.sent)
-            await session.end_audio()
-            assert len(socket.sent) == count
-        assert [event["type"] for event in socket.sent] == ["session.update"] + ["input_audio.append"] * 5
-        silence = [base64.b64decode(event["audio"]) for event in socket.sent[3:]]
-        assert len(silence) == 3
-        assert all(len(pcm) == 6400 and not any(pcm) for pcm in silence)
-    finally:
-        idle_task = session._idle_audio_task
-        await session.close()
-    assert idle_task.done() and session._idle_audio_task is None
-    assert http.closed and socket.closed
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.lifecycle.recovery-and-billing
-@pytest.mark.parametrize("flush", [False, True])
-async def test_actual_audio_and_flush_postpone_idle_append(monkeypatch, flush):
-    socket = Socket({"type": "session.created"}, {"type": "session.updated"})
-    session, clock, _ = await open_idle_session(monkeypatch, socket)
-    try:
-        delay, wake = await clock.next_sleep()
-        clock.now += 9
-        await session.send_audio("real-microphone-pcm")
-        if flush:
-            clock.now += 0.5
-            await session.end_audio()
-        clock.now = 100 + delay
-        wake.set_result(None)
-        delay, wake = await clock.next_sleep()
-        assert delay == (9.5 if flush else 9)
-        assert len(socket.sent) == (3 if flush else 2)
-        clock.now += delay
-        wake.set_result(None)
-        await clock.next_sleep()
-        assert socket.sent[-1]["audio"] == provider.IDLE_SILENCE_PCM
-        assert session._unflushed_audio is (not flush)
-    finally:
-        await session.close()
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.lifecycle.recovery-and-billing
-async def test_idle_append_rechecks_real_audio_after_waiting_for_send_lock(monkeypatch):
-    started, release = asyncio.Event(), asyncio.Event()
-    class SlowMicSocket(Socket):
-        async def send_json(self, event):
-            if event.get("audio") == "real-microphone-pcm":
-                started.set()
-                await release.wait()
-            await super().send_json(event)
-    socket = SlowMicSocket({"type": "session.created"}, {"type": "session.updated"})
-    session, clock, _ = await open_idle_session(monkeypatch, socket)
-    try:
-        delay, wake = await clock.next_sleep()
-        clock.now += delay - 1
-        microphone = asyncio.create_task(session.send_audio("real-microphone-pcm"))
-        await asyncio.wait_for(started.wait(), 1)
-        clock.now += 1
-        wake.set_result(None)
-        await asyncio.sleep(0)
-        assert session._send_lock.locked() and len(socket.sent) == 1
-        release.set()
-        await asyncio.wait_for(microphone, 1)
-        delay, _ = await clock.next_sleep()
-        assert delay == provider.IDLE_AUDIO_INTERVAL_SECONDS
-        assert socket.sent[-1]["audio"] == "real-microphone-pcm" and len(socket.sent) == 2
-    finally:
-        release.set()
-        await session.close()
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.audio.complete-turn-admission
-async def test_delayed_idle_timer_never_accumulates_a_silence_backlog(monkeypatch):
-    socket = Socket({"type": "session.created"}, {"type": "session.updated"})
-    session, clock, _ = await open_idle_session(monkeypatch, socket)
-    try:
-        _, wake = await clock.next_sleep()
-        clock.now += 100
-        wake.set_result(None)
-        delay, _ = await clock.next_sleep()
-        assert delay == provider.IDLE_AUDIO_INTERVAL_SECONDS
-        assert len(socket.sent) == 2 and socket.sent[-1]["audio"] == provider.IDLE_SILENCE_PCM
-    finally:
-        await session.close()
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.audio.complete-turn-admission
-async def test_close_cancels_inflight_idle_send_and_releases_send_lock(monkeypatch):
-    started, never_finish = asyncio.Event(), asyncio.Event()
-    class SlowIdleSocket(Socket):
-        async def send_json(self, event):
-            if event.get("audio") == provider.IDLE_SILENCE_PCM:
-                started.set()
-                await never_finish.wait()
-            await super().send_json(event)
-    socket = SlowIdleSocket({"type": "session.created"}, {"type": "session.updated"})
-    session, clock, http = await open_idle_session(monkeypatch, socket)
-    _, wake = await clock.next_sleep()
-    clock.now += provider.IDLE_AUDIO_INTERVAL_SECONDS
-    wake.set_result(None)
-    await asyncio.wait_for(started.wait(), 1)
-    idle_task = session._idle_audio_task
-    assert session._send_lock.locked()
-    await asyncio.wait_for(session.close(), 1)
-    assert idle_task.cancelled() and session._idle_audio_task is None
-    assert socket.closed and http.closed and not session._send_lock.locked()
-    with pytest.raises(RuntimeError, match="Voice transcription unavailable"):
-        await session.send_audio("real-microphone-pcm")
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.privacy
-async def test_keepalive_send_failure_disconnects_receiver_without_private_error_logs(monkeypatch, caplog):
-    class FailingSocket(Socket):
-        async def send_json(self, event):
-            if event["type"] == "input_audio.append":
-                raise OSError("PRIVATE PROVIDER AUDIO SECRET")
-            await super().send_json(event)
-        async def close(self):
-            await super().close()
-            self.events.put_nowait(SimpleNamespace(type=aiohttp.WSMsgType.CLOSED))
-    socket = FailingSocket({"type": "session.created"}, {"type": "session.updated"})
-    session, clock, http = await open_idle_session(monkeypatch, socket)
-    try:
-        delay, wake = await clock.next_sleep()
-        receiver = asyncio.create_task(session.receive())
-        clock.now += delay
-        wake.set_result(None)
-        with pytest.raises(RuntimeError, match="Voice transcription disconnected"):
-            await asyncio.wait_for(receiver, 1)
-        assert session._idle_audio_task.done()
-        assert session._idle_audio_task.exception() is None
-        assert "PRIVATE" not in caplog.text
-    finally:
-        await session.close()
-    assert socket.closed and http.closed
+    with pytest.raises(RuntimeError) as error:
+        await session.send_audio("frame")
+    assert "PRIVATE" not in str(error.value) and socket.closed
+    await session.close()
+    assert http.closed
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.privacy
@@ -297,13 +148,11 @@ async def test_keepalive_send_failure_disconnects_receiver_without_private_error
                                            ("PRIVATE", None), (1000000, None), ({}, None)])
 async def test_provider_errors_expose_only_safe_bounded_diagnostics(code, expected, caplog):
     socket = Socket({"type": "error", "error": {"code": code, "message": "PRIVATE USER TRANSCRIPT"}})
-    session = provider.VoxtralVoiceSession("PRIVATE KEY")
-    session._socket = socket
     try:
         with pytest.raises(provider.VoxtralVoiceError) as failure:
-            await session.receive()
+            await provider.VoxtralVoiceSession._read(socket)
         assert failure.value.provider_code == expected
         assert failure.value.provider_category == ("idle_timeout" if expected == 3804 else "provider_error")
         assert "PRIVATE" not in str(failure.value) + caplog.text
     finally:
-        await session.close()
+        await socket.close()

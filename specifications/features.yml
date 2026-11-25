@@ -447,7 +447,7 @@ features:
         assertions: ["message-input.signed-out-action-access"]
       - id: dictation
         name: "Dictation"
-        description: "Realtime transcription, gated correction, editable transcript, guest admission, workspace dictation"
+        description: "Speech-window uploads, user-controlled Finish, realtime transcription, gated correction, editable text, guest admission and workspace dictation"
         assertions: ["message-input.audio.*"]
       - id: audio-recording
         name: "Audio recording"
@@ -610,7 +610,7 @@ features:
     key_tests:
       web: [frontend/apps/web_app/tests/voice-call.spec.ts, frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts, frontend/apps/web_app/tests/voice-call-real.spec.ts, frontend/apps/web_app/tests/voice-call-opening.spec.ts, frontend/apps/web_app/tests/voice-call-guest.spec.ts]
       rest_api: [backend/tests/test_voice_call_protocol.py, backend/tests/test_voice_call_admission.py]
-    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Spoken tap requests (needs-you chime, ready-made line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so far; the Apple app ignores the voice_call_permission_prompt event."
+    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Signed-in transcription settles at 0.25 credits per forwarded second; web keeps the same call during quiet without PCM keepalives or idle charges, and guest calls retain their cap. Native Apple changes follow the web deployment. A spoken hold uses the fast decision and a ready-made line. Spoken tap requests (needs-you chime, ready-made line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so far; the Apple app ignores the voice_call_permission_prompt event."
   - id: webhooks
     name: "Webhooks"
     kind: core

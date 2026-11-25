@@ -71,10 +71,10 @@ describe('VoiceCallAudioGate', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle
-  it('requires five full seconds after readiness and sends one ordered end marker', async () => {
+  it('keeps a 640 ms quiet tail after readiness and sends one ordered end marker', async () => {
     const h = harness();
     await h.ready();
-    for (let i = 0; i < 156; i++) h.frame(); // 4.992 verified seconds
+    for (let i = 0; i < 19; i++) h.frame(); // 608 ms of verified quiet
     expect(h.events.filter((event) => event === 'end')).toHaveLength(0);
     h.frame();
     expect(h.states.at(-1)).toEqual({ inputIdle: true, userSpeaking: false });
@@ -87,7 +87,7 @@ describe('VoiceCallAudioGate', () => {
   // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle
   it('flushes the 400ms unsent onset history exactly once and keeps sample order', async () => {
     const h = harness(); await h.ready();
-    for (let i = 0; i < 157; i++) h.frame();
+    for (let i = 0; i < 20; i++) h.frame();
     const prior = h.audio.length;
     for (let i = 1; i <= 15; i++) h.frame(0, i);
     h.frame(0.9, 16); // one very short positive frame must resume
@@ -105,12 +105,12 @@ describe('VoiceCallAudioGate', () => {
   // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle
   it('keeps speech pauses streaming and restarts the full silence interval for ambiguous/short speech', async () => {
     const h = harness(); await h.ready();
-    for (let i = 0; i < 150; i++) h.frame();
+    for (let i = 0; i < 18; i++) h.frame();
     h.frame(0.36); // ambiguous speech is never verified silence
-    for (let i = 0; i < 156; i++) h.frame();
+    for (let i = 0; i < 19; i++) h.frame();
     expect(h.events).not.toContain('end');
     h.frame(0.95); // even one "stop" frame resets the timer
-    for (let i = 0; i < 156; i++) h.frame();
+    for (let i = 0; i < 19; i++) h.frame();
     expect(h.events).not.toContain('end');
     h.frame();
     expect(h.events.filter((event) => event === 'end')).toHaveLength(1);
@@ -118,18 +118,38 @@ describe('VoiceCallAudioGate', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle
-  it('requires a new full five seconds of verified quiet after uncertain frames', async () => {
+  it('requires a new full quiet tail after uncertain frames', async () => {
     const h = harness(); await h.ready();
     h.frame(0.95);
-    for (let i = 0; i < 153; i++) h.frame(0.1); // 4.896 seconds of verified quiet
+    for (let i = 0; i < 18; i++) h.frame(0.1); // 576 ms of verified quiet
     for (let i = 0; i < 10; i++) h.frame(0.27); // ambiguous audio cannot finish the interval
     expect(h.events).not.toContain('end');
-    for (let i = 0; i < 156; i++) h.frame(0.1);
+    for (let i = 0; i < 19; i++) h.frame(0.1);
     expect(h.events).not.toContain('end');
     h.frame(0.1);
     expect(h.events.filter((event) => event === 'end')).toHaveLength(1);
     h.frame(0.35); // retain single-frame onset for very short speech
     expect(h.states.at(-1)).toEqual({ inputIdle: false, userSpeaking: true });
+    h.gate.stop();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle,video-call.usage.provider-metering
+  it('meters only speech and protective audio in a ten-minute capture', async () => {
+    const h = harness();
+    await h.ready();
+    const frame = pcm();
+    let forwardedSamples = 0;
+    for (let burst = 0; burst < 12; burst += 1) {
+      for (let index = 0; index < 1_562 + (burst % 2); index += 1) {
+        h.gate.push(frame);
+        h.callbacks().onResult(index < 312 + (burst % 2) ? 0.9 : 0.05, 512);
+      }
+      forwardedSamples += h.audio.reduce((sum, chunk) => sum + atob(chunk).length / 2, 0);
+      h.audio.length = 0;
+    }
+    const forwardedSeconds = forwardedSamples / 16_000;
+    expect(forwardedSeconds).toBeCloseTo(131.728, 3);
+    expect(Math.ceil(forwardedSeconds * 0.25)).toBe(33);
     h.gate.stop();
   });
 
@@ -158,7 +178,7 @@ describe('VoiceCallAudioGate', () => {
     startup.gate.setMuted(false); startup.gate.push(pcm(456));
     expect(startup.audio).toEqual([pcm(456)]); startup.gate.stop();
     const h = harness(); await h.ready();
-    for (let i = 0; i < 157; i++) h.frame();
+    for (let i = 0; i < 20; i++) h.frame();
     h.frame(0, 123);
     h.gate.setMuted(true);
     h.gate.push(pcm(555)); h.callbacks().onResult(1, 512);
@@ -181,7 +201,7 @@ describe('VoiceCallAudioGate', () => {
   // contract-test: supporting surface=gui.web assertions=video-call.audio.background-detection,video-call.audio.automatic-idle
   it.each(['failed', 'stalled', 'overrun', 'invalid'] as const)('recovers continuous upload on %s detection without dropping buffered speech', async (failure) => {
     const h = harness(); await h.ready();
-    for (let i = 0; i < 157; i++) h.frame();
+    for (let i = 0; i < 20; i++) h.frame();
     const prior = h.audio.length;
     h.gate.push(pcm(321));
     if (failure === 'failed') h.callbacks().onFailure();

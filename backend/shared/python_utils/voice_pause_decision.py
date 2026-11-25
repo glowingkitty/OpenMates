@@ -12,12 +12,20 @@ code changes. The check is bounded to PAUSE_DECISION_TIMEOUT_SECONDS.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from backend.shared.providers.typesafe.client import PROVIDER_SETTINGS, JevDecisionClient
+import httpx
+
+from backend.shared.providers.transcript_correction_accounting import (
+    admitted_correction, correction_dispatch_transport, settle_correction,
+)
+from backend.shared.providers.typesafe.client import (
+    PROVIDER_SETTINGS, TYPESAFE_MODEL, DecisionProviderError, JevDecisionClient,
+)
 from backend.shared.providers.typesafe.models import ChoiceAnswer
 from backend.shared.python_utils.voice_turn_completion import MAX_COMPLETION_CHARACTERS, _client
 
@@ -166,4 +174,29 @@ async def classify_voice_pause(text: str, secrets_manager: Any,
     except Exception as exc:
         logger.warning("VOICE_PAUSE_DECISION unavailable category=%s", type(exc).__name__)
         return _unavailable()
+    return parse_pause_decision(result.answers)
+
+
+async def classify_metered_voice_pause(text: str, secrets_manager: Any) -> PauseDecision:
+    """Run the same pause check with one explicitly admitted guest provider attempt."""
+    if not text.strip() or len(text) > MAX_COMPLETION_CHARACTERS:
+        return _unavailable()
+    state = {"speech": text}
+    payload = {"model": TYPESAFE_MODEL, "state": state, "questions": _QUESTIONS}
+    input_bound = len(json.dumps(payload, ensure_ascii=False).encode("utf-8")) + 512
+    attempts: list[dict[str, Any]] = []
+    async with admitted_correction(TYPESAFE_MODEL, input_bound, 1) as operation:
+        try:
+            async with asyncio.timeout(PAUSE_DECISION_TIMEOUT_SECONDS):
+                async with httpx.AsyncClient(transport=correction_dispatch_transport(operation)) as client:
+                    result = await JevDecisionClient(
+                        secrets_manager=secrets_manager, http_client=client,
+                        timeout_seconds=PAUSE_DECISION_TIMEOUT_SECONDS, max_retries=0,
+                        provider="typesafe", allow_gemini=False, accounting=attempts,
+                        telemetry_purpose="guest_voice_pause",
+                    ).evaluate(state=state, questions=_QUESTIONS)
+        except (DecisionProviderError, TimeoutError, httpx.HTTPError):
+            return _unavailable()
+        usage = attempts[-1] if attempts else {}
+        await settle_correction(operation, usage.get("input_tokens"), usage.get("output_tokens"))
     return parse_pause_decision(result.answers)

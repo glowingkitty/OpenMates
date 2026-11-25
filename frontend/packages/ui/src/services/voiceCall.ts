@@ -467,11 +467,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
             !this.send({ type: 'mic_audio', data })) this.socketLost(generation);
         else if (current() && this.state.status === 'live' && !this.state.muted) this.unansweredAudioSince ??= performance.now();
       },
-      onAudioEnd: () => {
+      onAudioEnd: (verifiedSilence) => {
         if (current() && this.state.status === 'live' && !this.reconnecting &&
-            !this.send({ type: 'audio_stream_end' })) this.socketLost(generation);
+            !this.send({ type: 'audio_stream_end', verified_silence: verifiedSilence })) this.socketLost(generation);
       },
-      onState: (state) => { if (current()) this.update(state); },
+      onState: (state) => {
+        if (current()) this.update(state);
+      },
       onError: () => { if (current()) this.fail('connection_failed'); },
     });
     this.audioGate = gate;

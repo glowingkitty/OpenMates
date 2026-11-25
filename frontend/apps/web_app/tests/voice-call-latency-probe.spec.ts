@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
-// proof-video: not_required reason=visual_smoke_not_needed (measurement-only latency probe for TASK-9356, never deployed or run in CI)
 // playwright-account: required reason=real_ai_personal_dev_only
 /**
  * Measurement-only voice-call latency probe on the real dev stack (TASK-9356 research).
@@ -16,7 +15,9 @@ import type { Page, TestInfo } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const { expect, test } = require('@playwright/test');
+const { expect, test: baseTest } = require('@playwright/test');
+const { withProofAudio } = require('./helpers/proof-audio');
+const test = withProofAudio(baseTest);
 const { deleteActiveChat, loginToTestAccount, setChatSidebarOpen } = require('./helpers/chat-test-helpers');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
@@ -26,7 +27,7 @@ const SCENARIO = process.env.VOICE_CALL_REAL_SCENARIO || '';
 const QUESTIONS = Number(process.env.VOICE_LATENCY_QUESTIONS || '0');
 const CALL_SECONDS = Number(process.env.VOICE_LATENCY_CALL_SECONDS || '0');
 const SCALAR_FIELDS = ['final', 'is_final', 'is_last_chunk', 'sequence', 'status', 'kind', 'phase', 'speech_status',
-  'state', 'stage', 'reason', 'category', 'decision', 'role'];
+  'state', 'stage', 'reason', 'category', 'decision', 'role', 'stt_duration_seconds', 'credits_accrued'];
 
 type Frame = { t: number; socket: string; dir: string; type: string; fields: Record<string, unknown>; textLen?: number };
 
@@ -39,11 +40,34 @@ function installRecorders() {
     if (constraints && (constraints as { audio?: unknown }).audio) w.__probe.gum.push(Date.now());
     return stream;
   };
-  document.addEventListener('playing', (event) => {
-    const el = event.target as HTMLMediaElement;
-    const src = el.currentSrc || el.src || '';
-    w.__probe.playing.push({ t: Date.now(), src: src.startsWith('blob:') ? 'blob' : src.replace(/^https?:\/\/[^/]+/, '').split('?')[0] });
-  }, true);
+  // The streaming player uses a detached HTMLAudioElement, so its events
+  // do not reach the document. Capture actual playback from the player.
+  const speechUrls = new Set<string>();
+  const createObjectURL = URL.createObjectURL.bind(URL);
+  URL.createObjectURL = (source) => {
+    const url = createObjectURL(source);
+    if (source instanceof MediaSource) speechUrls.add(url);
+    return url;
+  };
+  const revokeObjectURL = URL.revokeObjectURL.bind(URL);
+  URL.revokeObjectURL = (url) => {
+    speechUrls.delete(url);
+    revokeObjectURL(url);
+  };
+  const hooked = new WeakSet<HTMLMediaElement>();
+  const originalPlay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
+    if (!hooked.has(this)) {
+      hooked.add(this);
+      this.addEventListener('playing', () => {
+        const src = this.currentSrc || this.src || '';
+        const kind = speechUrls.has(src) ? 'media-source' :
+          src.startsWith('blob:') ? 'blob' : src.startsWith('data:') ? 'data' : new URL(src || '/', location.href).pathname;
+        w.__probe.playing.push({ t: Date.now(), src: kind });
+      });
+    }
+    return originalPlay.call(this);
+  };
 }
 
 test.use({

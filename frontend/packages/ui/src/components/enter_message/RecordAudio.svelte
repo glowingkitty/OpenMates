@@ -162,6 +162,7 @@
     let lastWaveformSampleAt = 0;
     let recordOverlayElement: HTMLDivElement | null = null;
     let liveTranscript = $state('');
+    let hasEditorTranscript = false;
     let liveTranscriptViewportElement = $state<HTMLSpanElement | null>(null);
     let liveTranscriptFlowElement = $state<HTMLSpanElement | null>(null);
     let liveTranscriptLineCount = $state(1);
@@ -336,6 +337,10 @@
                     // audiorecorded handoff; escalating to cancel here would discard
                     // live text that is already in the editor.
                     if (stopIntent === 'finish') return;
+                    if (hasEditorTranscript) {
+                        stopInternal(false);
+                        return;
+                    }
                     dispatch('transcriptionerror', error);
                     stopInternal(true);
                 });
@@ -392,7 +397,10 @@
     function setLiveTranscript(value: string) {
         if (transcriptInEditor) {
             // The host editor shows the full transcript; keep the overlay compact.
-            if (!isCancelled) dispatch('livetranscript', { transcript: value });
+            if (!isCancelled) {
+                hasEditorTranscript ||= value.trim().length > 0;
+                dispatch('livetranscript', { transcript: value });
+            }
             return;
         }
         liveTranscript = value;
@@ -495,7 +503,8 @@
         isRecording = false;
         readyForRelease = false;
 
-        if (intent === 'finish' && recordedChunks.length > 0) {
+        const canHandoffRealtime = !!realtimeHandle && !realtimeFinishFailed;
+        if (intent === 'finish' && (recordedChunks.length > 0 || (hasEditorTranscript && canHandoffRealtime))) {
             const finalMimeType = mediaRecorder?.mimeType || recordedChunks[0]?.type || 'audio/webm';
             const blob = new Blob(recordedChunks, { type: finalMimeType });
             const finalDuration = recordingTime;
@@ -506,7 +515,7 @@
                 mimeType:  blob.type,
                 waveformSamples: waveform?.samples.length ?? 0,
             });
-            realtimeHandedOff = !!realtimeHandle && !realtimeFinishFailed;
+            realtimeHandedOff = canHandoffRealtime;
             dispatch('audiorecorded', {
                 blob,
                 duration: finalDuration,

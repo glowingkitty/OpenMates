@@ -68,6 +68,10 @@ def call_setup(monkeypatch):
     )
     monkeypatch.setattr(voice_call_guest, "VoxtralVoiceSession", FakeProvider)
     monkeypatch.setattr(voice_call_guest, "isolated_voice_fixture_enabled", lambda: False)
+    async def no_control_intent(*_args):
+        return "none"
+
+    monkeypatch.setattr(voice_call_guest, "_guest_pause_intent", no_control_intent)
     return services
 
 
@@ -139,7 +143,7 @@ async def test_denied_allowance_opens_no_provider_and_releases_locks(call_setup,
 @pytest.mark.asyncio
 async def test_reserves_before_forwarding_settles_and_releases_on_hangup(call_setup):
     socket = CallSocket()
-    socket.inputs += [{"type": "mic_audio", "data": pcm()}, {"type": "hangup"}]
+    socket.inputs += [{"type": "mic_audio", "data": pcm(4.0625)}, {"type": "hangup"}]
     await voice_call_guest.guest_voice_call(socket)
     service = call_setup[0]
     assert kinds(socket)[:2] == ["accepted", "ready"]
@@ -162,12 +166,12 @@ async def test_allowance_exhausted_mid_call_sends_limit_error_without_forwarding
 
     def limited(**kwargs):
         service = original(**kwargs)
-        service.reject_after = 1  # the admission hold passes, the first minute does not
+        service.reject_after = 1  # Admission covers one credit, but the frame requires two.
         return service
 
     monkeypatch.setattr(guest_module, "AnonymousFreeUsageService", limited)
     socket = CallSocket()
-    socket.inputs += [{"type": "mic_audio", "data": pcm()}]
+    socket.inputs += [{"type": "mic_audio", "data": pcm(4.0625)}]
     await voice_call_guest.guest_voice_call(socket)
     error = next(m for m in socket.messages if m.get("type") == "error")
     assert error["code"] == "per_identity_exhausted" and error["signup_required"] is True
@@ -200,6 +204,88 @@ async def test_finished_turn_is_returned_as_final_transcript(call_setup, monkeyp
     assert [m["final"] for m in transcripts] == [False, True]
     assert transcripts[-1]["text"] == "Hello there"
     assert not socket.app.state.cache_service.rows
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.guest-calls
+@pytest.mark.parametrize("end_with_local_gate", [False, True])
+async def test_guest_keeps_trailing_words_through_the_endpoint(call_setup, monkeypatch, end_with_local_gate):
+    monkeypatch.setattr(voice_call_guest, "GUEST_LOCAL_ENDPOINT_GRACE_SECONDS", 0.15)
+    monkeypatch.setattr(voice_call_guest, "GUEST_TURN_SILENCE_SECONDS", 0.15)
+    socket = CallSocket({"type": "start", "privacy_ack_version": 3})
+    socket.inputs.append({"type": "mic_audio", "data": pcm()})
+    task = asyncio.create_task(voice_call_guest.guest_voice_call(socket))
+    async with asyncio.timeout(3):
+        while not FakeProvider.instances or not FakeProvider.instances[0].audio:
+            await asyncio.sleep(0.01)
+        events = FakeProvider.instances[0].events
+        await events.put({"type": "turn.start"})
+        await events.put({"type": "transcription.text.delta", "text": "Book for two"})
+        while "transcript" not in kinds(socket):
+            await asyncio.sleep(0.01)
+        if end_with_local_gate:
+            socket.inputs.append({"type": "audio_stream_end", "verified_silence": True})
+        await events.put({"type": "transcription.text.delta", "text": " on Tuesday"})
+        if not end_with_local_gate:
+            await events.put({"type": "turn.end"})
+        while not any(msg.get("final") for msg in socket.messages):
+            await asyncio.sleep(0.01)
+    socket.inputs.append({"type": "hangup"})
+    await asyncio.wait_for(task, 3)
+    assert [msg["text"] for msg in socket.messages if msg.get("final")] == ["Book for two on Tuesday"]
+    assert not socket.app.state.cache_service.rows
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.guest-calls,video-call.lifecycle.recovery-and-billing
+async def test_guest_quiet_remains_free_until_the_existing_hard_cap(call_setup, monkeypatch):
+    monkeypatch.setattr(voice_call_guest, "MAX_CALL_SECONDS", 0.25)
+    socket = CallSocket()
+    task = asyncio.create_task(voice_call_guest.guest_voice_call(socket))
+    async with asyncio.timeout(3):
+        while "ready" not in kinds(socket):
+            await asyncio.sleep(0.01)
+        socket.inputs.extend([{"type": "ping"}, {"type": "audio_stream_end", "verified_silence": True}])
+        while socket.inputs:
+            await asyncio.sleep(0.01)
+        assert not task.done()
+        await task
+    assert not FakeProvider.instances[0].audio
+    assert [event.get("reason") for event in socket.messages if event["type"] == "ended"] == ["time_limit"]
+    assert "speech_idle_warning" not in kinds(socket)
+    assert call_setup[0].events[-1][2] == 0
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.guest-calls,video-call.waiting.spoken-intent-and-merge
+async def test_guest_spoken_hold_does_not_admit_an_answer_turn(call_setup, monkeypatch):
+    heard = []
+
+    async def intent(words, _socket, _meter):
+        heard.append(words)
+        return {"Give me a second.": "wait", "I'm back.": "resume"}.get(words, "none")
+
+    monkeypatch.setattr(voice_call_guest, "_guest_pause_intent", intent)
+    monkeypatch.setattr(voice_call_guest, "GUEST_TURN_SILENCE_SECONDS", 0.01)
+    socket = CallSocket()
+    task = asyncio.create_task(voice_call_guest.guest_voice_call(socket))
+    async with asyncio.timeout(3):
+        while "ready" not in kinds(socket):
+            await asyncio.sleep(0.01)
+        events = FakeProvider.instances[0].events
+        for words, line in [("Give me a second.", "waiting_start"), ("I'm back.", "waiting_resume")]:
+            await events.put({"type": "turn.start"})
+            await events.put({"type": "transcription.text.delta", "text": words})
+            await events.put({"type": "turn.end"})
+            while not any(event.get("line") == line for event in socket.messages):
+                await asyncio.sleep(0.01)
+            assert not any(event.get("final") for event in socket.messages)
+        await events.put({"type": "turn.start"})
+        await events.put({"type": "transcription.text.delta", "text": "Find a train."})
+        await events.put({"type": "turn.end"})
+        while not any(event.get("final") for event in socket.messages):
+            await asyncio.sleep(0.01)
+        socket.inputs.append({"type": "hangup"})
+        await task
+    assert heard == ["Give me a second.", "I'm back.", "Find a train."]
+    assert [event["text"] for event in socket.messages if event.get("final")] == ["Give me a second. Find a train."]
 
 
 # contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering

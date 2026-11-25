@@ -15,6 +15,7 @@ from backend.apps.ai.assistant_speech.streaming import (
     stream_text_with_speech_dispatch,
 )
 from backend.apps.ai.tasks import stream_consumer
+from backend.core.api.app.utils.override_parser import UserOverrides
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.execution.first-segment-progressive
@@ -388,7 +389,7 @@ def test_explicit_focus_activation_defers_speech_until_resolved_continuation() -
         return SimpleNamespace(**(values | changes))
 
     preprocessing = SimpleNamespace(user_requested_focus_only=True, relevant_focus_modes=["study-learn_topic"])
-    trusted = SimpleNamespace(focus_modes=[("study", "learn_topic")])
+    trusted = UserOverrides(focus_modes=[("study", "learn_topic")])
     gate = stream_consumer._should_prepare_assistant_speech
     # The routing-only request has no answer/profile; automatic audio preference
     # does not change this. The actual answer continuation keeps speech available.
@@ -421,13 +422,13 @@ def test_focus_speech_deferral_requires_exact_trusted_activation_not_missing_pro
     preprocessing = SimpleNamespace(user_requested_focus_only=True, relevant_focus_modes=["study-learn_topic"])
     gate = stream_consumer._should_prepare_assistant_speech
     assert gate(request, preprocessing, None) is True
-    assert gate(request, preprocessing, SimpleNamespace(focus_modes=[("study", "other")])) is True
+    assert gate(request, preprocessing, UserOverrides(focus_modes=[("study", "other")])) is True
     preprocessing.user_requested_focus_only = False
-    assert gate(request, preprocessing, SimpleNamespace(focus_modes=[("study", "learn_topic")])) is True
+    assert gate(request, preprocessing, UserOverrides(focus_modes=[("study", "learn_topic")])) is True
     preprocessing.user_requested_focus_only = True
     preprocessing.relevant_focus_modes = ["project-one"]
     request.project_focus_candidates = [{"project_id": "one"}]
-    assert gate(request, preprocessing, SimpleNamespace(focus_modes=[("project", "one")])) is True
+    assert gate(request, preprocessing, UserOverrides(focus_modes=[("project", "one")])) is True
     request.is_external = True
     assert gate(request, preprocessing, None) is False
     request.is_external = False

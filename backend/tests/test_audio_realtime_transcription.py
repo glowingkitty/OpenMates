@@ -247,8 +247,8 @@ def test_authenticated_websocket_settles_ten_seconds_for_three_credits(
             await self.ended.wait()
             return SimpleNamespace(
                 type=audio_realtime.aiohttp.WSMsgType.TEXT,
-                data=json.dumps({"type": "transcription.done", "text": "",
-                                 "usage": {"prompt_audio_seconds": 10}}),
+                data=json.dumps({"type": "transcription.done", "text": "Keep all the trailing words.",
+                                 "usage": {"prompt_audio_seconds": 60}}),
             )
 
     class ProviderContext:
@@ -294,6 +294,10 @@ def test_authenticated_websocket_settles_ten_seconds_for_three_credits(
                         lambda *_args: asyncio.sleep(0, result=(None, "lock", "token")))
     monkeypatch.setattr(audio_realtime, "_release_stream_lock",
                         lambda *_args: asyncio.sleep(0))
+    async def correction_unavailable(socket, *_args):
+        await socket.send_json({"type": "correction.failed"})
+
+    monkeypatch.setattr(audio_realtime, "_correct_and_send", correction_unavailable)
     with TestClient(app) as client:
         with client.websocket_connect(
             "/v1/apps/audio/realtime-transcription",
@@ -306,7 +310,9 @@ def test_authenticated_websocket_settles_ten_seconds_for_three_credits(
                     b"\x00\x01" * (audio_realtime.PCM_SAMPLE_RATE * 5)
                 ).decode()})
             websocket.send_json({"type": "input_audio.end"})
-            assert websocket.receive_json()["type"] == "transcription.done"
+            final = websocket.receive_json()
+            assert final["type"] == "transcription.done"
+            assert final["transcript"] == "Keep all the trailing words."
             assert websocket.receive_json()["type"] == "correction.failed"
     assert len(charges) == 1
     assert charges[0]["credits_to_deduct"] == 3
@@ -548,7 +554,7 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     assert [message["text"] for message in browser_messages if message["type"] == "transcription.text.delta"] == deltas
     assert billed["idempotency_key"] == "audio-realtime:provider-1"
     assert billed["credits_to_deduct"] == 1
-    assert billed["usage_details"]["duration_seconds"] == 1.25
+    assert billed["usage_details"]["duration_seconds"] == 0.05
     assert billed["usage_details"]["billing_unit"] == "second"
     assert released == [(None, "lock", "token")]
 

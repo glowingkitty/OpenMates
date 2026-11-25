@@ -1,12 +1,12 @@
 """Microphone audio forwarding for a voice call, off the call's event loop.
 
 The call loop reads client events and provider transcript events. Forwarding a
-frame can wait on the per-minute credit check, the provider write and the
-per-minute charge; done inline, that wait also froze transcript delivery and the
+frame can wait on the credit check, the provider write and
+settlement; done inline, that wait also froze transcript delivery and the
 reading of later frames (live transcript slowed, then cut off, from the second
 turn on). Frames therefore go through a bounded, ordered queue to one writer
 task. Billing order per frame is unchanged: credits are checked before a frame
-that starts a new minute reaches the provider, and accepted audio is charged
+that increases accrued credits reaches the provider, and accepted audio is charged
 after the write, so no unaffordable audio is ever forwarded.
 
 Logs carry only sizes and timings, never audio or transcript text.

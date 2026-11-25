@@ -315,7 +315,10 @@ async def test_ready_is_stt_only_and_never_sends_chat_context_to_provider(runtim
     ready = await socket.event("ready")
     assert ready["provider"] == "mistral" and ready["model"] == provider.model
     assert ready["billing_basis"] == "speech_duration_and_chat_usage"
-    assert ready["rates"] == {"stt_credits_per_started_minute": route.REALTIME_CREDITS_PER_MINUTE}
+    assert ready["rates"] == {
+        "stt_credits_per_second": 0.25,
+        "stt_credits_per_started_minute": 15,
+    }
     assert ready["input_sample_rate"] == 16000 and ready["camera_available"]
     assert ready["speech_output_transport"] == route.SPEECH_OUTPUT_TRANSPORT
     assert not socket.finals() and not runtime.issued
@@ -391,6 +394,52 @@ async def test_final_waits_for_trailing_negation_and_duplicate_end_never_resubmi
     socket.push({"type": "audio_stream_end"})
     await socket.until(lambda events: any(event["type"] == "billing_activity" and not event["input_listening"] for event in events))
     assert len(socket.finals()) == 1 and runtime.issued[0]["message_id"] == identity
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.chat.transcripts
+async def test_local_endpoint_admits_streamed_words_without_provider_final(runtime):
+    socket, provider, _ = await runtime.start()
+    socket.push({"type": "mic_audio", "data": base64.b64encode(bytes(3200)).decode()})
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Book for two")
+    await socket.event("transcript")
+    socket.push({"type": "audio_stream_end", "verified_silence": True})
+    await socket.until(lambda events: any(
+        event["type"] == "billing_activity" and not event["input_listening"] for event in events
+    ))
+    provider.push("transcription.text.delta", text=" tomorrow.")
+    final = await socket.until(lambda _: socket.finals())
+    assert [event["text"] for event in final] == ["Book for two tomorrow."]
+    assert len(runtime.issued) == 1
+
+    provider.push("transcription.text.delta", text=" Stale tail.")
+    provider.push("turn.end")
+    socket.push({"type": "mic_audio", "data": base64.b64encode(bytes(3200)).decode()})
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Thanks.")
+    provider.push("turn.end")
+    await socket.until(lambda _: len(socket.finals()) == 2)
+    assert [event["text"] for event in socket.finals()] == ["Book for two tomorrow.", "Thanks."]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.usage.provider-metering
+async def test_connected_call_keeps_two_hours_of_quiet_free(runtime, monkeypatch):
+    now = [time.monotonic()]
+    monkeypatch.setattr(route, "time", SimpleNamespace(monotonic=lambda: now[0], time=time.time))
+    socket, provider, task = await runtime.start()
+    await socket.event("usage")
+    socket.push({"type": "audio_stream_end", "verified_silence": True})
+    await socket.until(lambda events: any(event["type"] == "billing_activity" and not event["input_listening"]
+                                          for event in events))
+    now[0] += 2 * 60 * 60
+    socket.push({"type": "ping"})
+    await asyncio.sleep(0)
+    socket.push({"type": "hangup"})
+    await asyncio.wait_for(task, 2)
+    assert not provider.audio
+    assert [event["credits_accrued"] for event in socket.sent if event["type"] == "usage"] == [0]
+    assert not any(event["type"] in {"error", "speech_idle_warning"} for event in socket.sent)
+    assert [event["reason"] for event in socket.sent if event["type"] == "ended"] == ["user"]
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
@@ -1303,7 +1352,7 @@ async def test_isolated_fixture_needs_all_four_guards_and_has_no_assistant_respo
 async def test_provider_accepted_audio_is_settled_after_lost_charge_receipt_and_disconnect(runtime, monkeypatch):
     calls = []
     async def credits(*args):
-        return route.REALTIME_CREDITS_PER_MINUTE
+        return 1
     class Billing:
         async def charge_user_credits(self, **kwargs):
             calls.append(kwargs)
@@ -1319,7 +1368,7 @@ async def test_provider_accepted_audio_is_settled_after_lost_charge_receipt_and_
     assert len(provider.audio) == 1 and provider.closed
     assert len(calls) == 2 and calls[0]["idempotency_key"] == calls[1]["idempotency_key"]
     assert calls[1]["usage_details"]["duration_seconds"] == 0.1
-    assert calls[1]["credits_to_deduct"] == route.REALTIME_CREDITS_PER_MINUTE
+    assert calls[1]["credits_to_deduct"] == 1
     assert len(runtime.finalized) == 1
 
 
@@ -1329,7 +1378,7 @@ async def test_unaffordable_pcm_never_reaches_provider_or_billing(runtime, monke
     async def credits(*args):
         nonlocal credits_reads
         credits_reads += 1
-        return route.REALTIME_CREDITS_PER_MINUTE if credits_reads == 1 else 0
+        return 1 if credits_reads == 1 else 0
     def forbidden_billing(*args):
         raise AssertionError("Unaccepted audio is not billable")
     monkeypatch.setattr(route, "is_payment_enabled", lambda: True)

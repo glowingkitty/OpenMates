@@ -7,7 +7,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 for (const width of [330, 768]) {
   for (const processing of [false, true]) {
     // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.layout.responsive-parity
-    test(`round Send remains reachable ${processing ? 'during correction' : 'while recording'} at ${width}px`, async ({ page }) => {
+    test(`round Send remains reachable ${processing ? 'during correction' : 'while recording'} at ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: Math.max(390, width + 40), height: 844 });
       await page.goto(`/dev/preview/enter_message/RecordAudio?${processing ? 'variant=processing&' : ''}theme=dark&background=%23181818&width=${width}&chrome=0`);
       await waitForComponentPreview(page);
@@ -34,9 +34,16 @@ for (const width of [330, 768]) {
       await send.hover();
       await send.focus();
       await expect(send).toBeFocused();
+      const checkpoint = `dictation-${processing ? 'correcting' : 'recording'}-${width}`;
+      const screenshot = testInfo.outputPath(`${checkpoint}.png`);
+      await overlay.screenshot({ path: screenshot });
+      await testInfo.attach(checkpoint, { path: screenshot, contentType: 'image/png' });
       // Native Enter on Send must retain the selected action during recording.
       await send.press('Enter');
-      await expect(send).toBeDisabled();
+      await expect(send).toHaveAttribute('aria-busy', 'true');
+      await expect(overlay).toBeFocused();
+      // The account-free preview uses the signed-out Send contract.
+      await expect(send).toBeEnabled();
       await expect(overlay.getByTestId('record-cancel-button')).toBeEnabled();
     });
   }

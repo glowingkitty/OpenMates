@@ -458,7 +458,7 @@ async def realtime_transcription(
             await _release_stream_lock(lock_client, lock_key, lock_token)
             return
     bytes_received = 0
-    guest_forwarded_bytes = 0
+    forwarded_bytes = 0
     guest_audio_ambiguous = False
     guest_deadline = asyncio.get_running_loop().time() + GUEST_WALL_SECONDS
     guest_failure = asyncio.Event()
@@ -624,7 +624,7 @@ async def realtime_transcription(
                                         )
                                         encoded = base64.b64encode(decoded).decode()
                                 if guest:
-                                    await guest.reserve_audio((guest_forwarded_bytes + len(decoded)) / PCM_BYTES_PER_SECOND)
+                                    await guest.reserve_audio((forwarded_bytes + len(decoded)) / PCM_BYTES_PER_SECOND)
                                 elif report_quota is not None and decoded:
                                     await report_quota.reserve((bytes_received + len(decoded)) / PCM_BYTES_PER_SECOND)
                                 bytes_received += len(decoded)
@@ -641,8 +641,8 @@ async def realtime_transcription(
                                     await provider.send_json(
                                         {"type": event_type, "audio": encoded}
                                     )
+                                    forwarded_bytes += len(decoded)
                                 if guest:
-                                    guest_forwarded_bytes += len(decoded)
                                     guest_audio_ambiguous = False
                                 if report_limit_reached:
                                     input_ended = True
@@ -687,7 +687,7 @@ async def realtime_transcription(
                                     log_prefix="[AudioRealtime][Mistral delta] ",
                                     log_hidden_ascii=False,
                                 )
-                                if guest and not guest_forwarded_bytes:
+                                if guest and not forwarded_bytes:
                                     delta = ""
                                 if delta:
                                     if guest and sum(map(len, transcript_deltas)) + len(delta) > GUEST_MAX_TRANSCRIPT_CHARACTERS:
@@ -713,7 +713,7 @@ async def realtime_transcription(
                                     if provider_final_text.startswith(streamed_transcript)
                                     else streamed_transcript
                                 )
-                                if guest and not guest_forwarded_bytes:
+                                if guest and not forwarded_bytes:
                                     raw_transcript = ""
                                 if guest and len(raw_transcript) > GUEST_MAX_TRANSCRIPT_CHARACTERS:
                                     raise GuestTranscriptionDenied("transcript_limit")
@@ -725,15 +725,15 @@ async def realtime_transcription(
                                     if isinstance(event.get("usage"), dict)
                                     else {}
                                 )
-                                audio_seconds = float(
-                                    usage.get("prompt_audio_seconds")
-                                    or bytes_received / PCM_BYTES_PER_SECOND
-                                )
+                                audio_seconds = forwarded_bytes / PCM_BYTES_PER_SECOND
+                                provider_seconds = usage.get("prompt_audio_seconds")
                                 logger.info(
                                     "Realtime transcription completed: audio_bytes=%d peak_pcm=%d "
-                                    "provider_seconds=%.3f transcript_chars=%d "
+                                    "forwarded_seconds=%.3f provider_seconds=%s transcript_chars=%d "
                                     "streamed_chars=%d provider_final_chars=%d",
-                                    bytes_received, peak_pcm, audio_seconds, len(raw_transcript),
+                                    bytes_received, peak_pcm, audio_seconds,
+                                    provider_seconds if isinstance(provider_seconds, (int, float)) else None,
+                                    len(raw_transcript),
                                     len(streamed_transcript), len(provider_final_text),
                                 )
                                 await websocket.send_json(
@@ -746,7 +746,7 @@ async def realtime_transcription(
                                 )
                                 provider_done = True
                                 billing_task = asyncio.create_task(
-                                    guest.settle_audio(guest_forwarded_bytes / PCM_BYTES_PER_SECOND) if guest
+                                    guest.settle_audio(forwarded_bytes / PCM_BYTES_PER_SECOND) if guest
                                     else _report_dictation_settled() if report_quota is not None
                                     else _bill_realtime_usage(
                                         websocket,
@@ -819,20 +819,20 @@ async def realtime_transcription(
         # The provider may have accepted audio before either side disconnects.
         # Settle that usage even when no transcription.done event arrives; the
         # provider request ID keeps a retry idempotent.
-        if (bytes_received or guest) and billing_task is None and report_quota is None:
+        if (forwarded_bytes or guest) and billing_task is None and report_quota is None:
             try:
                 if guest:
                     if guest_audio_ambiguous:
                         await guest.settle_ambiguous_audio()
                     else:
-                        await guest.settle_audio(guest_forwarded_bytes / PCM_BYTES_PER_SECOND)
+                        await guest.settle_audio(forwarded_bytes / PCM_BYTES_PER_SECOND)
                 else:
                     await _bill_realtime_usage(
                         websocket,
                         user_id=user_id,
                         user_id_hash=user_id_hash,
                         request_id=provider_request_id,
-                        audio_seconds=bytes_received / PCM_BYTES_PER_SECOND,
+                        audio_seconds=forwarded_bytes / PCM_BYTES_PER_SECOND,
                         chat_id=chat_id,
                         interrupted=True,
                     )

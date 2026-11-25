@@ -28059,7 +28059,7 @@
       "text": "Nutzungsabhängige Preise"
     },
     "pricing_explanation": {
-      "text": "Die Mikrofon-Transkription wird pro angefangener Minute gestreamten Audios abgerechnet, zuzüglich der normalen KI-Chat- und Sprachausgabe-Nutzung. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert. Stummschalten pausiert die Mikrofon-Eingabekosten; Antworten, Skills und Sprachausgabe können weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr."
+      "text": "Die Mikrofon-Transkription kostet 0,25 Credits pro Sekunde übertragenem Audio. KI-Chat, Skills und erzeugte Sprachausgabe werden separat abgerechnet. Für die reine Verbindung gibt es keine Pauschalgebühr."
     },
     "return_to_chat": {
       "text": "Zum Chat zurück"

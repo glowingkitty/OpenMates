@@ -12,7 +12,7 @@ export interface VoiceDetector {
 
 interface GateOptions {
   onAudio: (data: string) => void;
-  onAudioEnd: () => void;
+  onAudioEnd: (verifiedSilence: boolean) => void;
   onState: (state: { inputIdle: boolean; userSpeaking: boolean }) => void;
   /** Fatal input/startup overflow only. Detector failures recover continuous upload. */
   onError: () => void;
@@ -23,7 +23,8 @@ interface Chunk { data: string; samples: number }
 const RATE = 16_000;
 const STARTUP_SAMPLES = RATE * 10;
 const RING_SAMPLES = RATE * 0.4;
-const SILENCE_SAMPLES = RATE * 5;
+// Leave voiced endings time to reach the provider before stopping uploads.
+const QUIET_TAIL_SAMPLES = RATE * 0.64;
 const MAX_PENDING_SAMPLES = RATE * 0.256;
 const RESULT_TIMEOUT_MS = 250;
 
@@ -124,7 +125,7 @@ export class VoiceCallAudioGate {
     this.muted = muted;
     this.clearAudio();
     this.resetDetection();
-    if (muted) this.endStream();
+    if (muted) this.endStream(false);
   }
 
   stop(): void {
@@ -146,10 +147,10 @@ export class VoiceCallAudioGate {
     this.options.onAudio(data);
   }
 
-  private endStream(): void {
+  private endStream(verifiedSilence: boolean): void {
     if (!this.streamOpen) return;
     this.streamOpen = false;
-    this.options.onAudioEnd();
+    this.options.onAudioEnd(verifiedSilence);
   }
 
   private setState(inputIdle: boolean, userSpeaking: boolean): void {
@@ -208,9 +209,9 @@ export class VoiceCallAudioGate {
     this.silenceSamples += samples;
     this.quietSpeakingSamples += samples;
     if (this.quietSpeakingSamples >= RATE * 0.16 && this.speaking) this.setState(this.idle, false);
-    if (!this.idle && this.silenceSamples >= SILENCE_SAMPLES) {
+    if (!this.idle && this.silenceSamples >= QUIET_TAIL_SAMPLES) {
       this.setState(true, false);
-      this.endStream();
+      this.endStream(true);
     }
   }
 

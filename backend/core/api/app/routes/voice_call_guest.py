@@ -10,8 +10,7 @@ chat, message, user or call registry row and stores no audio or text. The
 browser sends each finished turn through the guest chat stream and plays the
 reply through ``POST /v1/anonymous/speech``. Speech-to-text minutes are metered
 on the same anonymous free allowance as guest chat and composer dictation
-(``GuestTranscriptionMeter``): identity/IP admission, one reservation per
-started minute before audio reaches the provider, settlement on end, and the
+(``GuestTranscriptionMeter``): identity/IP admission, a credit reservation before audio reaches the provider, settlement on end, and the
 admission locks are released on every exit.
 
 Protocol (JSON text frames)
@@ -27,6 +26,7 @@ Protocol (JSON text frames)
     {"type": "transcript", "role": "user", "call_id", "message_id",
      "user_message_id", "turn_id", "created_at", "text", "final": bool,
      "interrupted": false}
+    {"type": "waiting", "call_id", "active", "line"}
     {"type": "error", "code", "stage", "signup_required", "message"}
     {"type": "ended", "reason": "user" | "time_limit"}
 """
@@ -47,13 +47,16 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 from backend.apps.audio.pricing import calculate_realtime_transcription_credits
 from backend.core.api.app.routes.audio_realtime import _origin_is_allowed
+from backend.core.api.app.routes.voice_call_waiting import VoiceWaiting
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousUsageTransactionError
 from backend.core.api.app.services.guest_transcription_meter import (
-    GUEST_IDLE_SECONDS, GuestTranscriptionDenied, GuestTranscriptionMeter,
+    GuestTranscriptionDenied, GuestTranscriptionMeter,
 )
 from backend.shared.providers.voxtral_voice import VoxtralVoiceSession
+from backend.shared.providers.transcript_correction_accounting import CorrectionAccountingError, correction_accountant
+from backend.shared.python_utils.voice_pause_decision import classify_metered_voice_pause
 from backend.shared.testing.voice_call_fixture import (
-    IsolatedVoxtralVoiceFixture, isolated_voice_fixture_enabled,
+    IsolatedVoxtralVoiceFixture, isolated_voice_fixture_enabled, isolated_voice_intent_fixture,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,9 +69,9 @@ MAX_EVENT_BYTES = 384_000
 MAX_AUDIO_CHUNK = 128 * 1024
 MAX_TURN_CHARS = 8_000
 PCM_BYTES_PER_SECOND = 32_000
-PCM_BYTES_PER_BLOCK = PCM_BYTES_PER_SECOND * 60
 AUDIO_JITTER_SECONDS = 12
 GUEST_TURN_SILENCE_SECONDS = 1.2
+GUEST_LOCAL_ENDPOINT_GRACE_SECONDS = 0.35
 LOCK_RENEW_SECONDS = 60
 LOCK_LEASE_SECONDS = 180
 _RENEW_SCRIPT = (
@@ -125,6 +128,22 @@ async def _provider(websocket: WebSocket) -> Any:
     if not key:
         raise RuntimeError("Voice provider unavailable")
     return VoxtralVoiceSession(key)
+
+
+async def _guest_pause_intent(text: str, websocket: WebSocket, meter: GuestCallMeter) -> str:
+    if isolated_voice_fixture_enabled():
+        return isolated_voice_intent_fixture(text) or "none"
+    token = correction_accountant.set(meter)
+    try:
+        decision = await classify_metered_voice_pause(text, websocket.app.state.secrets_manager)
+        # The guest client does not store a replayable last response.
+        return decision.intent if decision.intent in {"wait", "resume"} else "none"
+    except CorrectionAccountingError as error:
+        if isinstance(error.__cause__, GuestTranscriptionDenied):
+            raise error.__cause__ from None
+        raise
+    finally:
+        correction_accountant.reset(token)
 
 
 async def _read_start(websocket: WebSocket) -> dict[str, Any]:
@@ -196,36 +215,32 @@ async def guest_voice_call(websocket: WebSocket) -> None:
             "input_sample_rate": 16000, "max_call_seconds": MAX_CALL_SECONDS,
             "billing_basis": "anonymous_free_allowance"})
         loop = asyncio.get_running_loop()
-        started = last_client = last_renew = loop.time()
+        started = last_renew = loop.time()
+        local_endpoint: float | None = None
+        closed_local_turn = False
         client_receive = asyncio.create_task(websocket.receive_text())
         provider_receive = asyncio.create_task(provider.receive())
         turn: _Turn | None = None
-        reserved_blocks = 0
+        waiting = VoiceWaiting()
         try:
             while True:
                 now = loop.time()
                 if now - started >= MAX_CALL_SECONDS:
                     await websocket.send_json({"type": "ended", "reason": "time_limit"})
                     break
-                if now - last_client >= GUEST_IDLE_SECONDS:
-                    raise GuestTranscriptionDenied("recording_timeout")
                 if now - last_renew >= LOCK_RENEW_SECONDS:
                     await meter.renew_locks()
                     last_renew = now
-                wakeups = [started + MAX_CALL_SECONDS, last_client + GUEST_IDLE_SECONDS,
-                           last_renew + LOCK_RENEW_SECONDS]
+                wakeups = [started + MAX_CALL_SECONDS, last_renew + LOCK_RENEW_SECONDS]
                 if turn is not None and turn.deadline is not None:
                     wakeups.append(turn.deadline)
+                if local_endpoint is not None and local_endpoint > now:
+                    wakeups.append(local_endpoint)
                 done, _ = await asyncio.wait({client_receive, provider_receive},
                                              timeout=max(0.0, min(wakeups) - now),
                                              return_when=asyncio.FIRST_COMPLETED)
-                if turn is not None and turn.deadline is not None and loop.time() >= turn.deadline:
-                    if turn.text.strip():
-                        await _send_transcript(websocket, call_id, turn, final=True)
-                    turn = None
                 if client_receive in done:
                     raw = client_receive.result()
-                    last_client = loop.time()
                     if len(raw.encode("utf-8")) > MAX_EVENT_BYTES:
                         raise ValueError("Call event exceeds limit")
                     event = json.loads(raw)
@@ -236,6 +251,7 @@ async def guest_voice_call(websocket: WebSocket) -> None:
                         await websocket.send_json({"type": "ended", "reason": "user"})
                         break
                     if kind == "mic_audio":
+                        local_endpoint = None
                         data = event.get("data")
                         if not isinstance(data, str):
                             raise ValueError("Audio chunk is missing")
@@ -245,17 +261,15 @@ async def guest_voice_call(websocket: WebSocket) -> None:
                         if forwarded_bytes + len(chunk) > (
                                 loop.time() - started + AUDIO_JITTER_SECONDS) * PCM_BYTES_PER_SECOND:
                             raise ValueError("Audio stream exceeds real-time rate")
-                        blocks = math.ceil((forwarded_bytes + len(chunk)) / PCM_BYTES_PER_BLOCK)
-                        if blocks > reserved_blocks:
-                            # The block that starts a new minute is reserved before its audio is sent.
-                            await meter.reserve_audio(blocks * 60)
-                            reserved_blocks = blocks
+                        await meter.reserve_audio((forwarded_bytes + len(chunk)) / PCM_BYTES_PER_SECOND)
                         audio_ambiguous = True
                         await provider.send_audio(data)
                         forwarded_bytes += len(chunk)
                         audio_ambiguous = False
                     elif kind == "audio_stream_end":
                         await provider.end_audio()
+                        if event.get("verified_silence") is True and forwarded_bytes:
+                            local_endpoint = loop.time() + GUEST_LOCAL_ENDPOINT_GRACE_SECONDS
                     elif kind != "ping":
                         raise ValueError("Unknown call event")
                     client_receive = asyncio.create_task(websocket.receive_text())
@@ -263,6 +277,7 @@ async def guest_voice_call(websocket: WebSocket) -> None:
                     event = provider_receive.result()
                     kind = event.get("type")
                     if kind == "turn.start":
+                        closed_local_turn = False
                         if turn is None:
                             turn = _Turn()
                         else:
@@ -273,7 +288,7 @@ async def guest_voice_call(websocket: WebSocket) -> None:
                         delta = event.get("text")
                         if not isinstance(delta, str):
                             raise ValueError("Invalid transcript delta")
-                        if delta:
+                        if delta and not closed_local_turn:
                             if turn is None:
                                 turn = _Turn()
                             turn.deadline = None
@@ -288,9 +303,28 @@ async def guest_voice_call(websocket: WebSocket) -> None:
                     elif kind == "turn.end":
                         if turn is not None:
                             turn.deadline = loop.time() + GUEST_TURN_SILENCE_SECONDS
+                    elif kind == "turn.resume":
+                        closed_local_turn = False
+                        local_endpoint = None
+                        if turn is not None:
+                            turn.deadline = None
                     elif kind == "transcription.done":
                         raise RuntimeError("Voice transcription session ended")
                     provider_receive = asyncio.create_task(provider.receive())
+                now = loop.time()
+                local_finished = local_endpoint is not None and now >= local_endpoint
+                if turn is not None and (local_finished or (turn.deadline is not None and now >= turn.deadline)):
+                    if turn.text.strip():
+                        intent = await _guest_pause_intent(turn.text, websocket, meter)
+                        discard, words = await waiting.route(turn.text, intent, send=websocket.send_json, call_id=call_id)
+                        if discard is None:
+                            turn.text = words
+                            await _send_transcript(websocket, call_id, turn, final=True)
+                        local_endpoint = None
+                        closed_local_turn = local_finished
+                        turn = None
+                    elif not local_finished:
+                        turn = None
         finally:
             client_receive.cancel()
             provider_receive.cancel()

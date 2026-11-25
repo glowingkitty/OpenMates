@@ -81,13 +81,10 @@ usage_based_pricing:
 pricing_explanation:
   context: 'Accessible pricing disclosure: duration-based microphone transcription plus ordinary chat and generated speech
     usage'
-  en: Microphone transcription is billed per started minute of streamed audio, plus normal AI chat and generated speech
-    usage. Listening includes silence until automatic idle pauses audio input. Muting pauses microphone input charges;
-    replies, skills and speech can still cost credits. There is no flat fee for staying connected.
-  de: Die Mikrofon-Transkription wird pro angefangener Minute gestreamten Audios abgerechnet, zuzüglich der normalen KI-Chat-
-    und Sprachausgabe-Nutzung. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert.
-    Stummschalten pausiert die Mikrofon-Eingabekosten; Antworten, Skills und Sprachausgabe können weiterhin Credits kosten.
-    Für die reine Verbindung gibt es keine Pauschalgebühr.
+  en: Microphone transcription costs 0.25 credits per second of audio sent for transcription. Normal AI chat, skills,
+    and generated speech are billed separately. Staying connected has no flat fee.
+  de: Die Mikrofon-Transkription kostet 0,25 Credits pro Sekunde übertragenem Audio. KI-Chat, Skills und erzeugte
+    Sprachausgabe werden separat abgerechnet. Für die reine Verbindung gibt es keine Pauschalgebühr.
   verified_by_human: []
 return_to_chat:
   context: Navigate to the chat that owns the call

@@ -7,7 +7,8 @@
  */
 export {};
 
-const { test, expect } = require('./console-monitor');
+const { test: monitoredTest, expect } = require('./console-monitor');
+const { withProofAudio, proofAudioLaunchArgs } = require('./helpers/proof-audio');
 const {
 	archiveExistingScreenshots,
 	createSignupLogger,
@@ -18,6 +19,8 @@ const {
 } = require('./signup-flow-helpers');
 const { extractLiveTestMarker, loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const test = withProofAudio(monitoredTest);
 
 const SPEECH_TIMEOUT_MS = 240_000;
 const SERVER_RESPONSE_TIMEOUT_MS = 20_000;
@@ -85,7 +88,7 @@ const PROOF_CONTRACT = defineVideoProof({
 });
 
 test.use({
-	launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+	launchOptions: { args: proofAudioLaunchArgs({ voiceWav: null }) },
 	permissions: ['microphone']
 });
 

@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 21
+version: 22
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -17,8 +17,8 @@ scope:
   - 'Phase 1: fixed chat binding, persistent call controls, microphone mute, active duration, interruption handling and
     deterministic hangup.'
   - 'Phase 1: composer recording and independent message playback are unavailable while the call owns shared speech playback.'
-  - Background-loaded local speech detection preserves immediate call startup and automatically suspends microphone uploads
-    after five seconds of silence, with continuous-streaming fallback and truthful activity states.
+  - Background-loaded web speech detection preserves immediate call startup and automatically suspends microphone uploads
+    after a short audio tail, with continuous-streaming fallback and truthful activity states.
   - Inline, scroll-fixed and detached-pill call controls follow the approved call-strip design, with real audio bars,
     an active-duration counter and encrypted call-start/end history events.
   - 'Phase 2: shared Jev-backed capability discovery, authorized app skill execution, submitted-file processing and normal
@@ -255,15 +255,17 @@ assertions:
   must: >-
     A signed-out visitor on web and mobile web can start a voice call from a new or guest chat, speak and hear
     the spoken reply. Guest calls use the existing free usage allowance for signed-out visitors, counted against
-    the same allowance as guest chat with no separate budget: transcription minutes and spoken-reply characters
-    are reserved before each provider dispatch and settled after it, and the call ends with the sign-up message
+    the same allowance as guest chat with no separate budget. The microphone uses the shared local speech gate.
+    The server reserves transcription and reply speech headroom before dispatch and settles forwarded audio duration
+    and spoken-reply characters after it. It admits streamed words after the quiet tail. A spoken hold uses one
+    budgeted Jev decision and a ready-made line with no ordinary answer turn or synthesis charge. The call ends with the sign-up message
     when the allowance is used. The guest call connection is first-party and credential-free (permitted origin,
     browser anonymous id, official cloud only), bounded to one call per visitor and network at a time, a
-    10-minute call and an idle timeout. Guest turns become local-only guest chat messages: the server stores no
+    10-minute call cap. Quiet does not end the call before that cap. Guest turns become local-only guest chat messages: the server stores no
     chat, transcript or audio. The first-call provider notice is accepted per browser and kept in that
     browser's storage; the guest connection refuses a start without the version-3 acknowledgement.
   depends_on:
-  - examples.privacy
+  - examples.guest_speech_windows
 - id: video-call.privacy.first-call-warning
   type: behavior
   must: >-
@@ -284,7 +286,7 @@ assertions:
     text never overwrites rich content. Duplicate events, late packets, reconnect and reload do not duplicate a turn.
     Interrupted assistant text remains recoverable with its actual heard boundary; text conversation can continue after
     hangup. Listener acknowledgements do not become new tasks. Every word of every consecutive turn arrives in order;
-    a slow credit check or per-minute charge never delays the live transcript or the forwarding of later microphone audio.
+    a slow credit check or charge never delays the live transcript or the forwarding of later microphone audio.
   depends_on:
   - examples.migration_canonical_rich_history
 - id: video-call.chat.typed-input
@@ -341,9 +343,11 @@ assertions:
   - examples.background_detection
 - id: video-call.audio.automatic-idle
   type: behavior
-  must: After healthy local detection observes five consecutive seconds without user speech, a live unmuted call suspends
-    microphone uploads and sends one ordered provider audio-stream pause signal, retaining the connection and conversation.
-    Local detection and a bounded, memory-only prespeech buffer remain active. Detected speech resumes input with its
+  must: When healthy local detection observes a short quiet tail after the caller stops speaking, a live unmuted web
+    call suspends microphone uploads and sends one ordered audio-stream pause, retaining the connection and conversation.
+    The provider stream drains the last words and closes. No synthetic PCM is sent to keep it open; the next speech window
+    opens upstream on demand without reconnecting or restarting the client call.
+    Local detection and a memory-only buffer of about 400 ms of prespeech audio remain active. Detected speech resumes input with its
     buffered beginning exactly once and then streams subsequent audio in order, including short utterances. Detector
     readiness alone never pauses an ongoing utterance. Manual mute clears buffered audio and prevents any automatic transmission
     or unmute; hangup releases capture, playback, detector resources, timers and pending buffers. Existing interruption
@@ -376,21 +380,23 @@ assertions:
   must: One admitted call retains its identity and active-duration counter until hangup or terminal connection failure.
     STT usage already accepted by the provider is settled idempotently, including disconnects; ordinary main-model and
     TTS usage retain their existing independent settlement. Revoked or unpaid calls stop safely. Terminal failures visibly
-    end the call, retain encrypted completed content and never silently start another paid call.
+    end the call, retain encrypted completed content and never silently start another paid call. Silence never warns or
+    ends a connected call on web, including guest calls within their existing
+    cap and allowance. Quiet listening and connection pings accrue zero transcription credits.
   depends_on:
   - examples.migration_disconnect_settlement
 - id: video-call.usage.provider-metering
   type: invariant
   must: >-
-    Call transcription is charged for received microphone audio using the published realtime transcription
-    started-minute policy. Successful completed Eleven v4 Turbo call synthesis settles exact submitted
+    Call transcription is charged at 0.25 credits per second of microphone audio forwarded to the
+    transcription provider, rounding the cumulative credit total up to a whole credit. Successful completed Eleven v4 Turbo call synthesis settles exact submitted
     characters once, charging only the increase in ceil(cumulative message characters * 0.04), with
     provider/model attribution and zero-credit increments recorded as settled. Per-append credit headroom is
     checked before paid work; failed or interrupted synthesis, cached playback and duplicate settlement add
     no charge. Ordinary chat reasoning and skills retain existing rates and idempotent settlement, without a
     second connected-time fee or Gemini Live token ledger. Manual Mistral Speak remains separate at 0.013
-    credits per exact character with cumulative rounding and cached replay. Synthetic endpoint padding is
-    not microphone usage. Call information explains these distinct usage components. The strip omits credit
+    credits per exact character with cumulative rounding and cached replay. Provider control frames and connection pings
+    carry no audio and accrue no microphone usage. Call information explains these distinct usage components. The strip omits credit
     totals; its duration reflects activity, not a price guarantee. Muting and healthy idle detection stop
     microphone upload while already generated audio may finish.
   depends_on:
@@ -582,9 +588,10 @@ assertions:
 - id: video-call.audio.complete-turn-admission
   type: invariant
   must: Realtime endpointing separates speech activity from semantic completion and interruption intent. Eager-end preparation
-    must be disposable and cannot invoke irreversible tools. Collect trailing transcript deltas after the turn-end signal
-    through the configured streaming delay or the next speech-start boundary before admitting a final request. Idle upload
-    suspension or microphone mute never acts as an implicit user command or drops pending final words.
+    must be disposable and cannot invoke irreversible tools. A verified local end of speech can start the completeness
+    check while streaming the last words. Collect trailing deltas for the configured grace period; resumed microphone
+    speech cancels the local endpoint until the renewed request is complete. Admit that streamed request without waiting
+    for a provider final transcript. Manual mute only pauses input.
   depends_on:
   - examples.complete_turn
 - id: video-call.audio.pause-verdict
@@ -624,8 +631,9 @@ assertions:
   must: The call bar's call controls are mute and end call; it has no hold or pause button. Waiting starts only from the
     caller's natural-language request in any language (such as "give me a second" or "wait") or from a hard signal
     (typing, the file picker, an upload), and a spoken "I'm back" or the end of the hard signal leaves it. The state shows
-    "Waiting for you"; entering plays and shows the ready-made line "Okay, I'm waiting." and leaving "Okay, go on.",
-    with no inference and no credits. While waiting the assistant stays quiet and any current speech stops. A spoken
+    "Waiting for you"; entering plays the ready-made line "Okay, I'm waiting." and leaving "Okay, go on." on web
+    when a recording exists for the language. The acknowledgment runs no ordinary chat
+    inference or paid synthesis. The guest fast check is reserved and settled against the shared allowance. While waiting the assistant stays quiet and any current speech stops. A spoken
     request to wait comes from the completion decision's intent field (none, wait, resume, repeat), never
     from keyword lists, and a hard signal always wins. What the caller said before waiting and what they say after it
     are sent as one turn. The intent "repeat" replays the stored last answer's audio and text without new inference

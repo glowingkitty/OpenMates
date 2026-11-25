@@ -4,6 +4,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from backend.shared.providers.transcript_correction_accounting import (
+    CorrectionAccountingError, correction_accountant,
+)
 from backend.shared.providers.typesafe.models import ChoiceAnswer, DecisionResponse
 from backend.shared.python_utils import voice_pause_decision as vpd
 
@@ -64,6 +67,33 @@ async def test_provider_failure_and_timeout_fail_open_without_private_text(caplo
     assert failed.verdict == timed_out.verdict == "unavailable"
     assert failed.wait_seconds == .5 and failed.intent == "none"
     assert "PRIVATE" not in caplog.text
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.guest-calls,billing.anonymous.hard-capped-provider-metering
+async def test_guest_hold_check_requires_admission_and_settles_only_one_attempt():
+    operation = AsyncMock()
+    meter = AsyncMock()
+    meter.reserve_correction.return_value = operation
+    binding = correction_accountant.set(meter)
+    try:
+        with patch(f"{MODULE}.JevDecisionClient") as client:
+            async def evaluate(**_):
+                assert meter.reserve_correction.await_count == 1
+                client.call_args.kwargs["accounting"].append({"input_tokens": 100, "output_tokens": 0})
+                return response("wait", "wait")
+
+            client.return_value.evaluate = evaluate
+            assert (await vpd.classify_metered_voice_pause("Give me a second.", None)).intent == "wait"
+            operation.settle.assert_awaited_once_with(100, 0)
+            assert client.call_count == 1 and client.call_args.kwargs["max_retries"] == 0
+            assert not client.call_args.kwargs["allow_gemini"]
+
+            meter.reserve_correction.side_effect = RuntimeError("denied")
+            with pytest.raises(CorrectionAccountingError):
+                await vpd.classify_metered_voice_pause("Give me a second.", None)
+            assert client.call_count == 1
+    finally:
+        correction_accountant.reset(binding)
 
 
 # contract-test: supporting surface=rest_api assertions=video-call.audio.pause-verdict

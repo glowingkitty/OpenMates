@@ -81,6 +81,8 @@ export interface SocketObservation {
   inputListening?: boolean;
   processing?: boolean;
   creditsCharged?:number;
+  creditsAccrued?: number;
+  sttDuration?: number;
   checkpointId?: string;
   coveredCount?: number;
   compressedMessageCount?: number;
