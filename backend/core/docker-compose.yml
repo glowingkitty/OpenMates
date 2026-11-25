@@ -106,8 +106,6 @@ services:
     healthcheck:
       test:
         - CMD
-        - su-exec
-        - node:node
         - /usr/local/bin/openmates-directus-health
       interval: 10s
       timeout: 8s
@@ -121,6 +119,9 @@ services:
     build:
       context: ./directus
       dockerfile: Dockerfile
+    user: node
+    command:
+      - /usr/local/bin/openmates-directus-start
   cms-database:
     container_name: cms-database
     image: postgres:13-alpine

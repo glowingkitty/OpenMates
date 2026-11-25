@@ -40,14 +40,11 @@ services:
       context: ./directus
       dockerfile: Dockerfile
     image: openmates-directus:dev
+    # The cached dev image also includes the non-root startup script.
+    user: node
+    command: [/usr/local/bin/openmates-directus-start]
     volumes:
       - ./directus/uploads:/directus/uploads
-    healthcheck:
-      test:
-        - CMD
-        - su-exec
-        - node:node
-        - /usr/local/bin/openmates-directus-health
   cms-setup:
     build:
       context: ./directus/setup

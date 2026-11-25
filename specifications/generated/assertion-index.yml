@@ -26834,12 +26834,12 @@ assertions:
     direct_tests:
     - &id3439
       path: backend/tests/test_runtime_health_verifier.py
-      line: 60
+      line: 64
       name: test_core_inventory_includes_optional_bounded_object_storage
       surface: cli
     - &id3440
       path: backend/tests/test_runtime_health_verifier.py
-      line: 104
+      line: 108
       name: test_object_storage_failure_is_sanitized_and_does_not_fail_core
       surface: cli
     - &id3441
@@ -26881,12 +26881,12 @@ assertions:
     direct_tests:
     - &id3444
       path: backend/tests/test_runtime_health_verifier.py
-      line: 60
+      line: 64
       name: test_core_inventory_includes_optional_bounded_object_storage
       surface: cli
     - &id3445
       path: backend/tests/test_runtime_health_verifier.py
-      line: 74
+      line: 78
       name: test_object_storage_reports_not_configured_without_outage
       surface: cli
     - &id3446
@@ -26913,12 +26913,12 @@ assertions:
     direct_tests:
     - &id3447
       path: backend/tests/test_runtime_health_verifier.py
-      line: 74
+      line: 78
       name: test_object_storage_reports_not_configured_without_outage
       surface: cli
     - &id3448
       path: backend/tests/test_runtime_health_verifier.py
-      line: 104
+      line: 108
       name: test_object_storage_failure_is_sanitized_and_does_not_fail_core
       surface: cli
     - &id3449
