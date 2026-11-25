@@ -80,6 +80,7 @@ services:
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-docs-worker:
+    group_add: *development-runtime-groups
     environment: *development-worker-environment
     volumes: *development-notification-spool
   app-code-worker:

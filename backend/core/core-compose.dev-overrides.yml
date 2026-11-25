@@ -485,11 +485,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
-        mkdir -p /app/logs /app/backend/core/api/logs && \
-        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
-        chmod -R 777 /app/logs /app/backend/core/api/logs && \
-        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        exec python -m celery -A backend.core.api.app.tasks.celery_config worker \
         --loglevel=info \
         --queues=@canonical-celery-queues@ \
         --concurrency=2 \

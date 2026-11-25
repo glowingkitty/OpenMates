@@ -386,13 +386,12 @@ services:
     <<: *openmates-worker-base
     image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.33.0}
     container_name: app-docs-worker
-    user: root
     mem_limit: "${APP_DOCS_WORKER_MEMORY_LIMIT:-1536m}"
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: "app_docs"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_docs --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_docs --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
 
   app-code-worker:
     <<: *openmates-worker-base
