@@ -56,10 +56,11 @@ stage that runs in each environment.
 
 ## Verified changes
 
-- CI schema carrier, dev commit `6e3fe61`. The pinned Postgres base restored a
-  compressed SQL fixture in a disposable fresh volume as UID/GID 70 and
-  accepted connections. The image's publish workflow also checks the identity
-  inside both fresh restore consumers.
+- CI schema carrier, dev commits `6e3fe61` and `ef9727d`. The pinned Postgres
+  base restored a compressed SQL fixture in a fresh local volume as UID/GID 70.
+  The CI publisher passed both clean restore checks after the CI database
+  mount allowed Docker to inherit the image's empty, Postgres-owned directory.
+  [Publisher run](https://github.com/glowingkitty/OpenMates/actions/runs/45585889954).
 - Engineering control plane API, Dockerfile in dev commit `8de5100`. All 34
   control-plane tests passed. The recreated live container has a single
   UID 10001 process and reports database readiness with no writable application
@@ -75,3 +76,10 @@ stage that runs in each environment.
   `node`. Docker reports a healthy container, UID 1000 for each CMS process
   and a writable existing upload directory. The API health endpoint returned
   HTTP 200.
+- Core Postgres, dev commit `086b8be`. All generated Compose manifests retain
+  the existing data volume. The dev database reports healthy and its
+  processes run as UID/GID 70. Directus reported healthy and API health
+  returned HTTP 200 after recreation.
+- Docker web app. The published dev image served its static application on
+  port 5173 with UID/GID 1000 in a network-isolated dev smoke. The Dockerfile
+  now sets the same user by default.
