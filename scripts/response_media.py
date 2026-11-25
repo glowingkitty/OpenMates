@@ -98,7 +98,23 @@ def ensure_bucket(client, name):
             raise
         client.create_bucket(Bucket=name)
         time.sleep(2)
-    client.put_bucket_acl(Bucket=name, ACL="private")
+
+    # Hetzner creates buckets private by default. Check both access controls
+    # before sending sensitive media with a private object ACL.
+    acl = client.get_bucket_acl(Bucket=name)
+    owner = acl["Owner"]["ID"]
+    if not acl["Grants"] or any(
+        grant["Grantee"].get("Type") != "CanonicalUser" or grant["Grantee"].get("ID") != owner
+        for grant in acl["Grants"]
+    ):
+        raise RuntimeError("Response-media bucket ACL must grant access only to its owner")
+    try:
+        client.get_bucket_policy(Bucket=name)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "NoSuchBucketPolicy":
+            raise
+    else:
+        raise RuntimeError("Response-media bucket must not have a bucket policy")
 
 
 def apply_lifecycle(client, name):
@@ -118,26 +134,45 @@ def apply_lifecycle(client, name):
     )
 
 
-def apply_cors(client, name, origins):
+def ensure_lifecycle(client, name):
+    days = int(REQUEST["lifecycle_days"])
+    try:
+        rules = client.get_bucket_lifecycle_configuration(Bucket=name)["Rules"]
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "NoSuchLifecycleConfiguration":
+            raise
+        apply_lifecycle(client, name)
+        rules = client.get_bucket_lifecycle_configuration(Bucket=name)["Rules"]
+    if not any(
+        rule["Status"] == "Enabled"
+        and rule["Expiration"].get("Days") == days
+        and rule.get("Filter", {"Prefix": rule.get("Prefix")}) in ({}, {"Prefix": ""})
+        for rule in rules
+        if "Expiration" in rule
+    ):
+        raise RuntimeError(f"Response-media bucket must expire all objects after {days} days")
+
+
+def ensure_cors(client, name, origins):
+    expected = {
+        "AllowedOrigins": origins,
+        "AllowedMethods": ["GET", "HEAD"],
+        "AllowedHeaders": ["*"],
+        "ExposeHeaders": ["Accept-Ranges", "Content-Length", "Content-Range", "Content-Type", "ETag"],
+    }
+    try:
+        rules = client.get_bucket_cors(Bucket=name)["CORSRules"]
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "NoSuchCORSConfiguration":
+            raise
+        rules = []
+    if len(rules) == 1 and rules[0].get("MaxAgeSeconds") == 3600 and all(
+        set(rules[0].get(field, [])) == set(values) for field, values in expected.items()
+    ):
+        return
     client.put_bucket_cors(
         Bucket=name,
-        CORSConfiguration={
-            "CORSRules": [
-                {
-                    "AllowedOrigins": origins,
-                    "AllowedMethods": ["GET", "HEAD"],
-                    "AllowedHeaders": ["*"],
-                    "ExposeHeaders": [
-                        "Accept-Ranges",
-                        "Content-Length",
-                        "Content-Range",
-                        "Content-Type",
-                        "ETag",
-                    ],
-                    "MaxAgeSeconds": 3600,
-                }
-            ]
-        },
+        CORSConfiguration={"CORSRules": [{**expected, "MaxAgeSeconds": 3600}]},
     )
 
 
@@ -155,6 +190,7 @@ async def main():
     region = await manager.get_secret(
         secret_path="kv/data/providers/hetzner",
         secret_key="s3_region_name",
+        log_missing=False,
     ) or "nbg1"
     if not access_key or not secret_key:
         raise RuntimeError("Hetzner S3 credentials are unavailable in Vault")
@@ -177,8 +213,8 @@ async def main():
     environment = os.getenv("SERVER_ENVIRONMENT", "development")
     target_bucket = bucket_name(environment)
     ensure_bucket(client, target_bucket)
-    apply_lifecycle(client, target_bucket)
-    apply_cors(client, target_bucket, allowed_origins(environment))
+    ensure_lifecycle(client, target_bucket)
+    ensure_cors(client, target_bucket, allowed_origins(environment))
 
     content = Path(REQUEST["container_path"]).read_bytes()
     metadata = {
@@ -222,7 +258,11 @@ async def main():
     await manager.initialize()
     access_key = await manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_access_key")
     secret_key = await manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_secret_key")
-    region = await manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name") or "nbg1"
+    region = await manager.get_secret(
+        secret_path="kv/data/providers/hetzner",
+        secret_key="s3_region_name",
+        log_missing=False,
+    ) or "nbg1"
     if not access_key or not secret_key:
         raise RuntimeError("Hetzner S3 credentials are unavailable in Vault")
     client = boto3.client(
