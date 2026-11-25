@@ -145,3 +145,7 @@ stage that runs in each environment.
   and scanner as UID/GID 1000 on disposable dev. The entrypoint inherited
   the correct owner on a fresh signature volume. Readiness and a real
   benign-file scan passed. The normal release verifies signature updates.
+- Promtail. The live dev process runs as UID/GID 10006 with the Docker
+  socket and core log groups. It could read both mounts, returned HTTP 200
+  on its readiness endpoint, and reported delivered log entries with zero
+  dropped entries after recreation (dev commit `51ae534`).

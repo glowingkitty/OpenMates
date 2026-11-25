@@ -416,6 +416,7 @@ services:
   cache:
     container_name: cache
     image: docker.dragonflydb.io/dragonflydb/dragonfly
+    user: dfly
     restart: unless-stopped
     ulimits:
       memlock: -1

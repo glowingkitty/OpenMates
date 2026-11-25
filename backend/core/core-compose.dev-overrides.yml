@@ -564,6 +564,8 @@ services:
         - /runner/runner.py
         - --healthcheck
   cache:
+    # Retain the dev daemon version when recreating it with the new user.
+    image: docker.dragonflydb.io/dragonflydb/dragonfly@sha256:af221b68138afb0b0238401c335493cfc2b060d577c5d6c018ddf6a29d3119f9
     deploy:
       resources:
         limits:

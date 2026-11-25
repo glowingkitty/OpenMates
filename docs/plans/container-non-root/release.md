@@ -65,6 +65,11 @@ group 1000. Before updating, check it can read the mounted configuration
 and API logs. After the update, check its readiness on port 9080 and that
 new log entries reach OpenObserve.
 
+Dragonfly starts as its upstream `dfly` account. Confirm the cache volume
+is owned by UID/GID 999 on the release image. Save its current state to
+the existing volume before recreating the service. Check authenticated
+cache health and the core API afterward.
+
 For upload Vault setup, prepare the existing private setup volume and separate
 app handoff volume for UID/GID 10003 before the first start. Keep the directories
 at mode 0700 and private credential files at 0600. Verify that the root token
