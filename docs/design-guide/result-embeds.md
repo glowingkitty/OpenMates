@@ -9,7 +9,10 @@ Use existing OpenMates tokens for theme-aware colors, spacing and typography.
 
 Use `UnifiedEmbedPreview` for every preview and
 `ResultEmbedFullscreen` for individual results. The latter composes the existing
-fullscreen shell/header, `EmbedLeafletMap` and private request composer. Use
+fullscreen shell and `EmbedLeafletMap`. The shell renders a shared compact
+preview icon, title and optional subtitle for content and results. It also owns
+the More, Edit and Close controls and the sticky follow-up composer below the
+scrolling content. App skill execution views retain the large banner. Use
 `ResultEmbedCard` for image/title/fallback and wide information/media placement;
 use its `contain` media mode when the whole image must remain visible. Use
 `ResultEmbedInfo` for compact facts, amenity states and evidence. Collections use

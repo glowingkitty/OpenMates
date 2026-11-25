@@ -1053,6 +1053,13 @@ specifications:
     required_applies_to:
     - gui.web
     - gui.apple
+  feature.shared-embed-fullscreen:
+    version: 1
+    status: draft
+    path: features/shared-embed-fullscreen
+    fingerprint: 54035b708304c3954a52ec4cd9921a71228001a3859094664af36a98a021fd6e
+    required_applies_to:
+    - gui.web
   feature.slides:
     version: 2
     status: draft
@@ -14687,6 +14694,20 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  shared-embed-fullscreen.content:
+    specification: feature.shared-embed-fullscreen@1
+    specification_id: feature.shared-embed-fullscreen
+    type: behavior
+    fingerprint: 9b2ae473e0197fcd9d6030f724612c2b8b7a55edd153e5532f8f429139243b50
+    required_applies_to:
+    - gui.web
+  shared-embed-fullscreen.followup:
+    specification: feature.shared-embed-fullscreen@1
+    specification_id: feature.shared-embed-fullscreen
+    type: security
+    fingerprint: 59053830f3b4d13e3987213f519c38f18e10c6aa591ad1a4c410683b5492497d
+    required_applies_to:
+    - gui.web
   slides.format.positioned-elements:
     specification: feature.slides@2
     specification_id: feature.slides

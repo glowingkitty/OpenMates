@@ -47,7 +47,7 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen appId="web" skillId="browse" skillIconName="website" {onClose} {embedId}
+<UnifiedEmbedFullscreen appId="web" skillId="browse" skillIconName="website" {onClose} currentEmbedId={embedId}
   {hasPreviousEmbed} {hasNextEmbed} {onNavigatePrevious} {onNavigateNext} {navigateDirection} {showChatButton} {onShowChat}
   testId="browse-fullscreen" embedHeaderTitle={result.title || $text('embeds.browse.title')}
   embedHeaderSubtitle={$text(browseStatusKey(result.status))}

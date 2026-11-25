@@ -211,7 +211,7 @@
 
 {#if head}
   {#key embedId}
-    <DesignEditorFullscreen document={past?.design ?? head} versionNumber={past?.version ?? headVersion}
+    <DesignEditorFullscreen {embedId} owningChatId={chatId ?? undefined} document={past?.design ?? head} versionNumber={past?.version ?? headVersion}
       readOnly={!scope || !embedId || !!head.proposal || !!past || historyLoading}
       revision={scope && embedId && !head.proposal ? { version: headVersion, save } : undefined} {readImage} {versionHistory}
       assistantTools={head.proposal || scope && !past ? assistantTools : undefined} {onClose} />

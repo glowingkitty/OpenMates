@@ -1,0 +1,18 @@
+schema_version: 2
+profile: concise
+id: shared-embed-fullscreen
+title: Shared fullscreen UI for content embeds
+status: implementing
+goal: "Replace the large embed header in the full screen view of every content embed with a compact header, keep the large header for app skill embeds, and add a sticky follow-up input. Ship web first and Apple afterwards."
+task: 015924ca-21aa-4233-a1af-e0f12a20c714
+scope:
+  in:
+    - Reuse the content and execution classification and the preview icon.
+    - Put compact identity, More, Edit and Close in the shared web shell.
+    - Use the existing authorized follow-up path and a shared sticky composer.
+    - Hand the Apple follow-up to the Apple chat after web verification on dev.
+verification:
+  - Compare before and after preview captures at laptop and phone widths.
+  - Verify shared controls, fullscreen and edit behavior, and a child website result.
+  - Verify a follow-up stays scoped to the opened embed with existing client-side encryption.
+  - Deploy and verify web on dev before Apple parity.

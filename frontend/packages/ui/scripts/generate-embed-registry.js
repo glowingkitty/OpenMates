@@ -283,7 +283,7 @@ function buildPreviewComponentPresentation(componentMaps, contentEmbedCatalog) {
     .filter((item) => item.source === "self")
     .map((item) => item.registryKey));
   const presentation = {};
-  for (const [key, path] of Object.entries(componentMaps.preview)) {
+  for (const [key, path] of [...Object.entries(componentMaps.preview), ...Object.entries(componentMaps.fullscreen)]) {
     const kind = key.startsWith("app:") && !durableRoutes.has(key) ? "execution" : "content";
     if (presentation[path] !== "content") presentation[path] = kind;
   }

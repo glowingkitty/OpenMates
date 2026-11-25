@@ -109,3 +109,92 @@ test('shows a proposal on a phone while protecting edit and apply controls', asy
   await expect(page.getByTestId('design-mode')).toHaveCount(0);
   await info.attach('design-proposal-read-only-phone', { body: await page.screenshot(), contentType: 'image/png' });
 });
+
+const cases = [
+  ['code/CodeEmbedFullscreen', 'editableInProject'],
+  ['sheets/SheetEmbedFullscreen', 'editableFormulas'],
+  ['docs/DocsEmbedFullscreen', 'editableInChat'],
+  ['images/ImageEmbedFullscreen', ''],
+  ['events/EventEmbedFullscreen', ''],
+  ['web/WebsiteEmbedFullscreen', ''],
+  ['news/NewsEmbedFullscreen', ''],
+  ['design/editor/DesignEditorFullscreen', 'saved-edit'],
+] as const;
+
+for (const width of [1280, 390]) {
+  for (const [fixture, variant] of cases) {
+    // contract-test: supporting surface=gui.web assertions=shared-embed-fullscreen.content,shared-embed-fullscreen.followup
+    test(`${fixture} uses the shared content shell at ${width}px`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 860 });
+      const query = new URLSearchParams({ chrome: '0', theme: 'light', width: String(width), variant });
+      await page.goto(`/dev/preview/embeds/${fixture}?${query}`);
+      await waitForComponentPreview(page);
+      const shell = page.locator('[data-embed-shell="shared"]');
+      await expect(shell).toHaveCount(1);
+      await expect(shell).toHaveAttribute('data-header-kind', 'content');
+      const bar = shell.getByTestId('embed-top-bar');
+      await expect(bar.getByTestId('embed-compact-identity')).toBeInViewport({ ratio: 1 });
+      await expect(bar.getByTestId('embed-header-title')).not.toBeEmpty();
+      const more = bar.getByRole('button', { name: 'More', exact: true });
+      await expect(more).toBeInViewport({ ratio: 1 });
+      const close = bar.getByTestId('embed-minimize');
+      await expect(close).toBeInViewport({ ratio: 1 });
+      const dock = shell.getByTestId('embed-fixed-bottom');
+      await expect(dock.getByTestId('embed-followup-composer')).toBeInViewport({ ratio: 1 });
+      await more.click();
+      await expect(bar.getByTestId('embed-report-issue-button')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(more).toHaveAttribute('aria-expanded', 'false');
+      await expect(bar.getByTestId('embed-report-issue-button')).toHaveCount(0);
+      await expect(bar.getByTestId('embed-compact-identity').locator('span[style]')).not.toHaveCSS('mask-image', 'none');
+      await info.attach(`${fixture.split('/').at(-1)}-view-${width}`, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+
+      const edit = bar.locator('[data-edit-state="edit"]');
+      if (await edit.isVisible() && await edit.isEnabled()) {
+        await edit.click();
+        await expect(bar.getByTestId('embed-compact-identity')).toBeInViewport({ ratio: 1 });
+        await expect(close).toBeInViewport({ ratio: 1 });
+        await expect(dock.getByTestId('embed-followup-composer')).toBeInViewport({ ratio: 1 });
+        await info.attach(`${fixture.split('/').at(-1)}-edit-${width}`, {
+          body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+        });
+      }
+    });
+  }
+}
+
+// contract-test: supporting surface=gui.web assertions=shared-embed-fullscreen.content
+test('the news execution retains its large header and uses the shared composer', async ({ page }) => {
+  await page.goto('/dev/preview/embeds/news/NewsSearchEmbedFullscreen?chrome=0&theme=light&width=390');
+  await waitForComponentPreview(page);
+  const shell = page.locator('[data-embed-shell="shared"]').first();
+  await expect(shell).toHaveAttribute('data-header-kind', 'execution');
+  await expect(shell.getByTestId('embed-compact-identity')).toHaveCount(0);
+  await expect(shell.getByTestId('embed-followup-composer')).toBeVisible();
+});
+
+// contract-test: supporting surface=gui.web assertions=shared-embed-fullscreen.content
+test('a website opened from search uses the compact shell and keeps its image', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const title = 'The city market';
+  const query = new URLSearchParams({ chrome: '0', theme: 'light', width: '390', props: JSON.stringify({
+    results: [{ title, url: 'https://example.com/market', description: 'An indoor market.', image: '/store-examples/events-1.webp' }],
+  }) });
+  await page.goto(`/dev/preview/embeds/web/WebSearchEmbedFullscreen?${query}`);
+  await waitForComponentPreview(page);
+  const parent = page.locator('[data-embed-shell="shared"][data-header-kind="execution"]');
+  await expect(parent).toBeVisible();
+  await parent.getByText(title, { exact: true }).click();
+  const child = page.locator('[data-embed-shell="shared"][data-header-kind="content"]');
+  await expect(child.getByTestId('embed-compact-identity').getByTestId('embed-header-title')).toHaveText(title);
+  const image = child.getByRole('img').first();
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('src', /events-1\.webp/);
+  await expect(child.getByTestId('embed-followup-composer')).toBeInViewport({ ratio: 1 });
+  await info.attach('website-child-phone', { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+  await child.getByTestId('embed-minimize').click();
+  await expect(child).toHaveCount(0);
+  await expect(parent).toBeVisible();
+});

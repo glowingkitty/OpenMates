@@ -14,18 +14,18 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**131 features** · enabled on prod: 114 · enabled on dev: 120
+**132 features** · enabled on prod: 115 · enabled on dev: 121
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 21 | 54 | 13 | 19 | 0 | 0 | 0 | 20 |
-| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 7 | 7 | 0 | 23 |
+| Web | 4 | 0 | 21 | 54 | 14 | 19 | 0 | 0 | 0 | 20 |
+| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 7 | 8 | 0 | 23 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 32 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 48 |
-| REST API | 5 | 2 | 34 | 16 | 30 | 15 | 0 | 1 | 0 | 28 |
-| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 58 |
-| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 59 |
+| CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 33 |
+| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 49 |
+| REST API | 5 | 2 | 34 | 16 | 30 | 15 | 0 | 1 | 0 | 29 |
+| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 59 |
+| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 60 |
 
 ## Core product
 
@@ -103,6 +103,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Chat share settings | **FAIL** 1/4 | partial 2/4 | tested 1/1 | not run 0/1 | ? | not run 0/1 | — | — | | | |
 | &nbsp;&nbsp;↳ Notification settings | **FAIL** 4/5 | partial 3/5 | ? | — | ? | partial 1/5 | — | — | | | |
 | &nbsp;&nbsp;↳ Language settings | **FAIL** 1/2 | ? | ? | — | ? | not run 0/2 | — | — | | | |
+| [Shared content embed fullscreen](#shared-embed-fullscreen) | not run 0/2 | planned |  | — | — | — | — | — | on (no flag) | on (no flag) | unreleased |
 | [Signed-out Web Welcome](#landing-onboarding) | **FAIL** 2/12 | partial 3/12 |  | — | — | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.7.0-alpha |
 | [Teams](#teams) | **FAIL** 12/21 | tested 4/4 |  | **FAIL** 1/21 | **FAIL** 0/8 | partial 9/21 | not run 0/21 | not run 0/21 | on | off | unreleased |
 | [Webhooks](#webhooks) | impl | impl |  | impl | impl | impl | — | — | on (no flag) | on (no flag) | unverified |
@@ -2740,6 +2741,28 @@ The settings shell on web and Apple: navigation, sections and footer.
 | CLI | — | — | — |
 | TUI | impl | — | — |
 | REST API | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | 1 unit test file(s), e.g. [test_apps_metadata_availability.py](../../backend/tests/test_apps_metadata_availability.py) |
+| npm SDK | — | — | — |
+| PyPI SDK | — | — | — |
+
+</details>
+
+### Shared content embed fullscreen
+<a id="shared-embed-fullscreen"></a>
+
+Compact identity, shared controls, and an embed-scoped follow-up composer.
+
+- Specifications: [feature.shared-embed-fullscreen](../../specifications/features/shared-embed-fullscreen/specification.yml) (draft) · 2 assertion(s)
+- Flags: none · dev on (no flag) · prod on (no flag) · release unreleased
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | not run 0/2 | 0 pass · 0 fail · 2 not run · 0 no test | [design-document.spec.ts](../../frontend/apps/web_app/tests/components/design-document.spec.ts)<br>[embed-fullscreen-followup.spec.ts](../../frontend/apps/web_app/tests/embed-fullscreen-followup.spec.ts) |
+| Apple | planned | — | — |
+| CLI | — | — | — |
+| TUI | — | — | — |
+| REST API | — | — | — |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

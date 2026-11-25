@@ -108,24 +108,20 @@ const FULLSCREEN_PATH_OVERRIDES: Record<string, string> = {
 
 const fullscreenComponentPromises = new Map<string, Promise<Component | null>>();
 
-const fullscreenPresentationWrappers = new WeakMap<Component, Component>();
-function withResultPresentation(component: Component): Component {
-	const existing = fullscreenPresentationWrappers.get(component);
-	if (existing) return existing;
+function withResultPresentation(component: Component, key: string): Component {
 	const wrapped: Component = (anchor, props) => {
 		// Svelte passes getters for reactive props. Keep reading that object on
 		// navigation instead of snapshotting its content or sharing identity.
-		const forwarded = new Proxy({ __fullscreenComponent: component }, {
-			get: (target, key) => key === '__fullscreenComponent' ? target.__fullscreenComponent : Reflect.get(props, key),
+		const forwarded = new Proxy({ __fullscreenComponent: component, __registryKey: key }, {
+			get: (target, key) => key in target ? Reflect.get(target, key) : Reflect.get(props, key),
 			has: (target, key) => key in target || key in props,
 			ownKeys: target => [...new Set([...Reflect.ownKeys(props), ...Reflect.ownKeys(target)])],
-			getOwnPropertyDescriptor: (target, key) => key === '__fullscreenComponent'
+			getOwnPropertyDescriptor: (target, key) => key in target
 				? Reflect.getOwnPropertyDescriptor(target, key)
 				: Reflect.has(props, key) ? { configurable: true, enumerable: true, get: () => Reflect.get(props, key) } : undefined,
 		});
 		return ResolvedEmbedFullscreen(anchor, forwarded);
 	};
-	fullscreenPresentationWrappers.set(component, wrapped);
 	return wrapped;
 }
 
@@ -146,13 +142,11 @@ const STATIC_FULLSCREEN_COMPONENTS: Record<string, Component> = {
 export async function loadFullscreenComponent(
 	key: string
 ): Promise<Component | null> {
-	const staticComponent = STATIC_FULLSCREEN_COMPONENTS[key];
-	if (staticComponent) return withResultPresentation(staticComponent);
-
 	const cached = fullscreenComponentPromises.get(key);
 	if (cached) return cached;
-
-	const promise = loadFullscreenComponentUncached(key)
+	const staticComponent = STATIC_FULLSCREEN_COMPONENTS[key];
+	const load = staticComponent ? Promise.resolve(withResultPresentation(staticComponent, key)) : loadFullscreenComponentUncached(key);
+	const promise = load
 		.then((component) => {
 			// Keep successful imports shared, but let closing and reopening the view
 			// retry a failed import instead of reusing a permanently cached null.
@@ -185,7 +179,7 @@ async function loadFullscreenComponentUncached(
 
 	try {
 		const module = await loader();
-		return withResultPresentation(module.default);
+		return withResultPresentation(module.default, key);
 	} catch (error) {
 		if (isChunkLoadError(error)) {
 			logChunkLoadError('embedFullscreenResolver', error);

@@ -93,6 +93,7 @@
     editLabel?: string;
     /** Opt-in: Report Issue is listed in More instead of the primary row. */
     reportInMore?: boolean;
+    identity?: import('svelte').Snippet;
     closeTestId?: string;
     onShare?: () => void;
     onCopy?: () => void;
@@ -146,6 +147,7 @@
     editTestId = 'embed-edit-button',
     editLabel,
     reportInMore = false,
+    identity,
     closeTestId = 'embed-minimize',
     onShare,
     onCopy,
@@ -225,8 +227,9 @@
   </div>
 {/snippet}
 
-<div class="embed-top-bar" data-testid="embed-top-bar" use:headerOverlayControls>
-  <HeaderActionMenu reportInMenu={reportInMore} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} responsiveAction={onEnhance ? enhanceButton : undefined} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
+<div class="embed-top-bar" class:inline={!!identity} data-testid="embed-top-bar" use:headerOverlayControls>
+  {@render identity?.()}
+  <HeaderActionMenu compactMoreOnly={!!identity} keepClose={!!identity} reportInMenu={reportInMore || !!identity} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} responsiveAction={onEnhance ? enhanceButton : undefined} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
     {#snippet report()}
       <WorkspaceReportIssueButton testId="embed-report-issue-button" onOpen={onReportIssue} />
     {/snippet}
@@ -540,6 +543,10 @@
     /* Sits above EmbedHeader (z-index 2) and Leaflet panes (z-index 400+) */
     z-index: var(--z-index-modal);
   }
+
+  .embed-top-bar.inline { position: relative; flex: none; gap: var(--spacing-4); padding: var(--spacing-4) var(--spacing-6);
+    color: var(--color-font-primary); background: var(--color-grey-0); border-bottom: 1px solid var(--color-grey-25); }
+  .inline :global(.header-action-menu) { margin-inline-start: auto; }
 
   .debug-mode-active {
     color: var(--color-primary) !important;

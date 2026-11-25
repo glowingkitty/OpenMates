@@ -195,3 +195,19 @@ def test_inline_parent_wiring_is_checked_without_an_overlay() -> None:
         missing = module.missing_inline_parent_wiring(parent_key, relative_path, broken)
         assert missing and component in missing[-1]
         assert module.missing_inline_parent_wiring(parent_key, "OtherFullscreen.svelte", source) is None
+
+
+# contract-test: tooling
+def test_registered_fullscreen_requires_the_shared_shell(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    fullscreen = tmp_path / "files" / "FileEmbedFullscreen.svelte"
+    monkeypatch.setattr(module, "EMBEDS_ROOT", tmp_path)
+    registry = module.RegistryMaps({}, {}, {}, {"file": "files/FileEmbedFullscreen.svelte"})
+    write(fullscreen, "<main><header>Local fullscreen</header></main>")
+    assert "does not render the shared shell" in module.audit_registered_fullscreen_shells(registry)[0]
+
+    write(fullscreen, "<UnifiedEmbedFullscreen><EmbedHeader /></UnifiedEmbedFullscreen>")
+    assert "duplicates the shared fullscreen identity" in module.audit_registered_fullscreen_shells(registry)[0]
+
+    write(fullscreen, "<UnifiedEmbedFullscreen />")
+    assert module.audit_registered_fullscreen_shells(registry) == []

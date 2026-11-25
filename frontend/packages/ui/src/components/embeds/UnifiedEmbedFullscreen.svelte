@@ -50,7 +50,12 @@
   import { chatDebugStore } from '../../stores/chatDebugStore';
   import { userProfile } from '../../stores/userProfile';
   import EmbedTopBar from './EmbedTopBar.svelte';
+  import EmbedIconButton from './shared/EmbedIconButton.svelte';
   import EmbedHeader from './EmbedHeader.svelte';
+  import EmbedFollowupComposer from './EmbedFollowupComposer.svelte';
+  import CompactEmbedIdentity from './CompactEmbedIdentity.svelte';
+  import { EMBED_PREVIEW_PRESENTATION_CONTEXT, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
+  const embedPresentation = getContext<EmbedPreviewPresentationContext | undefined>(EMBED_PREVIEW_PRESENTATION_CONTEXT);
   import { loadChildrenWithRetry } from './childEmbedRetry';
   
   // Animation state: controls both open and close animations via CSS classes
@@ -163,6 +168,9 @@
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
     /** Optional embed-specific actions in the standard header menu. */
     fixedBottom?: import('svelte').Snippet;
+    headerKind?: 'content' | 'execution';
+    followupSubmit?: (value: string, attachments: File[]) => Promise<boolean>;
+    followupSubmitting?: boolean;
     /** Result embeds float their composer over the content, as in the design references. */
     floatingBottom?: boolean;
     /** App landing pages fit one screen; result collections retain scrolling. */
@@ -432,6 +440,9 @@
     showShare = true,
     content,
     fixedBottom,
+    headerKind,
+    followupSubmit,
+    followupSubmitting,
     floatingBottom = false,
     contentLayout = 'default',
     embedHeaderContent,
@@ -988,6 +999,9 @@
     }
   }
   
+  const compactHeader = $derived(embedHeaderPresentation !== 'apps' &&
+    (headerKind ?? (typeof embedPresentation === 'string' ? embedPresentation : embedPresentation?.presentation) ?? 'content') === 'content');
+
   // Handle report issue action - opens settings with report issue page
   // The SettingsReportIssue component will auto-generate the embed share URL
   async function handleReportIssue() {
@@ -1453,9 +1467,74 @@
   class:animating-in={isAnimatingIn}
   class:host-presented={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
   data-testid={testId}
+  class:compact-header={compactHeader}
+  data-embed-shell="shared"
+  data-header-kind={compactHeader ? 'content' : 'execution'}
   ontransitionend={handleCloseTransitionEnd}
 >
   <div class="fullscreen-container">
+    {#snippet compactIdentity()}
+      <CompactEmbedIdentity {appId} {appIconName} title={embedHeaderTitle} subtitle={embedHeaderSubtitle} titleTestId={embedHeaderTitleTestId} />
+    {/snippet}
+    {#snippet compactHeaderActions()}
+      {@render headerActions?.()}
+      {#if hasPreviousEmbed}<EmbedIconButton icon="back" label="Previous embed"
+        testId="embed-previous" onclick={handleNavigatePrevious} />{/if}
+      {#if hasNextEmbed}<EmbedIconButton icon="back" flip label="Next embed"
+        testId="embed-next" onclick={handleNavigateNext} />{/if}
+      <!-- ui-control-visibility: allow Shared icon button forwards testId to its button. -->
+    {/snippet}
+    <EmbedTopBar
+      identity={compactHeader ? compactIdentity : undefined}
+      {headerPrimaryAction}
+      headerActions={compactHeader && (hasPreviousEmbed || hasNextEmbed) ? compactHeaderActions : headerActions}
+      headerActionCount={headerActionCount + Number(compactHeader && !!hasPreviousEmbed) + Number(compactHeader && !!hasNextEmbed)}
+      {showChatButton}
+      {showShare}
+      showCopy={!!onCopy}
+      showDownload={!!onDownload}
+      {downloadHref}
+      {downloadFilename}
+      {downloadLabel}
+      {onDownloadPdf}
+      showCalendar={!!onCalendar}
+      {showRun}
+      {runActive}
+      {showPreview}
+      {previewActive}
+      {showPIIToggle}
+      {piiRevealed}
+      {showPIIIncludeOriginal}
+      onClose={handleClose}
+      {onEdit}
+      {onEnhance}
+      {enhanceState}
+      {enhanceError}
+      {enhanceUnavailableReason}
+      {editActive}
+      {editBusy}
+      {editToggleOnly}
+      editPlacement={compactHeader ? 'close' : editPlacement}
+      {editTestId}
+      {editLabel}
+      {reportInMore}
+      {closeTestId}
+      onShare={handleShare}
+      onCopy={handleCopy}
+      onDownload={handleDownload}
+      {onImport}
+      {isImporting}
+      onCalendar={handleCalendar}
+      onRun={handleRun}
+      onReportIssue={handleReportIssue}
+      onShowChat={handleShowChatClick}
+      {onTogglePII}
+      {onIncludeOriginalPII}
+      {onTogglePreview}
+      showDebug={isAdminUser}
+      debugActive={$chatDebugStore.rawTextMode}
+      onToggleDebug={handleToggleEmbedDebug}
+    />
 
     <!-- ── Scrollable content area (header banner + embed content) ──
          Fills the full container height. EmbedTopBar overlays the top
@@ -1484,9 +1563,9 @@
              EmbedTopBar floats above it as a transparent overlay.
              If a CTA is present it pokes out from the banner's bottom edge
              and the embed content must provide enough top spacing to clear it. -->
-        {#if embedHeaderContent}
+        {#if !compactHeader && embedHeaderContent}
           {@render embedHeaderContent()}
-        {:else}
+        {:else if !compactHeader}
         <EmbedHeader
         staticPresentation={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
           presentation={embedHeaderPresentation}
@@ -1515,6 +1594,9 @@
         />
 
         {/if}
+        {#if compactHeader && embedHeaderCta}
+          <div class="compact-header-cta">{@render embedHeaderCta()}</div>
+        {/if}
         <!-- ── Embed-specific content ── -->
         {#if content}
           {@render content(childEmbedContext)}
@@ -1533,61 +1615,18 @@
         {#if appsSave.state === 'error'}<button type="button" data-testid="apps-result-save-retry" onclick={() => appsSave.retry()}>{$text('apps_workspace.retry_save')}</button>{/if}
       </div>
     {/if}
-    {#if fixedBottom}<div class="fixed-bottom" class:floating-bottom={floatingBottom} data-testid="embed-fixed-bottom">{@render fixedBottom()}</div>{/if}
+    {#if fixedBottom || embedHeaderPresentation !== 'apps'}
+      <div class="fixed-bottom" class:floating-bottom={!!fixedBottom && floatingBottom} data-testid="embed-fixed-bottom">
+        {#if fixedBottom}
+          {@render fixedBottom()}
+        {:else}
+          <EmbedFollowupComposer {appId} {skillId} embedId={currentEmbedId} submit={followupSubmit}
+            externalSubmitting={followupSubmitting} {onClose} />
+        {/if}
+      </div>
+    {/if}
 
-    <!-- ── Action buttons (transparent overlay, positioned over the header) ──
-         position: absolute so it does not push the content area down.
-         The gradient header is visible through the semi-transparent buttons. -->
-    <EmbedTopBar
-      {headerPrimaryAction}
-      {headerActions}
-      {headerActionCount}
-      {showChatButton}
-      {showShare}
-      showCopy={!!onCopy}
-      showDownload={!!onDownload}
-      {downloadHref}
-      {downloadFilename}
-      {downloadLabel}
-      {onDownloadPdf}
-      showCalendar={!!onCalendar}
-      {showRun}
-      {runActive}
-      {showPreview}
-      {previewActive}
-      {showPIIToggle}
-      {piiRevealed}
-      {showPIIIncludeOriginal}
-      onClose={handleClose}
-      {onEdit}
-      {onEnhance}
-      {enhanceState}
-      {enhanceError}
-      {enhanceUnavailableReason}
-      {editActive}
-      {editBusy}
-      {editToggleOnly}
-      {editPlacement}
-      {editTestId}
-      {editLabel}
-      {reportInMore}
-      {closeTestId}
-      onShare={handleShare}
-      onCopy={handleCopy}
-      onDownload={handleDownload}
-      {onImport}
-      {isImporting}
-      onCalendar={handleCalendar}
-      onRun={handleRun}
-      onReportIssue={handleReportIssue}
-      onShowChat={handleShowChatClick}
-      {onTogglePII}
-      {onIncludeOriginalPII}
-      {onTogglePreview}
-      showDebug={isAdminUser}
-      debugActive={$chatDebugStore.rawTextMode}
-      onToggleDebug={handleToggleEmbedDebug}
-    />
+
 
   </div>
 </div>
@@ -1684,6 +1723,8 @@
   /* Fills the full container height. EmbedTopBar overlays via position: absolute. */
   .apps-save-state { position: relative; z-index: 1000; flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; font-size: var(--font-size-xs); color: var(--color-font-secondary); background: var(--embed-content-background); }
   .apps-save-state button { padding: 4px 8px; border: 0; border-radius: 8px; background: var(--color-grey-10); color: var(--color-font-primary); cursor: pointer; }
+  .compact-header { --embed-header-overlay-height: 0px; }
+  .compact-header-cta { display: flex; justify-content: center; padding: var(--spacing-4); }
   .fixed-bottom { flex-shrink: 0; position: relative; z-index: 1000; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)); background: var(--embed-content-background); }
   .fixed-bottom.floating-bottom { position: absolute; inset-inline: 0; bottom: 0; background: linear-gradient(transparent, var(--embed-content-background)); pointer-events: none; }
   .floating-bottom :global(.result-followup) { pointer-events: auto; }

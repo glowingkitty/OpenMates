@@ -922,7 +922,7 @@
      sticky cover paints the surface colour over that band so scrolled rows never
      show above the pinned header. At scroll top it sits under the header row. */
   .sheet-fullscreen {
-    --sheet-pin-top: 64px;
+    --sheet-pin-top: var(--embed-header-overlay-height, 64px);
   }
   .sheet-pin-cover {
     position: sticky;

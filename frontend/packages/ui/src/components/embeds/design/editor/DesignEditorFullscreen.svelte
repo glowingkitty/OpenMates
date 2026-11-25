@@ -12,6 +12,8 @@
 
   interface Props {
     document: DesignDocument;
+    embedId?: string;
+    owningChatId?: string;
     readOnly?: boolean;
     readImage?: (id: string) => Promise<ImageBitmap | null>;
     initialMode?: 'view' | 'edit';
@@ -22,7 +24,7 @@
     onClose: () => void;
   }
 
-  let { document: initialDocument, initialMode = 'view', readOnly = false, readImage, revision, versionNumber, versionHistory, assistantTools, onClose }: Props = $props();
+  let { document: initialDocument, embedId, owningChatId, initialMode = 'view', readOnly = false, readImage, revision, versionNumber, versionHistory, assistantTools, onClose }: Props = $props();
   let document = $state.raw(untrack(() => initialDocument));
   let editing = $state(untrack(() => !readOnly && initialMode === 'edit'));
   let editingVersion = $state<number>();
@@ -261,25 +263,11 @@
 
 <svelte:window onkeydown={handleKeys} />
 
-<UnifiedEmbedFullscreen appId="design" {onClose} showShare={false} closeOnChatSelection={false}
+<UnifiedEmbedFullscreen appId="design" {onClose} showShare={false} currentEmbedId={embedId} {owningChatId}
+  embedHeaderTitle={document.title} embedHeaderSubtitle={`${activePage.width} × ${activePage.height}`}
   testId="design-fullscreen" contentLayout="app-home"
   onEdit={readOnly ? undefined : toggleMode} editActive={editing} editBusy={saving} editToggleOnly={!revision} editPlacement="close" editTestId="design-mode" reportInMore
   editLabel={editing ? revision ? 'Save design' : 'View design' : 'Edit design'} escapeScope={{ consume: escape }}>
-  {#snippet embedHeaderContent()}
-    <header class="design-header">
-      <div class="design-identity">
-        <span class="design-icon" aria-hidden="true"></span>
-        <div class="design-heading">
-          <h1>{document.title}</h1>
-          <div class="dimensions">
-            {activePage.width} × {activePage.height}
-            {#if editing && !revision}<span> · Preview edits</span>{/if}
-          </div>
-        </div>
-      </div>
-    </header>
-  {/snippet}
-
   {#snippet content()}
     <div class="workspace" class:editing class:assistant-tools={!!assistantTools && !editing} bind:this={root} data-testid="design-workspace" data-mode={editing ? 'edit' : 'view'}
       data-selection={selectedId} data-layers={activePage.layers.length} data-version={versionNumber}>
@@ -374,31 +362,6 @@
 </UnifiedEmbedFullscreen>
 
 <style>
-  .design-header {
-    flex: none;
-    height: 72px;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    padding: 0 118px 0 76px;
-    background: var(--color-grey-0);
-    border-bottom: 1px solid var(--color-grey-25);
-  }
-  .design-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .design-heading { min-width: 0; }
-  .design-icon {
-    display: grid; place-items: center; width: 42px; height: 42px; flex: none;
-    border-radius: 50%; background: var(--color-app-design, var(--color-primary));
-  }
-  .design-icon::before {
-    content: ''; width: 24px; height: 24px; background: var(--color-font-button);
-    mask: var(--icon-url-design) center / contain no-repeat;
-  }
-  h1 {
-    margin: 0; font-size: var(--font-size-h4); line-height: 1.35;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .dimensions { font-size: var(--font-size-xxs); color: var(--color-font-tertiary); white-space: nowrap; }
   .save-error {
     position: absolute; z-index: 2; inset: 0 0 auto; width: max-content; max-width: calc(100% - 24px);
     margin: var(--spacing-6) auto; padding: var(--spacing-4) var(--spacing-6);
@@ -468,12 +431,6 @@
   .clipboard-menu span { font-size: var(--font-size-tiny); padding: 6px; }
 
   @container fullscreen (max-width: 740px) {
-    .design-header { height: 65px; padding-left: 66px; padding-right: 106px; }
-    .design-identity { gap: 8px; }
-    .design-icon { width: 34px; height: 34px; }
-    .design-icon::before { width: 20px; height: 20px; }
-    h1 { font-size: var(--font-size-small); }
-    .dimensions { font-size: var(--font-size-tiny); }
     .workspace.editing { grid-template-columns: minmax(0, 1fr); }
     .mobile-tools { display: flex; gap: 3px; }
     .tools { gap: 3px; bottom: 10px; padding: 4px; }
@@ -488,7 +445,6 @@
     .panel-slot.open { display: block; }
   }
   @container fullscreen (max-width: 340px) {
-    .design-icon { display: none; }
     .tools :global(.embed-icon-button) { width: 36px; height: 42px; padding: 6px; }
     .zoom :global(.doc-zoom-btn) { width: 28px; }
   }

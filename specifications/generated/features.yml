@@ -4,15 +4,15 @@ schema_version: 2
 source: specifications/features.yml
 results_as_of: '2026-11-16'
 summary:
-  features: 131
-  enabled_on_prod: 114
-  enabled_on_dev: 120
+  features: 132
+  enabled_on_prod: 115
+  enabled_on_dev: 121
   status_by_surface:
     web:
       live: 4
       partial: 21
       failing: 54
-      not_run: 13
+      not_run: 14
       implemented: 19
       not_planned: 20
     apple:
@@ -21,7 +21,7 @@ summary:
       failing: 5
       implemented: 39
       in_progress: 7
-      planned: 7
+      planned: 8
       not_planned: 23
     watchos:
       tested: 7
@@ -35,14 +35,14 @@ summary:
       implemented: 40
       in_progress: 2
       planned: 2
-      not_planned: 32
+      not_planned: 33
     tui:
       live: 2
       failing: 13
       not_run: 1
       implemented: 57
       in_progress: 10
-      not_planned: 48
+      not_planned: 49
     rest_api:
       live: 5
       tested: 2
@@ -51,18 +51,18 @@ summary:
       not_run: 30
       implemented: 15
       planned: 1
-      not_planned: 28
+      not_planned: 29
     sdk_npm:
       partial: 3
       not_run: 20
       implemented: 50
-      not_planned: 58
+      not_planned: 59
     sdk_pypi:
       partial: 3
       not_run: 18
       implemented: 42
       in_progress: 9
-      not_planned: 59
+      not_planned: 60
 unmapped:
   specifications: []
   apps: []
@@ -1777,6 +1777,127 @@ features:
       - packages/openmates-python/tests/test_teams.py
       - packages/openmates-python/tests/test_sdk_anonymous.py
       unit_test_files: 2
+- id: shared-embed-fullscreen
+  name: Shared content embed fullscreen
+  kind: core
+  description: Compact identity, shared controls, and an embed-scoped follow-up composer.
+  specifications:
+  - id: feature.shared-embed-fullscreen
+    status: draft
+    path: specifications/features/shared-embed-fullscreen
+  apps: []
+  product_features: []
+  release: unreleased
+  flags:
+    ids: []
+    dev: no_flag
+    prod: no_flag
+  assertions: 2
+  surfaces:
+    web:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 2
+        missing: 0
+        counted: 2
+      key_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/components/design-document.spec.ts
+      - frontend/apps/web_app/tests/embed-fullscreen-followup.spec.ts
+      key_unit_tests: []
+      unit_test_files: 0
+    apple:
+      status: planned
+      source: intent
+      intent: planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
 - id: chat-awareness
   name: Consent-Scoped Cross-Chat Awareness
   kind: core

@@ -180,6 +180,34 @@ def fullscreen_uses_approved_base(path: Path) -> bool:
     )
 
 
+def fullscreen_reaches_shared_shell(path: Path, visited: set[Path]) -> bool:
+    """Follow mounted, local Svelte adapters from a registered fullscreen."""
+    if path in visited or not path.is_file():
+        return False
+    visited.add(path)
+    source = svelte_source(path)
+    if extract_svelte_component_attrs(source, "UnifiedEmbedFullscreen"):
+        return True
+    imports = re.findall(r"""import\s+(\w+)\s+from\s+['"]([.][^'"]+\.svelte)['"]""", source)
+    return any(
+        extract_svelte_component_attrs(source, name)
+        and fullscreen_reaches_shared_shell((path.parent / relative).resolve(), visited)
+        for name, relative in imports
+    )
+
+
+def audit_registered_fullscreen_shells(registry: RegistryMaps) -> list[str]:
+    """Every registered renderer reaches the single fullscreen shell."""
+    issues = []
+    for renderer in sorted(set(registry.fullscreens.values())):
+        path = component_path(renderer)
+        if not fullscreen_reaches_shared_shell(path, set()):
+            issues.append(f"{renderer}: registered fullscreen does not render the shared shell")
+        elif extract_svelte_component_attrs(svelte_source(path), "EmbedHeader"):
+            issues.append(f"{renderer}: local header duplicates the shared fullscreen identity")
+    return issues
+
+
 # These specialized parents present results in place. Validate their actual
 # loading and presentation wiring instead of expecting an overlay callback.
 INLINE_PARENT_CONTRACTS = {
@@ -220,6 +248,7 @@ def audit_embed_structure() -> AuditResult:
     warnings: list[str] = []
 
     issues.extend(audit_fullscreen_primary_ctas())
+    issues.extend(audit_registered_fullscreen_shells(registry))
 
     for parent_key, child_server_type in sorted(registry.child_types.items()):
         parent_registry_key = f"app:{parent_key}"

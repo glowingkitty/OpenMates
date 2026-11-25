@@ -425,6 +425,7 @@
 </script>
 
 <UnifiedEmbedFullscreen
+  currentEmbedId={embedId}
   appId="audio"
   skillId="transcribe"
   skillIconName="microphone"

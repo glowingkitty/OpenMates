@@ -9,7 +9,6 @@
   import UnifiedEmbedFullscreen from "./UnifiedEmbedFullscreen.svelte";
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from "./EmbedLeafletMap.svelte";
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from "../../utils/imageProxy";
-  import AppsRequestComposer from "../apps/AppsRequestComposer.svelte";
   import { text } from "../../i18n/translations";
   import AuthoredResultContextInfo from './AuthoredResultContextInfo.svelte';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultMetadata, type AuthoredResultPresentationContext } from '../../types/authoredResult';
@@ -85,16 +84,6 @@
   const onClose = $derived(fullscreen.onClose);
   let contentElement = $state<HTMLDivElement>();
   let fullscreenHeight = $state<number>();
-  let followupElement = $state<HTMLDivElement>();
-  let followupHeight = $state(64);
-  $effect(() => {
-    if (!followupElement) return;
-    const updateHeight = () => { followupHeight = followupElement!.offsetHeight; };
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(followupElement);
-    return () => observer.disconnect();
-  });
   $effect(() => {
     if (mediaLayout !== "immersive" || !contentElement) return;
     const overlay = contentElement.closest<HTMLElement>(".unified-embed-fullscreen-overlay");
@@ -194,12 +183,12 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen {...fullscreen} embedHeaderTitle={headerTitle} embedHeaderSubtitle={headerSubtitle} floatingBottom={true}>
+<UnifiedEmbedFullscreen {...fullscreen} headerKind="content" embedHeaderTitle={headerTitle}
+  embedHeaderSubtitle={headerSubtitle} followupSubmit={submitFollowup} followupSubmitting={submitting}>
   {#snippet content()}
     <div
       bind:this={contentElement}
       style:--result-fullscreen-height={fullscreenHeight ? `${fullscreenHeight}px` : undefined}
-      style:--result-followup-height={`${followupHeight}px`}
       class="result-embed-content"
       class:immersive={mediaLayout === "immersive"}
       data-testid="result-embed-content"
@@ -246,17 +235,6 @@
       {#if authoring && authoringPlacement === "bottom"}<div class="result-sources-content" data-testid="result-sources"><AuthoredResultContextInfo {authoring} section /></div>{/if}
     </div>
   {/snippet}
-  {#snippet fixedBottom()}
-    <div class="result-followup" bind:this={followupElement}>
-      <AppsRequestComposer
-        presentation="embed"
-        {appId}
-        {submitting}
-        placeholder={$text("apps_workspace.followup_placeholder")}
-        onSubmit={submitFollowup}
-      />
-    </div>
-  {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
@@ -268,8 +246,8 @@
     width: min(100%, 64rem);
     margin-inline: auto;
     box-sizing: border-box;
-    padding: var(--spacing-12) var(--spacing-6) calc(var(--result-followup-height, 4rem) + 3rem);
-    --result-media-max-height: max(1rem, calc(var(--result-fullscreen-height, 100dvh) - 27rem - max(0px, var(--result-followup-height, 4rem) - 4rem)));
+    padding: var(--spacing-12) var(--spacing-6) var(--spacing-12);
+    --result-media-max-height: max(1rem, calc(var(--result-fullscreen-height, 100dvh) - 10rem));
     color: var(--color-font-primary);
   }
   .result-summary {
@@ -344,10 +322,6 @@
     line-height: 1.55;
     white-space: pre-wrap;
   }
-  .result-followup {
-    width: min(100%, 629px);
-    margin-inline: auto;
-  }
   @container fullscreen (min-width: 600px) {
     .result-embed-content {
       padding-inline: var(--spacing-16);
@@ -374,7 +348,7 @@
      Videos keep their own budget so playback controls stay clear of the composer. */
   .result-embed-content.immersive[data-app-id="images"] {
     padding-inline: var(--spacing-4);
-    --result-image-max-height: max(1rem, calc(var(--result-fullscreen-height, 100dvh) - 18rem - max(0px, var(--result-followup-height, 4rem) - 4rem)));
+    --result-image-max-height: max(1rem, calc(var(--result-fullscreen-height, 100dvh) - 10rem));
   }
   .immersive[data-app-id="images"] .result-media-panel :global(img.result-primary-media) {
     max-height: var(--result-image-max-height);

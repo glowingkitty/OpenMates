@@ -1,0 +1,30 @@
+schema_version: 1
+id: feature.shared-embed-fullscreen
+version: 1
+status: draft
+title: Shared content embed fullscreen
+summary: Open content in one shared fullscreen view with its identity and follow-up controls.
+scope:
+  includes:
+    - Content and result embeds, including results opened from app skills.
+    - A compact header with the preview icon, title, optional subtitle, and shared More, Edit and Close controls.
+    - A sticky composer for a follow-up on the current embed.
+    - Web release first, followed by Apple parity in the same Task.
+  excludes:
+    - Replacing the large header on app skill executions.
+assertions:
+  - id: shared-embed-fullscreen.content
+    type: behavior
+    must: Content uses the shared compact header and fullscreen shell in view and edit modes. Titles truncate before controls are squeezed. App skill executions retain their large header.
+  - id: shared-embed-fullscreen.followup
+    type: security
+    must: The shared composer stays below the scrollable content. Its request targets the open embed using the existing authorized chat or app path. Stored embed content remains client-side encrypted.
+applies_to:
+  gui:
+    required: true
+    implementations:
+      web: {required: true, role: Shared browser fullscreen for results and content.}
+      apple: {required: false, role: Parity follows the dev web release.}
+examples:
+  file: examples.yml
+  required_groups: [fullscreen]

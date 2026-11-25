@@ -242,7 +242,7 @@
   skillIconName=""
   appIconName="workflow"
   showSkillIcon={false}
-  {embedId}
+  currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
