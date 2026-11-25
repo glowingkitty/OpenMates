@@ -56,13 +56,13 @@ pywebpush==2.3.0 # Web Push Protocol (VAPID) for browser push notifications
 markdown-it-py==3.0.0 # Markdown→HTML for send_newsletter.py body rendering
 
 # OpenTelemetry — distributed tracing with privacy-aware export to OpenObserve
-opentelemetry-sdk==1.40.0
-opentelemetry-api==1.40.0
-opentelemetry-exporter-otlp-proto-http==1.40.0
-opentelemetry-instrumentation-fastapi==0.61b0
-opentelemetry-instrumentation-httpx==0.61b0
-opentelemetry-instrumentation-celery==0.61b0
-opentelemetry-instrumentation-redis==0.61b0
-opentelemetry-instrumentation-logging==0.61b0
+opentelemetry-sdk==1.45.2
+opentelemetry-api==1.45.2
+opentelemetry-exporter-otlp-proto-http==1.45.2
+opentelemetry-instrumentation-fastapi==0.66b2
+opentelemetry-instrumentation-httpx==0.66b2
+opentelemetry-instrumentation-celery==0.66b2
+opentelemetry-instrumentation-redis==0.66b2
+opentelemetry-instrumentation-logging==0.66b2
 
 # TODO separate requirements file for each app and for core services, to only include what is needed
