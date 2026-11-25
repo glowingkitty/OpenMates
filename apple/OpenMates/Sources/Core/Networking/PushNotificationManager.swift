@@ -180,9 +180,10 @@ enum WorkflowCompletionDelivery {
         }
         var wasAlreadyPersisted = false
         try await persist(route, exchange: { type, payload, responseType, validate in
+            let requestID = payload["request_id"] as? String
             let response = try await socket.sendAndWait(WSOutboundMessage(type: type, payload: payload),
                 responseType: responseType,
-                matching: { $0["request_id"] as? String == payload["request_id"] as? String &&
+                matching: { $0["request_id"] as? String == requestID &&
                             $0["delivery_id"] as? String == deliveryID }, beforeSend: validate)
             if type == "workflow_chat_delivery_claim" {
                 wasAlreadyPersisted = response.fields["client_persisted"] as? Bool == true
