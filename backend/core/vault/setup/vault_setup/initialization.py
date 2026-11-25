@@ -24,6 +24,16 @@ class VaultInitializer:
         self.api_token_file = "/app/data/api.token"
         self.auto_unseal = os.environ.get("VAULT_AUTO_UNSEAL", "true").lower() == "true"
 
+    def prepare_api_handoff(self) -> None:
+        """Give the core runtime access to its handoff while preserving file modes."""
+        directory = os.path.dirname(self.api_token_file)
+        mode = stat.S_IMODE(os.stat(directory).st_mode)
+        os.chown(directory, -1, 1000)
+        os.chmod(directory, mode | stat.S_IXGRP)
+        for path in (self.api_token_file, self.unseal_key_file, os.path.join(directory, "token.ready")):
+            if os.path.isfile(path):
+                os.chown(path, 1000, 1000, follow_symlinks=False)
+
     def save_unseal_key(self, unseal_key: str) -> bool:
         """Save unseal key to a restricted access file.
         

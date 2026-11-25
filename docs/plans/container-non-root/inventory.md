@@ -106,4 +106,14 @@ stage that runs in each environment.
   disposable Vault, including the existing on-failure startup retry and
   recovery after Vault restarted with its persisted data. The app token and
   unseal key kept mode 0600, and the separate app handoff had a scoped token
-  and no root token.
+  and no root token (dev commit `94e749b`).
+- Core Vault. A disposable Vault initialized, restarted and unsealed with the
+  existing data volume as UID 100. The live dev rollout reported healthy
+  with all Vault processes at UID 100. API health returned HTTP 200 (dev
+  commit `9215795`).
+- Core Vault setup prepares the application handoff for UID/GID 1000 while
+  keeping the file modes. An isolated fresh setup and rerun passed, the
+  non-root reader could use the scoped token from a read-only mount, and the
+  administrative root token was absent from the handoff. The one-shot setup
+  needs ownership privileges to prepare files for the application and
+  synchronize the mounted operator dotenv file.

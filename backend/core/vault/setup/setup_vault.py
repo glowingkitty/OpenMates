@@ -286,6 +286,7 @@ async def setup_vault():
             await initializer.revoke_token(temp_root_token)
             logger.info("SECURITY: Revoked temporary root token used for recovery setup.")
 
+        initializer.prepare_api_handoff()
         logger.info("Vault setup script finished.")
         
     except Exception as e:
