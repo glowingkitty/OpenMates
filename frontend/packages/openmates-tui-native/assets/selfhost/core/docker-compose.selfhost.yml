@@ -502,6 +502,9 @@ services:
   promtail:
     container_name: promtail
     image: grafana/promtail:3.2.1
+    user: "10006:10006"
+    # Docker socket and the core application's log directory use these groups.
+    group_add: ["${DOCKER_GID-999}", "1000"]
     restart: unless-stopped
     env_file: ../../.env
     volumes:

@@ -74,7 +74,7 @@
     {
       "path": "assets/selfhost/core/docker-compose.selfhost.yml",
       "source": "backend/core/docker-compose.selfhost.yml",
-      "sha256": "bb7ba62ece3564ab78f56c0780e4de3961cfa2434ee6d0b69702ba03dbc46510"
+      "sha256": "94450162d2242e03ab6805ba2f3902e61937fc2c940bc828748a906d507485fe"
     },
     {
       "path": "assets/selfhost/core/monitoring/alertmanager/alertmanager.yml",

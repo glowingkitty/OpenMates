@@ -60,6 +60,11 @@ The published image defaults to UID/GID 10005 for installations without a
 checkout bind mount. Check the actual groups and a read-only log request
 before attempting the next service update.
 
+Promtail uses UID/GID 10006 with the Docker socket group and the core log
+group 1000. Before updating, check it can read the mounted configuration
+and API logs. After the update, check its readiness on port 9080 and that
+new log entries reach OpenObserve.
+
 For upload Vault setup, prepare the existing private setup volume and separate
 app handoff volume for UID/GID 10003 before the first start. Keep the directories
 at mode 0700 and private credential files at 0600. Verify that the root token

@@ -918,6 +918,10 @@ services:
   promtail:
     container_name: promtail
     image: grafana/promtail:3.4.2
+    user: 10006:10006
+    group_add:
+      - ${DOCKER_GID-999}
+      - '1000'
     restart: unless-stopped
     env_file: ../../.env
     volumes:
