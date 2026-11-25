@@ -346,6 +346,11 @@ if os.environ.get('CI_UPLOADS') == '1':
             await setup_vault.create_policy(client, token)
             await setup_vault.create_or_reuse_api_token(client, token)
             await renew_api_token(client, 'http://vault:8200', setup_vault.API_TOKEN_FILE)
+            # The upload app reads this scoped handoff through a read-only mount.
+            handoff = pathlib.Path(setup_vault.API_TOKEN_FILE)
+            os.chown(handoff, 10003, 10003)
+            handoff.parent.chmod(0o700)
+            os.chown(handoff.parent, 10003, 10003)
     asyncio.run(upload_token())
 """
 

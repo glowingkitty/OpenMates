@@ -502,6 +502,7 @@ def test_vault_initializer_issues_scoped_token_and_uses_startup_validator(
 
 
 def test_upload_vault_initializer_issues_a_separate_renewable_token(tmp_path, monkeypatch):
+    import os
     import httpx
     import requests
     from backend.upload.vault import setup_vault
@@ -510,6 +511,8 @@ def test_upload_vault_initializer_issues_a_separate_renewable_token(tmp_path, mo
     core_dir = tmp_path / "core"
     core_dir.mkdir()
     upload_token_path = tmp_path / "upload" / "api.token"
+    ownership = []
+    monkeypatch.setattr(os, "chown", lambda path, uid, gid: ownership.append((path, uid, gid)))
     monkeypatch.setattr(setup_vault, "API_TOKEN_FILE", str(upload_token_path))
     monkeypatch.setenv("VAULT_TOKEN", "ephemeral-root")
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "ephemeral-internal")
@@ -564,6 +567,8 @@ def test_upload_vault_initializer_issues_a_separate_renewable_token(tmp_path, mo
     assert (core_dir / "api.token").read_text() == "core-token"
     assert upload_token_path.read_text() == "upload-token"
     assert upload_token_path.stat().st_mode & 0o777 == 0o600
+    assert upload_token_path.parent.stat().st_mode & 0o777 == 0o700
+    assert ownership == [(upload_token_path, 10003, 10003), (upload_token_path.parent, 10003, 10003)]
     assert any(call == ("POST", "/v1/auth/token/renew-self", "upload-token") for call in calls)
 
 
