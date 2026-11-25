@@ -8,6 +8,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -442,8 +443,15 @@ def test_fixture_writer_seeds_new_candidate_cassette_with_reused_api_image(tmp_p
     writer = container / "fixtures"
     writer.mkdir()
     command = fixture["command"][-1].replace("/candidate-fixtures", str(container / "candidate-fixtures"))
-    command = command.replace("/fixtures/", str(writer) + "/")
-    subprocess.run([*fixture["command"][:-1], command], check=True)
+    for name in ("fixtures", "runtime-logs", "backend-logs", "recommendations"):
+        directory = container / name
+        directory.mkdir(exist_ok=True)
+        command = command.replace(f"/{name}", str(directory))
+    subprocess.run(
+        [*fixture["command"][:-1], command.replace("$$", "$")],
+        env={**os.environ, "CI_API_USER": f"{os.getuid()}:{os.getgid()}"},
+        check=True,
+    )
     assert (writer / new_cassette).read_text() == '{"response":"exact candidate"}'
     assert not (writer / "stale-image-only.json").exists()
     assert (candidate_cache / new_cassette).read_text() == '{"response":"exact candidate"}'
@@ -494,9 +502,16 @@ def test_vault_initializer_issues_scoped_token_and_uses_startup_validator(
     )
     monkeypatch.setenv("VAULT_TOKEN", "synthetic-root-token")
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "synthetic-internal-token")
+    monkeypatch.setenv("CI_API_UID", "1000")
+    monkeypatch.setenv("CI_API_GID", "1000")
+    ownership = []
+    monkeypatch.setattr(os, "chown", lambda path, uid, gid: ownership.append((path, uid, gid)))
     program = VAULT_INITIALIZE.replace("/vault-data/", str(tmp_path) + "/")
     exec(compile(program, "<ci-vault-init>", "exec"), {})
     assert (tmp_path / "api.token").read_text() == "scoped-ci-token"
+    assert (tmp_path / "api.token").stat().st_mode & 0o777 == 0o600
+    assert tmp_path.stat().st_mode & 0o777 == 0o710
+    assert ownership == [(tmp_path / "api.token", 1000, 1000), (tmp_path, 0, 1000)]
     assert "transit/encrypt/*" in policies["api-encryption"]
     assert "kv/data/providers/*" in policies["api-service"]
 
@@ -517,6 +532,8 @@ def test_upload_vault_initializer_issues_a_separate_renewable_token(tmp_path, mo
     monkeypatch.setenv("VAULT_TOKEN", "ephemeral-root")
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "ephemeral-internal")
     monkeypatch.setenv("CI_UPLOADS", "1")
+    monkeypatch.setenv("CI_API_UID", "1000")
+    monkeypatch.setenv("CI_API_GID", "1000")
     calls = []
 
     class Response:
@@ -568,7 +585,10 @@ def test_upload_vault_initializer_issues_a_separate_renewable_token(tmp_path, mo
     assert upload_token_path.read_text() == "upload-token"
     assert upload_token_path.stat().st_mode & 0o777 == 0o600
     assert upload_token_path.parent.stat().st_mode & 0o777 == 0o700
-    assert ownership == [(upload_token_path, 10003, 10003), (upload_token_path.parent, 10003, 10003)]
+    assert ownership == [
+        (core_dir / "api.token", 1000, 1000), (core_dir, 0, 1000),
+        (upload_token_path, 10003, 10003), (upload_token_path.parent, 10003, 10003),
+    ]
     assert any(call == ("POST", "/v1/auth/token/renew-self", "upload-token") for call in calls)
 
 
@@ -579,6 +599,19 @@ def test_api_and_worker_receive_the_private_cms_admin_identity():
         environment = services[service]["environment"]
         assert environment["DATABASE_ADMIN_EMAIL"] == cms["ADMIN_EMAIL"]
         assert environment["DATABASE_ADMIN_PASSWORD"] == cms["ADMIN_PASSWORD"]
+
+
+def test_api_and_workers_use_non_root_identity_for_prepared_runtime_volumes(monkeypatch):
+    services = compose_profile("a" * 40)["services"]
+    assert services["api"]["user"] == services["core-worker"]["user"] == "1000:1000"
+    assert services["fixture-init"]["environment"]["CI_API_USER"] == "1000:1000"
+    assert services["vault-init"]["environment"]["CI_API_UID"] == "1000"
+    monkeypatch.setattr(os, "getuid", lambda: 1234)
+    monkeypatch.setattr(os, "getgid", lambda: 1235)
+    private = compose_profile("a" * 40, storage_accountability=True)["services"]
+    assert private["api"]["user"] == private["core-worker"]["user"] == "1234:1235"
+    assert private["fixture-init"]["environment"]["CI_API_USER"] == "1234:1235"
+    assert private["vault-init"]["environment"]["CI_API_GID"] == "1235"
 
 
 def test_committed_ai_fixtures_have_worker_and_no_external_network():

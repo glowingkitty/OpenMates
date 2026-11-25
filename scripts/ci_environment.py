@@ -333,8 +333,15 @@ async def policies():
 asyncio.run(policies())
 response=requests.post(url+'auth/token/create',headers=headers,json={'policies':['api-service','api-encryption'],'ttl':'2h','renewable':True},timeout=15)
 response.raise_for_status()
-pathlib.Path('/vault-data/api.token').write_text(response.json()['auth']['client_token'])
-validation=asyncio.run(validate_token_file('http://vault:8200','/vault-data/api.token'))
+api_token=pathlib.Path('/vault-data/api.token')
+api_uid=int(os.environ['CI_API_UID'])
+api_gid=int(os.environ['CI_API_GID'])
+api_token.write_text(response.json()['auth']['client_token'])
+api_token.chmod(0o600)
+os.chown(api_token, api_uid, api_gid)
+api_token.parent.chmod(0o710)
+os.chown(api_token.parent, 0, api_gid)
+validation=asyncio.run(validate_token_file('http://vault:8200',str(api_token)))
 assert validation.valid, 'Synthetic API token failed canonical startup validation: '+validation.reason
 pathlib.Path('/vault-data/token.ready').write_text('synthetic runtime')
 if os.environ.get('CI_UPLOADS') == '1':
@@ -1231,10 +1238,16 @@ def compose_profile(
         source_mounts.append(
             f"{SOURCE}/test-results/ci-private/accountability:/app/ci-accountability"
         )
+    # Private fixture binds belong to the runner and retain their owner-only modes.
+    private_binds = storage_capacity or storage_accountability
+    api_uid = os.getuid() if private_binds else 1000
+    api_gid = os.getgid() if private_binds else 1000
+    api_user = f"{api_uid}:{api_gid}"
     api = {
         "build": {"context": SOURCE, "dockerfile": "backend/core/api/Dockerfile"},
         "image": "openmates-ci-api:local",
-        "environment": common,
+        "user": api_user,
+        "environment": {**common, "HOME": "/tmp"},
         "volumes": source_mounts,
         "command": ["sh", "/app/backend/core/api/wait-for-vault.sh"],
         "ports": ["8000:8000"],
@@ -1416,11 +1429,15 @@ def compose_profile(
         },
         "vault-init": {
             "image": "openmates-ci-api:local",
+            # This one-shot job prepares handoffs for the core and upload UIDs.
+            "user": "0:0",
             "mem_limit": 128 * MIB,
             "command": ["python", "-c", VAULT_INITIALIZE],
             "environment": {
                 "VAULT_TOKEN": credentials["vault"],
                 "INTERNAL_API_SHARED_TOKEN": credentials["internal"],
+                "CI_API_UID": str(api_uid),
+                "CI_API_GID": str(api_gid),
             },
             "volumes": ["vault-tokens:/vault-data"],
             "depends_on": {"vault": {"condition": "service_healthy"}},
@@ -1604,6 +1621,7 @@ def compose_profile(
         services["cms"].pop("ports")
         services["runner-gateway"] = {
             "image": "openmates-ci-api:local",
+            "user": "1000:1000",
             "command": ["python", "/ci_tcp_gateway.py"],
             "environment": {"OPENMATES_CI_GATEWAY": "github-isolated"},
             "volumes": [
@@ -1679,16 +1697,23 @@ def compose_profile(
         services["workflow-scheduler"] = scheduler
     services["fixture-init"] = {
         "image": "openmates-ci-api:local",
+        "user": "0:0",
+        "environment": {"CI_API_USER": api_user},
         "mem_limit": 128 * MIB,
         "command": [
             "sh",
             "-ec",
-            "cp -a /candidate-fixtures/. /fixtures/",
+            'cp -a /candidate-fixtures/. /fixtures/ && '
+            'chown -hR "$$CI_API_USER" /fixtures && '
+            'chown "$$CI_API_USER" /runtime-logs /backend-logs /recommendations',
         ],
         # Runtime images can be reused while the candidate adds replay cassettes.
         # Seed from the verified checkout, keeping the shared writable volume.
         "volumes": [
             "api-cache:/fixtures",
+            "api-logs:/runtime-logs",
+            "backend-logs:/backend-logs",
+            "apps-recommendations-data:/recommendations",
             f"{SOURCE}/backend/apps/ai/testing/api_cache:/candidate-fixtures:ro",
         ],
     }
@@ -1766,6 +1791,7 @@ def compose_profile(
         api["depends_on"]["web-read-origin"] = {"condition": "service_healthy"}
         services["web-read-origin"] = {
             "image": "openmates-ci-api:local",
+            "user": f"{os.getuid()}:{os.getgid()}",
             "command": ["python", "/ci_web_read_fixture.py", "serve", "/tls"],
             "environment": {"OPENMATES_CI_WEB_READ_FIXTURE": "github-isolated"},
             "volumes": [
