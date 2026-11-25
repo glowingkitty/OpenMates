@@ -39,7 +39,9 @@ from backend.core.api.app.routes.voice_call_support import (
 from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.core.api.app.routes.voice_call_terms import parse_terms
-from backend.shared.providers.voxtral_voice import VoxtralVoiceSession, VOXTRAL_VOICE_MODEL, STREAMING_DELAY_MS
+from backend.shared.providers.voxtral_voice import (
+    STREAM_RECEIVE_TIMEOUT, STREAMING_DELAY_MS, VOXTRAL_VOICE_MODEL, VoxtralVoiceSession,
+)
 from backend.shared.python_utils.voice_pause_decision import (
     PAUSE_WAIT_SECONDS, PauseDecision, as_pause_decision, classify_voice_pause,
     instant_feedback_enabled, voice_feedback_key,
@@ -596,6 +598,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                  "assistant_task_id": None, "clip_text": "", "clip_url": None}
     recent_clip_text = ""
     recent_clip_until = 0.0
+    captured_clip_text = ""
+    captured_clip_until = 0.0
     language = "auto"
     last_order = 0
     started = last_auth_check = time.monotonic()
@@ -658,14 +662,16 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                chat_id=chat_id, call_id=call_id, message_id=message_id, role="user")
 
     async def new_turn() -> _SpeechTurn:
-        nonlocal last_order
+        nonlocal last_order, captured_clip_text
         if len(turns) >= MAX_PENDING_TRANSCRIPTS:
             raise TranscriptLimitError("Too many pending speech turns")
         message_id, last_order = _ordered_message_id(last_order)
+        clip_text = captured_clip_text if time.monotonic() <= captured_clip_until else ""
+        captured_clip_text = ""
         turn = _SpeechTurn(message_id, _timestamp(), assistant["assistant_message_id"],
                            assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
                            assistant_task_id=assistant["assistant_task_id"],
-                           assistant_speaking=bool(assistant["speaking"]), clip_text=echo_reference())
+                           assistant_speaking=bool(assistant["speaking"]), clip_text=clip_text or echo_reference())
         turns[message_id] = turn
         return turn
 
@@ -1110,6 +1116,16 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     # Credits, provider write and charge run in order on the
                     # forwarder, so transcript events keep flowing meanwhile.
                     audio.push(event["data"], len(chunk))
+                    # Voxtral can return the words after playback has already
+                    # switched to the generated answer. Keep the clip on the
+                    # audio that was captured while its reference was active.
+                    clip_text = echo_reference()
+                    if clip_text:
+                        if current is None:
+                            captured_clip_text = clip_text
+                            captured_clip_until = time.monotonic() + STREAM_RECEIVE_TIMEOUT
+                        elif not current.text and not current.clip_text:
+                            current.clip_text = clip_text
                     local_endpoint_bytes = None
                     if current is not None and current.local_endpoint:
                         await withdraw_likely_end(current)
@@ -1255,6 +1271,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 elif kind == "turn.end":
                     if current is not None:
                         schedule_endpoint(current, time.monotonic(), local=False)
+                    else:
+                        captured_clip_text = ""
                 elif kind == "turn.eager_end":
                     # Eager endpointing never authorizes chat or tools. The
                     # browser may only prepare the send (no model call) and

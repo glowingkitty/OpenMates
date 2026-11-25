@@ -916,6 +916,35 @@ async def test_echo_of_a_playing_prerecorded_clip_is_discarded(runtime, monkeypa
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+async def test_delayed_thinking_clip_echo_follows_the_captured_audio(runtime, monkeypatch):
+    clock_offset = [0.0]
+    monkeypatch.setattr(route, "time", SimpleNamespace(
+        monotonic=lambda: time.monotonic() + clock_offset[0], time=time.time,
+    ))
+    socket, provider, _ = await runtime.start()
+    socket.push({"type": "assistant_state", "speaking": True, "text": "",
+                 "assistant_message_id": "canonical-assistant",
+                 "clip_audio_url": "/audio/assistant-acknowledgements/george/en-US/reasoning-2.mp3"})
+    socket.push({"type": "mic_audio", "data": base64.b64encode(bytes(3200)).decode()})
+    assistant(socket, text="Paris is the capital.")
+    socket.push({"type": "audio_stream_end"})
+    await socket.until(lambda events: any(event.get("input_listening") is False for event in events))
+    clock_offset[0] += 2.0
+
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Work through it.")
+    provider.push("turn.end")
+    assert (await socket.event("transcript.discarded"))["reason"] == "echo"
+    assert not runtime.issued and not runtime.completion_texts
+    assert not any(event["type"] in {"transcript", "audio.interrupted"} for event in socket.sent)
+
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Tell me about Lisbon.")
+    provider.push("turn.end")
+    assert [event["text"] for event in await socket.until(lambda _: socket.finals())] == ["Tell me about Lisbon."]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
 async def test_first_reply_echo_after_generation_started_does_not_create_turn(runtime, monkeypatch):
     async def uncertain(*args):
         return "uncertain"
