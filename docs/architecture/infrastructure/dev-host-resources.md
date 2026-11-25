@@ -482,29 +482,20 @@ and probes text that stays unchanged for 10 min in an idle chat once
 (`verdict`: `typed`, `suggestion` or `unchecked`; `unsent_input` event for typed
 text). It never presses Enter.
 
-The connector (private, outside this repo) uses the same probe before typing:
-a suggestion never blocks a message; typed text is never merged with a new one.
-send_message `held=auto` replaces typed text older than 30 min (age from
-`inputs.json`, a copy is logged) and otherwise shows both texts for the caller to
-choose `replace` or `send_first`. host_status lists the typed entries as the queue
-of unsent messages.
+The private dev connector delivers ordinary `send_message` calls immediately.
+An explicit `run_at` still schedules a send. For Claude and Codex terminal
+chats, the connector submits any existing draft directly from the composer so
+wrapped and collapsed text is preserved. It clears a leftover copy of a message
+already confirmed in the same session. It interrupts the active turn and
+submits the new message as a separate prompt. For a closed chat it reopens the
+same session with the message.
 
-Deliveries to busy chats (2026-11-15, 76c8264a: a send sat in the box for 2 h;
-2026-11-17, f1250b91: "NOT confirmed" although the chat had queued it). Claude Code
-records a message taken into a busy chat's queue at once as a `queue-operation`
-`enqueue` record, and the `queued_command` attachment only when the current step ends;
-the connector reads both, and the "⎿  Queued" mark on screen. Escalation: (1) the
-message is typed and queued (Enter is pressed again while the text still sits in the
-box); (2) not queued or received within 60 s, the connector presses Esc and sends it as
-the chat's next prompt; (3) never while a risky step runs (the last tool call without a
-result, also inside a running sub-agent: deploy, git write, production SSH, migration,
-Vault write, file write). It waits until that step ended. A message that meets an open
-question dialog is held and typed when the dialog is answered. Replies start with
-Delivered, Queued, Delivered after interrupt, Waiting for a risky step, Held, NOT sent
-or Failed. Open and confirmed deliveries are kept in
-`logs/claude-chat-lifecycle/connector-deliveries.json` and re-checked by the broker
-every 10 s; host_status and chat_changes list them (undelivered with the text to
-resend, open, delivered with how). `watch` reads that file and records a chat whose
-box shows such a delivery as `typed` (source `connector`, age from when it was typed)
-even while the chat is busy, without probing it.
+The broker reports delivery only after the session transcript contains the
+marked message. Terminal submission, a native queue entry, and opening a tab
+are intermediate steps. If the session cannot take the message, the broker
+reports the failure and retries the stored delivery. A repository hook refusal
+is reported separately. The broker keeps receipts in
+`logs/claude-chat-lifecycle/connector-deliveries.json` and `host_status` and
+`chat_changes` show their latest state. `claude_chat_inputs.watch` uses the
+same file to identify input the connector already typed.
 
