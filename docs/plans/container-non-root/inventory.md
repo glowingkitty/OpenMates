@@ -3,8 +3,9 @@
 Baseline on 25 November 2026. Dev entries with a numeric process UID came from
 `docker inspect` and `docker top` on the running dev stack. Production, upload,
 preview and self-host entries describe the tracked Compose manifests and image
-recipes. Confirm their deployed digests and process UIDs during the normal
-release. Root in this inventory means UID 0 inside the container.
+recipes. Upstream defaults for images absent from dev come from their registry
+image configuration. Confirm the deployed digests and process UIDs during the
+normal release. Root in this inventory means UID 0 inside the container.
 
 ## OpenMates images
 
@@ -41,11 +42,11 @@ release. Root in this inventory means UID 0 inside the container.
 | `prom/prometheus:v3.2.1`, `prom/node-exporter:v1.9.1`, `prom/alertmanager:v0.31.1` / `:v0.33.1` | Core and self-host monitoring | Upstream non-root defaults. Verify host mount readability for node exporter and volume ownership for Prometheus before restarting. |
 | `gcr.io/cadvisor/cadvisor:v0.47.2` / `:v0.49.1` | Core and self-host monitoring | Root/privileged host collector in tracked configuration. Requires access to host cgroups, devices and container statistics. |
 | `python:3.13-slim` | Core App Packages runner | Compose overrides the base root user with UID/GID 65534. Confirmed on dev. |
-| `clamav/clamav-debian` | Upload and isolated CI | Entrypoint initializes signature storage. Verify startup UID and daemon UID for each deployed digest. |
+| `clamav/clamav-debian` | Upload and isolated CI | Root startup. The init process prepares signature storage. Confirm the daemon UID for the deployed digest during release. |
 | `redis:7-alpine` | Isolated CI cache | Image starts as root and the Redis entrypoint drops privileges. |
-| `axllent/mailpit:v1.27.4`, `chrislusf/seaweedfs` | Isolated CI mail and object storage fixtures | Declared in `scripts/ci_environment.py`. Runtime UIDs still to verify. |
+| `axllent/mailpit:v1.27.4`, `chrislusf/seaweedfs` | Isolated CI mail and object storage fixtures | Both images default to root and the CI Compose profile uses that default. |
 | `mcr.microsoft.com/playwright:v1.49.0-jammy` | Legacy standalone Playwright Compose | Root image default. |
-| `amazon/aws-cli:2.27.50` | Production backup transport | Root image default. Runs as a short-lived command. Backup/drill also reuse the Vault and Postgres images. |
+| `amazon/aws-cli:2.27.50` | Production backup transport | Root image default. Runs as a short-lived command. Backup and restore drill also reuse Vault and Postgres; the Vault file archive helper needs direct access to the private files and the restore helper preserves their ownership. |
 | `aquasec/trivy` | Dev security scanner | Root image default. Mounted source scans need read-only access. |
 
 The Python and Node base images and the status server's Gatus and Caddy build
@@ -58,3 +59,8 @@ stage that runs in each environment.
   compressed SQL fixture in a disposable fresh volume as UID/GID 70 and
   accepted connections. The image's publish workflow also checks the identity
   inside both fresh restore consumers.
+- Engineering control plane API, Dockerfile in dev commit `8de5100`. All 34
+  control-plane tests passed. The recreated live container has a single
+  UID 10001 process and reports database readiness with no writable application
+  volume. The dev rollout reused the cached image and enforced the new UID
+  through Compose.
