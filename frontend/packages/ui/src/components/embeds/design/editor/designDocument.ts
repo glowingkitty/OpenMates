@@ -36,6 +36,7 @@ export interface DesignPage {
 export interface DesignDocument {
   title: string;
   pages: DesignPage[];
+  proposal?: { embedId: string; baseVersion: number };
 }
 
 // Stress fixtures can exceed the provisional cap to measure the headroom.

@@ -735,6 +735,7 @@ class EmbedService(SlidesEmbedMixin):
             "code": ("code", "code"),
             "sheet": ("sheets", "sheet"),
             "document": ("docs", "document"),
+            "design-document": ("design", "document"),
             "deck": ("slides", "deck"),
             "template": ("slides", "template"),
             "mail": ("mail", "email"),
@@ -810,6 +811,8 @@ class EmbedService(SlidesEmbedMixin):
             - skill_task_id: The unique skill task ID for cancellation
             None if creation fails
         """
+        if (app_id, skill_id) == ("design", "author"):
+            return None  # The skill delivers a validated direct Design embed.
         try:
             # Hash sensitive IDs for privacy protection
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()

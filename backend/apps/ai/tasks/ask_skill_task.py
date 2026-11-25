@@ -2960,7 +2960,7 @@ async def _async_process_ai_skill_ask_task(
             for field in PRIVATE_CONTEXT_FIELDS:
                 if field in {"async_tool_completion", "async_tool_history", "same_turn_request"}:
                     continue
-                setattr(request_data, field, transient.get(field, None if field == "accepted_plan_context" else []))
+                setattr(request_data, field, transient.get(field, None if field in {"accepted_plan_context", "design_source"} else []))
 
         if request_data.same_turn_batch_id:
             from backend.apps.ai.tasks.same_turn_skill_barrier import verify_resume_delivery, _set_once, _key

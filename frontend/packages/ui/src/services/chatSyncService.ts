@@ -1,3 +1,4 @@
+import { withoutDesignReference } from "./designSourceForTurn";
 import { clearApplicationPreviewSessions, handleApplicationPreviewStatusUpdate } from "./applicationPreviewService";
 import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
@@ -3092,12 +3093,13 @@ export class ChatSynchronizationService extends EventTarget {
       && get(authStore).isAuthenticated
       && this.serverCapabilityGate.supportsImmediateChatAdmission();
     const admissionProtocolSupported = supportsAdmissionNow();
+    const admissionText = await withoutDesignReference(message.content ?? "");
     const fastPersonalTextCandidate = admissionProtocolSupported
       && !get(activeTeamId) && !connectedAccountContext
       && !projectFocusIntent && !encryptedSuggestionToDelete
       && typeof message.content === 'string'
-      && !message.content.includes('```')
-      && !message.content.includes('embed_id')
+      && !admissionText.includes('```')
+      && !admissionText.includes('embed_id')
       && !message.content.includes('| ');
     const cachedEmpty = recentEmptyConnectedAccounts
       && Date.now() - recentEmptyConnectedAccounts.checkedAt < EARLY_EMPTY_ACCOUNT_MAX_AGE_MS

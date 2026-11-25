@@ -135,11 +135,25 @@ fn strip_newline(row: &str) -> &str {
 }
 
 fn fenced_embed_ids(content: &str) -> Vec<String> {
-    let rows: Vec<&str> = content.split_inclusive('\n').collect();
     let mut ids = vec![];
+    for_fenced_json(content, |_, body| {
+        if let Ok(Value::Object(parsed)) = serde_json::from_str::<Value>(body.trim())
+            && let Some(id) = parsed.get("embed_id").and_then(Value::as_str).filter(|v| !v.is_empty())
+        {
+            ids.push(id.to_owned());
+        }
+    });
+    ids
+}
+
+/// Visit only top-level, closed JSON fences and return their original byte ranges.
+pub(super) fn for_fenced_json(content: &str, mut visit: impl FnMut(std::ops::Range<usize>, &str)) {
+    let rows: Vec<&str> = content.split_inclusive('\n').collect();
     let mut index = 0;
+    let mut offset = 0;
     while index < rows.len() {
         let Some(open) = FENCE_OPEN.captures(strip_newline(rows[index])) else {
+            offset += rows[index].len();
             index += 1;
             continue;
         };
@@ -159,21 +173,16 @@ fn fenced_embed_ids(content: &str) -> Vec<String> {
         if end == rows.len() {
             break;
         }
+        let body_start = offset + rows[index].len();
+        let body_end = body_start + rows[index + 1..end].iter().map(|line| line.len()).sum::<usize>();
+        let next = body_end + rows[end].len();
         let language = open[2].trim();
         if language == "json_embed" || language == "json" {
-            let body: String = rows[index + 1..end].concat();
-            if let Ok(Value::Object(parsed)) = serde_json::from_str::<Value>(body.trim())
-                && let Some(id) = parsed
-                    .get("embed_id")
-                    .and_then(Value::as_str)
-                    .filter(|v| !v.is_empty())
-            {
-                ids.push(id.to_owned());
-            }
+            visit(offset..next, &content[body_start..body_end]);
         }
+        offset = next;
         index = end + 1;
     }
-    ids
 }
 
 fn normalize_embed_id(id: &str) -> String {

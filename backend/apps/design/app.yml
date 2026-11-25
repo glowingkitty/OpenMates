@@ -36,6 +36,14 @@ embed_types:
       - name: pages
         type: array
         required: true
+  - id: author
+    category: app-skill-use
+    skill_id: author
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: design
+    gradient_var: "--color-app-design"
   - id: get_design
     category: app-skill-use
     skill_id: get_design
@@ -225,6 +233,49 @@ instructions:
       what is missing from code_handoff.notes. Report a variables status of
       plan_limited or not_granted honestly instead of guessing variables.
 skills:
+  - id: author
+    anonymous_access: authenticated
+    name_translation_key: app_skills.design.author
+    description_translation_key: app_skills.design.author.description
+    icon_image: design.svg
+    class_path: backend.apps.design.skills.author_skill.AuthorSkill
+    full_model_reference: google/gemini-3.8-flash
+    providers: [Google]
+    api_config:
+      expose_get: false
+      expose_post: false
+    pricing:
+      fixed: 1
+    preprocessor_hint: >
+      Create an editable, multi-layer Design document when the user asks for a
+      flyer, poster, social post, visual layout or multi-page mockup. Pass a
+      short art direction brief including size, exact copy, imagery, and page
+      count. If the user asks to change an attached Design, set revise to true
+      and describe just the requested changes. Ask them to attach its current
+      revision when the skill reports it is missing.
+    tool_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        brief:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Short visual instruction including dimensions and page count when specified.
+        revise:
+          type: boolean
+          description: True for a change to an existing Design attached to the current message.
+        exact_copy:
+          type: array
+          maxItems: 8
+          items: {type: string, minLength: 1, maxLength: 300}
+          description: Exact words the user wants visibly written on the design, in their language.
+        requirements:
+          type: array
+          maxItems: 5
+          items: {type: string, minLength: 1, maxLength: 300}
+          description: Specific layout and visual checks to perform before accepting the draft.
+      required: [brief]
   - id: search_icons
     anonymous_access: inline
     name_translation_key: app_skills.design.search_icons

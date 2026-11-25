@@ -237,6 +237,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:hosting:search_domains': renderHostingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
 	'app:design:search_icons': renderDesignIconSearch,
+	'app:design:author': renderGenericAppSkill,
 	'app:design:get_design': renderGenericAppSkill,
 	'app:design:embroidery': renderGenericAppSkill,
 	'app:nutrition:search_recipes': renderNutritionSearch,

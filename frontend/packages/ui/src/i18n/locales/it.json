@@ -959,6 +959,12 @@
         "description": {
           "text": "Legge un design Figma e fornisce struttura, stili e un passaggio al codice."
         }
+      },
+      "author": {
+        "text": "Crea design",
+        "description": {
+          "text": "Crea un volantino, un post o un mockup modificabile."
+        }
       }
     },
     "electronics": {

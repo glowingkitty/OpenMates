@@ -1428,6 +1428,7 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("videos", "generate"),
 }
 VARIABLE_RESULT_BILLING_SKILLS = {
+    ("design", "author"),
     ("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read"), ("events", "search"),
 }
 
@@ -9246,6 +9247,11 @@ async def handle_main_processing(
                         if embed_file_path_index:
                             parallel_arguments = parallel_arguments.copy()
                             parallel_arguments["_file_path_index"] = embed_file_path_index
+                        if (candidate["app_id"], candidate["skill_id"]) == ("design", "author"):
+                            from backend.apps.design.source import design_skill_arguments
+                            parallel_arguments = await design_skill_arguments(
+                                parallel_arguments, request_data, directus_service,
+                            )
                         parallel_model_override = _resolve_app_skill_model_override(
                             getattr(request_data, "user_preferences", None),
                             candidate["app_id"],
@@ -10887,6 +10893,10 @@ async def handle_main_processing(
                         skill_arguments = skill_arguments.copy()
                         skill_arguments["_file_path_index"] = embed_file_path_index
 
+                    if (app_id, skill_id) == ("design", "author") and not parallel_execution:
+                        from backend.apps.design.source import design_skill_arguments
+                        skill_arguments = await design_skill_arguments(skill_arguments, request_data, directus_service)
+
                     model_override = _resolve_app_skill_model_override(
                         getattr(request_data, "user_preferences", None),
                         app_id,
@@ -11343,6 +11353,22 @@ async def handle_main_processing(
                     # Falling through to ordinary success finalization would create
                     # result children from this error dict and overwrite the failure.
 
+                direct_design_output = (app_id, skill_id) == ("design", "author")
+                if direct_design_output and results:
+                    from backend.apps.design.delivery import deliver_design
+                    from backend.core.api.app.services.embed_service import EmbedService
+
+                    design_result, design_reference = await deliver_design(
+                        results[0],
+                        service=EmbedService(cache_service, directus_service, encryption_service),
+                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                        task_id=task_id,
+                    )
+                    results = [design_result]
+                    if design_reference:
+                        yield f"```json\n{design_reference}\n```\n\n"
+
                 # =====================================================================
                 # ASYNC SKILL DETECTION
                 # =====================================================================
@@ -11775,7 +11801,7 @@ async def handle_main_processing(
                 # that also needs an embed_ref so the LLM can reference it and QUOTE_VERIFY
                 # can build its embed_ref→id map. Without this, the LLM invents refs like
                 # "embed:1" which fail verification and get stripped.
-                if not is_async_skill and not is_multimodal_result:
+                if not direct_design_output and not is_async_skill and not is_multimodal_result:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
                         _child_type = await _EmbedSvc.get_child_embed_type(
@@ -12014,7 +12040,10 @@ async def handle_main_processing(
                 # For single request: Update the existing placeholder embed
                 # NOTE: Skip for async skills - the Celery task handles embed updates
                 updated_embed_data_list: List[Dict[str, Any]] = []
-                if not is_async_skill and not is_multimodal_result and cache_service and user_vault_key_id and directus_service:
+                if (
+                    not direct_design_output and not is_async_skill and not is_multimodal_result
+                    and cache_service and user_vault_key_id and directus_service
+                ):
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService
 

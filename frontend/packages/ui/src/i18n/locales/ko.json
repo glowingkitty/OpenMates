@@ -959,6 +959,12 @@
         "description": {
           "text": "Figma 디자인을 읽어 구조, 스타일, 코드 인계 정보를 가져옵니다."
         }
+      },
+      "author": {
+        "text": "디자인 만들기",
+        "description": {
+          "text": "편집할 수 있는 전단, 게시물 또는 시안을 만듭니다."
+        }
       }
     },
     "electronics": {

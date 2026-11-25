@@ -959,6 +959,12 @@
         "description": {
           "text": "Odczytuje projekt Figma i zwraca strukturę, style oraz przekazanie do kodu."
         }
+      },
+      "author": {
+        "text": "Utwórz projekt",
+        "description": {
+          "text": "Utwórz edytowalną ulotkę, post lub makietę."
+        }
       }
     },
     "electronics": {

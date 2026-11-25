@@ -95,3 +95,17 @@ for (const profile of [{ width: 1280, height: 860 }, { width: 390, height: 844 }
     await expect(workspace).toHaveAttribute('data-mode', 'view');
   });
 }
+
+// contract-test: supporting surface=gui.web assertions=design-editor.assistant.apply
+test('shows a proposal on a phone while protecting edit and apply controls', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path('Fullscreen', 390, 'proposal'));
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('design-canvas')).toHaveAttribute('data-painted-page', 'explore');
+  const proposal = page.getByTestId('design-proposal-controls');
+  await expect(proposal).toContainText('Proposed revision');
+  await expect(proposal).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId('design-proposal-apply')).toHaveCount(0);
+  await expect(page.getByTestId('design-mode')).toHaveCount(0);
+  await info.attach('design-proposal-read-only-phone', { body: await page.screenshot(), contentType: 'image/png' });
+});

@@ -7654,6 +7654,8 @@
             "client.embed_write_read.OpenedEmbedFields.content_failed",
             "client.embed_write_read.OpenedEmbedFields.embed_type",
             "client.embed_write_read.OpenedEmbedFields.text_preview",
+            "client.embed_write_read.design_source_context",
+            "client.embed_write_read.design_turn_reference",
             "client.embed_write_read.open_fields",
             "client.embed_write_read.open_row_fields",
             "client.embed_write_read.validate_design_scene",

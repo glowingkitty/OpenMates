@@ -959,6 +959,12 @@
         "description": {
           "text": "Leest een Figma-ontwerp en geeft structuur, stijlen en een code-overdracht."
         }
+      },
+      "author": {
+        "text": "Ontwerp maken",
+        "description": {
+          "text": "Maak een bewerkbare flyer, post of mock-up."
+        }
       }
     },
     "electronics": {

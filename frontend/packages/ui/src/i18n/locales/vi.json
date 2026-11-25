@@ -959,6 +959,12 @@
         "description": {
           "text": "Đọc thiết kế Figma và lấy cấu trúc, kiểu dáng và bàn giao mã."
         }
+      },
+      "author": {
+        "text": "Tạo thiết kế",
+        "description": {
+          "text": "Tạo tờ rơi, bài đăng hoặc bản mẫu có thể chỉnh sửa."
+        }
       }
     },
     "electronics": {

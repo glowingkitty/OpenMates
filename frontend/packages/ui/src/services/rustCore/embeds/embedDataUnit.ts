@@ -33,6 +33,8 @@ export interface EmbedDataBinding extends Partial<EmbedReadBinding> {
 	/** Rust `toon_decode::decode_to_json_text`; throws `toon_decode_failed` for refused TOON. */
 	toon_decode(text: string): string;
 	embed_validate_design_scene?(scene: string): void;
+	embed_design_turn_reference?(markdown: string): string | undefined;
+	embed_design_source_context?(content: string, embedId: string, baseVersion: number): string;
 }
 
 const CODE = /^[a-z][a-z0-9_]{0,63}$/;
@@ -73,6 +75,22 @@ export function createEmbedDataHandlers(binding: EmbedDataBinding): UnitHandlers
 	const text = (value: string | null) => value ?? undefined;
 	return {
 		...createEmbedReadHandlers(binding),
+		designTurnReference({ markdown }) {
+			if (typeof markdown !== 'string') throw new UnitRefusal('embed_data_bad_request');
+			const result = binding.embed_design_turn_reference?.(markdown);
+			return result ? JSON.parse(result) : null;
+		},
+		designSourceContext({ content, embedId, baseVersion }) {
+			if (typeof content !== 'string' || typeof embedId !== 'string' || !Number.isSafeInteger(baseVersion)
+				|| baseVersion < 1 || baseVersion > 0xffff_ffff) throw new UnitRefusal('embed_data_bad_request');
+			try {
+				const result = binding.embed_design_source_context?.(content, embedId, baseVersion);
+				return result ? JSON.parse(result) : null;
+			} catch (error) {
+				if (error === 'design_scene_invalid') return null;
+				throw new UnitRefusal(rejection(error));
+			}
+		},
 		validateDesignScene(payload) {
 			if (typeof payload?.scene !== 'string') throw new UnitRefusal('embed_data_bad_request');
 			if (!binding.embed_validate_design_scene) throw new UnitRefusal('unavailable');

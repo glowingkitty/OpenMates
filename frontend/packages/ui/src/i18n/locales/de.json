@@ -979,6 +979,12 @@
         "description": {
           "text": "Liest ein Figma-Design und liefert Struktur, Stile und eine Code-Übergabe."
         }
+      },
+      "author": {
+        "text": "Design erstellen",
+        "description": {
+          "text": "Erstelle einen bearbeitbaren Flyer, Beitrag oder Entwurf."
+        }
       }
     },
     "electronics": {

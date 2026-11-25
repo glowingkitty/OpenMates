@@ -959,6 +959,12 @@
         "description": {
           "text": "读取 Figma 设计，获取结构、样式和代码交接信息。"
         }
+      },
+      "author": {
+        "text": "创建设计",
+        "description": {
+          "text": "创建可编辑的传单、帖子或原型。"
+        }
       }
     },
     "electronics": {

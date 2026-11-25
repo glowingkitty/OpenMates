@@ -959,6 +959,12 @@
         "description": {
           "text": "Figma のデザインを読み取り、構造、スタイル、コード引き継ぎ情報を取得します。"
         }
+      },
+      "author": {
+        "text": "デザインを作成",
+        "description": {
+          "text": "編集できるチラシ、投稿、モックアップを作成します。"
+        }
       }
     },
     "electronics": {

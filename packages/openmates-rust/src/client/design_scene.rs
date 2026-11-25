@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use super::plaintext::Plain;
 use crate::error::{Error, Result};
@@ -28,7 +28,17 @@ pub(super) fn decode(input: &str) -> Result<Plain<Value>> {
     if scene["schemaVersion"].as_u64() != Some(1) {
         return Err(UNSUPPORTED_VERSION);
     }
-    fields(&scene, &["schemaVersion", "title", "pages"], &[])?;
+    fields(&scene, &["schemaVersion", "title", "pages"], &["proposal"])?;
+    if let Some(proposal) = scene.get("proposal") {
+        fields(proposal, &["embedId", "baseVersion"], &[])?;
+        canonical_uuid(&proposal["embedId"])?;
+        if !proposal["baseVersion"]
+            .as_u64()
+            .is_some_and(|version| version > 0 && version <= u64::from(u32::MAX))
+        {
+            return Err(INVALID_SCENE);
+        }
+    }
     bounded_text(&scene["title"], 256)?;
     let pages = scene["pages"].as_array().ok_or(INVALID_SCENE)?;
     if !(1..=MAX_PAGES).contains(&pages.len()) {
@@ -39,6 +49,66 @@ pub(super) fn decode(input: &str) -> Result<Plain<Value>> {
         check_page(page, &mut page_ids)?;
     }
     Ok(scene)
+}
+
+/// The single explicit Design attachment selected by a composer.
+pub(super) fn turn_reference(markdown: &str) -> Option<Plain<Value>> {
+    let mut references = Vec::new();
+    super::chat_files::for_fenced_json(markdown, |range, body| {
+        if body.len() > 360 || references.len() > 1 {
+            return;
+        }
+        let Ok(data) = serde_json::from_str::<Value>(body) else {
+            return;
+        };
+        if data["type"] != EMBED_TYPE
+            || fields(&data, &["type", "embed_id"], &["reference_only"]).is_err()
+            || canonical_uuid(&data["embed_id"]).is_err()
+        {
+            return;
+        }
+        references.push((
+            range,
+            data["embed_id"].as_str().unwrap_or_default().to_owned(),
+        ));
+    });
+    if references.len() != 1 {
+        return None;
+    }
+    let (range, id) = references.pop()?;
+    let mut text = Plain::new(markdown.to_owned());
+    text.replace_range(range, "");
+    Some(Plain::new(json!({"embedId": id, "text": &*text})))
+}
+
+/// Bound and validate the explicitly disclosed scene for the private context phase.
+pub(super) fn source_context(
+    content: &str,
+    embed_id: &str,
+    base_version: u32,
+) -> Result<Plain<Value>> {
+    const SOURCE_LIMIT: usize = 127_000;
+    if base_version == 0 || content.len() > SOURCE_LIMIT {
+        return Err(INVALID_SCENE);
+    }
+    let id = Value::String(embed_id.to_owned());
+    canonical_uuid(&id)?;
+    let scene = decode(content)?;
+    if scene.get("proposal").is_some() {
+        return Err(INVALID_SCENE);
+    }
+    Ok(Plain::new(
+        json!({"embed_id": id, "base_version": base_version, "scene": &*scene}),
+    ))
+}
+
+fn canonical_uuid(value: &Value) -> Result<()> {
+    let reference = value.as_str().ok_or(INVALID_SCENE)?;
+    let uuid = uuid::Uuid::parse_str(reference).map_err(|_| INVALID_SCENE)?;
+    if uuid.is_nil() || uuid.hyphenated().to_string() != reference {
+        return Err(INVALID_SCENE);
+    }
+    Ok(())
 }
 
 fn check_page<'a>(page: &'a Value, ids: &mut HashSet<&'a str>) -> Result<()> {
@@ -118,11 +188,7 @@ fn check_layer<'a>(layer: &'a Value, ids: &mut HashSet<&'a str>) -> Result<()> {
             number(&layer["weight"], 100.0, 900.0)?;
         }
         "image" => {
-            let reference = layer["assetId"].as_str().ok_or(INVALID_SCENE)?;
-            let uuid = uuid::Uuid::parse_str(reference).map_err(|_| INVALID_SCENE)?;
-            if uuid.is_nil() || uuid.hyphenated().to_string() != reference {
-                return Err(INVALID_SCENE);
-            }
+            canonical_uuid(&layer["assetId"])?;
         }
         "path" => {
             number(&layer["viewWidth"], 1.0, MAX_DIMENSION)?;

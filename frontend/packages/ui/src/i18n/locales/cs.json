@@ -959,6 +959,12 @@
         "description": {
           "text": "Načte návrh z Figmy a vrátí strukturu, styly a předání do kódu."
         }
+      },
+      "author": {
+        "text": "Vytvořit návrh",
+        "description": {
+          "text": "Vytvořte upravitelný leták, příspěvek nebo maketu."
+        }
       }
     },
     "electronics": {

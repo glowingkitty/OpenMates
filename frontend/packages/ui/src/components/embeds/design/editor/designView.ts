@@ -1,3 +1,4 @@
+// figma-visual-proof: not-required. The decoder validates typed Design data and has no reference artboard.
 /** Projects a core-validated Design scene to the Phase 0 renderer's local model. */
 import { whenSharedRustCore } from '../../../../services/rustCore/host/sharedCoreRegistry';
 import { rustEmbedData } from '../../../../services/rustCore/embeds/embedDataClient';
@@ -28,6 +29,7 @@ export async function readDesignView(content: Record<string, unknown>, raw?: unk
   const scene: SavedDesign = JSON.parse(input);
   return {
     title: scene.title,
+    ...(scene.proposal ? { proposal: scene.proposal } : {}),
     pages: scene.pages.map((page) => ({
       ...page,
       layers: page.layers.map((layer) => layer.kind === 'image'

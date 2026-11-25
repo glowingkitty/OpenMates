@@ -12254,6 +12254,9 @@ features:
   - id: feature.design-editor-edit
     status: draft
     path: specifications/features/design-editor-edit
+  - id: feature.design-editor-assistant
+    status: draft
+    path: specifications/features/design-editor-assistant
   apps:
   - design
   product_features: []
@@ -12263,7 +12266,7 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 36
+  assertions: 39
   surfaces:
     web:
       status: partial
@@ -12272,9 +12275,9 @@ features:
       assertions:
         passing: 5
         failing: 0
-        not_run: 15
+        not_run: 18
         missing: 20
-        counted: 40
+        counted: 43
       key_tests:
       - frontend/apps/web_app/tests/components/design-editor.spec.ts
       - frontend/apps/web_app/tests/components/design-editor-performance.spec.ts
@@ -12287,13 +12290,14 @@ features:
       - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
       - frontend/apps/web_app/tests/design-document-view.spec.ts
       - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
+      - frontend/apps/web_app/tests/real-inference-design-editor.spec.ts
       key_unit_tests:
+      - backend/tests/test_design_scene.py
       - backend/tests/test_design_embroidery_skill.py
       - frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts
       - backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
       - backend/tests/test_generated_media_graph.py
-      - frontend/packages/ui/src/components/embeds/design/embroideryProgress.test.ts
-      unit_test_files: 7
+      unit_test_files: 8
     apple:
       status: partial
       source: tests
@@ -12322,8 +12326,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 32
-        counted: 32
+        missing: 35
+        counted: 35
       key_tests: []
       evidence: openmates apps design search_icons|export-icon
       e2e_tests: []
@@ -12599,6 +12603,84 @@ features:
           not_run: 0
           missing: 0
           counted: 0
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: editor-assistant
+    name: Create and revise with the assistant
+    description: Dedicated authoring model and visual review for editable, client-side encrypted Design documents.
+    assertion_ids:
+    - design-editor.assistant.apply
+    - design-editor.assistant.review
+    - design-editor.assistant.route
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 3
+          missing: 0
+          counted: 3
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 3
+          counted: 3
       tui:
         status: unverified
         source: intent

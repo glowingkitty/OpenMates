@@ -66,3 +66,33 @@ fn refuses_unsupported_version_remote_images_and_invalid_vectors() {
     value["pages"][0]["layers"][0]["assetId"] = json!("00112233-4455-4677-8899-aabbccddeeff");
     assert!(decode(&value.to_string()).is_ok());
 }
+
+#[test]
+fn selects_only_one_top_level_design_attachment() {
+    let id = "00112233-4455-4677-8899-aabbccddeeff";
+    let block = format!(
+        "```json\n{{\"type\":\"design-document\",\"embed_id\":\"{id}\",\"reference_only\":true}}\n```"
+    );
+    let reference =
+        turn_reference(&format!("Change the caption.\n\n{block}")).expect("single attachment");
+    assert_eq!(reference["embedId"], id);
+    assert_eq!(
+        reference["text"].as_str().unwrap().trim(),
+        "Change the caption."
+    );
+    assert!(turn_reference(&format!("{block}\n\n{block}")).is_none());
+    assert!(turn_reference(&format!("````markdown\n{block}\n````")).is_none());
+}
+
+#[test]
+fn validates_the_source_and_keeps_proposals_out_of_new_revisions() {
+    let id = "00112233-4455-4677-8899-aabbccddeeff";
+    let mut original = scene();
+    let source = source_context(&original.to_string(), id, 3).unwrap();
+    assert_eq!(source["base_version"], 3);
+    assert_eq!(source["scene"], original);
+    assert!(source_context(&original.to_string(), id, 0).is_err());
+    original["proposal"] = json!({"embedId": id, "baseVersion": 3});
+    assert!(decode(&original.to_string()).is_ok());
+    assert!(source_context(&original.to_string(), id, 3).is_err());
+}

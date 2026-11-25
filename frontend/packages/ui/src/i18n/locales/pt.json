@@ -959,6 +959,12 @@
         "description": {
           "text": "Leia um design do Figma e obtenha estrutura, estilos e uma entrega para código."
         }
+      },
+      "author": {
+        "text": "Criar design",
+        "description": {
+          "text": "Crie um panfleto, uma publicação ou um protótipo editável."
+        }
       }
     },
     "electronics": {

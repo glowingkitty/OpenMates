@@ -959,6 +959,12 @@
         "description": {
           "text": "Lisez un design Figma et obtenez structure, styles et un transfert vers le code."
         }
+      },
+      "author": {
+        "text": "Créer un design",
+        "description": {
+          "text": "Créez un flyer, une publication ou une maquette modifiable."
+        }
       }
     },
     "electronics": {

@@ -104,6 +104,8 @@ def validate_context(phase: str, context: Any) -> dict:
     if rows is None or not isinstance(context, dict):
         raise ValueError("Invalid context phase")
     allowed = set(rows) | {"accepted_plan_context"}
+    if phase == "details":
+        allowed.add("design_source")
     if set(context) - allowed:
         raise ValueError("Unexpected context field")
     if "custom_memory_documents" in context and "custom_rule_documents" in context:
@@ -123,6 +125,10 @@ def validate_context(phase: str, context: Any) -> dict:
             # Routing is metadata only, including any nested Project Focus hints.
             if (phase == "routing" or field in _SELECTION_DETAILS_ROWS) and _contains_private_body(row):
                 raise ValueError("Private body in selection metadata")
+    if "design_source" in context:
+        from backend.apps.design.source import attached_design
+        if attached_design(context["design_source"]) is None:
+            raise ValueError("Invalid Design source")
     plan = context.get("accepted_plan_context")
     if plan is not None and (not isinstance(plan, dict) or set(plan) - _PLAN_FIELDS):
         raise ValueError("Invalid Plan reference")

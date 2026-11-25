@@ -959,6 +959,12 @@
         "description": {
           "text": "Läser en Figma-design och ger struktur, stilar och kodöverlämning."
         }
+      },
+      "author": {
+        "text": "Skapa design",
+        "description": {
+          "text": "Skapa ett redigerbart flygblad, inlägg eller utkast."
+        }
       }
     },
     "electronics": {

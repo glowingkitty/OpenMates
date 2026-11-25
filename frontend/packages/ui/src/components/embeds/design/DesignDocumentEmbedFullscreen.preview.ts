@@ -16,5 +16,8 @@ const document = {
 const onClose = () => window.location.assign('/dev/preview');
 export default { data: { decodedContent: document }, onClose };
 export const variants = {
+  proposal: { data: { decodedContent: {
+    ...document, proposal: { embedId: 'e235e2bd-c404-42db-8ca5-1c091abb9228', baseVersion: 1 },
+  } }, onClose },
   unsupported: { data: { decodedContent: { ...document, schemaVersion: 12 } }, onClose }
 };

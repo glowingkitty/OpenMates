@@ -959,6 +959,12 @@
         "description": {
           "text": "Baca desain Figma dan dapatkan struktur, gaya, dan serah terima kode."
         }
+      },
+      "author": {
+        "text": "Buat desain",
+        "description": {
+          "text": "Buat selebaran, kiriman, atau maket yang dapat diedit."
+        }
       }
     },
     "electronics": {

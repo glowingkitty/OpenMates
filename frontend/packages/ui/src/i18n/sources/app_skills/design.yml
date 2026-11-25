@@ -153,3 +153,53 @@ get_design.description:
   he: קורא עיצוב Figma ומחזיר מבנה, סגנונות והעברה לקוד.
   verified_by_human:
     - en
+
+author:
+  context: Name for the editable Design authoring skill
+  en: Create design
+  de: Design erstellen
+  zh: 创建设计
+  es: Crear diseño
+  fr: Créer un design
+  pt: Criar design
+  ru: Создать дизайн
+  ja: デザインを作成
+  ko: 디자인 만들기
+  it: Crea design
+  tr: Tasarım oluştur
+  vi: Tạo thiết kế
+  id: Buat desain
+  pl: Utwórz projekt
+  nl: Ontwerp maken
+  ar: إنشاء تصميم
+  hi: डिज़ाइन बनाएँ
+  th: สร้างดีไซน์
+  cs: Vytvořit návrh
+  sv: Skapa design
+  he: יצירת עיצוב
+  verified_by_human: []
+
+author.description:
+  context: Description for the editable Design authoring skill
+  en: Create an editable flyer, post, or mockup.
+  de: Erstelle einen bearbeitbaren Flyer, Beitrag oder Entwurf.
+  zh: 创建可编辑的传单、帖子或原型。
+  es: Crea un folleto, una publicación o una maqueta editable.
+  fr: Créez un flyer, une publication ou une maquette modifiable.
+  pt: Crie um panfleto, uma publicação ou um protótipo editável.
+  ru: Создайте редактируемую листовку, публикацию или макет.
+  ja: 編集できるチラシ、投稿、モックアップを作成します。
+  ko: 편집할 수 있는 전단, 게시물 또는 시안을 만듭니다.
+  it: Crea un volantino, un post o un mockup modificabile.
+  tr: Düzenlenebilir bir broşür, gönderi veya taslak oluşturun.
+  vi: Tạo tờ rơi, bài đăng hoặc bản mẫu có thể chỉnh sửa.
+  id: Buat selebaran, kiriman, atau maket yang dapat diedit.
+  pl: Utwórz edytowalną ulotkę, post lub makietę.
+  nl: Maak een bewerkbare flyer, post of mock-up.
+  ar: أنشئ منشورًا أو ملصقًا أو نموذجًا قابلًا للتعديل.
+  hi: संपादन योग्य फ़्लायर, पोस्ट या मॉकअप बनाएँ।
+  th: สร้างใบปลิว โพสต์ หรือแบบจำลองที่แก้ไขได้
+  cs: Vytvořte upravitelný leták, příspěvek nebo maketu.
+  sv: Skapa ett redigerbart flygblad, inlägg eller utkast.
+  he: יצירת עלון, פוסט או מוקאפ שניתנים לעריכה.
+  verified_by_human: []

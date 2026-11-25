@@ -783,6 +783,14 @@ specifications:
     fingerprint: a9b814fb48dfe4fc11a0600086986a1f85e56b6993922fa3d31fe45757a343c5
     required_applies_to:
     - gui.web
+  feature.design-editor-assistant:
+    version: 1
+    status: draft
+    path: features/design-editor-assistant
+    fingerprint: 74863375667090504b44bbe7e17cce7497efd346c3311af73b54e048c41c6904
+    required_applies_to:
+    - cli
+    - gui.web
   feature.design-editor-edit:
     version: 1
     status: draft
@@ -10700,6 +10708,30 @@ assertions:
     type: security
     fingerprint: 3ed06377d9a3047234a75c315132736936d761078e1360a7520fa960266d4ab7
     required_applies_to:
+    - gui.web
+  design-editor.assistant.route:
+    specification: feature.design-editor-assistant@1
+    specification_id: feature.design-editor-assistant
+    type: behavior
+    fingerprint: cf47e75b72568491e12ca769f26a96988c21b99d44b84b9d68181a6ec2b577e9
+    required_applies_to:
+    - cli
+    - gui.web
+  design-editor.assistant.review:
+    specification: feature.design-editor-assistant@1
+    specification_id: feature.design-editor-assistant
+    type: behavior
+    fingerprint: ff22a42b4364220c53ef514e471db3d15e4ef932defafbdc2dc4a0678f1fadfb
+    required_applies_to:
+    - cli
+    - gui.web
+  design-editor.assistant.apply:
+    specification: feature.design-editor-assistant@1
+    specification_id: feature.design-editor-assistant
+    type: security
+    fingerprint: 32c6f6b7944788db0611dbf845de41bfb3117548b8ec891ce46a6150cf636bf7
+    required_applies_to:
+    - cli
     - gui.web
   design-editor.edit.typed-layers:
     specification: feature.design-editor-edit@1

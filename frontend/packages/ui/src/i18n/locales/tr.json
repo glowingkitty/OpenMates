@@ -959,6 +959,12 @@
         "description": {
           "text": "Bir Figma tasarımını okuyup yapı, stiller ve kod aktarımı sağlar."
         }
+      },
+      "author": {
+        "text": "Tasarım oluştur",
+        "description": {
+          "text": "Düzenlenebilir bir broşür, gönderi veya taslak oluşturun."
+        }
       }
     },
     "electronics": {

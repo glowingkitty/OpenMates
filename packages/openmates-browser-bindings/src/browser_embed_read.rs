@@ -71,3 +71,26 @@ pub fn embed_validate_design_scene(content: &str) -> Result<(), JsValue> {
     openmates_sdk::client::embed_write::read::validate_design_scene(content)
         .map_err(|_| JsValue::from_str("design_scene_invalid"))
 }
+
+/// Find one explicitly attached Design in the current composer document.
+#[wasm_bindgen]
+pub fn embed_design_turn_reference(markdown: &str) -> Result<Option<String>, JsValue> {
+    js_sys::global()
+        .dyn_into::<web_sys::DedicatedWorkerGlobalScope>()
+        .map_err(|_| JsValue::from_str("unavailable"))?;
+    Ok(openmates_sdk::client::embed_write::read::design_turn_reference(markdown))
+}
+
+/// Prepare a validated Design scene for the private context phase.
+#[wasm_bindgen]
+pub fn embed_design_source_context(
+    content: &str,
+    embed_id: &str,
+    base_version: u32,
+) -> Result<String, JsValue> {
+    js_sys::global()
+        .dyn_into::<web_sys::DedicatedWorkerGlobalScope>()
+        .map_err(|_| JsValue::from_str("unavailable"))?;
+    openmates_sdk::client::embed_write::read::design_source_context(content, embed_id, base_version)
+        .map_err(|_| JsValue::from_str("design_scene_invalid"))
+}

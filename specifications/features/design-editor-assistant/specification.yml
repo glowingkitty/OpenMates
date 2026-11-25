@@ -1,0 +1,43 @@
+schema_version: 1
+id: feature.design-editor-assistant
+version: 1
+status: draft
+title: Assistant Design authoring
+summary: Create and revise an editable Design from a short assistant instruction.
+inherits:
+  - feature.design-editor@1
+  - feature.design-editor-edit@1
+scope:
+  includes:
+    - Design creation and follow-up edits in an authenticated chat.
+    - Typed output validation, Jev visual review, and one bounded correction.
+    - Client-side encrypted persistence and rechecking the base revision when applying a follow-up edit.
+  excludes:
+    - HTML or script input, simultaneous multi-user editing, and export.
+assertions:
+  - id: design-editor.assistant.route
+    type: behavior
+    must: >-
+      The conversation assistant sends a short natural-language instruction to the Design skill.
+      The skill selects a dedicated author model and returns an editable Design scene only after validation.
+  - id: design-editor.assistant.review
+    type: behavior
+    must: >-
+      Jev reviews the rendered draft for required copy, clipping, and readability.
+      One correction may address invalid output or unmet requirements. If the corrected draft still fails,
+      report the failure without saving it.
+  - id: design-editor.assistant.apply
+    type: security
+    must: >-
+      Saved designs stay client-side encrypted. A follow-up edit targets stable layer and page identifiers
+      in an authorized Design, and cannot replace a newer version than the one it was based on.
+applies_to:
+  cli: {required: true, role: Real Design skill output through authenticated chat.}
+  gui:
+    required: true
+    implementations:
+      web: {required: true, role: Authoring result preview and revision application.}
+      apple: {required: false, role: Follows the web authoring flow.}
+examples:
+  file: examples.yml
+  required_groups: [authoring]

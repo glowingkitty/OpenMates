@@ -18,10 +18,11 @@
     revision?: { version: number; save: (baseVersion: number, document: DesignDocument) => Promise<void> };
     versionNumber?: number;
     versionHistory?: Snippet;
+    assistantTools?: Snippet;
     onClose: () => void;
   }
 
-  let { document: initialDocument, initialMode = 'view', readOnly = false, readImage, revision, versionNumber, versionHistory, onClose }: Props = $props();
+  let { document: initialDocument, initialMode = 'view', readOnly = false, readImage, revision, versionNumber, versionHistory, assistantTools, onClose }: Props = $props();
   let document = $state.raw(untrack(() => initialDocument));
   let editing = $state(untrack(() => !readOnly && initialMode === 'edit'));
   let editingVersion = $state<number>();
@@ -280,8 +281,11 @@
   {/snippet}
 
   {#snippet content()}
-    <div class="workspace" class:editing bind:this={root} data-testid="design-workspace" data-mode={editing ? 'edit' : 'view'}
+    <div class="workspace" class:editing class:assistant-tools={!!assistantTools && !editing} bind:this={root} data-testid="design-workspace" data-mode={editing ? 'edit' : 'view'}
       data-selection={selectedId} data-layers={activePage.layers.length} data-version={versionNumber}>
+      {#if assistantTools && !editing}
+        <div class="assistant-toolbar">{@render assistantTools()}</div>
+      {/if}
       {#if saveError}
         <p class="save-error" role="alert" data-testid="design-save-error">{saveError}</p>
       {/if}
@@ -405,6 +409,8 @@
     flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr);
     position: relative; isolation: isolate; color: var(--color-font-primary);
   }
+  .workspace.assistant-tools { grid-template-rows: auto minmax(0, 1fr); }
+  .assistant-toolbar { grid-column: 1 / -1; background: var(--color-grey-0); }
   .workspace.editing { grid-template-columns: minmax(172px, 19%) minmax(0, 1fr) minmax(185px, 20%); }
   .panel-slot { background: var(--color-grey-0); min-width: 0; min-height: 0; }
   .layers { border-right: 1px solid var(--color-grey-25); }

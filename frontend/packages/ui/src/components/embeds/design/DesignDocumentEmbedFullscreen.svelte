@@ -14,6 +14,7 @@
   import { readDesignView, serializeDesign } from './editor/designView';
   import { readDesignImage } from './editor/designViewAssets';
   import { saveDesignRevision } from './editor/designSave';
+  import { writeEmbedToClipboard } from '../../../message_parsing/serializers';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -33,6 +34,9 @@
   let historyRequest = 0;
   let checkedScope = $state.raw<{ chat: string; scope: EmbedEditScope } | null>(null);
   let failed = $state(false);
+  let proposalState = $state.raw<{ id: string; status: 'applying' | 'applied' | 'conflict' | 'error' } | null>(null);
+  let copyStatus = $state.raw<{ id: string; copied: boolean } | null>(null);
+  const proposalStatus = $derived(proposalState?.id === embedId ? proposalState?.status : undefined);
   const chatId = $derived(context?.exampleChatId ? null : context?.lookupChatId ?? context?.chatId ?? null);
   const ownerChat = $derived($authStore.isAuthenticated && context?.isReadOnly === false &&
     context.chatId === chatId ? chatId : null);
@@ -47,7 +51,7 @@
   const past = $derived(historical && historical.id === embedId && historical.chat === ownerChat &&
     historical.epoch === getWorkspaceCacheEpoch() ? historical : null);
   const readImage = $derived.by(() => {
-    const id = embedId;
+    const id = head?.proposal?.embedId ?? embedId;
     const sourceChat = chatId;
     return (asset: string) => id && sourceChat ? readDesignImage(asset, id, sourceChat) : Promise.resolve(null);
   });
@@ -103,6 +107,42 @@
     }
   }
 
+  async function copyDesign() {
+    if (!embedId || !head || head.proposal || !scope) return;
+    const reference = { type: 'design-document' as const, id: embedId, status: 'finished' as const,
+      contentRef: `embed:${embedId}`, referenceOnly: true };
+    const block = JSON.stringify({ type: reference.type, embed_id: embedId });
+    try {
+      await writeEmbedToClipboard(reference, "```json\n" + block + "\n```");
+      copyStatus = { id: reference.id, copied: true };
+    } catch {
+      copyStatus = { id: reference.id, copied: false };
+    }
+  }
+
+  async function applyProposal() {
+    const id = embedId;
+    const writeScope = scope;
+    const selected = head;
+    const proposal = selected?.proposal;
+    if (!id || !writeScope || !selected || !proposal || proposalStatus === 'applying') return;
+    const epoch = getWorkspaceCacheEpoch();
+    const current = () => embedId === id && epoch === getWorkspaceCacheEpoch();
+    proposalState = { id, status: 'applying' };
+    try {
+      await saveDesignRevision(proposal.embedId, writeScope, proposal.baseVersion, selected);
+      if (current()) {
+        noteEmbedHeadChanged(proposal.embedId);
+        proposalState = { id, status: 'applied' };
+      }
+    } catch (error) {
+      if (current()) {
+        const conflict = (error as { code?: string } | null)?.code === 'embed_version_conflict';
+        proposalState = { id, status: conflict ? 'conflict' : 'error' };
+      }
+    }
+  }
+
   function selectVersion(version: number, content: string | null) {
     const request = ++historyRequest;
     const id = embedId;
@@ -129,6 +169,32 @@
   }
 </script>
 
+{#snippet assistantTools()}
+  {#if head?.proposal}
+    <div class="assistant-actions" aria-live="polite" data-testid="design-proposal-controls">
+      {#if !scope}
+        <span>Proposed revision</span>
+      {:else if proposalStatus === 'applied'}
+        <span>Changes applied.</span>
+      {:else if proposalStatus === 'conflict'}
+        <span>The original design has changed. Ask for a new revision.</span>
+      {:else}
+        <button type="button" data-testid="design-proposal-apply" disabled={proposalStatus === 'applying'} onclick={applyProposal}>
+          {proposalStatus === 'applying' ? 'Applying…' : 'Apply changes to original'}
+        </button>
+        {#if proposalStatus === 'error'}<span>Could not apply changes. Try again.</span>{/if}
+      {/if}
+    </div>
+  {:else}
+    <div class="assistant-actions">
+      <button type="button" data-testid="design-copy-for-chat" onclick={copyDesign}>
+        {copyStatus?.id === embedId && copyStatus?.copied ? 'Copied. Paste into chat' : 'Copy design for chat'}
+      </button>
+      {#if copyStatus?.id === embedId && copyStatus?.copied === false}<span role="alert">Could not copy the Design.</span>{/if}
+    </div>
+  {/if}
+{/snippet}
+
 {#snippet versionHistory()}
   {#if embedId && ownerChat && head && headVersion > 1}
     {@const id = embedId}
@@ -146,9 +212,29 @@
 {#if head}
   {#key embedId}
     <DesignEditorFullscreen document={past?.design ?? head} versionNumber={past?.version ?? headVersion}
-      readOnly={!scope || !embedId || !!past || historyLoading}
-      revision={scope && embedId ? { version: headVersion, save } : undefined} {readImage} {versionHistory} {onClose} />
+      readOnly={!scope || !embedId || !!head.proposal || !!past || historyLoading}
+      revision={scope && embedId && !head.proposal ? { version: headVersion, save } : undefined} {readImage} {versionHistory}
+      assistantTools={head.proposal || scope && !past ? assistantTools : undefined} {onClose} />
   {/key}
 {:else}
   <EmbedFullscreenLoading data={{ ...data, embedType: 'design-document' }} {failed} {onClose} />
 {/if}
+
+<style>
+  .assistant-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    font-size: var(--font-size-small);
+  }
+
+  .assistant-actions button {
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 1px solid var(--color-grey-50);
+    background: var(--color-grey-5);
+    border-radius: var(--radius-3);
+    color: inherit;
+    cursor: pointer;
+  }
+</style>

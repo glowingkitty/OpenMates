@@ -979,6 +979,12 @@
         "description": {
           "text": "Read a Figma design and get structure, styles and a code handoff."
         }
+      },
+      "author": {
+        "text": "Create design",
+        "description": {
+          "text": "Create an editable flyer, post, or mockup."
+        }
       }
     },
     "electronics": {

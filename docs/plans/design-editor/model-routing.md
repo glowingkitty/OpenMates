@@ -12,6 +12,8 @@ Use the Design app skill for creation and modification. The normal assistant sen
 
 Use the configured SVG lead model as the starting candidate, with a bounded fallback and correction budget shared across the request. Check required copy and text bounds deterministically first. Ask Jev to assess the intended copy, clipping, readability and layout on the rendered draft. Return compact diagnostics for one repair and review it again within the request budget. If the repair fails, report the unmet requirement and leave the current saved revision in place.
 
+The first keyed Phase 3 run recorded an accepted flyer on its first Design draft at **14.4 seconds and 22 credits** for authoring and visual review. The client subsequently refused its reserved identifier, so this sample measures the skill through review. It omits chat routing, rendering and the saved result. The 338-credit Phase 0 total covers a different mix of calls across all three formats.
+
 Phase 3 should compare time and credits per accepted design on the same five briefs. Keep the 250-layer cap while benchmarking a bounded grid representation for dense layouts. Count timed-out and invalid requests in acceptance rates. The existing SVG result supports the architecture choice. It gives no measured quality, cost or latency advantage for editable scenes yet.
 
 [Phase 0 format comparison](../design-editor-phase-0/format-comparison.md) · [SVG skill author](../../../backend/apps/images/vector_author.py)

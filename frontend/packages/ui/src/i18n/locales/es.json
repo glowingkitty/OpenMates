@@ -959,6 +959,12 @@
         "description": {
           "text": "Lee un diseño de Figma y obtén estructura, estilos y un traspaso a código."
         }
+      },
+      "author": {
+        "text": "Crear diseño",
+        "description": {
+          "text": "Crea un folleto, una publicación o una maqueta editable."
+        }
       }
     },
     "electronics": {

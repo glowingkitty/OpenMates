@@ -69,6 +69,26 @@ export class EmbedDataClient {
 		});
 	}
 
+	async designTurnReference(markdown: string) {
+		const release = this.core.hold();
+		try {
+			const { unit } = await this.open();
+			return await unit.request('designTurnReference', { markdown });
+		} finally {
+			release();
+		}
+	}
+
+	async designSourceContext(content: string, embedId: string, baseVersion: number) {
+		const release = this.core.hold();
+		try {
+			const { unit } = await this.open();
+			return await unit.request('designSourceContext', { content, embedId, baseVersion });
+		} finally {
+			release();
+		}
+	}
+
 	/** Validate a Design scene locally in the core before Canvas receives it. */
 	async validateDesignScene(scene: string): Promise<boolean> {
 		const release = this.core.hold();

@@ -1720,6 +1720,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 try:
                     embed_id = embed_data.get("embed_id")
                     embed_type = embed_data.get("type")  # Decrypted type from client
+                    if embed_type == "design-document":
+                        # The explicitly selected scene travels only in the bounded private details frame.
+                        continue
                     embed_content = embed_data.get("content")  # TOON-encoded string
                     embed_status = embed_data.get("status", "finished")
                     embed_text_preview = embed_data.get("text_preview")
