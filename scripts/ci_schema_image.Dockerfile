@@ -11,3 +11,6 @@ COPY --chmod=0444 openmates-ci-schema-manifest.json /usr/local/share/openmates/s
 
 RUN chmod 0444 /docker-entrypoint-initdb.d/20-openmates-schema.sql.gz \
     /usr/local/share/openmates/schema-manifest.json
+
+# CI starts this image with a fresh Postgres volume owned by the base image's postgres user.
+USER postgres

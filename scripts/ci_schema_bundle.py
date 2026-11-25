@@ -804,6 +804,9 @@ def verify_image(image: str) -> dict:
                 "300",
                 "cms-database",
             )
+            uid = compose("exec", "-T", "cms-database", "id", "-u").stdout.strip()
+            if uid == b"0":
+                raise RuntimeError("Prepared schema container starts as root")
             wait_for_restored_schema()
             require_routing_proof_table()
             actual_dump = database_dump()
