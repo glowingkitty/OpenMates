@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Meer weergeven"
+      },
+      "account_total": {
+        "text": "{count} chats in je account"
       }
     },
     "latest_news": {

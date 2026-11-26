@@ -98,6 +98,7 @@ features:
       - frontend/apps/web_app/tests/import-chats.spec.ts › imports chats from ZIP in account settings and shows success results
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/import-account-v1.spec.ts
       - frontend/apps/web_app/tests/import-chats.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
@@ -1374,8 +1375,8 @@ features:
       assertions:
         passing: 15
         failing: 0
-        not_run: 5
-        missing: 6
+        not_run: 6
+        missing: 5
         counted: 26
       key_tests: []
       e2e_tests:
@@ -1421,7 +1422,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/passwordV2.test.ts
       - frontend/packages/ui/src/services/__tests__/preparedPrivacyForSend.test.ts
       - frontend/packages/ui/src/services/__tests__/userDBDeletionRecovery.test.ts
-      unit_test_files: 22
+      unit_test_files: 30
     apple:
       status: partial
       source: tests
@@ -2207,16 +2208,16 @@ features:
       - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
       - frontend/packages/ui/src/utils/__tests__/chatProjectNavigation.test.ts
       - frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
-      unit_test_files: 18
+      unit_test_files: 21
     apple:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 8
         failing: 0
         not_run: 0
-        missing: 8
+        missing: 7
         counted: 15
       key_tests: []
       e2e_tests:
@@ -2233,9 +2234,9 @@ features:
       - apple/OpenMatesTests/ChatSidebarDisplayPolicyTests.swift
       - apple/OpenMatesTests/ChatSyncParityTests.swift
       - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
-      - apple/OpenMatesTests/ActiveChatsWidgetTests.swift
       - apple/OpenMatesTests/AuthSessionReauthenticationTests.swift
-      unit_test_files: 7
+      - apple/OpenMatesTests/CoreChatWindowTests.swift
+      unit_test_files: 8
       platforms:
       - ios
       - ipados
@@ -3426,7 +3427,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 163
+      unit_test_files: 164
     apple:
       status: failing
       source: tests
@@ -24763,24 +24764,26 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 20
+  assertions: 22
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 6
         failing: 2
-        not_run: 3
+        not_run: 2
         missing: 12
-        counted: 20
+        counted: 22
       failing_tests:
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on
         demand
       key_tests: []
+      evidence: Recent 100 chats at startup, full Personal account count, and on-demand older history.
       e2e_tests:
       - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+      - frontend/apps/web_app/tests/components/chat-account-count.spec.ts
       - frontend/apps/web_app/tests/components/chat-list-deletion.spec.ts
       - frontend/apps/web_app/tests/connection-status.spec.ts
       - frontend/apps/web_app/tests/logout-blocked-userdb-relogin.spec.ts
@@ -24790,18 +24793,18 @@ features:
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
       - backend/tests/test_websocket_metadata_dispatch.py
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
-      - frontend/packages/ui/src/components/__tests__/activeChatResumeEffect.test.ts
-      unit_test_files: 19
+      - frontend/packages/ui/src/services/db/__tests__/chatKeyManagement.test.ts
+      unit_test_files: 26
     apple:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 5
         failing: 1
         not_run: 1
         missing: 15
-        counted: 20
+        counted: 22
       failing_tests:
       - apple/OpenMatesTests/KeychainSharingTests.swift › testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper
       key_tests: []
@@ -24815,9 +24818,9 @@ features:
       - apple/OpenMatesTests/ChatSyncParityTests.swift
       - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
       - apple/OpenMatesTests/ChatMetadataRecoveryTests.swift
+      - apple/OpenMatesTests/ChatSearchEngineTests.swift
       - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
-      - apple/OpenMatesTests/ChatWindowLoadingTests.swift
-      unit_test_files: 12
+      unit_test_files: 14
       platforms:
       - ios
       - ipados
@@ -24845,8 +24848,8 @@ features:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 14
-        counted: 20
+        missing: 16
+        counted: 22
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts
@@ -24876,8 +24879,8 @@ features:
         passing: 0
         failing: 0
         not_run: 14
-        missing: 6
-        counted: 20
+        missing: 8
+        counted: 22
       key_tests: []
       e2e_tests: []
       key_unit_tests:

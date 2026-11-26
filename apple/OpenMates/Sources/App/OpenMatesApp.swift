@@ -176,6 +176,7 @@ final class AppQuickActionCenter {
 struct SharedSocketWindowOwnership {
     private(set) var windowIDs: [UUID] = []
     private(set) var reconnectWorkCount = 0
+    var hasReconnected: Bool { reconnectWorkCount > 1 }
     private(set) var visibleWindowIDs = Set<UUID>()
     private(set) var keyWindowIDs = Set<UUID>()
 
@@ -249,8 +250,11 @@ final class AppSessionCoordinator: ObservableObject {
         windowOwnership.ownsSharedSync(id)
     }
 
-    func claimSharedReconnectWork(_ id: UUID) -> Bool {
-        windowOwnership.claimReconnectWork(id)
+    /// Returns whether this owner's connection is a reconnect. A non-owner
+    /// receives nil and leaves shared transport recovery to the owner window.
+    func claimSharedReconnectWork(_ id: UUID) -> Bool? {
+        guard windowOwnership.claimReconnectWork(id) else { return nil }
+        return windowOwnership.hasReconnected
     }
 
     private init() {
@@ -316,13 +320,55 @@ final class AppSessionCoordinator: ObservableObject {
         if let offlineBridgeStorage {
             return offlineBridgeStorage
         }
-        let bridge = OfflineSyncBridge(chatStore: chatStore, wsManager: webSocketManager)
+        let hasCoreHistory = CoreSession.shared != nil
+        webSocketManager.usesCoreStartupHistory = hasCoreHistory
+        let bridge = OfflineSyncBridge(chatStore: chatStore, wsManager: webSocketManager, usesCoreStartupHistory: hasCoreHistory)
         offlineBridgeStorage = bridge
         return bridge
     }
 }
 
+/// Language refresh can suspend on the network independently of session restore.
+@MainActor
+enum NativeAppStartup {
+    static func run(restoreSession: @MainActor @Sendable () async -> Void,
+                    refreshTranslations: @escaping @MainActor @Sendable () async -> Void) async {
+        async let refresh: Void = refreshTranslations()
+        await restoreSession()
+        await refresh
+    }
+}
+
 #if DEBUG
+/// Fixed monotonic stages for the opt-in startup measurement.
+@MainActor
+enum NativeStartupBenchmark {
+    enum Stage: String, CaseIterable, Hashable {
+        case appInitFinished = "app-init-finished"
+        case coreStartInvoked = "core-start-invoked"
+        case cachedChatListReceived = "cached-chat-list-received"
+        case cachedProfileReady = "cached-profile-ready"
+        case cachedScopeActivated = "cached-scope-activated"
+        case freshProfileReady = "fresh-profile-ready"
+        case freshScopeActivated = "fresh-scope-activated"
+    }
+
+    static let isEnabled = ProcessInfo.processInfo.arguments.contains("--ui-test-startup-chat-readiness")
+    static let appEntryUptimeMS = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+    static var scopeSetupDurationMS = -1
+    static var scopePendingCountDurationMS = -1
+    private static var stageUptimeMS: [Stage: Int] = [:]
+
+    static func mark(_ stage: Stage) {
+        guard isEnabled, stageUptimeMS[stage] == nil else { return }
+        stageUptimeMS[stage] = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+    }
+
+    static var stageFields: String {
+        Stage.allCases.map { "\($0.rawValue)-uptime-ms=\(stageUptimeMS[$0] ?? 0)" }.joined(separator: ";")
+    }
+}
+
 /// Unit-test host startup is not a product session. UI tests launch the product
 /// in a separate app process and retain its normal explicit fixture/auth flows.
 enum NativeUnitTestHostPolicy {
@@ -357,6 +403,10 @@ struct OpenMatesApp: App {
     #endif
 
     init() {
+        #if DEBUG
+        if NativeStartupBenchmark.isEnabled { _ = NativeStartupBenchmark.appEntryUptimeMS }
+        defer { NativeStartupBenchmark.mark(.appInitFinished) }
+        #endif
         FontRegistration.registerFonts()
         #if DEBUG
         // Isolated component fixtures must not start account telemetry.
@@ -435,9 +485,9 @@ struct OpenMatesApp: App {
                         KeychainHelper.debugSelfTest()
                     }
                     #endif
-                    await locManager.restoreSavedLanguage()
-                    // Starts the core's session restore and follows its events.
-                    await authManager.checkSession()
+                    await NativeAppStartup.run(
+                        restoreSession: { [authManager] in await authManager.checkSession() },
+                        refreshTranslations: { [locManager] in await locManager.restoreSavedLanguage() })
                 }
                 .onChange(of: authManager.state) { _, newState in
                     #if DEBUG

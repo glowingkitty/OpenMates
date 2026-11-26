@@ -106,7 +106,8 @@ async function cachedMessageShape(page: Page, chatId: string) {
     opened.onerror = () => resolve({ error: 'open' });
     opened.onsuccess = () => {
       const db = opened.result;
-      const stores = ['messages', 'chats', 'embeds'].filter((name) => db.objectStoreNames.contains(name));
+      const messagesName = db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages';
+      const stores = [messagesName, 'chats', 'embeds'].filter((name) => db.objectStoreNames.contains(name));
       const tx = db.transaction(stores, 'readonly');
       const rows: unknown[] = [];
       const embeds: unknown[] = [];
@@ -124,7 +125,7 @@ async function cachedMessageShape(page: Page, chatId: string) {
       }
       let chatRow: unknown = null;
       const len = (value: unknown) => (typeof value === 'string' ? value.length : value == null ? null : -1);
-      const messages = tx.objectStore('messages').openCursor();
+      const messages = tx.objectStore(messagesName).openCursor();
       messages.onsuccess = () => {
         const cursor = messages.result;
         if (!cursor) return;

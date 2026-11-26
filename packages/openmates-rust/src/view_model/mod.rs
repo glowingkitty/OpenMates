@@ -74,6 +74,10 @@ mod unowned_flows;
 mod window;
 #[cfg(not(target_arch = "wasm32"))]
 mod window_flows;
+#[cfg(not(target_arch = "wasm32"))]
+mod startup_opened;
+#[cfg(not(target_arch = "wasm32"))]
+mod modified_chat_page;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use actor::{RevocationHandle, ViewCore};
@@ -151,7 +155,11 @@ pub(crate) use socket_passthrough::{OutboundFrame, SocketPassthrough};
 #[cfg(not(target_arch = "wasm32"))]
 pub use unowned_flows::UnownedFrameSender;
 #[cfg(not(target_arch = "wasm32"))]
-pub use window_flows::{close_chat, load_older, mark_read, open_chat};
+pub use window_flows::{close_chat, load_older, mark_read, open_chat, refresh_open_chat};
+#[cfg(not(target_arch = "wasm32"))]
+pub use modified_chat_page::load_more_chat_metadata;
+#[cfg(not(target_arch = "wasm32"))]
+pub use startup_opened::{hydrate_startup_chats, paint_startup_chat, refresh_startup_cohort, resume_startup_chat, switch_team_for_startup};
 
 #[cfg(all(test, unix))]
 mod actor_tests;

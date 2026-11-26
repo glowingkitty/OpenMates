@@ -54,7 +54,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { fetchAuthenticatedChatMessageWindow } from '../services/authenticatedChatMessageWindow';
-    import { readRustChatHistoryPage, readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
+    import { reportOpenedChatFrame } from '../services/rustCore/startupOpenedChats';
+    import { canPreparePersonalLatestHistory, preparePersonalLatestHistory, readRustChatHistoryPage, readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
+    import { getWorkspaceCacheIdentity } from '../services/workspaceQueryCache';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
@@ -3643,7 +3645,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Always read from IndexedDB — chatListCache is designed for sidebar
             // (Chats.svelte) remount performance, not the welcome screen. Using
             // the cache here causes stale sort order when returning from a chat.
-            let chats: Chat[] = await chatDB.getAllChats();
+            const chats = await chatDB.getAllChats(undefined, { limit: 100, teamId: contextTeamId, rootsOnly: true });
             const filteredChats = chats.filter((c) =>
                 !isPublicChat(c.chat_id) &&
                 !c.parent_id &&
@@ -5460,6 +5462,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         initialPublicChat || initialAnonymousChat || initialRecentChatSelection ? 'ready' : 'idle',
      );
      $effect(() => {
+         if (import.meta.env.VITE_OPENMATES_RUST_CORE !== '1') return;
+         const id = currentChat?.chat_id;
+         if (!id || showWelcome || (chatLoadState !== 'ready' && chatLoadState !== 'error' &&
+             !currentMessages.some(message => message.chat_id === id))) return;
+         // Svelte has committed this window. Give the browser a paint before
+         // allowing the Worker and IndexedDB to resume background histories.
+         let nextFrame = requestAnimationFrame(() => {
+             nextFrame = requestAnimationFrame(() => reportOpenedChatFrame(id));
+         });
+         return () => cancelAnimationFrame(nextFrame);
+     });
+     $effect(() => {
          // The bound chat can render its header, composer, and incoming call
          // transcripts before its history window finishes loading. It can host
          // the inline controls as soon as that surface is visible.
@@ -6081,6 +6095,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Without the guest banner slides the signed-out Chats screen always shows chat examples.
     const activeGuestSurface: DailyInspirationSurface = 'chats';
     let guestInputLinkIndex = $state(0);
+    const showGuestInputLink = $derived(showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused);
+    $effect(() => {
+        if (!showGuestInputLink) return;
+        const interval = window.setInterval(() => {
+            guestInputLinkIndex = (guestInputLinkIndex + 1) % 2;
+        }, GUEST_INPUT_LINK_ROTATION_MS);
+        return () => window.clearInterval(interval);
+    });
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroOverlayActive = $derived(
@@ -7587,7 +7609,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // loadChat() is not called for the inline new-chat send path, so keep
             // ChatHeader's closed-sidebar navigation state in sync explicitly.
             chatListCache.upsertChat(currentChat);
-            updateNavFromCache(currentChat.chat_id);
+            updateNavFromCache(currentChat.chat_id, currentChat);
 
             const createdChatId = currentChat.chat_id;
             if (!currentChat.is_incognito && !currentChat.is_anonymous) {
@@ -9804,7 +9826,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         chatLoadState = 'ready';
         showWelcome = false;
         chatHistoryRef?.updateMessages(currentMessages);
-        updateNavFromCache(chatId);
+        updateNavFromCache(chatId, selected.chat);
         void tick().then(() => {
             if (generation !== loadChatGeneration || currentChat?.chat_id !== chatId
                 || !warmSelectionGuard?.canContinue || !chatHistoryRef) return;
@@ -9850,7 +9872,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         currentChat = chat;
         temporaryChatId = null;
         chatLoadState = 'ready';
-        updateNavFromCache(chat.chat_id);
+        updateNavFromCache(chat.chat_id, chat);
         void applyPersistedDraftHeader(chat, 'local draft adoption', () =>
             generation === loadChatGeneration && currentChat?.chat_id === chat.chat_id,
         ).catch((error) => console.error('[ActiveChat] Could not render adopted draft header:', error));
@@ -9860,7 +9882,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number; serverClassifiedSaved?: boolean }) {
          // Fixed-name open-to-rendered breakdown mark (Rust-core builds only; no content).
          if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:load-chat');
          if (options?.preserveActiveComposer && isPersistedDraftOnlyChat(chat)) {
@@ -10000,7 +10022,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
          // starts closed, so the store would otherwise have hasPrev=false/hasNext=false
          // until the user opens the sidebar at least once.
-         updateNavFromCache(chat.chat_id);
+         updateNavFromCache(chat.chat_id, chat);
 
          // Load this chat's highlights from IndexedDB into the in-memory store
          // so the ChatHeader pill + in-message overlays render without waiting
@@ -10057,7 +10079,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // For public chats (demo/example) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
-        const isProvidedDraftOnlyChat = isPersistedDraftOnlyChat(chat);
+        const isProvidedDraftOnlyChat = !options?.serverClassifiedSaved && isPersistedDraftOnlyChat(chat);
         if (isPublicChat(chat.chat_id)) {
             // Public chats don't need database access - use the provided chat object
             freshChat = chat;
@@ -10130,6 +10152,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          }
 
          currentChat = freshChat || chat; // currentChat is now just metadata
+
+         // getChat already classified the persisted wrapper. Start the same
+         // latest read while the raw draft fields and encrypted header load.
+         const earlyHistoryOwner = $userProfile.user_id;
+         const earlyHistoryScope = import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !recentWindow &&
+             !isSameActiveChat && !options?.messageId && $authStore.isAuthenticated && !get(activeTeamId) &&
+             activeChatStore.get() === chat.chat_id && isCurrentLoadTarget() && !isPublicChat(chat.chat_id) &&
+             !isPendingInspirationChat(chat.chat_id) && !initialChatHistoryGate.pending(chat.chat_id) &&
+             freshChat && freshChat !== chat && freshChat.chat_id === chat.chat_id &&
+             canPreparePersonalLatestHistory(chat, earlyHistoryOwner) &&
+             canPreparePersonalLatestHistory(freshChat, earlyHistoryOwner) &&
+             chat.encrypted_chat_key === freshChat.encrypted_chat_key &&
+             chat.key_version === freshChat.key_version
+             ? getWorkspaceCacheIdentity() : null;
+         const earlyHistory = earlyHistoryScope && freshChat ? preparePersonalLatestHistory(freshChat) : null;
+
          if (currentChat?.chat_id && $authStore.isAuthenticated && !isPublicChat(currentChat.chat_id)) {
              try {
                  const rawChat = await chatDB.getRawChat(currentChat.chat_id);
@@ -10164,7 +10202,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
              }
          }
 
-          const isCurrentDraftOnlyChat = isPersistedDraftOnlyChat(currentChat);
+          const isCurrentDraftOnlyChat = !options?.serverClassifiedSaved && isPersistedDraftOnlyChat(currentChat);
 
          // ─── Chat Header: restore title/category/icon for all chat types ────────────────
          // Universal header restoration: handles public/demo, incognito, and regular chats.
@@ -10378,6 +10416,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         thinkingContentByTask = new Map();
         thinkingPlaceholderMessageIds = new Set();
         
+        if (earlyHistory && (!isCurrentLoadTarget() || activeChatStore.get() !== chat.chat_id ||
+            getWorkspaceCacheIdentity() !== earlyHistoryScope)) return;
+
         let newMessages: ChatMessageModel[] = [];
         let messageLoadFailed = false;
         let backgroundMessageWindowRepair: Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null> | null = null;
@@ -10494,13 +10535,33 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // Opt-in Rust core (VITE_OPENMATES_RUST_CORE): Rust owns this read unless it refuses.
                 let rustOwnedHistory = false;
                 try {
+                    const selectedChat = currentChat;
+                    const localInitialPending = initialChatHistoryGate.pending(selectedChat.chat_id);
+                    const useEarlyHistory = earlyHistory && !localInitialPending &&
+                        canPreparePersonalLatestHistory(selectedChat, earlyHistoryOwner) &&
+                        selectedChat.encrypted_chat_key === freshChat?.encrypted_chat_key &&
+                        selectedChat.key_version === freshChat?.key_version;
                     if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:history-load');
-                    currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
-                    const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
-                    // Default builds fold this to null: no await, the TS path is unchanged.
-                    const rustRead = import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' ? null : await readRustChatHistoryWindow(currentChat, { anchorMessageId: options?.messageId ?? null,
-                        activeTeamId: get(activeTeamId), localInitialPending: initialChatHistoryGate.pending(currentChat.chat_id) })
-                        .catch((rustError: unknown) => { rustOwnedHistory = true; messageLoadFailed = true; throw rustError; });
+                    // Apply the same compression checkpoints before publication.
+                    const [checkpoints, rustRead] = await Promise.all([
+                        loadCompressionCheckpointsForChat(selectedChat.chat_id),
+                        import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+                            ? (useEarlyHistory ? earlyHistory : readRustChatHistoryWindow(selectedChat, {
+                                anchorMessageId: options?.messageId ?? null,
+                                activeTeamId: get(activeTeamId),
+                                localInitialPending,
+                                serverClassifiedSaved: options?.serverClassifiedSaved,
+                            })).catch((rustError: unknown) => {
+                                rustOwnedHistory = true;
+                                messageLoadFailed = true;
+                                throw rustError;
+                            })
+                            : null,
+                    ]);
+                    if (!isCurrentLoadTarget() || (useEarlyHistory &&
+                        (activeChatStore.get() !== selectedChat.chat_id || getWorkspaceCacheIdentity() !== earlyHistoryScope))) return;
+                    currentCompressionCheckpoints = checkpoints;
+                    const latestCheckpoint = [...checkpoints].sort((a, b) => b.created_at - a.created_at)[0];
                     rustOwnedHistory ||= !!rustRead;
                     const rustWindow = rustRead?.window ?? null;
                     rustWindowStartCursor = rustWindow?.startCursorRef ?? null;
@@ -10860,6 +10921,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
             rustPrunedNewMessages = await pruneCurrentDecryptedMessageWindowRust(newMessages);
         }
+        if (!isCurrentLoadTarget()) return;
         if (thisLoadRevision !== getRecentChatRevision(chat.chat_id)) {
             // A canonical write landed during this read. Retry after the transaction
             // settles so an older window cannot revive edited or deleted content.
@@ -11734,9 +11796,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         initialize();
         installChatReplayCommand();
-        const guestInputLinkInterval = window.setInterval(() => {
-            guestInputLinkIndex = (guestInputLinkIndex + 1) % 2;
-        }, GUEST_INPUT_LINK_ROTATION_MS);
         
         // Listen for event to open login interface from header button
         const handleOpenLoginInterface = () => {
@@ -13538,7 +13597,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         });
 
         return () => {
-            window.clearInterval(guestInputLinkInterval);
             // Remove listeners from chatSyncService
             uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
@@ -14400,7 +14458,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     inert={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
                     aria-hidden={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
                 >
-                    {#if showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused}
+                    {#if showGuestInputLink}
                         <a
                             class="guest-input-context-link"
                             data-testid="guest-input-context-link"

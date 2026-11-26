@@ -842,7 +842,8 @@ final class ChatViewModel: ObservableObject {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-test-delayed-visible-window") {
             self.messageDecryptor = { rows, chatID in
-                try? await Task.sleep(for: .seconds(2))
+                // Leave a visible interval after XCTest's tap settles and takes its snapshots.
+                try? await Task.sleep(for: .seconds(12))
                 return await messageDecryptor(rows, chatID)
             }
         } else {

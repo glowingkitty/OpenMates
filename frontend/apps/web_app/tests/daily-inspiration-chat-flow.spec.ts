@@ -91,13 +91,13 @@ async function localChatRecord(page: any, chatId: string): Promise<{ chat: boole
 				opened.onerror = () => reject(new Error('Unable to open chats_db'));
 				opened.onsuccess = () => {
 					const db = opened.result;
-					const tx = db.transaction(['chats', 'messages'], 'readonly');
+					const tx = db.transaction(['chats', (db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readonly');
 					const result = { chat: false, messages: 0 };
 					const chatRequest = tx.objectStore('chats').get(id);
 					chatRequest.onsuccess = () => {
 						result.chat = !!chatRequest.result;
 					};
-					const cursorRequest = tx.objectStore('messages').openCursor();
+					const cursorRequest = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').openCursor();
 					cursorRequest.onsuccess = () => {
 						const cursor = cursorRequest.result;
 						if (!cursor) return;

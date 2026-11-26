@@ -10,6 +10,7 @@
 import type { Message, MessageStatus, PIIMapping } from "../../types/chat";
 import type { MessageWindowResult } from "../db/messageOperations";
 import type { LocalChatReadback, SavedChatReadback, SavedReadCursor } from "./savedReadProtocol";
+import type { BrowserRetainedRead } from "./browserCacheProtocol";
 
 /** Fixed refusal codes. Log these only; never content or identifiers. */
 export type RustHistoryRefusalCode =
@@ -93,6 +94,18 @@ export function savedReadToMessages(read: DecryptedRows, chatId: string): Messag
 
 function cursorTime(cursor: SavedReadCursor | null): number | null { return cursor ? cursor.createdAt : null; }
 
+/** Only a successful, scoped retained latest page can bypass another cache read. */
+export function isConfirmedEmptyLatestLocalWindow(
+  page: LocalChatReadback | null,
+  chatId: string,
+  anchorMessageId: string | null,
+): boolean {
+  return anchorMessageId === null && page?.coverage === "retained_only" &&
+    page.chat.id === chatId && page.chatMetadata?.id === chatId &&
+    page.chat.messages.length === 0 && page.messageMetadata?.length === 0 &&
+    page.startCursor === null && page.endCursor === null;
+}
+
 /**
  * Rust cache-first page (existing retained IndexedDB rows decrypted in the Rust
  * Worker) -> the same window shape. Same row mapper as the server read, so the
@@ -112,6 +125,25 @@ export function localReadToMessageWindow(read: LocalChatReadback, chatId: string
     startCursorRef: read.startCursor,
     endCursorRef: read.endCursor,
     anchorFound: anchored ? read.anchorFound : true,
+  };
+}
+
+/** The cached rows use the original live boundaries for further paging. */
+export function coldReadToMessageWindow(read: BrowserRetainedRead, chatId: string): MessageWindowResult {
+  const bounds = read.coldLivePage;
+  if (!bounds) throw new Error("protocol");
+  const { startCursor, endCursor } = bounds;
+  return {
+    messages: savedReadToMessages(read, chatId),
+    hasMoreBefore: bounds.hasMoreBefore,
+    hasMoreAfter: bounds.hasMoreAfter,
+    startCursor: cursorTime(startCursor),
+    startCursorMessageId: startCursor?.messageId ?? null,
+    endCursor: cursorTime(endCursor),
+    endCursorMessageId: endCursor?.messageId ?? null,
+    startCursorRef: startCursor,
+    endCursorRef: endCursor,
+    anchorFound: true,
   };
 }
 

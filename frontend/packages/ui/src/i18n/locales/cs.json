@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Zobrazit více"
+      },
+      "account_total": {
+        "text": "{count} chatů ve vašem účtu"
       }
     },
     "latest_news": {

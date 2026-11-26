@@ -20,6 +20,54 @@ final class CoreChatWindowTests: XCTestCase {
     private static let chatID = "0b6f3a52-6d1e-4c43-9a43-2f6a0c1d9e11"
     private static let otherChatID = "7c2e1d90-3b4a-4f5e-8a6b-1c2d3e4f5a6b"
 
+    #if DEBUG
+    // contract-test: supporting surface=gui.apple assertions=sync.status.startup-window-ready,chat-navigation.startup.useful-content
+    func testStartupTimingSeparatesServerPageFromAuthorizedCacheAndCanonicalSettlement() {
+        var timings = CoreChatWindowStartupTimings()
+        timings.recordWindow(source: .cached, uptimeMS: 10)
+        timings.recordWindow(source: .cacheSettled, uptimeMS: 20)
+        XCTAssertEqual(timings.cached, 10)
+        XCTAssertEqual(timings.refreshed, 20)
+        XCTAssertNil(timings.firstServerPage)
+        XCTAssertNil(timings.canonical)
+
+        timings.recordWindow(source: .firstPage, uptimeMS: 30)
+        timings.recordWindow(source: .firstPage, uptimeMS: 31)
+        timings.recordWindow(source: .canonical, uptimeMS: 40)
+        XCTAssertEqual(timings.firstServerPage, 30)
+        XCTAssertEqual(timings.canonical, 40)
+
+        var singlePage = CoreChatWindowStartupTimings()
+        singlePage.recordWindow(source: .canonical, uptimeMS: 50)
+        XCTAssertEqual(singlePage.firstServerPage, 50)
+        XCTAssertEqual(singlePage.refreshed, 50)
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=sync.status.startup-window-ready,chat-navigation.startup.useful-content
+    func testAutomaticStartupReplaysFirstServerPageToLateProbeSubscriber() throws {
+        let window = CoreChatWindow(measureStartupWindow: true)
+        let request = try XCTUnwrap(window.beginStartupSelection())
+        let message = Self.message("synthetic")
+        window.apply(.chatWindow(request: request, window: Self.window([], source: .firstPage)))
+        XCTAssertNil(window.benchmarkChanges.value.firstServerPage)
+        window.apply(.chatWindow(request: request, window: Self.window([message], source: .cached)))
+        window.apply(.chatWindow(request: request, window: Self.window([message], source: .firstPage)))
+
+        var updates: [CoreChatWindowStartupTimings] = []
+        let subscription = window.benchmarkChanges.sink { updates.append($0) }
+        let first = try XCTUnwrap(updates.first)
+        XCTAssertNotNil(first.cached)
+        XCTAssertNotNil(first.firstServerPage)
+        XCTAssertNil(first.canonical)
+        window.apply(.chatWindow(request: request, window: Self.window([message], source: .canonical)))
+        XCTAssertEqual(updates.count, 2)
+        XCTAssertNotNil(updates.last?.canonical)
+        XCTAssertNil(updates.last?.deliberateOpenSettled)
+        withExtendedLifetime(subscription) {}
+    }
+    #endif
+
     @MainActor
     private func makeWindow() throws -> (CoreChatWindow, CoreSession) {
         let container = FileManager.default.temporaryDirectory.path
@@ -62,6 +110,88 @@ final class CoreChatWindowTests: XCTestCase {
             chatId: chatId, title: "Kitchen renovation", category: "general_knowledge", messages: messages,
             source: source, hasMoreBefore: hasMoreBefore, hasMoreAfter: false, historyComplete: hasMoreBefore != true,
             refreshing: source == .cached, piiRestoration: .pageLocal)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.startup.useful-content,chat-navigation.open.local-first-coherent
+    @MainActor
+    func testStartupWindowCanAdvanceFromCachedChoiceToRemoteChoiceWithoutASecondOpen() throws {
+        let (window, session) = try makeWindow()
+        let startup = try XCTUnwrap(window.beginStartupSelection())
+        session.events.send(.chatWindow(request: startup, window: Self.window(
+            [Self.message("cached")], source: .cached)))
+        XCTAssertEqual(window.startupSelection?.chatID, Self.chatID)
+        XCTAssertEqual(window.adoptedStartupRequest(for: Self.chatID), startup)
+        XCTAssertEqual(window.messages.map(\.id), ["cached"])
+
+        session.events.send(.chatWindow(request: startup, window: Self.window(
+            [Self.message("remote")], chatId: Self.otherChatID, source: .firstPage)))
+        XCTAssertEqual(window.startupSelection?.chatID, Self.otherChatID)
+        XCTAssertNil(window.adoptedStartupRequest(for: Self.chatID))
+        XCTAssertEqual(window.adoptedStartupRequest(for: Self.otherChatID), startup)
+        XCTAssertEqual(window.messages.map(\.id), ["remote"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.startup.useful-content,chat-navigation.open.local-first-coherent
+    @MainActor
+    func testAdoptedStartupWindowPaintsInlinePreviewBeforeLegacyHydration() async throws {
+        let (window, session) = try makeWindow()
+        let request = try XCTUnwrap(window.beginStartupSelection())
+        let preview = EmbedRefRecord(id: "preview", kind: "sheets-sheet", appId: "sheets", skillId: "sheet",
+                                     title: "Budget", description: "", status: "finished", dataJson: "{\"rows\":3}")
+        session.events.send(.chatWindow(request: request, window: Self.window(
+            [Self.message("cached", embeds: [preview])], source: .cached)))
+        let model = ChatViewModel(coreWindow: window)
+        let foreign = Chat(id: Self.otherChatID, title: "Other Chat", lastMessageAt: nil, createdAt: "",
+                           updatedAt: nil, isArchived: nil, isPinned: nil, appId: nil,
+                           encryptedTitle: nil, encryptedChatKey: nil)
+        var paintedBeforeHydration = false
+        let subscription = model.$messages.sink { rows in
+            guard let cached = rows.first, cached.id == "cached" else { return }
+            XCTAssertEqual(model.chat?.id, Self.chatID)
+            XCTAssertEqual((cached.embedRefs?.first?.data?["rows"]?.value as? NSNumber)?.intValue, 3)
+            paintedBeforeHydration = model.coreBinding.waitsForAdoptedHeader
+                && model.coreBinding.hydratedEmbedIDs.isEmpty
+        }
+
+        let opened = await model.openThroughCore(id: Self.chatID, initialChat: foreign, initialEmbeds: [],
+                                                 generation: model.loadGeneration)
+        XCTAssertTrue(opened)
+        XCTAssertTrue(paintedBeforeHydration)
+        XCTAssertEqual(model.coreBinding.request, request)
+        XCTAssertEqual(model.coreBinding.hydratedEmbedIDs, ["preview"])
+        XCTAssertFalse(model.coreBinding.waitsForAdoptedHeader)
+        withExtendedLifetime(subscription) {}
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.startup.useful-content,chat-navigation.open.local-first-coherent
+    @MainActor
+    func testLateStartupWindowCannotReplaceAnExplicitSelection() throws {
+        let (window, session) = try makeWindow()
+        let startup = try XCTUnwrap(window.beginStartupSelection())
+        let explicit = window.begin(chatId: Self.otherChatID)
+        session.events.send(.chatWindow(request: startup, window: Self.window([Self.message("late")])))
+        XCTAssertNil(window.startupSelection)
+        XCTAssertEqual(window.chatId, Self.otherChatID)
+        XCTAssertEqual(window.openRequest, explicit)
+        XCTAssertTrue(window.messages.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.startup.useful-content,chat-navigation.open.local-first-coherent
+    @MainActor
+    func testStartupDenialClearsThePreviouslyPaintedWindow() throws {
+        let (window, session) = try makeWindow()
+        let startup = try XCTUnwrap(window.beginStartupSelection())
+        session.events.send(.chatWindow(request: startup, window: Self.window(
+            [Self.message("cached")], source: .cached)))
+        var unavailable: String?
+        let observation = window.unavailableStartupChats.sink { unavailable = $0 }
+        defer { observation.cancel() }
+
+        session.events.send(.chatUnavailable(chatId: Self.chatID))
+        XCTAssertEqual(unavailable, Self.chatID)
+        XCTAssertNil(window.startupSelection)
+        XCTAssertNil(window.chatId)
+        XCTAssertTrue(window.messages.isEmpty)
     }
 
     // contract-test: supporting surface=gui.apple assertions=client-core.viewmodel.capability-contract,client-core.shell.allowed-responsibilities

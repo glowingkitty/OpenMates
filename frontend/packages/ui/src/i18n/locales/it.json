@@ -3752,6 +3752,9 @@
     "loadMore": {
       "button": {
         "text": "Mostra altro"
+      },
+      "account_total": {
+        "text": "{count} chat nel tuo account"
       }
     },
     "latest_news": {

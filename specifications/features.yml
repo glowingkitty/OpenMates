@@ -1734,6 +1734,7 @@ features:
     release: v0.10.0-alpha
     surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
+      web: "Recent 100 chats at startup, full Personal account count, and on-demand older history."
       tui: "frontend/packages/openmates-tui-native/src/runtime_core_host.rs, session_runtime.rs, Refresh commands"
       sdk_pypi: "startup_sync.py, session.initial-startup-sync.v1"
   - id: ai-request-observability

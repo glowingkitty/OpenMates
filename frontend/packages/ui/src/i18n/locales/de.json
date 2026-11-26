@@ -4959,6 +4959,9 @@
     "loadMore": {
       "button": {
         "text": "Mehr anzeigen"
+      },
+      "account_total": {
+        "text": "{count} Chats in deinem Konto"
       }
     },
     "latest_news": {

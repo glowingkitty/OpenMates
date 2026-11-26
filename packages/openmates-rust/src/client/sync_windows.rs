@@ -67,12 +67,45 @@ pub(super) struct CiphertextMessageWindow {
     #[serde(default)]
     pub(super) source_rank: Option<u8>,
     server_message_count: u64,
+    // Older caches and legacy settlement responses may infer count from the
+    // metadata version. Such counts cannot prove complete startup coverage.
+    #[serde(default)]
+    count_from_server: bool,
     metadata_messages_v: u64,
     pub(super) has_more_before: bool,
     start_cursor: Option<WindowCursor>,
     oversized_message: bool,
     oversized_message_cursor: Option<WindowCursor>,
 }
+impl CiphertextMessageWindow {
+    /// A terminal bounded window can be reused for startup scheduling after
+    /// the caller checks its existing owner, key and metadata fences.
+    pub(super) fn covers_complete_history(&self) -> bool {
+        self.count_from_server
+            && !self.has_more_before
+            && !self.oversized_message
+            && self.server_message_count == self.messages.len() as u64
+            && !self.messages.iter().any(|row| {
+                row.get("large_payload").is_some()
+                    && row.get("encrypted_content").is_none_or(Value::is_null)
+            })
+    }
+
+    pub(super) fn matches_metadata(
+        &self, row: &Value, wrappers: &[Value], owner: &str, scope: &str,
+    ) -> Result<bool> {
+        Ok(owner == self.owner_sha256
+            && scope == self.scope_sha256
+            && self.wrappers_sha256 == sha256(&serde_json::to_string(wrappers)?)
+            && self.metadata_sha256 == sha256(&serde_json::to_string(row)?)
+            && row.get("messages_v").and_then(Value::as_u64) == Some(self.metadata_messages_v))
+    }
+
+    pub(super) fn matches_key(&self, ciphertext: &str) -> bool {
+        sha256(ciphertext) == self.key_ciphertext_sha256
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Phase1Windows {
     metadata: BTreeMap<String, Value>,
@@ -287,7 +320,8 @@ fn viewport_record_bytes(window: &CiphertextMessageWindow) -> Result<usize> {
         "owner_sha256":window.owner_sha256,"scope_sha256":window.scope_sha256,
         "key_ciphertext_sha256":window.key_ciphertext_sha256,"wrappers_sha256":window.wrappers_sha256,
         "messages":[],"source_rank":window.source_rank,
-        "server_message_count":window.server_message_count,"metadata_messages_v":window.metadata_messages_v,
+        "server_message_count":window.server_message_count,"count_from_server":window.count_from_server,
+        "metadata_messages_v":window.metadata_messages_v,
         "has_more_before":window.has_more_before,"start_cursor":window.start_cursor,
         "oversized_message":window.oversized_message,"oversized_message_cursor":window.oversized_message_cursor,
     });
@@ -670,6 +704,7 @@ impl Client {
                     .position(|selected| selected == id)
                     .map(|rank| rank as u8),
                 server_message_count: pending.count,
+                count_from_server: true,
                 metadata_messages_v: version,
                 has_more_before: pending.has_more_before,
                 start_cursor: pending.start.clone(),
@@ -746,15 +781,8 @@ impl Client {
     ) -> Result<bool> {
         let id = required(row, "id")?;
         let (owner, scope) = self.sync_window_scope()?;
-        if owner != window.owner_sha256 || scope != window.scope_sha256 {
-            return Ok(false);
-        }
-        if window.wrappers_sha256 != sha256(&serde_json::to_string(wrappers)?) {
-            return Ok(false);
-        }
         if !self.task_watch_authority.cached_chat_allowed(id)
-            || sha256(&serde_json::to_string(row)?) != window.metadata_sha256
-            || row.get("messages_v").and_then(Value::as_u64) != Some(window.metadata_messages_v)
+            || !window.matches_metadata(row, wrappers, &owner, &scope)?
         {
             return Ok(false);
         }
@@ -769,7 +797,7 @@ impl Client {
                 Err(_) => return Ok(false),
             }
         };
-        Ok(sha256(ciphertext) == window.key_ciphertext_sha256)
+        Ok(window.matches_key(ciphertext))
     }
     /// All ciphertext already owned for this chat, sorted by canonical cursor.
     /// Cache retention is not current-message or complete-history authority.
@@ -812,7 +840,8 @@ impl Client {
         let messages = message_rows(page["messages"].as_array().ok_or(Error::Protocol)?, id, MAX_NORMALIZED_BYTES)?;
         if messages.iter().any(|raw| raw.get("large_payload").is_some()
             && raw.get("encrypted_content").is_none_or(Value::is_null)) { return Err(Error::Offline); }
-        let count = page["server_message_count"].as_u64().unwrap_or(row["messages_v"].as_u64().unwrap_or(0));
+        let server_count = page["server_message_count"].as_u64();
+        let count = server_count.unwrap_or(row["messages_v"].as_u64().unwrap_or(0));
         let has_more = page["has_more_before"].as_bool().ok_or(Error::Protocol)?;
         let start = parse_cursor(page.get("start_cursor"))?;
         if messages.len() as u64 > count || start != messages.first().map(row_cursor).transpose()?
@@ -833,6 +862,8 @@ impl Client {
             source_rank: self.sync_message_windows.get(id).and_then(|window| window.source_rank),
             messages, retained_rows,
             server_message_count: count,
+            count_from_server: server_count.is_some() && page["messages_v"].as_u64().is_some()
+                && page["messages_v"] == row["messages_v"],
             metadata_messages_v: row["messages_v"].as_u64().unwrap_or(0),
             has_more_before: has_more,
             start_cursor: start, oversized_message: false,

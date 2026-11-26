@@ -9,7 +9,8 @@ import {executeBrowserMetadataCachePlan} from './browserMetadataCacheIO';
 import {executeBrowserAssistantReplacementPlan} from './browserAssistantReplacementIO';
 import {executeBrowserMessageCachePlan} from './browserMessageCacheIO';
 import type {BrowserCacheEffectHandler} from './browserCacheProtocol';
-export function createBrowserCacheEffectHandler(factory:IDBFactory,guard:()=>void,routingLease?:RustChatIORoutingLease,checkLocalProfile?:()=>Promise<void>):BrowserCacheEffectHandler {
+import type {LegacyOpenedHistoryPage, OpenedHistoryPageWitness} from '../db/openedHistoryStorage';
+export function createBrowserCacheEffectHandler(factory:IDBFactory,guard:()=>void,routingLease?:RustChatIORoutingLease,checkLocalProfile?:()=>Promise<void>,observeCoverage?:(witness:OpenedHistoryPageWitness | LegacyOpenedHistoryPage)=>void):BrowserCacheEffectHandler {
  const lifetime=new AbortController(),active=new Set<Promise<unknown>>();let closed=false;
  return {
   current:guard,
@@ -31,7 +32,11 @@ export function createBrowserCacheEffectHandler(factory:IDBFactory,guard:()=>voi
       const local=await executeBrowserLocalReadPlan(factory,encoded,controller.signal,guard,IDBKeyRange,routingLease);
       await checkLocalProfile();guard();if(controller.signal.aborted)throw Error('cancelled');return local;
     }
-    const result=monitor?await executeBrowserAssistantReplacementPlan(factory,encoded,controller.signal,guard,routingLease):await (messages?executeBrowserMessageCachePlan:executeBrowserMetadataCachePlan)(factory,encoded,controller.signal,guard,routingLease,originalPhysicalDraft);
+    const result = monitor
+      ? await executeBrowserAssistantReplacementPlan(factory, encoded, controller.signal, guard, routingLease)
+      : messages
+        ? await executeBrowserMessageCachePlan(factory, encoded, controller.signal, guard, routingLease, originalPhysicalDraft, observeCoverage)
+        : await executeBrowserMetadataCachePlan(factory, encoded, controller.signal, guard, routingLease, originalPhysicalDraft);
     if(controller.signal.aborted)throw Error('cancelled');guard();return result;
    }).finally(()=>{active.delete(terminal);signal.removeEventListener('abort',abort);lifetime.signal.removeEventListener('abort',abort);});
    active.add(terminal);return terminal;

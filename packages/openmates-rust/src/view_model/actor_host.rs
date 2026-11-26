@@ -4,7 +4,7 @@
 //! admission that starts the live monitor, completion recovery). Every
 //! command, including send and cancel (lane L9), runs in the core.
 //! Spec: `a2-design.md` (View model); native only.
-use super::{ViewEvent, actor::ViewCore};
+use super::{SessionEvent, ViewEvent, actor::ViewCore};
 use crate::{client::FreshChatInventory, error::Result, local_cache::ByteStore, session::Session};
 use futures_util::future::BoxFuture;
 
@@ -82,6 +82,19 @@ pub trait ViewHost<S: ByteStore + 'static>: Send {
     /// Refusal of the restored account.
     fn verify_start(&mut self) -> BoxFuture<'_, Result<()>>;
 
+    /// Publish the local session milestone after its encrypted index is restored.
+    /// Hosts may make an already-authorized local profile available before emission.
+    ///
+    /// # Errors
+    /// The event sink's publication failure.
+    fn publish_restored_session<'a>(
+        &'a mut self,
+        sink: &'a Self::Sink,
+        event: SessionEvent,
+    ) -> BoxFuture<'a, Result<()>> {
+        sink.emit(ViewEvent::Session(event))
+    }
+
     /// Admit the restored session with the server: durable freshness fence,
     /// live monitor, cached-view staging and the admitted-session
     /// notification (bridged until the live window moves in L7).
@@ -105,17 +118,38 @@ pub trait ViewHost<S: ByteStore + 'static>: Send {
     /// sync-feed catch-up instead of recovery and the phased sync.
     fn recovery_idle(&mut self) -> BoxFuture<'_, bool>;
 
-    /// Completion recovery of `chat_id` alone, after its cached window was
-    /// emitted and before its strict read (bridged until the recovery pump
-    /// moves in L5). A host without recovery returns `Ok(())`.
+    /// Read a cold window before optional selected recovery. Hosts that
+    /// enable this still gate writable settlement on the recovery result.
+    fn read_cold_window_before_recovery(&self) -> bool {
+        false
+    }
+
+    /// Run selected-chat completion recovery after the cached window and
+    /// before its strict read. A host without recovery returns `Ok(())`.
     ///
     /// # Errors
-    /// Recovery and security errors; they fail the open.
+    /// Recovery and security errors fail the open.
     fn recover_before_open<'a>(
         &'a mut self,
         sink: &'a Self::Sink,
         chat_id: &'a str,
     ) -> BoxFuture<'a, Result<()>>;
+
+    /// Run recovery after a cold, read-only first window. Return true when
+    /// it may have changed that window and final settlement needs a new read.
+    ///
+    /// # Errors
+    /// Recovery and security errors fail the open.
+    fn recover_after_cold_open<'a>(
+        &'a mut self,
+        sink: &'a Self::Sink,
+        chat_id: &'a str,
+    ) -> BoxFuture<'a, Result<bool>> {
+        Box::pin(async move {
+            self.recover_before_open(sink, chat_id).await?;
+            Ok(true)
+        })
+    }
 
     /// Whether a read-only cached window may be shown when the strict read
     /// is offline. A host returns `false` after a known authentication or

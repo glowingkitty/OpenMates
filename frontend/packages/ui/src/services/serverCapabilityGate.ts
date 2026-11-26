@@ -16,6 +16,10 @@ export class ServerCapabilityGate {
     this.capabilities = new Set(value.capabilities);
   }
 
+  supportsPersonalOpenedChatStartup(): boolean {
+    return this.capabilities?.has('chat_startup_opened_v1') === true;
+  }
+
   supportsImmediateChatAdmission(): boolean {
     return this.capabilities?.has('chat_turn_admit_v1') === true
       && this.capabilities.has('chat_turn_context_v1');

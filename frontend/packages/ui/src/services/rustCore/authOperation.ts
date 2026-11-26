@@ -10,6 +10,7 @@
  * selects a TypeScript auth path.
  */
 import { getApiEndpoint } from '../../config/api';
+import { readOriginalFirstSessionCheck } from './originalFirstSessionSource';
 import type { RustAuthClient } from './auth/authClient';
 import { authFlowActive, primeSignupPath } from './auth/flowPush';
 import { PAGE_ORIGIN_PLACEHOLDER, type AuthHttpReply, type AuthHttpRequest, type PasswordLoginResult } from './auth/authProtocol';
@@ -218,15 +219,34 @@ export type RustSessionDecision =
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- as above.
 		password_credential_version: number | null; data: Record<string, any> };
 
-/** `POST /v1/auth/session` built and classified by Rust, executed by the page. */
+/** The page classifies the normal session response with Rust. A returning page
+ * may obtain the original response from its saved-chat Worker under the same cross-tab lock. */
 export async function rustSessionCheck(input: {
 	deviceSignals: Record<string, string | null>; sessionId: string; signal: AbortSignal;
+	original?: {
+		deadlineEpochMs: number;
+		isCurrent(): boolean;
+		pageFallback(run: () => Promise<RustSessionDecision>): Promise<RustSessionDecision>;
+	};
 }): Promise<RustSessionDecision> {
+	const original = input.original && !testClient ? await readOriginalFirstSessionCheck({
+		deadlineEpochMs: input.original.deadlineEpochMs, isCurrent: input.original.isCurrent,
+		endpoint: getApiEndpoint('/v1/auth/session'), appOrigin: window.location.origin,
+		sessionId: input.sessionId, deviceSignals: input.deviceSignals, signal: input.signal,
+	}) : null;
 	try {
 		const auth = await core();
-		const request = await auth.call<AuthHttpRequest>({ op: 'session_request', signals: JSON.stringify(Object.entries(input.deviceSignals)), sessionId: input.sessionId });
-		const reply = await executeAuthRequest(request, input.signal);
-		return await auth.call<RustSessionDecision>({ op: 'classify_session', status: reply.status, body: reply.body });
+		if (original) return await auth.call<RustSessionDecision>({
+			op: 'classify_session', status: original.httpStatus ?? 0, body: JSON.stringify(original.data),
+		});
+		const run = async () => {
+			if (input.signal.aborted || (input.original && !input.original.isCurrent())) throw new Error('cancelled');
+			const request = await auth.call<AuthHttpRequest>({ op: 'session_request', signals: JSON.stringify(Object.entries(input.deviceSignals)), sessionId: input.sessionId });
+			if (input.signal.aborted || (input.original && !input.original.isCurrent())) throw new Error('cancelled');
+			const reply = await executeAuthRequest(request, input.signal);
+			return auth.call<RustSessionDecision>({ op: 'classify_session', status: reply.status, body: reply.body });
+		};
+		return await (input.original ? input.original.pageFallback(run) : run());
 	} finally {
 		retire();
 	}

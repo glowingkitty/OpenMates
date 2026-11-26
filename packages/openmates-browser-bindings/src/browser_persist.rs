@@ -5,7 +5,7 @@
 //! spec: specifications/architecture/storage-lifecycle#storage.client.shared-policy-existing-adapters
 use wasm_bindgen::prelude::*;
 
-use openmates_sdk::web_persist::{cache_policy, chat_policy, message_policy};
+use openmates_sdk::web_persist::{cache_policy, chat_policy, message_policy, startup_opened};
 
 fn js(result: Result<String, String>) -> Result<String, JsValue> {
     result.map_err(|e| JsValue::from_str(&e))
@@ -54,6 +54,8 @@ macro_rules! persist_export {
 }
 
 persist_export! {
+    /// Request path and retained-history page progression for opened chats.
+    persist_startup_opened => startup_opened::decide_json;
     /// `planMessageWindow`: limit, direction, ranges and anchor handling of a window read.
     persist_window_plan => cache_policy::window_plan_json;
     /// `windowResultMeta`: has-more flags and cursors of a window result.

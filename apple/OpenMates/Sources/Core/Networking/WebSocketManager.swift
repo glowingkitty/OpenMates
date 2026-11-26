@@ -470,9 +470,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         await MessageCompressionCheckpointRuntime.retryPending(socket: self, captured: captured, transport: transport)
     }
 
+    var usesCoreStartupHistory = false
+
     var advertisedClientCapabilities: [String] {
-        (metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"])
+        let startupCapabilities = usesCoreStartupHistory ? ["chat_startup_opened_v1"] : []
+        return (metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"])
             + canonicalStorageConfiguration.capabilities(for: canonicalStorageProfile ?? ServerProfile.current())
+            + startupCapabilities
     }
 
     func configureMetadataRecovery(chatStore: ChatStore) {

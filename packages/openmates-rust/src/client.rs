@@ -38,7 +38,7 @@ mod browser;
 pub use browser::BrowserProfileCacheReadiness;
 #[doc(hidden)]
 pub use browser::OwnedBrowserProfileCacheAbsence;
-#[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+#[cfg(any(target_arch = "wasm32", test))]
 #[doc(hidden)]
 pub use browser::{PreparedBrowserFirstSession,BrowserFirstSessionControl,BrowserFirstSessionReceipt};
 #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]
@@ -127,6 +127,11 @@ pub(crate) use monitor::test_peer as monitor_test_peer;
 pub use monitor::{PreparedInitialSync,InitialSyncControl,InitialSyncRead,InitialSyncMetadataBatch};
 #[doc(hidden)]
 pub use monitor::{PreparedOwnedChatMonitor,OwnedChatMonitorStartStep,OwnedChatMonitorStartApply,OwnedChatMonitorReady,OwnedChatMonitorStartControl,OwnedChatMonitorStartTerminal};
+/// Native selected-file reader for the already admitted cached-chat view.
+#[cfg(not(target_arch = "wasm32"))]
+pub use monitor::cached_view::{CachedChatFilePublication, CachedChatFileReader};
+mod native_personal_offline;
+pub use native_personal_offline::{NativePersonalOfflineIssuance, NativePersonalOfflineReceipt};
 pub use monitor::cached_view::{CacheSettlementCandidate, CacheSettlementPublication, ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CanonicalChatCandidate, CanonicalChatPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatOwnerLease, ChatViewRead};
 pub use monitor::{
     ChatInvalidation, ChatModels, ChatMonitor, ChatMonitorAccessDenial, ChatPublication,
@@ -180,6 +185,11 @@ mod chat_tombstones;
 // architecture.sync@2 overview order and incremental chat sync feed.
 pub mod overview;
 mod sync_feed;
+mod recently_opened;
+/// Validate one authoritative opened-chat startup list.
+pub use recently_opened::parse_startup_opened_chat_ids;
+pub(crate) use recently_opened::{StartupForegroundBudget, opened_tail_needs_read, opened_wire_version};
+pub(crate) use saved_chat_read::metadata::timestamp as chat_metadata_timestamp;
 mod mention_context;
 mod search;
 mod send;
@@ -752,6 +762,8 @@ pub struct Client {
     chat_details_cache: BTreeMap<String, chat_details_cache::ChatDetailsCache>,
     /// Incremental chat sync feed cursor and overview inputs (sync_feed.rs).
     chat_sync_feed: sync_feed::FeedState,
+    recently_opened: recently_opened::RecentlyOpened,
+    startup_opened_policy_enabled: bool,
     /// Display name cached in the index section for the first paint (sync.rs).
     display_name_hint: Option<String>,
 }
@@ -817,6 +829,8 @@ impl Client {
             cached_content: Default::default(),
             chat_details_cache: BTreeMap::new(),
             chat_sync_feed: Default::default(),
+            recently_opened: Default::default(),
+            startup_opened_policy_enabled: false,
             display_name_hint: None,
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
@@ -887,6 +901,7 @@ impl Client {
     pub fn reset(&mut self, api: &str, session: Option<Session>) -> Result<()> {
         let mut next = Self::with_options(api, session, self.options.clone())?;
         next.credential_revision = self.credential_revision;
+        next.startup_opened_policy_enabled = self.startup_opened_policy_enabled;
         next.credential_updates = self.credential_updates.take();
         next.consent = self.consent.take();
         next.e2b_consent = self.e2b_consent.take();
@@ -1160,6 +1175,7 @@ impl Client {
         self.saved_embed_cache=saved_embed_selector::SelectorCache::Legacy;
         self.embed_keys.clear();
         self.cached_content = Default::default();
+        self.recently_opened = Default::default();
         self.chat_details_cache.clear();
         self.direct_identity = None;
         self.team_key = None;
@@ -1369,6 +1385,7 @@ impl Client {
         self.embeds.clear();
         self.embed_keys.clear();
         self.cached_content = Default::default();
+        self.recently_opened = Default::default();
         self.chat_details_cache.clear();
         self.display_name_hint = None;
         crate::model::zeroize_json(&mut self.user);

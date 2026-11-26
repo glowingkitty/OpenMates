@@ -19,9 +19,9 @@ impl Client {
     }
 
     /// As [`Self::list_with_fresh_chat_inventory`], and reports whether the
-    /// proof was current so the rows are the complete chat inventory of the
-    /// scope (`true`) or came from the ordinary list path (`false`). View
-    /// shells use the flag to publish a `Complete` chat list.
+    /// reused proof proves complete scope coverage. A valid same-batch
+    /// proof can still yield a partial recent list. Only complete coverage
+    /// can mint a durable complete-list freshness receipt.
     pub async fn list_with_fresh_chat_inventory_marked(
         &mut self,
         workspace: Workspace,
@@ -38,8 +38,11 @@ impl Client {
                 return Err(Error::Cancelled);
             }
             self.require_canonical_read_profile()?;
+            let complete = proof.scope_complete();
+            // A partial proof has no clock and clears a prior complete receipt
+            // even when the bounded ciphertext happens to match that receipt.
             self.record_complete_chat_list(&proof);
-            return Ok((items.into_inner(), true));
+            return Ok((items.into_inner(), complete));
         }
         tokio::select! {
             biased;

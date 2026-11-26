@@ -154,6 +154,9 @@ final class CoreSession: ObservableObject {
     /// Restore the stored session (`ViewModelCore.start`): the core reports
     /// `signedOut`, or `restored` then `admitted`, through `state`.
     func start() async throws {
+        #if DEBUG && !os(watchOS)
+        NativeStartupBenchmark.mark(.coreStartInvoked)
+        #endif
         state = .starting
         let started = NativeSyncPerfLog.now()
         do {
@@ -430,6 +433,11 @@ final class CoreSession: ObservableObject {
     }
 
     private func apply(_ event: ViewEventRecord) {
+        #if DEBUG && !os(watchOS)
+        if case .chatList(_, .cached, _) = event {
+            NativeStartupBenchmark.mark(.cachedChatListReceived)
+        }
+        #endif
         if case .session(let session) = event {
             CoreLegacyAccess.sessionDidChange(session)
             state = CoreSessionState(session)

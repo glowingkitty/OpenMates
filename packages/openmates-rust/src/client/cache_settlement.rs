@@ -170,6 +170,15 @@ impl Client {
         uuid::Uuid::parse_str(id).map_err(|_| Error::Invalid("A full chat ID is required."))?;
         if self.is_ephemeral_chat(id) { return Err(Error::Invalid("Volatile chat history exists only in the caller's memory.")); }
         if !self.task_watch_authority.cached_chat_allowed(id) { return Ok(None); }
+        // With no local message source, let the selected-chat reader perform
+        // exact-ID authorization as part of its first-page request sequence.
+        if !refresh_latest
+            && self.history.get(id).is_none_or(Vec::is_empty)
+            && !self.selected_first_pages.contains_key(id)
+            && !self.sync_message_windows.contains_key(id)
+        {
+            return Ok(None);
+        }
         let scope = AsyncCryptoScope::begin(self)?;
         let old = self.chats.get(id).cloned();
         let Some(metadata) = self.request_chat_metadata(id).await? else { return Ok(None); };

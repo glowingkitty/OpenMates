@@ -557,15 +557,25 @@ struct ChatKeyWrapperRecord: Decodable, Sendable {
 
 @MainActor
 final class EmbedKeyManager {
-    static let shared = EmbedKeyManager()
+    static let shared = EmbedKeyManager(offlineStore: .shared, workspace: .shared)
 
+    private struct ResolutionFence: Equatable {
+        let key: KeyRevocationFence
+        let scope: UUID?
+        let contextEpoch: UInt64?
+        let rosterEpoch: UInt64?
+        let deletionVersion: Int?
+    }
+
+    private let offlineStore: OfflineStore?
+    private let workspace: TeamWorkspaceContext?
     private var generation = UUID()
     private var revocations: [String: UUID] = [:]
     private let masterKey: @MainActor () async -> SymmetricKey?
     private let chatKey: @MainActor (String) -> SymmetricKey?
     private let unwrapKey: @MainActor (String, SymmetricKey) async -> SymmetricKey?
     private var entriesByHashedEmbedId: [String: [EmbedKeyRecord]] = [:]
-    private var keyCache: [String: SymmetricKey] = [:]
+    private var keyCache: [String: (key: SymmetricKey, fence: ResolutionFence)] = [:]
     private var chatIdHashCache: [String: String] = [:]
 
     init(
@@ -577,18 +587,24 @@ final class EmbedKeyManager {
         unwrapKey: @escaping @MainActor (String, SymmetricKey) async -> SymmetricKey? = {
             guard let data = try? await CryptoManager.shared.decryptBlob(base64String: $0, key: $1) else { return nil }
             return SymmetricKey(data: data)
-        }
+        },
+        offlineStore: OfflineStore? = nil,
+        workspace: TeamWorkspaceContext? = nil
     ) {
         self.masterKey = masterKey
         self.chatKey = chatKey
         self.unwrapKey = unwrapKey
+        self.offlineStore = offlineStore
+        self.workspace = workspace
     }
 
-    private func fence(for chatId: String) -> KeyRevocationFence {
-        KeyRevocationFence(account: generation, chat: revocations[chatId])
+    private func fence(for chatId: String) -> ResolutionFence {
+        ResolutionFence(key: KeyRevocationFence(account: generation, chat: revocations[chatId]),
+                        scope: offlineStore?.scopeGeneration, contextEpoch: workspace?.contextEpoch,
+                        rosterEpoch: workspace?.rosterEpoch, deletionVersion: offlineStore?.chatDeletionVersion(chatId))
     }
 
-    private func isCurrent(_ fence: KeyRevocationFence, for chatId: String) -> Bool {
+    private func isCurrent(_ fence: ResolutionFence, for chatId: String) -> Bool {
         fence == self.fence(for: chatId) && !Task.isCancelled
     }
 
@@ -621,8 +637,9 @@ final class EmbedKeyManager {
     ) async -> SymmetricKey? {
         let capturedFence = fence(for: chatId)
         guard isCurrent(capturedFence, for: chatId) else { return nil }
-        if let cached = keyCache[cacheKey(embedId: embed.id, chatId: chatId)] {
-            return cached
+        let keyID = cacheKey(embedId: embed.id, chatId: chatId)
+        if let cached = keyCache[keyID], cached.fence == capturedFence {
+            return cached.key
         }
 
         if let parentId = embed.parentEmbedId,
@@ -636,52 +653,53 @@ final class EmbedKeyManager {
                visited: visited.union([embed.id])
            ) {
             guard isCurrent(capturedFence, for: chatId) else { return nil }
-            keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = parentKey
+            keyCache[keyID] = (parentKey, capturedFence)
             return parentKey
         }
 
         guard isCurrent(capturedFence, for: chatId) else { return nil }
         let hashedEmbedId = sha256Hex(embed.id)
-        guard let entries = entriesByHashedEmbedId[hashedEmbedId], !entries.isEmpty else {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[EmbedKeyManager] missing key entries embed=\(embed.id.prefix(8)) hash=\(hashedEmbedId.prefix(12))")
-            }
+        let hashedChatId = embed.hashedChatId ?? chatIdHash(chatId)
+        let live = entriesByHashedEmbedId[hashedEmbedId] ?? []
+        if let key = await resolve(live, hashedChatId: hashedChatId, chatId: chatId, fence: capturedFence),
+           isCurrent(capturedFence, for: chatId) {
+            keyCache[keyID] = (key, capturedFence)
+            return key
+        }
+
+        guard isCurrent(capturedFence, for: chatId), let offlineStore, offlineStore.activeScopeId != nil,
+              workspace?.teamID == nil, capturedFence.key.chat == nil, capturedFence.deletionVersion == 0,
+              !chatId.isEmpty, let chat = offlineStore.loadChat(id: chatId), chat.teamId == nil,
+              hashedChatId == chatIdHash(chatId) else { return nil }
+        let disk = offlineStore.loadEmbedKeys(hashedEmbedId: hashedEmbedId).filter { entry in
+            (entry.hashedChatId == nil || entry.hashedChatId == hashedChatId)
+                && !live.contains { $0.keyType == entry.keyType && $0.hashedChatId == entry.hashedChatId
+                    && $0.encryptedEmbedKey == entry.encryptedEmbedKey }
+        }
+        guard let key = await resolve(disk, hashedChatId: hashedChatId, chatId: chatId, fence: capturedFence),
+              isCurrent(capturedFence, for: chatId) else {
             return nil
         }
+        keyCache[keyID] = (key, capturedFence)
+        return key
+    }
 
-        if let masterEntry = entries.first(where: { $0.keyType == "master" }),
+    private func resolve(_ entries: [EmbedKeyRecord], hashedChatId: String, chatId: String,
+                         fence: ResolutionFence) async -> SymmetricKey? {
+        if let entry = entries.first(where: { $0.keyType == "master" }),
            let wrappingKey = await masterKey(),
-           isCurrent(capturedFence, for: chatId),
-           let embedKey = await unwrapKey(masterEntry.encryptedEmbedKey, wrappingKey) {
-            guard isCurrent(capturedFence, for: chatId) else { return nil }
-            keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[EmbedKeyManager] unwrapped master embed=\(embed.id.prefix(8))")
-            }
-            return embedKey
+           isCurrent(fence, for: chatId),
+           let key = await unwrapKey(entry.encryptedEmbedKey, wrappingKey) {
+            return isCurrent(fence, for: chatId) ? key : nil
         }
 
-        guard isCurrent(capturedFence, for: chatId) else { return nil }
-        let hashedChatId = embed.hashedChatId ?? chatIdHash(chatId)
-        let chatEntries = entries.filter { entry in
-            entry.keyType == "chat" && (entry.hashedChatId == hashedChatId || entry.hashedChatId == nil)
-        }
-        for entry in chatEntries {
-            guard isCurrent(capturedFence, for: chatId) else { return nil }
-            guard let wrappingKey = chatKey(chatId),
-                  let embedKey = await unwrapKey(entry.encryptedEmbedKey, wrappingKey) else {
+        for entry in entries where entry.keyType == "chat"
+            && (entry.hashedChatId == hashedChatId || entry.hashedChatId == nil) {
+            guard isCurrent(fence, for: chatId) else { return nil }
+            guard let wrappingKey = chatKey(chatId), let key = await unwrapKey(entry.encryptedEmbedKey, wrappingKey) else {
                 continue
             }
-            guard isCurrent(capturedFence, for: chatId) else { return nil }
-            keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[EmbedKeyManager] unwrapped chat embed=\(embed.id.prefix(8)) chat=\(chatId.prefix(8))")
-            }
-            return embedKey
-        }
-
-        if NativeSyncPerfLog.verboseCrypto {
-            print("[EmbedKeyManager] unwrap failed embed=\(embed.id.prefix(8)) entries=\(entries.count) hasChatKey=\(chatKey(chatId) != nil)")
+            return isCurrent(fence, for: chatId) ? key : nil
         }
         return nil
     }

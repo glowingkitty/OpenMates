@@ -47,7 +47,7 @@ export function validReadMessageId(v: unknown): v is string {
 function nullable(v: unknown, check: (v: unknown) => boolean): boolean { return v === null || check(v); }
 function array(v: unknown): v is unknown[] { return Array.isArray(v) && Object.getPrototypeOf(v) === Array.prototype && Object.keys(v).length === v.length; }
 function texts(v: unknown): boolean { return array(v) && v.length <= 4096 && v.every(text); }
-function cursor(v: unknown, chatId: string, identity: Identity = validReadMessageId): boolean {
+export function cursor(v: unknown, chatId: string, identity: Identity = validReadMessageId): boolean {
   return v === null || record(v) && exact(v, ["chatId", "scope", "createdAt", "messageId"]) && v.chatId === chatId
     && typeof v.scope === "string" && v.scope.length === 64 && /^[a-f0-9]{64}$/i.test(v.scope) && integer(v.createdAt) && identity(v.messageId);
 }

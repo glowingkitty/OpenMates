@@ -1,4 +1,5 @@
 /** Thin browser primitives. Rust chooses auth, ownership and persistence policy. */
+import { chatTransaction, LEGACY_MESSAGE_STORE, messageStoreName } from "../db/openedHistoryStorage";
 export const AUTH_REFRESH_LOCK = "openmates:auth-session-refresh";
 
 declare const refreshLeaseBrand: unique symbol;
@@ -378,7 +379,7 @@ export function createRustChatReadonlyCursorTransaction(lease:RustChatIORoutingL
   const owned=currentRustChatLease(lease);
   if(nativeChatConnections.get(database)!==owned)throw Error('invalidated_snapshot');
   if(!(stores.length===1&&stores[0]==='messages'||stores.length===2&&stores[0]==='chats'&&stores[1]==='chat_compression_checkpoints'))throw Error('invalid_request');
-  const tx=observeCreatedChatTransaction(database.transaction([...stores],'readonly'),database,false,undefined,undefined);
+  const tx=observeCreatedChatTransaction(chatTransaction(database, [...stores], 'readonly'),database,false,undefined,undefined);
   const terminal=new Promise<void>(resolve=>{
     const finish=(event:Event)=>{
       if(!isTrustedTarget(event,tx))return;
@@ -398,7 +399,7 @@ export function createRustChatTransaction(lease: RustChatIORoutingLease, databas
   const names = typeof stores === 'string' ? [stores] : stores;
   if (!names.length || names.some(name => name !== 'chats' && name !== 'messages' && name !== 'pending_sync_changes')) throw Error('invalid_request');
   // No new IO is exposed before its independently trusted terminal observer.
-  const tx = observeCreatedChatTransaction(database.transaction(stores, mode), database, mode === 'readwrite', undefined, undefined);
+  const tx = observeCreatedChatTransaction(chatTransaction(database, stores, mode), database, mode === 'readwrite', undefined, undefined);
   let terminal: Promise<unknown>;
   if (mode === 'readwrite') terminal = localChatWriteTerminal(tx);
   else terminal = new Promise<void>(resolve => {
@@ -455,9 +456,12 @@ export class LegacyChatDatabaseGate {
     const stores = ['chats', 'messages', 'pending_sync_changes'];
     // Only this fixed clear operation bypasses retired legacy admission. The
     // transaction is never exposed, so this cannot become a late-write route.
-    const tx = observeCreatedChatTransaction(database.transaction(stores, 'readwrite'), database, true, undefined, undefined);
+    const tx = observeCreatedChatTransaction(chatTransaction(database, stores, 'readwrite'), database, true, undefined, undefined);
     try {
-      for (const name of stores) if (database.objectStoreNames.contains(name)) tx.objectStore(name).clear();
+      for (const name of stores) {
+        const physical = name === LEGACY_MESSAGE_STORE ? messageStoreName(database) : name;
+        if (database.objectStoreNames.contains(physical)) tx.objectStore(name).clear();
+      }
     } catch (error) {
       try { tx.abort(); } catch { /* Still await the actual native terminal. */ }
       await localChatWriteTerminal(tx); throw error;
@@ -580,7 +584,7 @@ export function createTrackedChatTransaction(database: IDBDatabase, storeNames: 
     if (!state || state.database !== database || !tracked) throw new Error("invalidated_snapshot");
     checkLease(state);
   }
-  const transaction = database.transaction(storeNames, mode);
+  const transaction = chatTransaction(database, storeNames, mode);
   return observeCreatedChatTransaction(transaction, database, tracked, scope, state);
 }
 

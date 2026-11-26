@@ -62,6 +62,17 @@ impl Client {
         Ok(())
     }
 
+    pub(super) fn discard_unneeded_native_transcript(&mut self, id: &str) {
+        // Mark an unloaded transcript as intentionally absent in the next
+        // partial snapshot so its previously committed file is retired.
+        if self.cached_content.loader.is_some() {
+            self.cached_content.loaded.insert(id.to_owned());
+        }
+        self.history.remove(id);
+        self.sync_message_windows.remove(id);
+        self.selected_first_pages.remove(id);
+    }
+
     /// Complete a partial restore before any operation that reads or replaces
     /// cached content beyond the restored Chats. No-op for complete clients.
     pub fn ensure_cached_content_loaded(&mut self) -> Result<()> {
@@ -213,6 +224,8 @@ impl Client {
             snapshot,
             SnapshotTrust::AuthenticatedOwnerEnvelope,
         );
+        // Display-only hint from the admitted owner and workspace.
+        self.chat_total_count = snapshot.get(super::snapshot_sections::CHAT_TOTAL_FIELD).and_then(Value::as_u64);
         Ok(())
     }
 

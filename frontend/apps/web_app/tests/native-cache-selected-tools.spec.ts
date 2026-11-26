@@ -137,7 +137,7 @@ async function localMessageCreatedAt(page: any, messageId: string): Promise<numb
 		open.onerror = () => reject(open.error);
 		open.onsuccess = () => {
 			const db = open.result;
-			const request = db.transaction('messages', 'readonly').objectStore('messages').get(id);
+			const request = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readonly').objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).get(id);
 			request.onerror = () => { db.close(); reject(request.error); };
 			request.onsuccess = () => {
 				const createdAt = request.result?.created_at;

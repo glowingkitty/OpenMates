@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Visa fler"
+      },
+      "account_total": {
+        "text": "{count} chattar på ditt konto"
       }
     },
     "latest_news": {

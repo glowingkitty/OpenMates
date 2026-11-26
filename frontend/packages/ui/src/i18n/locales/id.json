@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Tampilkan lebih banyak"
+      },
+      "account_total": {
+        "text": "{count} percakapan di akun Anda"
       }
     },
     "latest_news": {

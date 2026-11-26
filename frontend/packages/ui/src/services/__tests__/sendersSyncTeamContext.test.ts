@@ -31,7 +31,6 @@ import {
   sendLoadMoreChatsImpl,
   queueOfflineChangeImpl,
   sendOfflineChangesImpl,
-  sendSyncMetadataChatsImpl,
 } from "../sendersSync";
 
 describe("sendersSync Team context", () => {
@@ -52,17 +51,6 @@ describe("sendersSync Team context", () => {
     expect(sendMessage).toHaveBeenCalledWith("load_more_chats", {
       offset: 100,
       limit: 20,
-      team_id: "team-1",
-      context_epoch: 8,
-    });
-  });
-
-  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
-  it("scopes metadata-only chat sync to the active Team epoch", async () => {
-    await sendSyncMetadataChatsImpl({} as never, ["chat-1"]);
-
-    expect(sendMessage).toHaveBeenCalledWith("sync_metadata_chats", {
-      existing_chat_ids: ["chat-1"],
       team_id: "team-1",
       context_epoch: 8,
     });

@@ -784,6 +784,8 @@ targets:
     platform: macOS
     sources:
       - path: OpenMatesMacUITests
+      - path: OpenMatesUITests/ChatFlowRealAccountUITests.swift
+      - path: OpenMatesUITests/RealAccountUITestSupport.swift
       - path: OpenMatesUITests/ChatHistoryMacParityUITests.swift
       - path: OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
       - path: OpenMatesUITests/TooltipHelpParityUITests.swift

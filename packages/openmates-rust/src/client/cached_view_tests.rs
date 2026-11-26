@@ -980,7 +980,7 @@ async fn empty_cache_preference_preserves_strict_full_history_paging_and_canonic
     tokio::time::timeout(std::time::Duration::from_secs(10),async {
         let (mut client,monitor,server)=settlement_fixture(2,2,|client| {
             let rows=client.history[CHAT].clone();
-            vec![settlement_metadata(client),settlement_metadata(client),
+            vec![settlement_metadata(client),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"),200,json!({"messages":[rows[1].clone()],"has_more_before":true,"start_cursor":{"created_at":1,"message_id":rows[1]["id"]}})),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=before&limit=100&respect_compression_boundary=false&before_timestamp=1&before_message_id=10000000-0000-4000-8000-000000000001 HTTP/1.1"),200,json!({"messages":[rows[0].clone()],"has_more_before":false}))]
         }).await;
@@ -990,19 +990,36 @@ async fn empty_cache_preference_preserves_strict_full_history_paging_and_canonic
         let receipt=exact_candidate_receipt(&candidate);client.acknowledge_credentials(candidate.credential_revision()).unwrap();
         let chat=client.commit_chat_view(candidate,receipt).unwrap().into_chat().unwrap();
         assert_eq!(chat.messages.len(),2);assert_eq!(chat.messages[0].content,"cached-line-000");
-        assert_eq!(client.history[CHAT].len(),2);assert_eq!(server.await.unwrap(),4);
+        assert_eq!(client.history[CHAT].len(),2);assert_eq!(server.await.unwrap(),3);
         // First-page cold interim remains REQUIRED follow-up; this test proves
         // only unchanged strict pagination, cancellation and final admission.
     }).await.unwrap();
 }
 #[tokio::test]
 async fn cache_preference_denial_cannot_fall_back_to_online_controls_or_erase_negative_history() {
-    tokio::time::timeout(std::time::Duration::from_secs(10),async {
-        let (mut client,monitor,server)=settlement_fixture(2,100,|_|vec![("POST /v1/chats/metadata/batch HTTP/1.1".into(),403,json!({"detail":"denied"}))]).await;
-        assert!(matches!(client.read_chat_view_prefer_cache(Some(&monitor),CHAT,CancellationToken::new()).await,Err(Error::Forbidden)));
-        assert!(!client.task_watch_authority.cached_chat_allowed(CHAT));
-        assert_eq!(server.await.unwrap(),1);
-    }).await.unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        for has_cache in [true, false] {
+            let (mut client, monitor, server) = settlement_fixture(2, 100, |_| {
+                vec![(
+                    "POST /v1/chats/metadata/batch HTTP/1.1".into(),
+                    403,
+                    json!({"detail": "denied"}),
+                )]
+            })
+            .await;
+            if !has_cache {
+                client.history.remove(CHAT);
+            }
+            let result = client
+                .read_chat_view_prefer_cache(Some(&monitor), CHAT, CancellationToken::new())
+                .await;
+            assert!(matches!(result, Err(Error::Forbidden)), "cache: {has_cache}");
+            assert!(!client.task_watch_authority.cached_chat_allowed(CHAT));
+            assert_eq!(server.await.unwrap(), 1);
+        }
+    })
+    .await
+    .unwrap();
 }
 #[tokio::test]
 async fn partial_selected_live_refresh_merges_latest_twenty_and_retains_all_older_cache_and_strict_export() {
@@ -1061,14 +1078,14 @@ async fn empty_cache_partial_history_failure_never_publishes_a_settlement_or_par
     tokio::time::timeout(std::time::Duration::from_secs(10),async {
         let (mut client,monitor,server)=settlement_fixture(2,2,|client| {
             let row=client.history[CHAT][1].clone();
-            vec![settlement_metadata(client),settlement_metadata(client),
+            vec![settlement_metadata(client),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"),200,json!({"messages":[row.clone()],"has_more_before":true,"start_cursor":{"created_at":1,"message_id":row["id"]}})),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=before&limit=100&respect_compression_boundary=false&before_timestamp=1&before_message_id=10000000-0000-4000-8000-000000000001 HTTP/1.1"),403,json!({"detail":"denied"}))]
         }).await;
         client.history.remove(CHAT);
         assert!(matches!(client.read_chat_view_prefer_cache(Some(&monitor),CHAT,CancellationToken::new()).await,Err(Error::Forbidden)));
         assert!(!client.history.contains_key(CHAT));assert!(!client.task_watch_authority.cached_chat_allowed(CHAT));
-        assert_eq!(server.await.unwrap(),4);
+        assert_eq!(server.await.unwrap(),3);
     }).await.unwrap();
 }
 

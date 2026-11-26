@@ -1,4 +1,7 @@
 /// <reference lib="es2022.object" />
+import { chatTransaction, invalidateOpenedHistory, messageStoreName, openedHistoryRevision,
+  OPENED_HISTORY_STORE, readOpenedHistoryMutation } from "../db/openedHistoryStorage";
+import type { LegacyOpenedHistoryPage, OpenedHistoryPageWitness } from "../db/openedHistoryStorage";
 import {boundedOriginalPhysicalDraft} from './originalPhysicalDraftIOBudget';
 import {createRustChatOpenRequest,createRustChatTransaction} from './browserAdapters';
 import type {RustChatIORoutingLease} from './browserAdapters';
@@ -6,8 +9,8 @@ import type {RustChatIORoutingLease} from './browserAdapters';
 import { boundedJson } from './savedReadProtocol';
 import { awaitBrowserRead } from './existingSavedChatIO';
 type Row=Record<string,unknown>;
-const META=['id','chat_id','user_id','team_id','hashed_team_id','chat_visibility','encrypted_chat_key','key_version','key_fingerprint','title_v','metadata_v','messages_v','created_at','updated_at','last_edited_overall_timestamp','pinned','encrypted_title','encrypted_chat_summary','encrypted_share_cta_text','encrypted_chat_tags','encrypted_follow_up_request_suggestions','encrypted_suggested_followup_message','encrypted_icon','encrypted_category','encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_auto_speak_response'];
-const HEADER_FIELDS=['chat_id','encrypted_title','title','messages_v','title_v','metadata_v','draft_v','encrypted_draft_md','encrypted_draft_preview','ideabucket','ideabucket_processing_window_id','ideabucket_triggered_at','last_edited_overall_timestamp','unread_count','created_at','updated_at','processing_metadata','waiting_for_metadata','encrypted_category','encrypted_icon','encrypted_chat_key','chat_visibility','participant_user_hashes','anonymous_encrypted_chat_key','encrypted_chat_summary','encrypted_share_cta_text','encrypted_chat_tags','encrypted_follow_up_request_suggestions','encrypted_suggested_followup_message','encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_auto_speak_response','pinned','is_shared','is_private','is_anonymous','share_pii','share_highlights','is_metadata_only'];
+const META=['id','chat_id','user_id','team_id','hashed_team_id','chat_visibility','encrypted_chat_key','key_version','key_fingerprint','title_v','metadata_v','messages_v','created_at','updated_at','last_edited_overall_timestamp','pinned','encrypted_title','encrypted_chat_summary','encrypted_share_cta_text','encrypted_chat_tags','encrypted_follow_up_request_suggestions','encrypted_suggested_followup_message','encrypted_icon','encrypted_category','encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_wellbeing_scores','encrypted_auto_speak_response'];
+const HEADER_FIELDS=['chat_id','encrypted_title','title','messages_v','title_v','metadata_v','draft_v','encrypted_draft_md','encrypted_draft_preview','ideabucket','ideabucket_processing_window_id','ideabucket_triggered_at','last_edited_overall_timestamp','unread_count','created_at','updated_at','processing_metadata','waiting_for_metadata','encrypted_category','encrypted_icon','encrypted_chat_key','chat_visibility','participant_user_hashes','anonymous_encrypted_chat_key','encrypted_chat_summary','encrypted_share_cta_text','encrypted_chat_tags','encrypted_follow_up_request_suggestions','encrypted_suggested_followup_message','encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_wellbeing_scores','encrypted_auto_speak_response','pinned','is_shared','is_private','is_anonymous','share_pii','share_highlights','is_metadata_only'];
 const CIPHERS=['encrypted_content','encrypted_sender_name','encrypted_category','encrypted_model_name','encrypted_thinking_content','encrypted_thinking_signature','encrypted_pii_mappings'];
 const FIELDS=['id','message_id','client_message_id','chat_id','created_at','role','status','key_version','has_thinking','thinking_token_count','queue_revision','queue_mode','queue_dispatch_status','queue_dispatch_mode','queue_dispatch_task_id',...CIPHERS,'pending_encrypted_embed_bundle_v1','pending_encrypted_turn_preflight_v1','pending_turn_preflight_v1'];
 const INSERTS=['id','message_id','client_message_id','chat_id','created_at','role',...CIPHERS,'status','key_version','has_thinking','thinking_token_count','queue_revision'];
@@ -29,6 +32,12 @@ function insertRow(v:unknown,id:unknown,chat:unknown,assistant=false):boolean{
 function metadataInsert(v:unknown,chat:unknown):boolean{
  return record(v)&&Object.keys(v).every(k=>HEADER_FIELDS.includes(k))&&HEADER_FIELDS.filter(k=>!['metadata_v','ideabucket','ideabucket_processing_window_id','ideabucket_triggered_at'].includes(k)).every(k=>Object.hasOwn(v,k))&&v.chat_id===chat&&v.is_metadata_only===true&&v.title===null&&v.draft_v===0&&v.encrypted_draft_md===null&&v.encrypted_draft_preview===null&&v.processing_metadata===false&&v.waiting_for_metadata===false&&typeof v.encrypted_chat_key==='string'&&v.encrypted_chat_key.length>0&&v.is_shared===false&&v.is_anonymous===false&&['is_private','pinned','share_pii','share_highlights'].every(k=>typeof v[k]==='boolean')&&['messages_v','title_v','last_edited_overall_timestamp','unread_count','created_at','updated_at'].every(k=>integer(v[k]))&&['metadata_v','ideabucket_triggered_at'].every(k=>!Object.hasOwn(v,k)||v[k]===null||integer(v[k]))&&(!Object.hasOwn(v,'ideabucket')||v.ideabucket===null||typeof v.ideabucket==='boolean')&&(!Object.hasOwn(v,'ideabucket_processing_window_id')||v.ideabucket_processing_window_id===null||typeof v.ideabucket_processing_window_id==='string')&&(v.chat_visibility===null||v.chat_visibility===''||v.chat_visibility==='personal')&&(v.participant_user_hashes===null||Array.isArray(v.participant_user_hashes)&&v.participant_user_hashes.every(x=>typeof x==='string'))&&HEADER_FIELDS.filter(k=>k.startsWith('encrypted_')||k==='anonymous_encrypted_chat_key').every(k=>v[k]===null||typeof v[k]==='string');
 }
+// Phase 2 headers can keep explicit undefined placeholders in IndexedDB.
+// Rust's JSON frame treats those properties as absent. Keep the native row's
+// defined data intact and use the same absence semantics for the CAS predicate.
+function metadataForWire(row:Row):Row {
+ return Object.fromEntries(Object.entries(row).filter(([,value])=>value!==undefined));
+}
 const bounded=normalBounded;
 function parse(encoded:string):Row{
  if(new TextEncoder().encode(encoded).length>256*1024)throw Error('unavailable');const p:unknown=JSON.parse(encoded);
@@ -45,18 +54,29 @@ function parse(encoded:string):Row{
  if((p.kind==='capture_cold_incoming_insert'||p.kind==='compare_and_patch_cold_incoming_insert')&&!metadataInsert(p.metadataInsert,p.chatId))throw Error('unavailable');
  bounded(p);return p;
 }
-export async function executeBrowserMessageCachePlan(factory:IDBFactory,encoded:string,signal:AbortSignal,guard:()=>void,routingLease?:RustChatIORoutingLease,originalPhysicalDraft?:true):Promise<string>{
+export async function executeBrowserMessageCachePlan(factory:IDBFactory,encoded:string,signal:AbortSignal,guard:()=>void,routingLease?:RustChatIORoutingLease,originalPhysicalDraft?:true,observeCoverage?:(witness:OpenedHistoryPageWitness | LegacyOpenedHistoryPage)=>void):Promise<string>{
  const bounded=(value:unknown):string=>{if(originalPhysicalDraft){if(!boundedOriginalPhysicalDraft(value))throw Error('unavailable');return JSON.stringify(value);}return normalBounded(value);};
  const p=parse(encoded),ids=p.messageIds as string[];let db:IDBDatabase|null=null,tx:IDBTransaction|null=null;const lifetime=new AbortController();let invalid=false;
  const current=()=>{if(invalid||signal.aborted||lifetime.signal.aborted)throw Error('cancelled');guard();};
  const abort=()=>{invalid=true;lifetime.abort();try{tx?.abort();}catch{/* Actual terminal owns settlement. */}};
  signal.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,5000);
  try{current();if(typeof factory.databases!=='function')throw Error('unavailable');const observed=await awaitBrowserRead(factory.databases(),lifetime.signal);current();const version=observed.find(v=>v.name==='chats_db'&&integer(v.version)&&Number(v.version)>0)?.version;if(version===undefined||p.databaseVersion!==null&&version!==p.databaseVersion)throw Error('unavailable');
- db=await new Promise<IDBDatabase>((resolve,reject)=>{let settled=false;const request=routingLease?createRustChatOpenRequest(routingLease,factory):factory.open('chats_db');const fail=()=>{try{current();}catch{/* Still refuse open. */}if(!settled){settled=true;lifetime.signal.removeEventListener('abort',fail);reject(Error('unavailable'));}};lifetime.signal.addEventListener('abort',fail,{once:true});request.onupgradeneeded=()=>{request.transaction?.abort();fail();};request.onerror=request.onblocked=fail;request.onsuccess=()=>{const opened=request.result;try{current();if(settled||opened.version!==version)throw Error('unavailable');settled=true;lifetime.signal.removeEventListener('abort',fail);resolve(opened);}catch{opened.close();fail();}};});current();db.onversionchange=()=>{abort();db?.close();};if(['chats','messages'].some(s=>!db!.objectStoreNames.contains(s)))throw Error('unavailable');const opened=db;
+ db=await new Promise<IDBDatabase>((resolve,reject)=>{let settled=false;const request=routingLease?createRustChatOpenRequest(routingLease,factory):factory.open('chats_db');const fail=()=>{try{current();}catch{/* Still refuse open. */}if(!settled){settled=true;lifetime.signal.removeEventListener('abort',fail);reject(Error('unavailable'));}};lifetime.signal.addEventListener('abort',fail,{once:true});request.onupgradeneeded=()=>{request.transaction?.abort();fail();};request.onerror=request.onblocked=fail;request.onsuccess=()=>{const opened=request.result;try{current();if(settled||opened.version!==version)throw Error('unavailable');settled=true;lifetime.signal.removeEventListener('abort',fail);resolve(opened);}catch{opened.close();fail();}};});current();db.onversionchange=()=>{abort();db?.close();};if(['chats','messages'].some(s=>!db!.objectStoreNames.contains(s === 'messages' ? messageStoreName(db!) : s)))throw Error('unavailable');const opened=db;
  return await new Promise<string>((resolve,reject)=>{const rows:unknown[]=[];let failure:unknown=null,metadata:unknown=null,before:unknown=null,remaining=ids.length+1,ready=false,absenceChecked=false;
+ let coverageBefore: string | null = null, coverageTracked = false;
  const fail=(e:unknown)=>{failure??=e;try{tx!.abort();}catch{/* Actual terminal owns settlement. */}};
  const packet=(after:unknown[])=>({version:1,kind:p.kind,operationId:p.operationId,databaseVersion:opened.version,transactionCommitted:true,credentialAcknowledged:false,crossDatabaseAssociationProven:false,metadata,rows:after,before});
- current();tx=routingLease?createRustChatTransaction(routingLease,opened,['chats','messages'],String(p.kind).startsWith('compare_and_patch')?'readwrite':'readonly'):opened.transaction(['chats','messages'],String(p.kind).startsWith('compare_and_patch')?'readwrite':'readonly');tx.onabort=()=>{try{current();}catch(e){failure??=e;}reject(failure??Error('storage_failed'));};tx.onerror=()=>{try{current();}catch(e){failure??=e;}failure??=Error('storage_failed');};tx.oncomplete=()=>{try{current();if(failure)throw failure;if(!ready)throw Error('unavailable');resolve(bounded(packet(rows)));}catch(e){reject(e);}};
+ current();tx=routingLease?createRustChatTransaction(routingLease,opened,['chats','messages'],String(p.kind).startsWith('compare_and_patch')?'readwrite':'readonly'):chatTransaction(opened, ['chats','messages'],String(p.kind).startsWith('compare_and_patch')?'readwrite':'readonly');tx.onabort=()=>{try{current();}catch(e){failure??=e;}reject(failure??Error('storage_failed'));};tx.onerror=()=>{try{current();}catch(e){failure??=e;}failure??=Error('storage_failed');};tx.oncomplete=()=>{try{current();if(failure)throw failure;if(!ready)throw Error('unavailable');
+  if (observeCoverage && p.kind === 'compare_and_patch_cold_incoming_insert' &&
+      record(metadata) && typeof metadata.encrypted_chat_key === 'string') {
+   if (coverageTracked) {
+    const after = openedHistoryRevision(tx!, p.chatId as string) ?? coverageBefore;
+    if (after !== null) observeCoverage({ before: coverageBefore, after, encryptedChatKey: metadata.encrypted_chat_key });
+   } else if (rows.every(record)) {
+    observeCoverage({ rows: rows.map(legacyCoverageRow), encryptedChatKey: metadata.encrypted_chat_key });
+   }
+  }
+  resolve(bounded(packet(rows)));}catch(e){reject(e);}};
  const messages=tx.objectStore('messages');
  const loaded=()=>{if(--remaining)return;current();if(metadata===null){if(!['capture_cold_incoming_insert','compare_and_patch_cold_incoming_insert'].includes(String(p.kind)))throw Error('unavailable');}else if(!record(metadata)||metadata.chat_id!==p.chatId)throw Error('unavailable');
  if(p.kind!=='capture'&&p.kind!=='capture_user_insert'&&p.kind!=='capture_incoming_insert'&&p.kind!=='capture_cold_incoming_insert'){if(p.expectedMetadata===null){if(metadata!==null||p.kind!=='compare_and_patch_cold_incoming_insert')throw Error('conflict');}else if(!record(metadata)||!equal(metadata,p.expectedMetadata as Row,META))throw Error('conflict');rows.forEach((r,i)=>{const expected=(p.expectedRows as (Row|null)[])[i],raw=r as Row;if(expected===null){if(r!==null||!['compare_and_patch_user_insert','compare_and_patch_incoming_insert','compare_and_patch_cold_incoming_insert'].includes(String(p.kind)))throw Error('conflict');return;}if(!record(raw))throw Error('conflict');if(!equal(raw,expected.fields as Row,FIELDS)||Object.entries(flags(raw)).some(([k,v])=>expected[k]!==v))throw Error('conflict');});}
@@ -72,11 +92,34 @@ export async function executeBrowserMessageCachePlan(factory:IDBFactory,encoded:
 
  next.forEach((value,i)=>{if(value===rows[i])return;pending++;current();const put=rows[i]===null?messages.add(value):messages.put(value);put.onerror=()=>{try{current();}catch(e){fail(e);return;}fail(put.error);};put.onsuccess=()=>{try{current();const back=messages.get(ids[i]);back.onerror=()=>{try{current();}catch(e){fail(e);return;}fail(back.error);};back.onsuccess=()=>{try{current();if(!record(back.result)||back.result.message_id!==ids[i])throw Error('unavailable');rows[i]=back.result;if(--pending===0){bounded(packet(rows));ready=true;}}catch(e){fail(e);}};}catch(e){fail(e);}};});if(!pending)ready=true;
  };
- const get=(store:IDBObjectStore,key:string,index:number|null)=>{const req=store.get(key);req.onerror=()=>{try{current();}catch(e){fail(e);return;}fail(req.error);};req.onsuccess=()=>{try{current();if(index===null&&req.result===undefined&&['capture_cold_incoming_insert','compare_and_patch_cold_incoming_insert'].includes(String(p.kind))){metadata=null;loaded();return;}if(index!==null&&req.result===undefined&&['capture_user_insert','compare_and_patch_user_insert','capture_incoming_insert','compare_and_patch_incoming_insert','capture_cold_incoming_insert','compare_and_patch_cold_incoming_insert'].includes(String(p.kind))){rows[index]=null;loaded();return;}if(!record(req.result)||index!==null&&req.result.message_id!==key)throw Error('unavailable');if(index===null)metadata=req.result;else rows[index]=req.result;loaded();}catch(e){fail(e);}};};
- try{const chats=tx.objectStore('chats');if(chats.keyPath!=='chat_id'||messages.keyPath!=='message_id')throw Error('unavailable');get(chats,p.chatId as string,null);ids.forEach((id,i)=>get(messages,id,i));}catch(e){fail(e);}
+ const get=(store:IDBObjectStore,key:string,index:number|null)=>{const req=store.get(key);req.onerror=()=>{try{current();}catch(e){fail(e);return;}fail(req.error);};req.onsuccess=()=>{try{current();if(index===null&&req.result===undefined&&['capture_cold_incoming_insert','compare_and_patch_cold_incoming_insert'].includes(String(p.kind))){metadata=null;loaded();return;}if(index!==null&&req.result===undefined&&['capture_user_insert','compare_and_patch_user_insert','capture_incoming_insert','compare_and_patch_incoming_insert','capture_cold_incoming_insert','compare_and_patch_cold_incoming_insert'].includes(String(p.kind))){rows[index]=null;loaded();return;}if(!record(req.result)||index!==null&&req.result.message_id!==key)throw Error('unavailable');if(index===null)metadata=metadataForWire(req.result);else rows[index]=req.result;loaded();}catch(e){fail(e);}};};
+ try {
+  const chats = tx.objectStore('chats');
+  if (chats.keyPath !== 'chat_id' || messages.keyPath !== 'message_id') throw Error('unavailable');
+  const readRows = () => { get(chats, p.chatId as string, null); ids.forEach((id, i) => get(messages, id, i)); };
+  if (observeCoverage && p.kind === 'compare_and_patch_cold_incoming_insert' &&
+      tx.objectStoreNames.contains(OPENED_HISTORY_STORE)) {
+   const request = readOpenedHistoryMutation(tx, p.chatId as string);
+   request.onsuccess = () => {
+    try {
+     current();
+     coverageBefore = request.result?.revision ?? null;
+     if (coverageBefore === null) invalidateOpenedHistory(tx!, p.chatId);
+     coverageTracked = true;
+     readRows();
+    } catch (error) { fail(error); }
+   };
+  } else readRows();
+ } catch (error) { fail(error); }
  });
  }finally{clearTimeout(timer);signal.removeEventListener('abort',abort);lifetime.abort();db?.close();}
 }
 
 /** Internal same-store transaction primitives, not an authority or SDK surface. */
+/** Encrypted/scalar projection only, shared by exact legacy readback and the
+ * committed canonical page. Rust validates and digests it. */
+export function legacyCoverageRow(row: Row): Row {
+ return Object.fromEntries(FIELDS.filter(field => Object.hasOwn(row, field)).map(field => [field, row[field]]));
+}
+
 export const browserMessageCacheTransactionProtocol=Object.freeze({META:Object.freeze([...META]),FIELDS:Object.freeze([...FIELDS]),CIPHERS:Object.freeze([...CIPHERS]),WRITES:Object.freeze([...WRITES]),INSERTS:Object.freeze([...INSERTS]),HEADER_FIELDS:Object.freeze([...HEADER_FIELDS]),record,exact,integer,uuid,bounded,projection,equal,flags,rowPredicate,insertRow,metadataInsert});

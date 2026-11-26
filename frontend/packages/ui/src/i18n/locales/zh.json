@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "显示更多"
+      },
+      "account_total": {
+        "text": "你的账户中有 {count} 个聊天"
       }
     },
     "latest_news": {

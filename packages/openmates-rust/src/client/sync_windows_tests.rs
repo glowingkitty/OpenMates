@@ -88,6 +88,40 @@ fn server_shaped_window_is_ciphertext_only_and_complete_history_stays_separate()
     assert!(client.credential_ack < revision);
     assert!(snapshot.get("chat_list_freshness").is_none());
 }
+#[tokio::test]
+async fn opened_startup_reuses_only_proven_current_cached_history() {
+    let (mut client, metadata, mut payload) = fixture();
+    client.chats.insert(CHAT.into(), metadata.clone());
+    client.history.insert(CHAT.into(), vec![]);
+    assert!(!client.has_current_cached_startup_history(CHAT));
+
+    client.sync_message_windows = stage(&client, metadata.clone(), &payload).unwrap();
+    assert!(!client.has_current_cached_startup_history(CHAT));
+
+    payload["chats"][0]["server_message_count"] = json!(2);
+    payload["chats"][0]["message_window"]["has_more_before"] = json!(false);
+    client.sync_message_windows = stage(&client, metadata.clone(), &payload).unwrap();
+    let cancel = CancellationToken::new();
+    let version = metadata["messages_v"].as_u64().unwrap();
+    client.recently_opened.offered_versions.insert(CHAT.into(), version);
+    assert!(client.hydrate_opened_chat(None, CHAT, &cancel).await.unwrap().is_none());
+
+    client.sync_message_windows.get_mut(CHAT).unwrap().count_from_server = false;
+    assert!(!client.has_current_cached_startup_history(CHAT));
+    client.sync_message_windows.get_mut(CHAT).unwrap().count_from_server = true;
+
+    client.chats.get_mut(CHAT).unwrap()["messages_v"] = json!(version + 1);
+    assert!(!client.has_current_cached_startup_history(CHAT));
+
+    // The process-local proof also rejects a same-count row replacement.
+    client.sync_message_windows.clear();
+    client.history.insert(CHAT.into(), vec![json!({"encrypted_content":"old"})]);
+    client.record_opened_history_coverage(CHAT, true);
+    assert!(client.has_current_cached_startup_history(CHAT));
+    client.history.get_mut(CHAT).unwrap()[0]["encrypted_content"] = json!("new");
+    assert!(!client.has_current_cached_startup_history(CHAT));
+}
+
 // contract-test: supporting surface=sdks.rust assertions=sync.client.shared-rust-policy,sync.startup.bounded-phases
 #[test]
 fn cached_window_uses_existing_lazy_decoder_and_remains_read_only_partial() {

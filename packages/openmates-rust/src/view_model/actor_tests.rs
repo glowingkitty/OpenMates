@@ -359,13 +359,14 @@ async fn superseded_boot_sync_publishes_nothing() {
     start(&mut f.host, session(), &sink, &CancellationToken::new())
         .await
         .unwrap();
-    let before = sink.events().len();
+    let events_before = sink.events().len();
+    let calls_before = f.host.calls.len();
     let cancel = CancellationToken::new();
     cancel.cancel();
     let result = boot_sync(&mut f.host, &sink, &cancel).await;
     assert_eq!(result, Err(Error::Cancelled));
-    assert_eq!(sink.events().len(), before);
-    assert_eq!(names(&f.host.calls).last(), Some(&"recover BootSync"));
+    assert_eq!(sink.events().len(), events_before);
+    assert_eq!(f.host.calls.len(), calls_before, "pre-cancelled startup must not begin recovery");
 }
 
 #[tokio::test]

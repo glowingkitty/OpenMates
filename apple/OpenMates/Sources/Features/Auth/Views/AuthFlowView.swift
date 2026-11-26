@@ -67,8 +67,6 @@ struct AuthFlowView: View {
     @ObservedObject var flowState: AuthFlowState
 
     @EnvironmentObject var authManager: AuthManager
-    @State private var authViewport = CGSize(width: 390, height: 844)
-    private var authViewportWidth: CGFloat { authViewport.width }
     @State private var signupSessionIdentity = UUID()
 
     private var prefersPasswordLoginForUITests: Bool {
@@ -76,27 +74,29 @@ struct AuthFlowView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.grey20.ignoresSafeArea()
-                .onGeometryChange(for: CGSize.self) { $0.size } action: { authViewport = $0 }
+        GeometryReader { geometry in
+            let viewport = geometry.size
+            let compact = viewport.width <= 730
             ScrollView {
-                AuthEntryLayout(viewport: authViewport) {
+                AuthEntryLayout(viewport: viewport) {
                     VStack(spacing: 0) {
-                        AuthEntryHeader(mobile: authViewportWidth <= 600, mode: flowState.authMode,
+                        AuthEntryHeader(mobile: viewport.width <= 600, mode: flowState.authMode,
                             onBackToDemo: onBackToDemo, onSelectMode: selectMode)
                         if flowState.authMode == .login {
-                            AuthLoginHeading(compact: authViewportWidth <= 730)
+                            AuthLoginHeading(compact: compact)
                             loginContent
                                 .padding(.top, .spacing24)
                                 .padding(.bottom, .spacing5)
                         } else {
-                            SignupFlowView(compact: authViewportWidth <= 730)
+                            SignupFlowView(compact: compact)
                                 .id(signupSessionIdentity)
                         }
                     }
                 }
             }
+            .accessibilityIdentifier("auth-flow-scroll")
         }
+        .background { Color.grey20.ignoresSafeArea() }
     }
 
     // MARK: - Subviews
@@ -195,15 +195,25 @@ struct AuthEntryLayout<Content: View>: View {
     private var sideWidth: CGFloat { max(0, (viewport.width - formWidth) / 2) }
 
     var body: some View {
-        HStack(spacing: 0) {
-            if !mobile { sideGrid(.leading) }
-            content.frame(width: formWidth)
-                .padding(.top, mobile ? 0 : 50)
-                .padding(.bottom, mobile ? .spacing10 : 55)
-            if !mobile { sideGrid(.trailing) }
-        }
-        .frame(width: viewport.width)
-        .frame(minHeight: mobile ? 0 : viewport.height, alignment: mobile ? .top : .center)
+        content
+            .frame(width: formWidth)
+            .padding(.top, mobile ? 0 : 50)
+            .padding(.bottom, mobile ? .spacing10 : 55)
+            .frame(width: viewport.width)
+            .frame(minHeight: mobile ? 0 : max(viewport.height, AuthAppIconGrid.desktopHeight),
+                   alignment: mobile ? .top : .center)
+            .background {
+                // The decorative grids use the settled size of the form
+                // container. They don't participate in proposing its size
+                // during browser-width or login/signup transitions.
+                if !mobile {
+                    HStack(spacing: 0) {
+                        sideGrid(.leading)
+                        Color.clear.frame(width: formWidth)
+                        sideGrid(.trailing)
+                    }
+                }
+            }
     }
     private func sideGrid(_ side: AuthAppIconGrid.Side) -> some View {
         AuthAppIconGrid(side: side)
@@ -290,6 +300,7 @@ struct AuthEntryHeader: View {
 private struct AuthAppIconGrid: View {
     @Environment(\.colorScheme) private var colorScheme
     enum Side { case leading, trailing, mobile }
+    static let desktopHeight: CGFloat = 7 * 71 + 6 * 30
     let side: Side
     private let left = [["videos", "health", "web"], ["calendar", "nutrition", "language"],
         ["plants", "fitness", "shipping"], ["shopping", "jobs", "books"], ["study", "home", "tv"],

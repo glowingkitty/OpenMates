@@ -72,9 +72,10 @@ async function persistedCounts(page) {
         };
       });
       db.onversionchange = () => db.close();
-      if (!['chats','messages'].every((name) => db.objectStoreNames.contains(name))) return unavailable('stores_absent');
+      const messagesStore = db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages';
+      if (!['chats', messagesStore].every((name) => db.objectStoreNames.contains(name))) return unavailable('stores_absent');
       return await new Promise((resolve) => {
-        const tx = db.transaction(['chats','messages'], 'readonly');
+        const tx = db.transaction(['chats',messagesStore], 'readonly');
         let settled = false;
         const finish = (value) => { if (!settled) { settled = true; clearTimeout(timer); resolve(value); } };
         const timer = setTimeout(() => {
@@ -82,7 +83,7 @@ async function persistedCounts(page) {
           try { tx.abort(); } catch { /* already completed */ }
           db.close();
         }, 2000);
-        const chats = tx.objectStore('chats').count(), messages = tx.objectStore('messages').count();
+        const chats = tx.objectStore('chats').count(), messages = tx.objectStore(messagesStore).count();
         tx.oncomplete = () => finish({ available: true, chats: chats.result, messages: messages.result });
         tx.onerror = tx.onabort = () => finish(unavailable('transaction_unavailable'));
       });

@@ -31,7 +31,7 @@ test('private Speak follows provider availability and surfaces rejected work', a
       request.onerror = () => reject(request.error);
     });
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(['chats', 'messages'], 'readwrite');
+      const tx = db.transaction(['chats', (db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readwrite');
       tx.oncomplete = () => { db.close(); resolve(); };
       tx.onerror = () => reject(tx.error);
       const now = Math.floor(Date.now() / 1000);
@@ -41,7 +41,7 @@ test('private Speak follows provider availability and surfaces rejected work', a
         created_at: now, updated_at: now, last_edited_overall_timestamp: now,
         unread_count: 0, is_shared: false, is_incognito: false,
       });
-      tx.objectStore('messages').put({
+      tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').put({
         message_id: '1a11cbb0-a9f2-4e52-9ba9-f8869185fa6b', chat_id: id,
         role: 'assistant', content: 'This fictional response can be read without speech.',
         encrypted_content: null, status: 'synced', created_at: now,

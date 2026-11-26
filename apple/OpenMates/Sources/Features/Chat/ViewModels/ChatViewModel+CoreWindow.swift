@@ -39,6 +39,9 @@ struct ChatCoreWindowBinding {
     var finishedOutcome: CoreChatOpenOutcome?
     /// A core window was placed into the rows.
     var painted = false
+    var startsAtNewestTail = false
+    /// An adopted window can render inline previews before legacy keys are ready.
+    var waitsForAdoptedHeader = false
     /// Embed ids already handed to embed hydration for this bind.
     var hydratedEmbedIDs = Set<String>()
 }
@@ -50,6 +53,8 @@ extension ChatViewModel {
     }
 
     /// The core reports older messages for the shown chat.
+    var startsAtNewestCoreTail: Bool { coreBinding.startsAtNewestTail }
+
     var coreWindowHasOlderMessages: Bool {
         guard let bound = coreBinding.chatID, bound == chat?.id else { return false }
         return coreWindow.hasOlderMessages
@@ -63,11 +68,12 @@ extension ChatViewModel {
     /// Binds this view model to `chatId` in the core window under a new
     /// request and follows its changes.
     @discardableResult
-    func beginCoreWindow(chatId: String) -> UInt64 {
+    func beginCoreWindow(chatId: String, adopting startupRequest: UInt64? = nil) -> UInt64 {
         detachCoreWindow(closing: false)
-        let request = coreWindow.begin(chatId: chatId)
+        let request = startupRequest ?? coreWindow.begin(chatId: chatId)
         coreBinding.chatID = chatId
         coreBinding.request = request
+        coreBinding.startsAtNewestTail = startupRequest != nil
         coreBinding.subscription = coreWindow.changes.sink { [weak self] change in
             self?.applyCoreWindowChange(change)
         }
@@ -79,30 +85,67 @@ extension ChatViewModel {
     /// then reads the local copy. Returns once the first window is shown or
     /// the open ended without one.
     func openThroughCore(id: String, initialChat: Chat?, initialEmbeds: [EmbedRecord], generation: Int) async -> Bool {
+        guard !Task.isCancelled else { return true }
         guard coreWindow.isAttached else {
             detachCoreWindow(closing: false)
             return false
         }
-        let request = beginCoreWindow(chatId: id)
+        let adopted = coreWindow.adoptedStartupRequest(for: id)
+        let request = beginCoreWindow(chatId: id, adopting: adopted)
         let token = coreBinding.token
         let window = coreWindow
-        coreBinding.openTask = Task { @MainActor [weak self] in
-            let outcome = await window.open(request: request, chatId: id)
-            self?.finishCoreOpen(outcome, token: token)
+        let adoptionScope = adopted.map { _ in
+            (scope: offlineStore.scopeGeneration, deletion: offlineStore.chatDeletionVersion(id),
+             server: ServerProfile.current(), workspaceEpoch: TeamWorkspaceContext.shared.contextEpoch)
+        }
+        func isCurrentOpen() -> Bool {
+            guard coreBinding.token == token, generation == loadGeneration else { return false }
+            guard let adoptionScope else { return true }
+            return !Task.isCancelled && coreBinding.request == request
+                && window.adoptedStartupRequest(for: id) == request && window.openRequest == request
+                && offlineStore.scopeGeneration == adoptionScope.scope
+                && offlineStore.chatDeletionVersion(id) == adoptionScope.deletion
+                && ServerProfile.current() == adoptionScope.server
+                && TeamWorkspaceContext.shared.contextEpoch == adoptionScope.workspaceEpoch
+        }
+        if adopted == nil {
+            coreBinding.openTask = Task { @MainActor [weak self] in
+                let outcome = await window.open(request: request, chatId: id)
+                self?.finishCoreOpen(outcome, token: token)
+            }
+        } else {
+            guard isCurrentOpen() else { return true }
+            coreBinding.waitsForAdoptedHeader = true
+            chat = CoreChatList.shared.chat(for: id)
+                ?? initialChat.flatMap { $0.id == id ? $0 : nil }
+                ?? coreShellHeader(for: id)
+            applyCoreWindowChange(.window(chatId: id, reason: .opened))
+            // Let the composed viewport render before a legacy disk/key read.
+            await Task.yield()
+            guard isCurrentOpen() else { return true }
         }
 
         // The header (title, icon, chat key) still comes from the local chat
         // row, else from the core's chat list row.
-        if let local = initialChat ?? chatStore?.chat(for: id) ?? offlineStore.loadChat(id: id) {
+        let supplied = adopted == nil ? initialChat : initialChat.flatMap { $0.id == id ? $0 : nil }
+        if let local = supplied ?? chatStore?.chat(for: id) ?? offlineStore.loadChat(id: id) {
             if local.encryptedChatKey == nil, let cached = offlineStore.loadChat(id: id) {
                 await ensureChatKey(for: cached)
+                guard adopted == nil || isCurrentOpen() else { return true }
             }
             await ensureChatKey(for: local)
+            guard adopted == nil || isCurrentOpen() else { return true }
             let header = await decryptMetadata(for: local)
-            guard coreBinding.token == token, generation == loadGeneration else { return true }
+            guard isCurrentOpen() else { return true }
             chat = header
         } else if let row = CoreChatList.shared.chat(for: id) {
             chat = row
+        }
+
+        if adopted != nil {
+            guard isCurrentOpen() else { return true }
+            coreBinding.waitsForAdoptedHeader = false
+            hydrateCoreEmbedsIfNeeded(chatId: id)
         }
 
         let outcome: CoreChatOpenOutcome? = await withCheckedContinuation { continuation in
@@ -116,7 +159,7 @@ extension ChatViewModel {
                 coreBinding.firstWindowWaiter = continuation
             }
         }
-        guard coreBinding.token == token, generation == loadGeneration else { return true }
+        guard isCurrentOpen() else { return true }
         switch outcome {
         case nil, .opened?:
             break
@@ -132,22 +175,25 @@ extension ChatViewModel {
                 "phase=core.window.loadChat chat=\(id.prefix(8)) outcome=\(CoreSession.errorClass(failure))")
             return true
         }
-        if chat?.id != id {
-            chat = Chat(id: id, title: coreWindow.title, lastMessageAt: nil, createdAt: "", updatedAt: nil,
-                        isArchived: nil, isPinned: nil, appId: nil,
-                        category: coreWindow.category.isEmpty ? nil : coreWindow.category,
-                        encryptedTitle: nil, encryptedChatKey: nil)
-        }
+        if chat?.id != id { chat = coreShellHeader(for: id) }
         isLoading = false
-        await finishCoreChatOpening(chatId: id, token: token, generation: generation, initialEmbeds: initialEmbeds)
+        await finishCoreChatOpening(chatId: id, token: token, initialEmbeds: initialEmbeds, isCurrent: isCurrentOpen)
         return true
     }
 
+    private func coreShellHeader(for id: String) -> Chat {
+        Chat(id: id, title: coreWindow.title, lastMessageAt: nil, createdAt: "", updatedAt: nil,
+             isArchived: nil, isPinned: nil, appId: nil,
+             category: coreWindow.category.isEmpty ? nil : coreWindow.category,
+             encryptedTitle: nil, encryptedChatKey: nil)
+    }
+
     /// The Swift parts of an open chat that the core window does not carry yet.
-    private func finishCoreChatOpening(chatId: String, token: UUID, generation: Int, initialEmbeds: [EmbedRecord]) async {
+    private func finishCoreChatOpening(chatId: String, token: UUID, initialEmbeds: [EmbedRecord],
+                                       isCurrent: () -> Bool) async {
         if let header = chat {
             let stored = await decryptFollowUpSuggestions(for: header)
-            guard coreBinding.token == token, generation == loadGeneration else { return }
+            guard isCurrent() else { return }
             followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
                 stored: stored,
                 hasStoredCiphertext: header.encryptedFollowUpRequestSuggestions != nil,
@@ -159,8 +205,9 @@ extension ChatViewModel {
         for fields in Array(pendingQueuedEvents.values) {
             await applyQueuedFollowupEvent(type: "queued_message_updated", fields: fields)
         }
-        guard coreBinding.token == token else { return }
+        guard isCurrent() else { return }
         if !initialEmbeds.isEmpty { await applySyncedEmbeds(initialEmbeds) }
+        guard isCurrent() else { return }
         if !IncognitoChatSession.isIncognitoChatId(chatId) {
             // Edits made on other devices: written notices arrive as system
             // messages (the timeline refolds on them); the embeds are refetched.
@@ -206,10 +253,10 @@ extension ChatViewModel {
         coreBinding = ChatCoreWindowBinding()
         binding.openTask?.cancel()
         binding.firstWindowWaiter?.resume(returning: .cancelled)
-        guard closing, binding.chatID != nil else { return }
+        guard closing, let chatID = binding.chatID else { return }
         let window = coreWindow
         let request = binding.request
-        Task { @MainActor in await window.close(request: request) }
+        Task { @MainActor in await window.close(request: request, expectedChatId: chatID) }
     }
 
     /// Applies one change of the core window to the rows.
@@ -261,7 +308,7 @@ extension ChatViewModel {
         var current = visibleWindowStartIndex..<visibleWindowEndIndex
         let firstShown = messages.first?.id
         if !coreBinding.painted {
-            destination = .initial(anchor: chat?.lastVisibleMessageId)
+            destination = coreBinding.startsAtNewestTail ? .latest : .initial(anchor: chat?.lastVisibleMessageId)
         } else if reason == .olderPage, let firstShown, let start = source.firstIndex(where: { $0.id == firstShown }) {
             current = start..<min(source.count, start + messages.count)
             destination = .older
@@ -325,6 +372,7 @@ extension ChatViewModel {
 
     /// Embed content still hydrates in Swift (core gap); only new references start it.
     private func hydrateCoreEmbedsIfNeeded(chatId: String) {
+        guard !coreBinding.waitsForAdoptedHeader else { return }
         let referenced = Set(messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
         guard !referenced.isSubset(of: coreBinding.hydratedEmbedIDs) else { return }
         coreBinding.hydratedEmbedIDs.formUnion(referenced)
@@ -352,15 +400,12 @@ extension ChatViewModel {
         if !embeds.isEmpty { await applySyncedEmbeds(embeds) }
     }
 
-    /// A push for the open core chat re-opens it in the core (cached window,
-    /// then the strict read). True when the pushed reply is stored and complete.
+    /// A push refreshes the open window. True when the pushed reply is stored and complete.
     func refreshCoreWindowForNotification(chatID: String, messageID: String?,
                                           isCurrent: @escaping @MainActor () -> Bool) async -> Bool {
         guard !isLoading, isCurrent() else { return false }
-        let request = coreWindow.begin(chatId: chatID)
-        coreBinding.request = request
-        let outcome = await coreWindow.open(request: request, chatId: chatID)
-        guard outcome == .opened, isCurrent(), ownsCoreWindow(chatID) else { return false }
+        guard await coreWindow.refreshOpenChat(chatId: chatID), isCurrent(),
+              ownsCoreWindow(chatID) else { return false }
         if let messageID {
             let reply = coreWindow.message(id: messageID)
                 ?? coreWindow.messages.last(where: { $0.serverMessageId == messageID })

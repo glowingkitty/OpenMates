@@ -10,17 +10,17 @@ import { OwnedInitialSyncOperation } from './initialSyncOperation';
 import { validInitialSyncStop } from './initialSyncProtocol';
 import { OwnedCacheMonitorAcquisition } from './phasedCacheMonitorOperation';
 import type { ProfileCacheInvalidation } from './profileCacheProtocol';
-import type { SessionStatus } from "./protocol";
 import { advanceLocalReadPlan,clearExistingKeyRequest,clearPasswordRequest,parseBrowserLocalReadPlan,validChat,validFirstSessionData,validLocalCursorReply,validRequest } from "./protocol";
 import { validCheckpointPresentation,validLocalRead,validSavedRead } from "./savedReadProtocol";
 import { OwnedSelectedCodeEmbedStore } from './selectedCodeEmbedOperation';
 import { OwnedSendOperation } from "./sendOperation";
 import { consumeWorkerMasterKey } from "./workerCredentials";
+import { checkFirstSession } from "./workerFirstSession";
 import { runOwnedCacheRead } from "./workerOwnedCacheRead";
 import { clearSocketQueue,drainPendingSocketFrames,enqueueSocketFrames,mergeDrainedSummary } from "./workerSocketQueue";
 import type { WorkerRuntimeState } from "./workerRuntimeState";
 import { clearClient,dispose,noOwnedDriver,ownedCacheReply,project,retainOriginalClient,retireCacheMonitor,retireOriginalClient,retireRecoveryPort,runClientPhase } from "./workerRuntimeState";
-import type { CacheMonitorSlot,PreparedProfile,RustCacheMonitor,RustCachePublication,RustClient,RustFirstSessionDataHandle,RustFirstSessionReceipt,RustPreparedFirstSession,RustPreparedFirstSessionData,RustRecoveryRestoredClient } from "./workerRuntimeTypes";
+import type { CacheMonitorSlot,PreparedProfile,RustCacheMonitor,RustCachePublication,RustClient,RustFirstSessionDataHandle,RustPreparedFirstSessionData,RustRecoveryRestoredClient } from "./workerRuntimeTypes";
 
 /** Request dispatcher of the Rust core Worker. */
 export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
@@ -350,69 +350,7 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
           if(pending&&!waitConsumed)pending.free();receipt?.free();rt.firstSessionControl?.free();rt.firstSessionControl=null;
         }
       } else if(input.operation==='check_first_session') {
-        const prepare=rt.binding.PreparedBrowserProfile.from_existing_key,first=rt.binding.BrowserCoreClient.prepare_first_session_original;
-        const bootstrap=rt.originalRecoveryBootstrap,store=rt.originalStartupStore;
-        if(rt.firstSessionTask?.stopped){clearExistingKeyRequest(input);fail('cancelled');return;}
-        if(rt.firstSessionUsed||rt.client||rt.configuration.admission!=='existing_key'||typeof prepare!=='function'||typeof first!=='function'
-          ||input.profile.principal!==rt.configuration.expectedPrincipal||!bootstrap||!store||typeof bootstrap.restore_original_from_first_session!=='function'){
-          clearExistingKeyRequest(input);fail('unavailable');return;
-        }
-        rt.firstSessionUsed=true;
-        let prepared:PreparedProfile;
-        try{prepared=prepare(input.profile.principal,input.key,input.profile.hashedEmail,input.profile.userEmailSalt,false);}
-        finally{clearExistingKeyRequest(input);}
-        let pending:RustPreparedFirstSession|null=null,receipt:RustFirstSessionReceipt|null=null,profileConsumed=false,waitConsumed=false,receiptConsumed=false;
-        try{
-          profileConsumed=true;
-          // The SAME captured native store supplies configured routes and actual
-          // profile before HTTP; Page configuration strings confer no authority.
-          pending=first(prepared,JSON.stringify(input.deviceSignals),store);
-          rt.firstSessionControl=pending.control();
-          if(rt.firstSessionTask?.stopped)rt.firstSessionControl.cancel();
-          if(rt.disposed||rt.lifetime.signal.aborted||rt.firstSessionTask?.stopped)throw Error('cancelled');
-          rt.firstSessionControl.ensure_current();
-          // The Page already owns its original auth-session refresh WebLock.
-          // Floor the ORIGINAL outer budget after all setup; never renew it.
-          const remaining=Math.max(0,Math.min(10000,Math.floor(input.deadlineEpochMs-Date.now())));
-          pending.restrict_remaining_budget_ms(remaining);
-          if(remaining===0)throw Error('deadline');
-          waitConsumed=true;receipt=await pending.wait();pending=null;
-          const receiptControl=receipt.control();rt.firstSessionControl.free();rt.firstSessionControl=receiptControl;
-          if(rt.disposed||rt.lifetime.signal.aborted||rt.firstSessionTask?.stopped)throw Error('cancelled');
-          rt.firstSessionControl.ensure_current();
-          const httpStatus=receipt.observed_http_status()??null;
-          let data:Record<string,unknown>|null=null;
-          try{const encoded=receipt.response_json();const parsed:unknown=JSON.parse(encoded);
-            if(!validFirstSessionData({httpStatus,data:parsed}))throw Error('unavailable');data=parsed as Record<string,unknown>;
-          }catch{/* Preserve actual HTTP status DATA even when body/read/crypto is unavailable. */}
-          const firstSession={httpStatus,data};if(!validFirstSessionData(firstSession))throw Error('unavailable');
-          let status:SessionStatus|null=null;
-          if(httpStatus===200&&data?.success===true){
-            // Only the opaque ORIGINAL receipt can restore; UI JSON is never input.
-            rt.originalRecoveryBootstrap=undefined;rt.originalStartupStore=undefined;
-            let restored:RustRecoveryRestoredClient|null=null;
-            try{
-              receiptConsumed=true;restored=await bootstrap.restore_original_from_first_session(receipt,store);receipt=null;
-              rt.originalRecoveryPort=restored.take_port();const admitted=restored.take_client();
-              if(rt.disposed||rt.firstSessionTask?.stopped){retireRecoveryPort(rt);admitted.invalidate();admitted.free();fail('cancelled');return;}
-              rt.client=admitted;status=project(rt, rt.client.admitted_status());
-              if(status.principal!==rt.configuration.expectedPrincipal||status.persistence!=='memory_only'||typeof status.localReadOnly!=='boolean')throw Error('unavailable');
-              if(typeof rt.client.prepare_profile_cache_readiness!=='function')throw Error('unavailable');
-              const original={original:rt.client,status:Object.freeze({...status}),resource:rt.client.prepare_profile_cache_readiness(status.handle,status.generation,status.principal),negative:false,watch:null as Promise<void>|null};
-              original.resource.ensure_current(rt.client);rt.profileCache=original;
-              const invalidate=()=>{original.negative=true;original.resource.cancel();if(!rt.disposed&&rt.profileCache===original&&rt.client===original.original){
-                const frame:ProfileCacheInvalidation={version:1,profileCacheInvalidated:{handle:original.status.handle,generation:original.status.generation,owner:original.status.principal}};rt.endpoint.postMessage(frame);
-              }};
-              original.watch=original.resource.wait_invalidated().then(invalidate,()=>{invalidate();rt.retiredProfileCaches.add(original);});
-            }catch{clearClient(rt);retireRecoveryPort(rt);status=null;}
-            finally{restored?.free();}
-          }
-          if(rt.firstSessionTask?.stopped){clearClient(rt);retireRecoveryPort(rt);fail('cancelled');}
-          else if(!rt.disposed)rt.endpoint.postMessage({version:1,id,ok:true,status,firstSession});
-        }finally{
-          if(!profileConsumed)prepared.free();if(pending&&!waitConsumed)pending.free();if(receipt&&!receiptConsumed)receipt.free();
-          rt.firstSessionControl?.free();rt.firstSessionControl=null;
-        }
+        await checkFirstSession(rt, input, fail);
       } else if(input.operation==="restore_local") {
         // Local-only admission of the existing key: no server call or lock. Only
         // the ordinary (non-recovery) production Worker offers it, before any client.

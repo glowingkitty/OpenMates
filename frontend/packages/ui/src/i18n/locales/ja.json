@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "もっと表示"
+      },
+      "account_total": {
+        "text": "アカウント内のチャット: {count} 件"
       }
     },
     "latest_news": {

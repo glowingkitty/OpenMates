@@ -1,6 +1,6 @@
 // Type-only declarations shared by BrowserCoreWorkerHost. Split from workerHost.ts
 // to keep the host module within the repository file-size limit; no runtime code.
-import type {CoreRequest,CoreResponse} from "./protocol";
+import type {CoreFailure,CoreRequest,CoreResponse} from "./protocol";
 import type {LocalCursorEffectHandler,LocalReadPlanState,LocalReadSelector} from "./protocol";
 import type {OwnedLocalReadState} from './ownedLocalReadProtocol';
 import type {BrowserCacheOperation,BrowserCacheScope,BrowserCacheEffectHandler,BrowserCachePlanState,BrowserRetainedRead,BrowserCacheSourceEvidence,BrowserOwnedCacheIdentity} from './browserCacheProtocol';
@@ -25,7 +25,7 @@ export interface Pending {
     stage?:'owned_selected'|'owned_local'|'metadata';preparedNative?:boolean;localRead?:OwnedLocalReadState;profileCache?:true;
     progressOwner?:Readonly<BrowserSelectedCacheProgress>;progress?:Promise<void>;progressPending?:boolean;
     selectedProgressReceived?:boolean;progressFailure?:Error;progressStop?:Promise<CoreResponse>;queuedContinuation?:boolean;
-    originalCurrent:()=>void;ownedIdentity?:BrowserOwnedCacheIdentity;workerTerminal?:boolean;finalEvent?:MessageEvent<unknown>;stopReason?:'cancelled'|'deadline';stopDrain?:Promise<void>;stoppedDrainSent?:string;dispatched?:boolean};
+    originalCurrent:()=>void;ownedIdentity?:BrowserOwnedCacheIdentity;workerTerminal?:boolean;finalEvent?:MessageEvent<unknown>;stopReason?:'cancelled'|'deadline';stopFailure?:CoreFailure;stopDrain?:Promise<void>;stoppedDrainSent?:string;dispatched?:boolean};
   expectedSnapshot?: {handle:string;generation:number;exact?:string};
   expectedSend?: { handle: string; generation: number; operationId?: string; chatId: string | undefined; kind: "started" | "event" | "cancel_requested" | "closed" };
   passwordLogin?: true;

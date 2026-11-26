@@ -64,6 +64,16 @@ impl Drop for FileLock {
 }
 
 impl FileByteStore {
+    /// The open vault directory's device, inode and owner identity.
+    ///
+    /// # Errors
+    /// Refuses a changed private-directory policy or unreadable descriptor.
+    pub fn directory_instance(&self) -> Result<(u64, u64, u32)> {
+        check_private(&self.root, true)?;
+        let meta = self.root.metadata().map_err(|_| ByteStoreError::Io)?;
+        Ok((meta.dev(), meta.ino(), meta.uid()))
+    }
+
     /// Open (creating as needed) the private store directory `path`.
     ///
     /// # Errors

@@ -742,6 +742,45 @@ impl Store {
         self.atomic_write(&file, &serde_json::to_vec(&record)?)?;
         Ok(result)
     }
+    /// Exchange a device/vault-bound offline record with the existing
+    /// authenticated journal. The wrapping key stays in this store.
+    pub(crate) fn personal_offline_record(
+        &self, session: &Session, passphrase: Option<&str>, replacement: Option<serde_json::Value>,
+    ) -> Result<Option<serde_json::Value>> {
+        let epoch = self.active_epoch()?;
+        let Some(record) = self.envelope()? else { return Ok(None) };
+        if record.mode != StorageMode::EncryptedVault || session.active_team_id.is_some()
+            || record.context != session_context(session)?
+            || record.owner != owner_id(&session.hashed_email)
+            || record.expires_at != session.paired_session_expires_at
+            || session.is_expired()
+        {
+            return Ok(None);
+        }
+        record.validate()?;
+        let key = self.unwrap_key(&record, passphrase)?;
+        let actual: Session = serde_json::from_slice(&decrypt(&key, &record.ciphertext, &record.aad()?)?)?;
+        if !actual.matches_stored_session(session) {
+            return Ok(None);
+        }
+        let device = if replacement.is_some() {
+            self.device_identity()?
+        } else {
+            let Some(bytes) = self.read("sdk-device-id")? else { return Ok(None) };
+            String::from_utf8(bytes).map_err(|_| Error::Protocol)?
+        };
+        let context = serde_json::to_string(&(
+            &epoch, self.bytes.directory_instance()?, device, self.vault_binding(&record)?,
+            digest(session.master_key.as_ref()),
+        ))?;
+        let value = self.update_private_record(
+            &session.hashed_email, &context, "personal-offline-v1", &key,
+            |previous| Ok((replacement, previous.filter(|value| !value.is_null()))),
+        )?;
+        self.require_epoch(&epoch)?;
+        Ok(value)
+    }
+
     /// Durable, descriptor-anchored announcement never waits for session/keyring
     /// work. Repeated announcements preserve the context and cleanup intent.
     pub fn revoke_session(&self) -> Result<()> {

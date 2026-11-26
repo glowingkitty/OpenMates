@@ -30,6 +30,16 @@ use super::{
     window::OpenWindow,
 };
 
+/// Revalidate the bounded startup cohort once per replacement native monitor.
+#[derive(Clone, Copy, Default)]
+pub(super) enum StartupMonitorCohort {
+    #[default]
+    Initial,
+    Connected,
+    Refresh,
+    Hydrate,
+}
+
 /// The actor state a shell owns exactly once per profile. The `Client` is
 /// reachable only through this value, so restore, persistence, receipts and
 /// logout always use the same session runtime and credential backend.
@@ -38,6 +48,12 @@ pub struct ViewCore<S: ByteStore + 'static> {
     pub(super) session: ShellSession<S>,
     pub(super) credentials: Arc<dyn CredentialPersistence>,
     eager_cached_content: bool,
+    pub(super) recently_opened_enabled: bool,
+    pub(super) startup_resume_completed: bool,
+    pub(super) startup_sidebar_published: bool,
+    pub(super) startup_monitor_cohort: StartupMonitorCohort,
+    pub(super) startup_hydration: Vec<String>,
+    pub(super) explicit_startup_navigation: bool,
     /// The admitted live chat monitor; chat reads use it as their owner and
     /// denial witness. Started by the shell host during admission.
     pub(super) monitor: Option<ChatMonitor>,
@@ -74,6 +90,12 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             session,
             credentials,
             eager_cached_content: true,
+            recently_opened_enabled: false,
+            startup_resume_completed: false,
+            startup_sidebar_published: false,
+            startup_monitor_cohort: StartupMonitorCohort::Initial,
+            startup_hydration: Vec::new(),
+            explicit_startup_navigation: false,
             monitor: None,
             window: None,
             foreground: Arc::default(),
@@ -102,6 +124,12 @@ impl<S: ByteStore + 'static> ViewCore<S> {
     /// forwarded frames end after what it already queued, and shell frames
     /// go to the new socket.
     pub fn set_chat_monitor(&mut self, monitor: Option<ChatMonitor>) -> Option<ChatMonitor> {
+        if self.recently_opened_enabled && monitor.is_some() {
+            self.startup_monitor_cohort = match self.startup_monitor_cohort {
+                StartupMonitorCohort::Initial => StartupMonitorCohort::Connected,
+                _ => StartupMonitorCohort::Refresh,
+            };
+        }
         self.unowned
             .replace(monitor.as_ref().map(ChatMonitor::socket_passthrough));
         std::mem::replace(&mut self.monitor, monitor)
@@ -161,6 +189,12 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         self.eager_cached_content = eager;
     }
 
+    /// Enable first-party opened-chat startup and durable explicit-open tracking.
+    pub fn enable_recently_opened_chats(&mut self) {
+        self.recently_opened_enabled = true;
+        self.client.enable_opened_startup_policy();
+    }
+
     pub(super) fn eager_cached_content(&self) -> bool {
         self.eager_cached_content
     }
@@ -181,7 +215,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
     /// unless a turn runs: its stream depends on the current token (a new
     /// one would cancel it), so the call then runs under the turn's token
     /// and checks its own `cancel` in the view-model flow only.
-    pub(super) fn begin_client_operation(&mut self, cancel: &CancellationToken) {
+    pub fn begin_client_operation(&mut self, cancel: &CancellationToken) {
         if !self.foreground.any() {
             self.client.set_operation_cancel(cancel.clone());
         }
@@ -291,7 +325,10 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             .iter()
             .map(chat_list_row_from_item)
             .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(|_| Error::Protocol)?;
+            .map_err(|error| {
+                crate::startup_diagnostics::record_chat_row_conversion(&error);
+                Error::Protocol
+            })?;
         super::enrich::enrich_rows(&self.client, &mut rows)?;
         Ok(ViewEvent::ChatList {
             rows,

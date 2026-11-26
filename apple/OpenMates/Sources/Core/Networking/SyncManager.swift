@@ -90,11 +90,7 @@ final class SyncManager: ObservableObject {
             chatStore.upsertChat(chat)
         }
         if data.isLastBatch {
-            if totalChatCount > 100 {
-                syncState = .syncing(phase: 4)
-            } else {
-                completeSync()
-            }
+            completeSync()
         }
     }
 

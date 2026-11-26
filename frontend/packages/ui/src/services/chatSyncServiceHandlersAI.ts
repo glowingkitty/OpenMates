@@ -8,7 +8,7 @@ import {
 import { setChatRecommendations } from "../stores/chatRecommendationsStore";
 import type { ChatRecommendation, ChatRecommendationsState } from "../types/recommendations";
 import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
-import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 import { noteChatMetadataTurn, completeChatMetadataTurn, isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
@@ -180,6 +180,12 @@ const pendingFinalizedEmbedFlushTimersByChat = new Map<
   string,
   ReturnType<typeof setTimeout>
 >();
+registerWorkspaceCacheClear(() => {
+  for (const timer of pendingFinalizedEmbedFlushTimersByChat.values()) clearTimeout(timer);
+  pendingFinalizedEmbedFlushTimersByChat.clear();
+  pendingFinalizedEmbedQueuedAtByChat.clear();
+  pendingFinalizedEmbedsByChat.clear();
+});
 const SERVER_INCOGNITO_CHAT_ID = "incognito";
 const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
 const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
@@ -358,6 +364,8 @@ export async function flushPendingFinalizedEmbedsForChat(
   serviceInstance: ChatSynchronizationService,
   chatId: string,
 ): Promise<void> {
+  const owner = getWorkspaceCacheIdentity();
+  if (!owner) return;
   let pendingQueueChatId = chatId;
   let pendingForChat = pendingFinalizedEmbedsByChat.get(pendingQueueChatId);
   if (
@@ -375,7 +383,7 @@ export async function flushPendingFinalizedEmbedsForChat(
   if (!pendingForChat) return;
 
   const rawChatId = await resolveRawChatIdForFinalizedEmbed(pendingQueueChatId);
-  if (!rawChatId) return;
+  if (!rawChatId || owner !== getWorkspaceCacheIdentity()) return;
 
   console.info(
     `[ChatSyncService:AI] Flushing ${pendingForChat.size} finalized embed(s) queued for chat ${pendingQueueChatId}`,
@@ -384,6 +392,7 @@ export async function flushPendingFinalizedEmbedsForChat(
   do {
     processedThisPass = false;
     for (const [embedId, { embedData, localOnly }] of Array.from(pendingForChat)) {
+      if (owner !== getWorkspaceCacheIdentity()) return;
       try {
         const payloadForRawChat: EmbedDataPayload = {
           ...embedData,
@@ -395,6 +404,7 @@ export async function flushPendingFinalizedEmbedsForChat(
           undefined,
           { localOnly },
         );
+        if (owner !== getWorkspaceCacheIdentity()) return;
         if (isEmbedAlreadyProcessed(embedId, embedData.version_number)) {
           pendingForChat.delete(embedId);
           processedThisPass = true;
@@ -418,6 +428,7 @@ function schedulePendingFinalizedEmbedsFlush(
   chatId: string,
 ): void {
   if (pendingFinalizedEmbedFlushTimersByChat.has(chatId)) return;
+  const owner = getWorkspaceCacheIdentity();
 
   const timer = setTimeout(() => {
     pendingFinalizedEmbedFlushTimersByChat.delete(chatId);
@@ -426,11 +437,12 @@ function schedulePendingFinalizedEmbedsFlush(
       if (!pendingForChat) return;
 
       const rawChatId = await resolveRawChatIdForFinalizedEmbed(chatId);
-      if (rawChatId && chatKeyManager.getKeySync(rawChatId)) {
-        await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
-      }
+      if (!owner || owner !== getWorkspaceCacheIdentity()) return;
+      const key = rawChatId && await chatKeyManager.getKey(rawChatId);
+      if (owner !== getWorkspaceCacheIdentity()) return;
+      if (key) await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
 
-      if (!pendingFinalizedEmbedsByChat.has(chatId)) return;
+      if (owner !== getWorkspaceCacheIdentity() || !pendingFinalizedEmbedsByChat.has(chatId)) return;
       const queuedAt = pendingFinalizedEmbedQueuedAtByChat.get(chatId) ?? Date.now();
       if (Date.now() - queuedAt >= PENDING_FINALIZED_EMBED_TTL_MS) {
         pendingFinalizedEmbedsByChat.delete(chatId);

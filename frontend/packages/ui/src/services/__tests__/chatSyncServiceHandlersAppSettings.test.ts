@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     getMessage: vi.fn(),
     getAppSettingsMemoriesEntriesByAppAndType: vi.fn(),
     getChat: vi.fn(),
+    getRawChat: vi.fn(),
     replaceMessageById: vi.fn(),
     saveMessage: vi.fn(),
     updateChat: vi.fn(),
@@ -57,6 +58,7 @@ const mocks = vi.hoisted(() => ({
     on: vi.fn(),
     off: vi.fn(),
     sendMessage: vi.fn(),
+    getConnectionForSend: vi.fn(),
   },
   deriveChatCompletionRecoveryKeypair: vi.fn(),
   openChatCompletionRecoveryEnvelope: vi.fn(),
@@ -133,6 +135,7 @@ function resetHoistedMocks(): void {
   mocks.webSocketService.on.mockImplementation(() => undefined);
   mocks.webSocketService.off.mockImplementation(() => undefined);
   mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+  mocks.webSocketService.getConnectionForSend.mockReturnValue(Object.freeze({}));
 }
 
 import {
@@ -153,6 +156,7 @@ import {
   handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl, resetRecoveryLifecycleImpl,
 } from "../chatSyncServiceHandlersRecovery";
 import { clearRecoveryFinalTimestamps, recordRecoveryFinalTimestamp } from "../recoveryAssistantTimestamp";
+import { claimChatMessageNotification } from "../chatMessageNotificationReceipt";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -463,6 +467,8 @@ describe("handlePendingAIResponseImpl", () => {
 describe("handleRecoveryJobsAvailableImpl", () => {
   beforeEach(() => {
     resetHoistedMocks();
+    // Each fixture represents an independent account session and may reuse IDs.
+    claimChatMessageNotification("independent-recovery-fixture", "fixture-chat", "fixture-message");
     clearRecoveryFinalTimestamps();
     for (const index of [1, 2]) recordRecoveryFinalTimestamp({
       chat_id: `chat-${index}`, message_id: `assistant-${index}`, user_message_id: `user-${index}`,
@@ -665,7 +671,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: "assistant-1", status: "synced" }),
     );
-    expect(mocks.unreadMessagesStore.incrementUnread).toHaveBeenCalledWith("chat-1");
+    expect(mocks.unreadMessagesStore.incrementUnread).toHaveBeenCalledExactlyOnceWith("chat-1", "assistant-1");
     expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
       "chat-1",
       "New message",
@@ -882,7 +888,8 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       expect.anything(),
       expect.objectContaining({ ownerId: "user-1" }),
     );
-    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
+    expect(mocks.unreadMessagesStore.incrementUnread).toHaveBeenCalledExactlyOnceWith("chat-1", "assistant-1");
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledExactlyOnceWith(
       "chat-1",
       "Background chat",
       "Recovered response",
@@ -1728,8 +1735,27 @@ describe("recovery output discovery after durable ACK", () => {
 describe('cross-device system message status', () => {
   beforeEach(() => {
     resetHoistedMocks();
-    mocks.chatDB.getChat.mockResolvedValue({ chat_id: 'chat-1', messages_v: 0 });
-    mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array(32));
+    mocks.workspace.identity = 'owner-a';
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: 'chat-1', messages_v: 0, encrypted_chat_key: 'persisted-wrapper',
+    });
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array(32));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
+  it('discards a system broadcast if the workspace changes during lazy key lookup', async () => {
+    mocks.chatKeyManager.getKey.mockImplementationOnce(async () => {
+      mocks.workspace.identity = 'owner-b';
+      return new Uint8Array(32);
+    });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleNewSystemMessageImpl(service, {
+      event: 'new_system_message', chat_id: 'chat-1',
+      data: { message_id: 'call-event', role: 'system', encrypted_content: 'ciphertext', created_at: 1700000000 },
+      versions: { messages_v: 1 },
+    });
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
@@ -1741,6 +1767,7 @@ describe('cross-device system message status', () => {
         data: { message_id: 'call-event', role: 'system', encrypted_content: 'ciphertext', created_at: 1700000000,
           ...(status ? { status } : {}) }, versions: { messages_v: 1 },
       });
+      expect(mocks.chatKeyManager.getKey).toHaveBeenCalledWith('chat-1');
       expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(expect.objectContaining({
         message_id: 'call-event', status: status ?? 'synced',
       }));

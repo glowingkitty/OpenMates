@@ -7,9 +7,10 @@
 // It keeps the core's last `ChatList` snapshot exactly as the core gives it
 // (rows in display order, completeness Cached/Partial/Complete) and publishes
 // it on the main actor. Each `ChatList` event replaces the whole snapshot
-// once; nothing else rebuilds it (no per-stream-update work). It runs
-// `bootSync` after each admission, `refreshChats` on pull-to-refresh and
-// `switchTeam` when the selected team changes, each through `CoreSession` with
+// once; nothing else rebuilds it (no per-stream-update work). After admission,
+// the core restores the selected workspace and resumes its last opened chat
+// before boot sync. Pull-to-refresh, explicit paging or later Team switches
+// use their dedicated core commands, each through `CoreSession` with
 // a `CoreCancellation`, an error branch and a `core.list.*` timing line.
 // Sign-out, expiry and access denial empty it. No ordering, grouping, dedup,
 // unread or draft rule is computed here; the mapper copies fields.
@@ -44,6 +45,7 @@ final class CoreChatList: ObservableObject {
     /// Chats the account has in this scope as the core last reported it
     /// (`nil` until reported). Counts chat rows only, not saved items.
     @Published private(set) var totalCount: Int?
+    @Published private(set) var isLoadingMoreMetadata = false
     /// Team the core list was last switched to (`nil`: personal, the scope after start).
     private(set) var coreTeamID: String?
 
@@ -51,6 +53,19 @@ final class CoreChatList: ObservableObject {
     private var subscriptions: Set<AnyCancellable> = []
     private var chatsByID: [String: Chat] = [:]
     private var syncTask: Task<Void, Never>?
+    private var startupResume: Task<[String], Never>?
+    private var startupBootList: Task<Void, Never>?
+    private var startupBootListGeneration = UUID()
+    private var startupBootListPending = false
+    private var foregroundOpenWaiting = false
+    private var startupHydration: Task<Void, Never>?
+    private var startupHydrationIDs: [String] = []
+    private var startupInterrupted = false
+    private var startupScopeReady = true
+    private var scheduledInitialSync = false
+    private var metadataPageTask: Task<Bool, Never>?
+    private var metadataPageRequest = UUID()
+    private var reconnectRefresh: Task<Void, Never>?
     private var requestedTeamID: String?
     private var admitted = false
     private var switchInFlight = false
@@ -67,20 +82,45 @@ final class CoreChatList: ObservableObject {
             NativeDiagnostics.error("core_chat_list_unavailable reason=no_core", category: "core_bridge")
             return
         }
-        shared.attach(session, teams: TeamWorkspaceContext.shared.$teamID.eraseToAnyPublisher())
+        let workspace = TeamWorkspaceContext.shared
+        shared.attach(session, teams: workspace.$teamID.eraseToAnyPublisher(),
+                      initialScopeReady: workspace.$hasRestoredInitialSelection.eraseToAnyPublisher())
     }
 
     /// Follows `session`'s events and, when given, the selected team.
-    func attach(_ session: CoreSession, teams: AnyPublisher<String?, Never>? = nil) {
+    func attach(_ session: CoreSession, teams: AnyPublisher<String?, Never>? = nil,
+                initialScopeReady: AnyPublisher<Bool, Never>? = nil) {
         guard self.session !== session else { return }
         self.session = session
         subscriptions = []
+        startupScopeReady = initialScopeReady == nil
         measuredFrom = NativeSyncPerfLog.now()
         session.events.sink { [weak self] event in
             self?.apply(event)
         }.store(in: &subscriptions)
         teams?.removeDuplicates().sink { [weak self] teamID in
             self?.selectedTeamDidChange(teamID)
+        }.store(in: &subscriptions)
+        let window = CoreChatWindow.shared
+        window.deliberateOpenSettled.sink { [weak self] in
+            self?.continueStartupHydrationAfterOpen()
+        }.store(in: &subscriptions)
+        window.deliberateOpenStarted.sink { [weak self] in
+            guard let self else { return }
+            self.interruptStartupNavigation()
+            self.startupHydration?.cancel()
+            self.preemptStartupBootList()
+        }.store(in: &subscriptions)
+        window.changes.sink { [weak self] change in
+            if case .window = change { self?.resumeStartupBootListAfterForeground() }
+        }.store(in: &subscriptions)
+        window.deliberateOpenFinished.sink { [weak self] in
+            self?.resumeStartupBootListAfterForeground()
+        }.store(in: &subscriptions)
+        initialScopeReady?.removeDuplicates().sink { [weak self] ready in
+            guard let self else { return }
+            self.startupScopeReady = ready
+            if ready { self.sessionAdmitted() }
         }.store(in: &subscriptions)
     }
 
@@ -93,10 +133,73 @@ final class CoreChatList: ObservableObject {
         await run("refresh") { core, cancellation in try await core.refreshChats(cancellation: cancellation) }
     }
 
+    /// The core owns the offset and requests exactly one metadata page.
+    func loadMoreMetadata() async -> Bool {
+        guard admitted, !switchInFlight, requestedTeamID == coreTeamID, metadataPageTask == nil else { return false }
+        deferStartupHydration()
+        let request = UUID()
+        metadataPageRequest = request
+        isLoadingMoreMetadata = true
+        let page = Task { @MainActor [weak self] in
+            guard let self else { return false }
+            return await self.run("load_more_metadata") { core, cancellation in
+                try await core.loadMoreChatMetadata(cancellation: cancellation)
+            }
+        }
+        metadataPageTask = page
+        let loaded = await page.value
+        guard metadataPageRequest == request else { return false }
+        metadataPageTask = nil
+        isLoadingMoreMetadata = false
+        return loaded
+    }
+
+    private func cancelMetadataPage() {
+        metadataPageRequest = UUID()
+        metadataPageTask?.cancel()
+        metadataPageTask = nil
+        isLoadingMoreMetadata = false
+    }
+
+    /// Catch up the sidebar, then refresh the opened cohort against the replacement
+    /// socket's admitted account. The selected window stays independent.
+    func resumeAfterReconnect() {
+        pauseReconnectRefresh()
+        guard admitted, !switchInFlight, requestedTeamID == coreTeamID, let session else { return }
+        startupHydration?.cancel()
+        let scope = coreTeamID
+        reconnectRefresh = Task(priority: .utility) { @MainActor [weak self] in
+            guard let self else { return }
+            let refreshed = await self.run("reconnect_refresh") { core, cancellation in
+                try await core.refreshChats(cancellation: cancellation)
+            }
+            guard refreshed, !Task.isCancelled, self.admitted,
+                  self.coreTeamID == scope, self.requestedTeamID == scope else { return }
+            do {
+                // Request zero refreshes selectors without accepting a window event.
+                let ids = try await session.perform { core, cancellation in
+                    try await core.resumeStartupChat(request: 0, cancellation: cancellation)
+                }
+                guard !Task.isCancelled, self.admitted,
+                      self.coreTeamID == scope, self.requestedTeamID == scope else { return }
+                self.startupHydrationIDs = ids
+                self.deferStartupHydration()
+            } catch {
+                NativeSyncPerfLog.warning("phase=core.list.reconnect_cohort outcome=\(CoreSession.errorClass(error))")
+            }
+        }
+    }
+
+    func pauseReconnectRefresh() {
+        reconnectRefresh?.cancel()
+        reconnectRefresh = nil
+    }
+
     /// Switch the core to `teamID` (`nil`: personal); the core admits the
     /// session there and emits that scope's list, which replaces this one.
     @discardableResult
     func switchTeam(_ teamID: String?) async -> Bool {
+        pauseReconnectRefresh()
         requestedTeamID = teamID
         switchInFlight = true
         defer { switchInFlight = false }
@@ -115,12 +218,23 @@ final class CoreChatList: ObservableObject {
         case .session(let session):
             switch session {
             case .admitted:
+                let needsBootList = !admitted
                 admitted = true
-                sessionAdmitted()
+                if needsBootList { sessionAdmitted() }
             case .signedOut, .expired, .accessDenied:
                 admitted = false
                 clear()
-            case .restored, .verificationRequired:
+            case .restored:
+                // A new Rust actor produces a restored event before its list.
+                // The same actor's re-admission only sends Admitted.
+                admitted = false
+                scheduledInitialSync = false
+                pauseReconnectRefresh()
+                startupResume?.cancel()
+                discardStartupHydration()
+                resetStartupBootList()
+                syncTask?.cancel()
+            case .verificationRequired:
                 break
             }
         default:
@@ -175,28 +289,182 @@ final class CoreChatList: ObservableObject {
             "phase=core.list.\(name) rows=\(rows) refused=\(refused) ms=\(NativeSyncPerfLog.ms(since: measuredFrom))")
     }
 
-    private func sessionAdmitted() {
-        // A running team switch admits the session itself and emits its list.
-        guard !switchInFlight else { return }
-        syncTask?.cancel()
-        if requestedTeamID != coreTeamID {
-            let teamID = requestedTeamID
-            syncTask = Task { [weak self] in _ = await self?.switchTeam(teamID) }
-        } else {
-            syncTask = Task { [weak self] in
-                _ = await self?.run("boot_sync") { core, cancellation in try await core.bootSync(cancellation: cancellation) }
+    /// Foreground navigation supersedes the startup choice and its optional
+    /// hydration without removing the local sidebar snapshot.
+    func interruptStartupNavigation() {
+        startupInterrupted = true
+        pauseReconnectRefresh()
+        startupResume?.cancel()
+        CoreChatWindow.shared.stopStartupSelection()
+        deferStartupHydration()
+    }
+
+    private func discardStartupHydration() {
+        startupHydration?.cancel()
+        startupHydration = nil
+        startupHydrationIDs = []
+    }
+
+    private func deferStartupHydration() {
+        startupHydration?.cancel()
+        startupHydration = startStartupHydration(after: .seconds(1))
+    }
+
+    /// A deliberate open that preempted startup can recover the remaining
+    /// cohort. The core has already recorded the navigation, so this read
+    /// cannot select a chat or publish a replacement window.
+    private func continueStartupHydrationAfterOpen() {
+        guard startupInterrupted, startupHydrationIDs.isEmpty, admitted,
+              !switchInFlight, requestedTeamID == coreTeamID, let session else { return }
+        let scope = coreTeamID
+        startupHydration?.cancel()
+        startupHydration = Task(priority: .utility) { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(1))
+                guard let self, self.admitted, self.coreTeamID == scope,
+                      self.requestedTeamID == scope, !Task.isCancelled else { return }
+                let ids = try await session.perform { core, cancellation in
+                    try await core.resumeStartupChat(request: 0, cancellation: cancellation)
+                }
+                guard !Task.isCancelled, self.admitted, self.coreTeamID == scope,
+                      self.requestedTeamID == scope else { return }
+                self.startupHydrationIDs = ids
+                guard !ids.isEmpty else { return }
+                await self.run("hydrate_startup") { core, cancellation in
+                    try await core.hydrateStartupChats(ids: ids, cancellation: cancellation)
+                }
+            } catch {
+                NativeSyncPerfLog.warning("phase=core.list.resume_hydration outcome=\(CoreSession.errorClass(error))")
             }
         }
     }
 
+    private func startStartupHydration(after delay: Duration? = nil) -> Task<Void, Never>? {
+        guard admitted, !startupHydrationIDs.isEmpty, !switchInFlight, requestedTeamID == coreTeamID else { return nil }
+        let ids = startupHydrationIDs
+        let team = coreTeamID
+        return Task(priority: .utility) { @MainActor [weak self] in
+            if let delay {
+                do { try await Task.sleep(for: delay) } catch { return }
+            }
+            guard let self, self.admitted, !Task.isCancelled,
+                  self.coreTeamID == team, self.requestedTeamID == team else { return }
+            await self.run("hydrate_startup") { core, cancellation in
+                try await core.hydrateStartupChats(ids: ids, cancellation: cancellation)
+            }
+        }
+    }
+
+    private func bootAfterStartupSelection() async {
+        #if DEBUG
+        let fixtureStartsAtComposer = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
+        #else
+        let fixtureStartsAtComposer = false
+        #endif
+        if !startupInterrupted, !fixtureStartsAtComposer {
+            let resume = Task { @MainActor in await CoreChatWindow.shared.resumeStartup() }
+            startupResume = resume
+            let ids = await resume.value
+            guard !Task.isCancelled else { return }
+            startupResume = nil
+            startupHydrationIDs = ids
+        }
+        guard !Task.isCancelled else { return }
+        startupBootListPending = true
+        startStartupBootList()
+    }
+
+    private func preemptStartupBootList() {
+        foregroundOpenWaiting = true
+        startupBootListGeneration = UUID()
+        startupBootList?.cancel()
+        startupBootList = nil
+    }
+
+    private func resumeStartupBootListAfterForeground() {
+        guard foregroundOpenWaiting else { return }
+        foregroundOpenWaiting = false
+        if startupBootListPending {
+            startStartupBootList()
+        } else {
+            deferStartupHydration()
+        }
+    }
+
+    private func resetStartupBootList() {
+        preemptStartupBootList()
+        startupBootListPending = false
+        foregroundOpenWaiting = false
+    }
+
+    private func startStartupBootList() {
+        guard startupBootListPending, startupBootList == nil, !foregroundOpenWaiting,
+              admitted, !switchInFlight, requestedTeamID == coreTeamID else { return }
+        let generation = startupBootListGeneration
+        startupBootList = Task(priority: .utility) { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            // Complete sidebar metadata ahead of full background history.
+            await self.run("boot_sync") { core, cancellation in
+                try await core.bootSync(cancellation: cancellation)
+            }
+            guard !Task.isCancelled, self.startupBootListGeneration == generation else { return }
+            self.startupBootList = nil
+            self.startupBootListPending = false
+            if self.startupInterrupted {
+                self.deferStartupHydration()
+            } else {
+                self.startupHydration = self.startStartupHydration()
+            }
+        }
+    }
+
+    private func sessionAdmitted() {
+        guard admitted, startupScopeReady, !switchInFlight, !scheduledInitialSync else { return }
+        scheduledInitialSync = true
+        syncTask?.cancel()
+        let teamID = requestedTeamID
+        syncTask = Task { [weak self] in
+            guard let self else { return }
+            if teamID != self.coreTeamID {
+                self.switchInFlight = true
+                let switched = await self.run("startup_team") { core, cancellation in
+                    try await core.switchTeamForStartup(teamId: teamID, cancellation: cancellation)
+                }
+                self.switchInFlight = false
+                guard switched, !Task.isCancelled, teamID == self.requestedTeamID else { return }
+                self.coreTeamID = teamID
+            }
+            await self.bootAfterStartupSelection()
+        }
+    }
+
     private func selectedTeamDidChange(_ teamID: String?) {
+        let changed = requestedTeamID != teamID
         requestedTeamID = teamID
-        guard admitted, teamID != coreTeamID else { return }
+        guard scheduledInitialSync else {
+            sessionAdmitted()
+            return
+        }
+        if changed {
+            resetStartupBootList()
+            discardStartupHydration()
+            interruptStartupNavigation()
+            cancelMetadataPage()
+        }
+        guard admitted, teamID != coreTeamID || switchInFlight else { return }
+        pauseReconnectRefresh()
         syncTask?.cancel()
         syncTask = Task { [weak self] in _ = await self?.switchTeam(teamID) }
     }
 
     private func clear() {
+        cancelMetadataPage()
+        discardStartupHydration()
+        interruptStartupNavigation()
+        startupInterrupted = false
+        scheduledInitialSync = false
+        resetStartupBootList()
+        pauseReconnectRefresh()
         syncTask?.cancel()
         syncTask = nil
         chatsByID = [:]

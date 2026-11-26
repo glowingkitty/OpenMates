@@ -733,6 +733,7 @@ export type RequestCacheStatusPayload = Record<string, never>;
 
 export interface SetActiveChatPayload {
   chat_id: string | null;
+  team_id?: string;
 }
 
 export interface CancelAITaskPayload {

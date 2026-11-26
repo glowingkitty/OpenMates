@@ -2681,6 +2681,22 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func closeChat(chatId: String) async throws 
     
     /**
+     * Fill the core-selected startup histories without opening them in the UI.
+     *
+     * # Errors
+     * Authority, cancellation or durable storage errors from the core.
+     */
+    func hydrateStartupChats(ids: [String], cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Load one explicit older metadata page in current workspace order.
+     *
+     * # Errors
+     * Authorization, cancellation or malformed response.
+     */
+    func loadMoreChatMetadata(cancellation: CoreCancellation?) async throws 
+    
+    /**
      * Merge the next older page into the open window of `chat_id` and emit
      * it as `ChatWindow` for `request`. A complete window is emitted
      * unchanged without any network request.
@@ -2731,12 +2747,36 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func openChat(request: UInt64, chatId: String, cancellation: CoreCancellation?) async throws 
     
     /**
+     * Emit the scoped last-opened cache window without a network request.
+     *
+     * # Errors
+     * Cache, cancellation or session errors from the core startup flow.
+     */
+    func paintStartupChat(request: UInt64, cancellation: CoreCancellation?) async throws 
+    
+    /**
      * Re-read the chat list (feed catch-up when possible) and emit it.
      *
      * # Errors
      * `Authentication` when signed out, sync and persistence errors.
      */
     func refreshChats(cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Refresh the open chat without registering a new deliberate open.
+     *
+     * # Errors
+     * Scope, cancellation or authorized latest-window errors.
+     */
+    func refreshOpenChat(request: UInt64, chatId: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Refresh the last-opened window and return the remaining ordered startup IDs.
+     *
+     * # Errors
+     * Admission, cancellation or other errors from the core startup flow.
+     */
+    func resumeStartupChat(request: UInt64, cancellation: CoreCancellation?) async throws  -> [String]
     
     /**
      * Start from the stored credentials: no stored session emits
@@ -2761,6 +2801,14 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `Authentication` when signed out, scope, admission and sync errors.
      */
     func switchTeam(teamId: String?, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Admit the restored workspace without pulling its list before startup resume.
+     *
+     * # Errors
+     * Scope, admission or cancellation errors from the core.
+     */
+    func switchTeamForStartup(teamId: String?, cancellation: CoreCancellation?) async throws 
     
     /**
      * The server's draft versions of `chats`, sorted by chat id; chats the
@@ -4105,6 +4153,50 @@ open func closeChat(chatId: String)async throws   {
 }
     
     /**
+     * Fill the core-selected startup histories without opening them in the UI.
+     *
+     * # Errors
+     * Authority, cancellation or durable storage errors from the core.
+     */
+open func hydrateStartupChats(ids: [String], cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_hydrate_startup_chats(
+                        self.uniffiCloneHandle(),FfiConverterSequenceString.lower(ids),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Load one explicit older metadata page in current workspace order.
+     *
+     * # Errors
+     * Authorization, cancellation or malformed response.
+     */
+open func loadMoreChatMetadata(cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_load_more_chat_metadata(
+                        self.uniffiCloneHandle(),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Merge the next older page into the open window of `chat_id` and emit
      * it as `ChatWindow` for `request`. A complete window is emitted
      * unchanged without any network request.
@@ -4211,6 +4303,28 @@ open func openChat(request: UInt64, chatId: String, cancellation: CoreCancellati
 }
     
     /**
+     * Emit the scoped last-opened cache window without a network request.
+     *
+     * # Errors
+     * Cache, cancellation or session errors from the core startup flow.
+     */
+open func paintStartupChat(request: UInt64, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_paint_startup_chat(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Re-read the chat list (feed catch-up when possible) and emit it.
      *
      * # Errors
@@ -4228,6 +4342,50 @@ open func refreshChats(cancellation: CoreCancellation?)async throws   {
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
             liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Refresh the open chat without registering a new deliberate open.
+     *
+     * # Errors
+     * Scope, cancellation or authorized latest-window errors.
+     */
+open func refreshOpenChat(request: UInt64, chatId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_refresh_open_chat(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Refresh the last-opened window and return the remaining ordered startup IDs.
+     *
+     * # Errors
+     * Admission, cancellation or other errors from the core startup flow.
+     */
+open func resumeStartupChat(request: UInt64, cancellation: CoreCancellation?)async throws  -> [String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_resume_startup_chat(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceString.lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -4273,6 +4431,28 @@ open func switchTeam(teamId: String?, cancellation: CoreCancellation?)async thro
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_openmates_apple_bindings_fn_method_viewmodelcore_switch_team(
+                        self.uniffiCloneHandle(),FfiConverterOptionString.lower(teamId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Admit the restored workspace without pulling its list before startup resume.
+     *
+     * # Errors
+     * Scope, admission or cancellation errors from the core.
+     */
+open func switchTeamForStartup(teamId: String?, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_switch_team_for_startup(
                         self.uniffiCloneHandle(),FfiConverterOptionString.lower(teamId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
                 )
             },
@@ -27309,6 +27489,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_close_chat() != 64195) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_hydrate_startup_chats() != 23045) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_load_more_chat_metadata() != 16626) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_load_older() != 43880) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27321,13 +27507,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_open_chat() != 62057) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_paint_startup_chat() != 51027) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_refresh_chats() != 39457) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_refresh_open_chat() != 35593) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_resume_startup_chat() != 39678) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_start() != 54036) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_switch_team() != 20358) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_switch_team_for_startup() != 41698) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_draft_versions() != 23118) {

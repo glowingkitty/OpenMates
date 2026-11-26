@@ -8,6 +8,7 @@
 // - Draft operations (save, create, clear)
 // - Batch chat operations
 
+import { invalidateOpenedHistory } from "./openedHistoryStorage";
 import type { Chat, Message, TiptapJSON } from "../../types/chat";
 import { isDraftOnlyChatSurface } from "../../utils/chatDraftState";
 import {
@@ -26,6 +27,7 @@ import { isPublicChat } from "../../demo_chats/convertToChat";
 import { isAnonymousChatId } from "../anonymousChatIds";
 import { wrapTeamChatKey } from "../teamService";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
+import { getWorkspaceCacheEpoch } from "../workspaceCacheLifecycle";
 import { computeSHA256 } from "../../message_parsing/utils";
 import { chatRowDecisions } from "./chatRowDecisions";
 
@@ -54,6 +56,7 @@ interface ChatDatabaseInstance {
 
   // Chat retrieval (for IDB integrity checks)
   getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
+  getRawChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
 }
 
 // Store name constant for messages (needed for deleteChat)
@@ -318,6 +321,7 @@ async function deleteChatConditionally(
       for (const contentRef of headsToDelete) embeds.delete(contentRef);
       for (const id of keysToDelete) keys.delete(id);
       chats.delete(chatId);
+      invalidateOpenedHistory(tx, chatId);
       const cursorRequest = messages.index("chat_id").openCursor(IDBKeyRange.only(chatId));
       cursorRequest.onerror = () => tx.abort();
       cursorRequest.onsuccess = () => {
@@ -380,20 +384,26 @@ export async function addCandidateKey(
   dbInstance: ChatDatabaseInstance,
   chatId: string,
   encryptedKeyBlob: string,
+  stillCurrent: () => boolean = () => true,
 ): Promise<void> {
+  const epoch = getWorkspaceCacheEpoch();
+  const isCurrent = () => epoch === getWorkspaceCacheEpoch() && stillCurrent();
   try {
-    const chat = await dbInstance.getChat(chatId);
-    if (!chat) return;
+    if (!isCurrent()) return;
+    const chat = await dbInstance.getRawChat(chatId);
+    if (!chat || !isCurrent()) return;
 
-    // Deduplicates and keeps the newest MAX_CANDIDATE_KEYS entries (Rust persist unit).
-    const updated = await (await chatRowDecisions()).candidateKeys(chat.candidate_encrypted_keys, encryptedKeyBlob);
-    if (!updated) return; // already stored
+    const decisions = await chatRowDecisions();
+    if (!isCurrent()) return;
+    const updated = await decisions.candidateKeys(chat.candidate_encrypted_keys, encryptedKeyBlob);
+    if (!updated || !isCurrent()) return;
     // Use a minimal update object — only touch the candidate_encrypted_keys field
     const transaction = await dbInstance.getTransaction(
       dbInstance.CHATS_STORE_NAME,
       "readwrite",
     );
     const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+    if (!isCurrent()) return;
     store.put({ ...chat, candidate_encrypted_keys: updated });
   } catch (err) {
     console.warn(
@@ -440,7 +450,12 @@ function _extractTitleFromContent(content: TiptapJSON): string {
 export async function encryptChatForStorage(
   dbInstance: ChatDatabaseInstance,
   chat: Chat,
-  options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean },
+  options?: {
+    isFromSync?: boolean;
+    forceIncomingEncryptedChatKey?: boolean;
+    prepareForcedRotation?: (key: Uint8Array) => void;
+  },
+  persistedChat?: Chat | null,
 ): Promise<Chat> {
   // Skip encryption entirely for public chats (demo + legal) - they're public content
   // Add null check to prevent TypeError when chat.chat_id is undefined
@@ -483,14 +498,65 @@ export async function encryptChatForStorage(
     return encryptedChat;
   }
 
+  const epoch = getWorkspaceCacheEpoch();
+  const isCurrentKeyScope = () => epoch === getWorkspaceCacheEpoch();
+  const assertCurrentKeyScope = () => {
+    if (!isCurrentKeyScope()) throw new Error("Chat key scope changed during write preparation");
+  };
+  const preservePreviousWrapper = async (retained: Chat) => {
+    const wrapper = retained.encrypted_chat_key;
+    if (!wrapper) return;
+    if (options?.prepareForcedRotation) {
+      const decisions = await chatRowDecisions();
+      assertCurrentKeyScope();
+      const candidates = await decisions.candidateKeys(retained.candidate_encrypted_keys, wrapper);
+      assertCurrentKeyScope();
+      encryptedChat.candidate_encrypted_keys = candidates ?? retained.candidate_encrypted_keys;
+    } else {
+      await addCandidateKey(dbInstance, chat.chat_id, wrapper, isCurrentKeyScope);
+      assertCurrentKeyScope();
+    }
+  };
+
+  const acceptForcedRotation = (key: Uint8Array) => {
+    if (options?.prepareForcedRotation) {
+      options.prepareForcedRotation(key);
+    } else {
+      chatKeyManager.injectKey(chat.chat_id, key, "server_sync", true);
+    }
+  };
+
   // Step 1: check ChatKeyManager (single source of truth)
   let chatKey = chatKeyManager.getKeySync(chat.chat_id);
 
   if (!chatKey && chat.is_anonymous && chat.anonymous_encrypted_chat_key) {
     const anonymousKey = await unwrapAnonymousChatKey(chat.anonymous_encrypted_chat_key);
+    assertCurrentKeyScope();
     if (anonymousKey) {
       chatKeyManager.injectKey(chat.chat_id, anonymousKey, "anonymous_session");
       chatKey = anonymousKey;
+    }
+  }
+
+  // A cold cache still has an authoritative local wrapper. Read it before
+  // accepting an incoming one so the existing conflict guard applies.
+  if (!chatKey && chat.encrypted_chat_key) {
+    if (persistedChat === undefined) persistedChat = await dbInstance.getRawChat(chat.chat_id);
+    assertCurrentKeyScope();
+    const localWrapper = persistedChat?.encrypted_chat_key;
+    if (persistedChat && localWrapper && localWrapper !== chat.encrypted_chat_key) {
+      const localKey = await unwrapPersistedChatKey(
+        persistedChat.team_id, chat.chat_id, localWrapper, persistedChat.chat_visibility,
+      );
+      assertCurrentKeyScope();
+      if (!localKey && !options?.forceIncomingEncryptedChatKey) {
+        throw new Error("Cannot verify an incoming replacement for a persisted chat key");
+      }
+      if (localKey) {
+        chatKeyManager.injectKey(chat.chat_id, localKey, "master_key");
+        assertCurrentKeyScope();
+        chatKey = chatKeyManager.getKeySync(chat.chat_id) ?? localKey;
+      }
     }
   }
 
@@ -504,23 +570,16 @@ export async function encryptChatForStorage(
       chat.encrypted_chat_key,
       chat.chat_visibility,
     );
+    assertCurrentKeyScope();
     if (incomingKey) {
       if (!chatKeysEqual(chatKey, incomingKey)) {
-        const existingChat = await dbInstance.getChat(chat.chat_id);
+        const existingChat = persistedChat === undefined
+          ? await dbInstance.getRawChat(chat.chat_id) : persistedChat;
+        assertCurrentKeyScope();
         if (options?.forceIncomingEncryptedChatKey) {
-          if (existingChat?.encrypted_chat_key) {
-            await addCandidateKey(
-              dbInstance,
-              chat.chat_id,
-              existingChat.encrypted_chat_key,
-            );
-          }
-          chatKeyManager.injectKey(
-            chat.chat_id,
-            incomingKey,
-            "server_sync",
-            true,
-          );
+          if (existingChat) await preservePreviousWrapper(existingChat);
+          assertCurrentKeyScope();
+          acceptForcedRotation(incomingKey);
           chatKey = incomingKey;
           encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
           console.warn(
@@ -542,11 +601,14 @@ export async function encryptChatForStorage(
           );
         }
       }
-    } else if (chat.team_id) {
-      if (options?.isFromSync) return encryptedChat;
-      throw new Error(
-        `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: existing Team chat key could not be unwrapped`,
-      );
+    } else {
+      const retained = persistedChat === undefined
+        ? await dbInstance.getRawChat(chat.chat_id) : persistedChat;
+      assertCurrentKeyScope();
+      if (retained && retained.encrypted_chat_key === chat.encrypted_chat_key && options?.isFromSync) {
+        return { ...retained };
+      }
+      throw new Error("Incoming chat key could not be unwrapped");
     }
   }
 
@@ -558,41 +620,43 @@ export async function encryptChatForStorage(
       chat.encrypted_chat_key,
       chat.chat_visibility,
     );
+    assertCurrentKeyScope();
     if (candidateKey) {
-      const accepted = chatKeyManager.injectKey(
-        chat.chat_id,
-        candidateKey,
-        "master_key",
-      );
+      if (options?.forceIncomingEncryptedChatKey && persistedChat?.encrypted_chat_key
+        && persistedChat.encrypted_chat_key !== chat.encrypted_chat_key) {
+        await preservePreviousWrapper(persistedChat);
+        assertCurrentKeyScope();
+      }
+      let accepted = true;
+      if (options?.forceIncomingEncryptedChatKey) acceptForcedRotation(candidateKey);
+      else accepted = chatKeyManager.injectKey(chat.chat_id, candidateKey, "master_key");
       if (accepted) {
         chatKey = candidateKey;
         encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
       }
       // If rejected: save the conflicting blob as a candidate so tryDecryptWithCandidates
       // can recover it later if the local key turns out to be the wrong one.
-      if (!accepted && chat.encrypted_chat_key) {
-        addCandidateKey(
-          dbInstance,
-          chat.chat_id,
-          chat.encrypted_chat_key,
-        ).catch(() => {});
+      if (!accepted) {
+        void addCandidateKey(dbInstance, chat.chat_id, chat.encrypted_chat_key);
+        if (persistedChat?.encrypted_chat_key) return { ...persistedChat };
+        throw new Error("Incoming chat key conflicts with the current key");
       }
-    } else if (chat.team_id) {
-      if (options?.isFromSync) return encryptedChat;
-      throw new Error(
-        `[ChatDatabase] Cannot save Team chat ${chat.chat_id}: incoming Team chat key could not be unwrapped`,
-      );
     } else {
-      console.error(
-        `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`,
-      );
+      if (persistedChat && persistedChat.encrypted_chat_key === chat.encrypted_chat_key && options?.isFromSync) {
+        return { ...persistedChat };
+      }
+      throw new Error(chat.team_id
+        ? "incoming Team chat key could not be unwrapped"
+        : "Incoming chat key could not be unwrapped");
     }
   }
 
   // Step 3: IDB integrity check — the chat object may lack the key but IDB already holds it
   let existingChatWithoutKey: Chat | null = null;
   if (!chatKey) {
-    const existingChat = await dbInstance.getChat(chat.chat_id);
+    const existingChat = persistedChat === undefined
+      ? await dbInstance.getRawChat(chat.chat_id) : persistedChat;
+    assertCurrentKeyScope();
     existingChatWithoutKey = existingChat;
     if (existingChat?.encrypted_chat_key) {
       chatKey = await unwrapPersistedChatKey(
@@ -601,6 +665,7 @@ export async function encryptChatForStorage(
         existingChat.encrypted_chat_key,
         existingChat.chat_visibility ?? chat.chat_visibility,
       );
+      assertCurrentKeyScope();
       if (chatKey) {
         chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
         encryptedChat.encrypted_chat_key = existingChat.encrypted_chat_key;
@@ -855,8 +920,29 @@ export async function addChat(
     throw new Error("Cannot create encrypted chat during forced logout");
   }
 
+  const epoch = getWorkspaceCacheEpoch();
+  const assertCurrentWrite = () => {
+    if (epoch !== getWorkspaceCacheEpoch()) throw new Error("Chat write scope changed");
+    options?.writeGuard?.();
+  };
   if (!dbInstance.db || get(isLoggingOut)) {
     await dbInstance.init();
+    assertCurrentWrite();
+  }
+
+  // Queue the read on the supplied transaction while it is still active.
+  // A replacement readonly transaction is used only if that handle has ended.
+  let persistedChat: Chat | null | undefined;
+  if (transaction && chat.chat_id && !isPublicChat(chat.chat_id)) {
+    try {
+      persistedChat = await dbInstance.getRawChat(chat.chat_id, transaction);
+    } catch (error) {
+      if (!(error instanceof DOMException) ||
+        (error.name !== "InvalidStateError" && error.name !== "TransactionInactiveError")) throw error;
+      assertCurrentWrite();
+      persistedChat = await dbInstance.getRawChat(chat.chat_id);
+    }
+    assertCurrentWrite();
   }
 
   // CRITICAL FIX: Ensure draft_v always defaults to 0 if undefined
@@ -874,14 +960,18 @@ export async function addChat(
   // because IndexedDB transactions auto-commit when there are no pending operations
   // If we do async work after receiving the transaction, it might finish before we use it
   const usesExternalTransaction = !!transaction;
+  assertCurrentWrite();
 
   // CRITICAL FIX: Do async encryption work BEFORE using the transaction
   // This ensures the transaction is still active when we try to use it
+  let pendingRotation: Uint8Array | undefined;
   const chatToSave = await encryptChatForStorage(
     dbInstance,
     chatWithDefaults,
-    options,
+    transaction ? { ...options, prepareForcedRotation: key => { pendingRotation = key; } } : options,
+    persistedChat,
   );
+  assertCurrentWrite();
   delete chatToSave.messages;
 
   return new Promise<void>((resolve, reject) => {
@@ -901,6 +991,54 @@ export async function addChat(
       clearTimeout(transactionTimeout);
       reject(error);
     }
+    const publishRotationOnCommit = (writingTransaction: IDBTransaction) => {
+      const key = pendingRotation;
+      if (!key) return;
+      writingTransaction.addEventListener("complete", () => {
+        try {
+          assertCurrentWrite();
+        } catch {
+          return; // A committed ciphertext is never published into a superseding scope.
+        }
+        chatKeyManager.injectKey(chatToSave.chat_id, key, "server_sync", true);
+      }, { once: true });
+    };
+    // When a caller's transaction expires, the replacement transaction must
+    // compare the exact wrapper basis used by asynchronous key preparation.
+    const queueReplacementWrite = (replacement: IDBTransaction) => {
+      const store = replacement.objectStore(dbInstance.CHATS_STORE_NAME);
+      const put = () => {
+        assertCurrentWrite();
+        const request = store.put(chatToSave);
+        publishRotationOnCommit(replacement);
+        request.onerror = () => rejectOnce(request.error);
+      };
+      assertCurrentWrite();
+      if (persistedChat === undefined) {
+        put();
+        return;
+      }
+      const latest = store.get(chatToSave.chat_id);
+      latest.onerror = () => rejectOnce(latest.error);
+      latest.onsuccess = () => {
+        if (settled) return;
+        try {
+          assertCurrentWrite();
+          const current = (latest.result ?? null) as Chat | null;
+          if (Boolean(current) !== Boolean(persistedChat) ||
+            current?.encrypted_chat_key !== persistedChat?.encrypted_chat_key ||
+            current?.anonymous_encrypted_chat_key !== persistedChat?.anonymous_encrypted_chat_key ||
+            (current?.team_id ?? null) !== (persistedChat?.team_id ?? null) ||
+            (current?.chat_visibility ?? null) !== (persistedChat?.chat_visibility ?? null)) {
+            throw new Error("Persisted chat key changed while preparing the write");
+          }
+          put();
+        } catch (error) {
+          rejectOnce(error);
+        }
+      };
+    };
+
     const transactionTimeout = setTimeout(() => {
       const timeoutError = new Error(
         `IndexedDB transaction timed out while saving chat ${chatToSave.chat_id}`,
@@ -969,31 +1107,7 @@ export async function addChat(
             rejectOnce(new Error("Transaction aborted"));
           };
 
-          const store = newTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
-          options?.writeGuard?.();
-          const request = store.put(chatToSave);
-
-          request.onsuccess = () => {
-            console.debug(
-              "[ChatDatabase] Chat put request successful (queued):",
-              chatToSave.chat_id,
-              "Versions:",
-              {
-                m: chatToSave.messages_v,
-                t: chatToSave.title_v,
-                d: chatToSave.draft_v,
-              },
-            );
-            // resolve() is called in oncomplete handler above
-          };
-
-          request.onerror = () => {
-            console.error(
-              "[ChatDatabase] Error in chat store.put operation:",
-              request.error,
-            );
-            // Transaction will abort and onerror/onabort will be called
-          };
+          queueReplacementWrite(newTransaction);
 
           return;
         }
@@ -1065,8 +1179,9 @@ export async function addChat(
         const store = currentTransaction.objectStore(
           dbInstance.CHATS_STORE_NAME,
         );
-        options?.writeGuard?.();
+        assertCurrentWrite();
         const request = store.put(chatToSave);
+        publishRotationOnCommit(currentTransaction);
 
         console.debug(
           `[ChatDatabase] IndexedDB put request initiated for chat ${chatToSave.chat_id}`,
@@ -1162,26 +1277,7 @@ export async function addChat(
               rejectOnce(new Error("Transaction aborted"));
             };
 
-            const store = newTransaction.objectStore(
-              dbInstance.CHATS_STORE_NAME,
-            );
-            const request = store.put(chatToSave);
-
-            request.onsuccess = () => {
-              console.debug(
-                "[ChatDatabase] Chat put request successful with new transaction (queued):",
-                chatToSave.chat_id,
-              );
-              // resolve() is called in oncomplete handler above
-            };
-
-            request.onerror = () => {
-              console.error(
-                "[ChatDatabase] Error in chat store.put operation with new transaction:",
-                request.error,
-              );
-              // Transaction will abort and onerror/onabort will be called
-            };
+            queueReplacementWrite(newTransaction);
           } catch (retryError) {
             console.error(
               `[ChatDatabase] Failed to create new transaction for chat ${chatToSave.chat_id}:`,
@@ -1202,136 +1298,75 @@ export async function addChat(
   });
 }
 
+export interface ChatListReadOptions {
+  limit?: number;
+  offset?: number;
+  teamId?: string | null;
+  rootsOnly?: boolean;
+  decrypt?: boolean;
+}
+
 /**
- * Get all chats from the database, sorted by last_edited_overall_timestamp (newest first)
+ * Get chats from the database, sorted by last_edited_overall_timestamp (newest first).
  */
 export async function getAllChats(
   dbInstance: ChatDatabaseInstance,
   transaction?: IDBTransaction,
-  options?: { limit?: number },
+  options: ChatListReadOptions = {},
 ): Promise<Chat[]> {
-  const limit = options?.limit;
+  const { limit, offset = 0, teamId, rootsOnly, decrypt = true } = options;
   console.debug(
     `[ChatDatabase] getAllChats called with transaction: ${!!transaction}, limit: ${limit ?? "none"}`,
   );
 
-  // CRITICAL: During forced logout or active logout, skip reading encrypted chats from IDB.
-  // Without this guard, an in-flight getAllChats call during the logout transition reads all
-  // encrypted chats, fails to decrypt them (keys cleared), and caches { title: null } entries
-  // in chatMetadataCache — which are then served after re-login, causing "Untitled chat".
-  // This is consistent with getChat() which already has this guard (line ~741).
-  if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
-    console.debug(
-      "[ChatDatabase] Skipping getAllChats during logout — returning empty array",
-    );
-    return [];
-  }
-  await dbInstance.init();
-  return new Promise((resolve, reject) => {
-    const execute = async () => {
-      try {
-        const currentTransaction =
-          transaction ||
-          (await dbInstance.getTransaction(
-            dbInstance.CHATS_STORE_NAME,
-            "readonly",
-          ));
-        const store = currentTransaction.objectStore(
-          dbInstance.CHATS_STORE_NAME,
-        );
-        const index = store.index("last_edited_overall_timestamp");
-        const request = index.openCursor(null, "prev");
-        const rawChats: Chat[] = []; // Collect raw chat data synchronously
-        let count = 0;
+  // During logout the keys are cleared. Reading here would cache decryption
+  // failures and serve them as untitled chats after re-login.
+  if (get(forcedLogoutInProgress) || get(isLoggingOut) || limit === 0) return [];
 
-        request.onsuccess = () => {
-          const cursor = request.result;
-          if (cursor) {
-            // Collect raw chat data synchronously (transaction must stay active)
-            // Stop early if a limit is specified and reached
-            if (limit !== undefined && count >= limit) {
-              // Trigger oncomplete by not advancing the cursor — we're done
-              // We need to manually resolve since we won't hit the natural end
-              currentTransaction.oncomplete = async () => {
-                const decryptedChats: Chat[] = [];
-                for (const rawChat of rawChats) {
-                  try {
-                    const decryptedChat = await decryptChatFromStorage(
-                      dbInstance,
-                      rawChat,
-                    );
-                    decryptedChats.push(decryptedChat);
-                  } catch (error) {
-                    console.error(
-                      `[ChatDatabase] Error decrypting chat ${rawChat.chat_id}:`,
-                      error,
-                    );
-                    decryptedChats.push(rawChat as Chat);
-                  }
-                }
-                console.debug(
-                  `[ChatDatabase] Retrieved ${decryptedChats.length} chats from database (limited to ${limit})`,
-                );
-                resolve(decryptedChats);
-              };
-              // Don't call cursor.continue() — this lets the transaction complete naturally
-              return;
-            }
-            const chatData = { ...cursor.value } as Chat;
-            delete chatData.messages;
-            rawChats.push(chatData);
-            count++;
-            cursor.continue();
-          } else {
-            // All cursors processed, now decrypt all chats after transaction completes
-            // This ensures the transaction doesn't finish while we're still using the cursor
-            currentTransaction.oncomplete = async () => {
-              // Decrypt all chats after transaction completes
-              const decryptedChats: Chat[] = [];
-              for (const rawChat of rawChats) {
-                try {
-                  const decryptedChat = await decryptChatFromStorage(
-                    dbInstance,
-                    rawChat,
-                  );
-                  decryptedChats.push(decryptedChat);
-                } catch (error) {
-                  console.error(
-                    `[ChatDatabase] Error decrypting chat ${rawChat.chat_id}:`,
-                    error,
-                  );
-                  // Still include the chat even if decryption fails (with encrypted data)
-                  decryptedChats.push(rawChat as Chat);
-                }
-              }
-              console.debug(
-                `[ChatDatabase] Retrieved ${decryptedChats.length} chats from database`,
-              );
-              resolve(decryptedChats);
-            };
-          }
-        };
-        request.onerror = () => {
-          console.error("[ChatDatabase] Error getting chats:", request.error);
-          reject(request.error);
-        };
-        // Note: oncomplete handler is set inside request.onsuccess to handle decryption
-        // Only set error handler if we're not using an external transaction
-        if (!transaction) {
-          currentTransaction.onerror = () => {
-            console.error(
-              `[ChatDatabase] getAllChats transaction failed:`,
-              currentTransaction.error,
-            );
-            reject(currentTransaction.error);
-          };
+  await dbInstance.init();
+  const currentTransaction = transaction ??
+    await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readonly");
+  const index = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME)
+    .index("last_edited_overall_timestamp");
+  const rawChats = await new Promise<Chat[]>((resolve, reject) => {
+    const rows: Chat[] = [];
+    let remainingOffset = offset;
+    const request = index.openCursor(null, "prev");
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+
+      const chat = cursor.value as Chat;
+      const matchesTeam = teamId === undefined || (chat.team_id ?? null) === teamId;
+      const matchesRoot = !rootsOnly || (!chat.parent_id && !chat.is_sub_chat);
+      if (matchesTeam && matchesRoot) {
+        if (remainingOffset > 0) {
+          remainingOffset--;
+        } else {
+          const row = { ...chat };
+          delete row.messages;
+          rows.push(row);
+          if (limit !== undefined && rows.length >= limit) return;
         }
-      } catch (e) {
-        reject(e);
       }
+      cursor.continue();
     };
-    execute();
+    request.onerror = () => reject(request.error);
+    currentTransaction.addEventListener("complete", () => resolve(rows), { once: true });
+    currentTransaction.addEventListener("abort", () => reject(currentTransaction.error), { once: true });
   });
+
+  if (!decrypt) return rawChats;
+  const decryptedChats: Chat[] = [];
+  for (const chat of rawChats) {
+    try {
+      decryptedChats.push(await decryptChatFromStorage(dbInstance, chat));
+    } catch (error) {
+      console.error(`[ChatDatabase] Error decrypting chat ${chat.chat_id}:`, error);
+      decryptedChats.push(chat);
+    }
+  }
+  return decryptedChats;
 }
 
 /**
@@ -1734,6 +1769,7 @@ export async function deleteChat(
       "readwrite",
     ));
   currentTransaction.addEventListener("complete", () => invalidateRecentChatWindow(chat_id, 'delete'));
+  invalidateOpenedHistory(currentTransaction, chat_id);
 
   const chatStore = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
   const messagesStore = currentTransaction.objectStore(MESSAGES_STORE_NAME);
@@ -2149,7 +2185,7 @@ export async function batchSaveMetadataChats(
     try {
       const isPublicChat =
         chat.chat_id?.startsWith("demo-") || chat.chat_id?.startsWith("legal-");
-      const existingChat = chat.chat_id ? await dbInstance.getChat(chat.chat_id) : null;
+      const existingChat = chat.chat_id ? await dbInstance.getRawChat(chat.chat_id) : null;
       if (
         !chat.encrypted_chat_key &&
         !existingChat?.encrypted_chat_key &&
@@ -2170,6 +2206,7 @@ export async function batchSaveMetadataChats(
           ...(await (await chatRowDecisions()).chatDefaults(chat, Math.floor(Date.now() / 1000))),
         },
         { isFromSync: true, forceIncomingEncryptedChatKey: false },
+        existingChat,
       );
       delete chatToSave.messages;
       prepared.push(chatToSave);

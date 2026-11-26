@@ -37,6 +37,7 @@ import type { Message } from "../types/chat";
 import { text } from "../i18n/translations";
 import { markDeviceReceivedFreeTestingCreditsFromNotification } from "../stores/serverStatusStore";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 import {
   MEMORY_RESPONSE_APP_ID, decideMemoryRequest, isMemoryRequestKey, loadLocalMemoryDocuments, memoryDialogKey,
   memoryIdsFromRequestedKeys, memoryResponseEntry,
@@ -65,6 +66,7 @@ import {
  * be called from every code-path that establishes the chat key.
  */
 const _pendingSystemMessages: Map<string, Message[]> = new Map();
+registerWorkspaceCacheClear(() => _pendingSystemMessages.clear());
 
 /**
  * Flush all pending system messages for a chat now that the key is available.
@@ -1807,26 +1809,32 @@ export async function handleNewSystemMessageImpl(
     ...(data.user_message_id ? { user_message_id: data.user_message_id } : {}),
   };
 
+  const owner = getWorkspaceCacheIdentity();
+  if (!owner) return;
+  const isCurrent = () => owner === getWorkspaceCacheIdentity();
+
   try {
-    // Check if chat exists locally AND key is in cache before saving.
-    // If either is missing, queue the message for later flush.
-    let chat = await chatDB.getChat(chat_id);
+    let chat = await chatDB.getRawChat(chat_id);
+    if (!isCurrent()) return;
 
     if (chat && data.encrypted_chat_key && !chat.encrypted_chat_key) {
       const receivedKey = await chatKeyManager.receiveKeyFromServer(
         chat_id,
         data.encrypted_chat_key,
       );
+      if (!isCurrent()) return;
       if (receivedKey) {
         chat = { ...chat, encrypted_chat_key: data.encrypted_chat_key };
         await chatDB.updateChat(chat);
+        if (!isCurrent()) return;
         console.info(
           `[ChatSyncService:AppSettings] Persisted encrypted_chat_key from system message for chat ${chat_id}`,
         );
       }
     }
 
-    const keyInCache = !!chatKeyManager.getKeySync(chat_id);
+    const keyInCache = Boolean(chat && await chatKeyManager.getKey(chat_id));
+    if (!isCurrent()) return;
 
     if (!chat || !keyInCache) {
       // Queue for flush once chat+key are available (via new_chat_message or phased sync)
@@ -1843,6 +1851,7 @@ export async function handleNewSystemMessageImpl(
 
     // Save to IndexedDB — key is in cache so encryptMessageFields() won't generate a bad key
     await chatDB.saveMessage(systemMessage);
+    if (!isCurrent()) return;
     console.debug(
       `[ChatSyncService:AppSettings] Saved system message ${data.message_id} from other device (status=${messageStatus})`,
     );
@@ -1861,6 +1870,7 @@ export async function handleNewSystemMessageImpl(
         : {}),
     };
     await chatDB.updateChat(updatedChat);
+    if (!isCurrent()) return;
     console.debug(
       `[ChatSyncService:AppSettings] Updated chat ${chat_id} last_edited_overall_timestamp and messages_v for cross-device system message`,
     );

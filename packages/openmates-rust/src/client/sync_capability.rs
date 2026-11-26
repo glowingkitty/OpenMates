@@ -334,24 +334,43 @@ impl Client {
             ..Item::default()
         })
     }
+    /// The opted-in Personal sidebar can show this row locked without trying to read it.
+    pub(super) fn has_absent_personal_sidebar_key(&self, row: &Value) -> Result<bool> {
+        if !self.startup_opened_policy_enabled
+            || self.team()?.is_some()
+            || self.browser_cookies()
+            || !row["encrypted_chat_key"].is_null()
+            || !row["team_id"].is_null()
+            || !row["hashed_team_id"].is_null()
+            || !(row["chat_visibility"].is_null() || row["chat_visibility"].as_str() == Some("personal"))
+        {
+            return Ok(false);
+        }
+        let owner = self.user["id"].as_str();
+        if !row["user_id"].is_null() && owner.is_none_or(|id| row["user_id"].as_str() != Some(id)) {
+            return Ok(false);
+        }
+        if !row["hashed_user_id"].is_null() && owner.is_none_or(|id| row["hashed_user_id"].as_str() != Some(&super::sha256(id))) {
+            return Ok(false);
+        }
+        let hashed_chat_id = super::sha256(required(row, "id")?);
+        Ok(!self.wrappers.iter().any(|wrapper| wrapper["hashed_chat_id"].as_str() == Some(&hashed_chat_id)))
+    }
+
     pub(super) async fn render_chat_inventory_with_capability(&self) -> Result<Vec<Item>> {
         self.require_canonical_read_profile()?;
         let scope = AsyncCryptoScope::begin(self)?;
         let wrapping = self.cached_wrapping_capability()?;
         let mut items = PlainItems(vec![]);
-        for row in self.chat_rows_by_recency() {
+        for row in self.sidebar_chat_rows() {
             let item = if sync::draft_only(row) && self.team()?.is_none() {
                 self.draft_item_with_capability(row).await?
+            } else if self.has_absent_personal_sidebar_key(row)? {
+                sync::locked_sidebar_item(row)?
             } else {
                 match self.chat_key_with_capability(row, &wrapping).await {
                     Ok(key) => self.chat_item(row, &key)?,
-                    Err(Error::Forbidden) => Item {
-                        id: required(row, "id")?.into(),
-                        title: "Locked chat".into(),
-                        status: "locked".into(),
-                        fields: json!({"chat_list_title":null}),
-                        ..Item::default()
-                    },
+                    Err(Error::Forbidden) => sync::locked_sidebar_item(row)?,
                     Err(error) => return Err(error),
                 }
             };
@@ -396,9 +415,11 @@ impl Client {
         let scope = AsyncCryptoScope::begin(self)?;
         let wrapping = self.cached_wrapping_capability()?;
         let mut items = PlainItems(vec![]);
-        for row in self.chat_rows_by_recency() {
+        for row in self.sidebar_chat_rows() {
             let item = if sync::draft_only(row) && self.team()?.is_none() {
                 self.draft_item_with_capability(row).await?
+            } else if self.has_absent_personal_sidebar_key(row)? {
+                sync::locked_sidebar_item(row)?
             } else {
                 let key = self.chat_key_with_capability(row, &wrapping).await?;
                 self.chat_item(row, &key)?

@@ -408,6 +408,94 @@ final class KeyRevocationTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testPersistedPersonalEmbedKeyDecryptsOfflinePreviewAfterReopen() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let server = URL(string: "https://dev.example.invalid")!
+        let chat = cachedEmbedChat("personal-chat")
+        let embed = record("old-preview")
+        let unrelated = record("unrelated-preview")
+        let embedKey = SymmetricKey(data: Data(repeating: 8, count: 32))
+        let wrap = try await CryptoManager.shared.wrapChatKey(embedKey, masterKey: fixtureKey)
+        let ciphertext = try await CryptoManager.shared.encryptContent("Offline preview", key: embedKey)
+
+        do {
+            let store = try OfflineStore(directory: directory, userId: "owner", apiBaseURL: server)
+            defer { store.deactivate() }
+            store.persistChats([chat])
+            store.persistEmbedKeys([
+                EmbedKeyRecord(hashedEmbedId: digest(embed.id), keyType: "master",
+                               hashedChatId: nil, encryptedEmbedKey: wrap),
+                embedWrapper(unrelated.id, type: "master"),
+            ])
+        }
+
+        let store = try OfflineStore(directory: directory, userId: "owner", apiBaseURL: server)
+        defer { store.deactivate() }
+        store.setOffline(true)
+        XCTAssertFalse(store.mayHaveCachedTeamChats())
+        XCTAssertEqual(store.loadEmbedKeys(hashedEmbedId: digest(embed.id)).count, 1)
+        let master = fixtureKey
+        let manager = EmbedKeyManager(masterKey: { master }, offlineStore: store)
+        let restored = await manager.key(for: embed, chatId: chat.id, allEmbeds: [:])
+        let key = try XCTUnwrap(restored)
+        let preview = try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: key)
+        XCTAssertEqual(preview, "Offline preview")
+
+        store.persistChats([cachedEmbedChat("team-chat", teamId: "team")])
+        XCTAssertTrue(store.mayHaveCachedTeamChats())
+        let wrongWorkspace = await manager.key(for: embed, chatId: "team-chat", allEmbeds: [:])
+        XCTAssertNil(wrongWorkspace)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,teams.membership.role-gated
+    func testPersistedPersonalEmbedUnwrapCannotPublishAfterScopeSwitchOrDeletion() async throws {
+        for replaceAccount in [true, false] {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let server = URL(string: "https://dev.example.invalid")!
+            let store = try OfflineStore(directory: directory, userId: "owner", apiBaseURL: server)
+            defer { store.deactivate() }
+            let chat = cachedEmbedChat("personal-chat")
+            let embed = record("old-preview")
+            store.persistChats([chat])
+            store.persistEmbedKeys([embedWrapper(embed.id, type: "master")])
+            let started = expectation(description: "persisted wrapper reached unwrap")
+            let gate = RevocationCryptoGate<SymmetricKey?>(started: started)
+            let master = fixtureKey
+            var attemptedUnwrap = false
+            let manager = EmbedKeyManager(masterKey: { master }, unwrapKey: { _, _ in
+                if attemptedUnwrap { return master }
+                attemptedUnwrap = true
+                return await gate.suspend()
+            }, offlineStore: store)
+
+            let pending = Task { await manager.key(for: embed, chatId: chat.id, allEmbeds: [:]) }
+            await fulfillment(of: [started], timeout: 2)
+            if replaceAccount {
+                try store.activate(userId: "replacement", apiBaseURL: server)
+                store.persistChats([chat])
+            } else {
+                store.deleteChat(chat.id)
+                // The legacy nil-chat master wrapper survives chat deletion on
+                // disk. Re-adding metadata must not re-enable that wrapper.
+                store.persistChats([chat])
+            }
+            await gate.resume(with: fixtureKey)
+            let late = await pending.value
+            XCTAssertNil(late)
+            let afterChange = await manager.key(for: embed, chatId: chat.id, allEmbeds: [:])
+            XCTAssertNil(afterChange)
+        }
+    }
+
+    private func cachedEmbedChat(_ id: String, teamId: String? = nil) -> Chat {
+        Chat(id: id, title: nil, lastMessageAt: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+             isArchived: false, isPinned: false, appId: nil, encryptedTitle: nil,
+             encryptedChatKey: nil, teamId: teamId)
+    }
+
     private func wrapper(_ encrypted: String, version: Int) throws -> ChatKeyWrapperRecord {
         let payload: [String: Any] = ["hashedChatId": ChatKeyWrapperRecord.hashedChatId(for: "revoked"),
                                       "keyType": "master", "encryptedChatKey": encrypted, "wrapperVersion": version]

@@ -15,6 +15,8 @@ pub(crate) enum Reply {
     Status(u16, Value),
     /// Close without an answer (the server is "offline" for it).
     Close,
+    /// Wait for the test to release the response.
+    GatedJson(Arc<tokio::sync::Notify>, Value),
     /// Hold the connection this long, then close without an answer.
     Hang(Duration),
 }
@@ -68,6 +70,10 @@ where
                     ),
                     Reply::Status(status, value) => respond(&value)
                         .replacen("200 OK", &format!("{status} Refused"), 1),
+                    Reply::GatedJson(release, value) => {
+                        release.notified().await;
+                        respond(&value)
+                    }
                     Reply::Close => return,
                     Reply::Hang(duration) => {
                         tokio::time::sleep(duration).await;

@@ -44,14 +44,14 @@ fn recent_rest_rows_preserve_scope_and_normalize_timestamps() {
             "last_edited_overall_timestamp": "2", "messages_v": 1,
             "chat_key_wrappers":[{"hashed_chat_id": hash, "encrypted_chat_key": "wrapped"}]}]
     });
-    let (rows, wrappers) = client.decode_recent_chat_rows(&response(super::hashed(C))).unwrap();
+    let (rows, wrappers) = client.decode_recent_chat_rows(&response(super::hashed(C)), STARTUP_RECENT_LIMIT).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].0, C);
     assert_eq!(rows[0].1["created_at"], 1);
     assert_eq!(rows[0].1["updated_at"], 2);
     assert!(rows[0].1.get("chat_key_wrappers").is_none());
     assert_eq!(wrappers.len(), 1);
-    assert_eq!(client.decode_recent_chat_rows(&response(super::hashed(A))), Err(Error::Protocol));
+    assert_eq!(client.decode_recent_chat_rows(&response(super::hashed(A)), STARTUP_RECENT_LIMIT), Err(Error::Protocol));
     assert_eq!(client.chat_sync_feed.cursor.as_deref(), Some("e1:5|e2:1"));
 }
 

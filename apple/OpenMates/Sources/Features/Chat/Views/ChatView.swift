@@ -446,9 +446,10 @@ struct ChatView: View {
     /// from PublicChatContent, so both paths share this one ChatView + ViewModel.
     var initialChat: Chat? = nil
     var initialMessages: [Message] = []
-    /// The shell releases history loading after the opening slide completes.
-    /// Header metadata is available immediately through initialChat.
+    /// The shell prepares legacy Swift history after the opening slide.
     var historyPresentationReady = true
+    /// Core-owned rows can start the selected read while the route animates.
+    var startsCoreHistoryDuringPresentation = false
     var initialEmbeds: [EmbedRecord] = []
     var wsManager: WebSocketManager? = nil
     var chatStore: ChatStore? = nil
@@ -683,6 +684,12 @@ struct ChatView: View {
                 }
             }
             #if DEBUG
+            .overlay(alignment: .topLeading) {
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-startup-chat-readiness") {
+                    NativeStartupSelectedWindowProbe(window: viewModel.coreWindow, chatId: chatId)
+                        .id(chatId)
+                }
+            }
             .overlay(alignment: .topLeading) {
                 if ProcessInfo.processInfo.arguments.contains("--ui-test-expose-chat-ids"), let chatStore {
                     ChatRecoveryStateProbe(
@@ -993,8 +1000,8 @@ struct ChatView: View {
         .onChange(of: cameraCaptureRequest) { _, _ in
             handleCameraCaptureRequestChange()
         }
-        .task(id: "\(chatId):\(historyPresentationReady)") {
-            guard historyPresentationReady else { return }
+        .task(id: "\(chatId):\(mayStartHistory)") {
+            guard mayStartHistory else { return }
             await handleChatTask()
         }
         .task(id: authManager.currentUser?.id) {
@@ -1169,9 +1176,13 @@ struct ChatView: View {
         applyCameraCaptureRequestIfNeeded()
     }
 
+    private var mayStartHistory: Bool {
+        historyPresentationReady || startsCoreHistoryDuringPresentation
+    }
+
     private func catchUpNotificationCompletion(renewAttempts: Bool = false) async {
         let notifications = PushNotificationManager.shared
-        guard historyPresentationReady, let intent = notifications.completionCatchUpIntent(for: chatId),
+        guard mayStartHistory, let intent = notifications.completionCatchUpIntent(for: chatId),
               intent.chatID == chatId, intent.isCurrent else { return }
         if await viewModel.refreshNotificationCompletion(intent, renewAttempts: renewAttempts), intent.isCurrent {
             notifications.finishCompletionCatchUp(intent.id)
@@ -2524,6 +2535,8 @@ struct ChatView: View {
         if shouldKeepTopAligned {
             proxy.scrollTo("scroll-top", anchor: .top)
             NativeSyncPerfLog.info("phase=chatScrollRestore chat=\(chatId.prefix(8)) mode=publicTop messages=\(viewModel.messages.count)")
+        } else if viewModel.startsAtNewestCoreTail {
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
         } else if let targetId, hasTargetMessage {
             proxy.scrollTo(targetId, anchor: UnitPoint(x: 0.5, y: 0.12))
             NativeSyncPerfLog.info("phase=chatScrollRestore chat=\(chatId.prefix(8)) mode=saved message=\(targetId.prefix(8)) messages=\(viewModel.messages.count)")
@@ -6228,6 +6241,34 @@ struct MessageBubble: View {
         #endif
     }
 }
+
+#if DEBUG
+@MainActor
+private struct NativeStartupSelectedWindowProbe: View {
+    let window: CoreChatWindow
+    let chatId: String
+    @State private var timings: CoreChatWindowStartupTimings?
+
+    var body: some View {
+        Color.clear.frame(width: 1, height: 1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier("startup-selected-window-metrics")
+            .accessibilityLabel([
+                "cached-uptime-ms=\(timings?.cached ?? 0)",
+                "first-server-page-uptime-ms=\(timings?.firstServerPage ?? 0)",
+                "canonical-uptime-ms=\(timings?.canonical ?? 0)",
+                "refreshed-uptime-ms=\(timings?.refreshed ?? 0)",
+                "open-started-uptime-ms=\(timings?.deliberateOpenStarted ?? 0)",
+                "open-settled-uptime-ms=\(timings?.deliberateOpenSettled ?? 0)",
+            ].joined(separator: ";") + ";")
+            .accessibilityHidden(timings == nil)
+            .allowsHitTesting(false)
+            .onReceive(window.benchmarkChanges) { snapshot in
+                timings = window.chatId == chatId ? snapshot : nil
+            }
+    }
+}
+#endif
 
 private extension View {
     func searchTargetOutline(_ isActive: Bool) -> some View {

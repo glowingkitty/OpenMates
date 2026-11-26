@@ -31,7 +31,8 @@ async function clearLocalChatIndexedDb(page: any): Promise<void> {
 				const db = request.result;
 				const storesToClear = [
 					'chats',
-					'messages',
+					db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages',
+					'opened_history_coverage',
 					'embeds',
 					'embed_keys',
 					'new_chat_suggestions',
@@ -127,7 +128,7 @@ async function replaceLocalChatDbWithMissingStores(page: any): Promise<void> {
 					chatStore.createIndex('updated_at', 'updated_at', { unique: false });
 					chatStore.createIndex('pinned', 'pinned', { unique: false });
 				}
-				if (!db.objectStoreNames.contains('messages')) {
+				if (!(db.objectStoreNames.contains('messages') || db.objectStoreNames.contains('saved_messages_v34'))) {
 					const messageStore = db.createObjectStore('messages', { keyPath: 'message_id' });
 					messageStore.createIndex('chat_id_created_at', ['chat_id', 'created_at'], {
 						unique: false
@@ -201,7 +202,7 @@ async function replaceLocalChatDbAtCurrentVersionWithMissingStores(page: any): P
 				};
 				request.onsuccess = () => {
 					const db = request.result;
-					const transaction = db.transaction(['chats', 'messages'], 'readwrite');
+					const transaction = db.transaction(['chats', (db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readwrite');
 					transaction.onerror = () => {
 						db.close();
 						reject(transaction.error ?? new Error('Failed to seed partial chats_db'));
@@ -226,7 +227,7 @@ async function replaceLocalChatDbAtCurrentVersionWithMissingStores(page: any): P
 						processing_metadata: false,
 						waiting_for_metadata: false
 					});
-					transaction.objectStore('messages').put({
+					transaction.objectStore(transaction.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').put({
 						message_id: messageId,
 						chat_id: chatId,
 						role: 'user',
@@ -471,7 +472,8 @@ async function installEmptyChatDbOnBoot(page: any): Promise<void> {
 						const db = request.result;
 						const storesToClear = [
 							'chats',
-							'messages',
+							db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages',
+							'opened_history_coverage',
 							'embeds',
 							'embed_keys',
 							'new_chat_suggestions',
@@ -680,9 +682,9 @@ test('current-version partial IndexedDB schema is recreated without dropping loc
 					request.onsuccess = () => {
 						const db = request.result;
 						const storeNames = Array.from(db.objectStoreNames);
-						const transaction = db.transaction(['chats', 'messages'], 'readonly');
+						const transaction = db.transaction(['chats', (db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readonly');
 						const chatRequest = transaction.objectStore('chats').get(chatId);
-						const messageRequest = transaction.objectStore('messages').get(messageId);
+						const messageRequest = transaction.objectStore(transaction.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').get(messageId);
 						transaction.onerror = () => {
 							db.close();
 							reject(transaction.error ?? new Error('Failed to inspect repaired chats_db'));

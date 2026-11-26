@@ -1,20 +1,23 @@
 // Opt-in Rust core session that attaches to the EXISTING TypeScript login as an
 // in-memory second device: the TS master key and session are handed to Rust via
 // `restore_existing` (memory_only). It reads/decrypts the selected saved chat from
-// the server and sends with streaming. It never writes IndexedDB and never
-// replaces TS login, sync or storage; TS keeps owning the chat list.
+// the server and sends with streaming. The selected cold read uses the
+// guarded Rust cache operation over the existing IndexedDB stores.
 // Loaded only by the VITE_OPENMATES_RUST_CORE build (dynamic import).
+import type { LegacyOpenedHistoryPage, OpenedHistoryPageWitness } from "../db/openedHistoryStorage";
 import { createOriginalSavedChatSender } from "./originalSavedChatSender";
 import { bindProductionCoreInvalidations } from "./productionInvalidationBridge";
 import type { ProductionCoreInvalidationRelease } from "./productionInvalidationBridge";
-import { publishSelectedOnlineCachedSavedChat, publishSelectedSavedChat, publishSelectedSavedChatPage } from "./selectedSavedChat";
+import { publishSelectedColdSavedChat, publishSelectedOnlineCachedSavedChat, publishSelectedSavedChat, publishSelectedSavedChatPage } from "./selectedSavedChat";
 import type { PriorProfileLifecycle } from "./platformLifecycle";
 import type { BrowserPersistence, CoreResponse, ExistingProfileEvidence, LocalCursorSelector, LocalReadPlan, SavedPageSelector, SessionStatus } from "./protocol";
 import type { LocalChatReadback, SavedChatReadback } from "./savedReadProtocol";
+import type { BrowserRetainedRead } from "./browserCacheProtocol";
 import type { ChatAdmission, SocketFrameSummary } from "./socketFramesProtocol";
 import type { SavedChatSelection } from "./selectedSavedChat";
 import type { SendEvent } from "./sendProtocol";
 import type { BrowserCoreWorkerHost } from "./workerHost";
+import type { OriginalFirstSessionWorker } from "./originalFirstSessionSource";
 
 export interface ExistingSavedChatProfile {
   readonly generation: number;
@@ -45,10 +48,13 @@ export interface ProductionSavedChatSession {
   assertCurrent(): void;
   publish(publish: (page: SavedChatReadback | LocalChatReadback) => void): Promise<void>;
   publishPage(selector: SavedPageSelector, publish: (page: SavedChatReadback | LocalChatReadback) => void): Promise<void>;
+  publishColdPage(publish: (page: BrowserRetainedRead) => void, selector?: SavedPageSelector,
+    observeCoverage?: (witness: OpenedHistoryPageWitness | LegacyOpenedHistoryPage) => void, selectionSignal?: AbortSignal): Promise<void>;
   /** Cache-first render from the existing retained IndexedDB rows (Rust readonly
    * plans + Worker decryption). Rejects `chat_unavailable` on a cache miss and
    * keeps the session; the caller then reconciles with `publishPage`. */
-  publishCachedPage(selector: LocalCursorSelector, publish: (page: LocalChatReadback) => void): Promise<void>;
+  publishCachedPage(selector: LocalCursorSelector, publish: (page: LocalChatReadback) => void,
+    requestSignal?: AbortSignal): Promise<void>;
   startSend(text: string): Promise<ProductionSavedChatSend>;
   /** Applies server chat frames in the shared core. One Worker request at a time: a busy session (read or send in flight) rejects `unavailable`; the caller serializes and retries. Rejects with the core's fixed failure code. */
   ingestSocketFrames(frames: Record<string, unknown>[]): Promise<SocketFrameSummary>;
@@ -58,12 +64,18 @@ export interface ProductionSavedChatSession {
 }
 
 type OwnedWorker = { host: BrowserCoreWorkerHost; close(): void };
+export type SavedChatAdmissionStage =
+  | "bootstrap-wait-start" | "bootstrap-wait-end" | "platform-ready"
+  | "profile-capture-start" | "worker-acquired"
+  | "restore-start" | "restore-response" | "profile-verified";
+
 interface AdmissionInput {
   expectedPrincipal: string; signal: AbortSignal; sources: ExistingSavedChatSources;
   currentSelection(): SavedChatSelection; lifecycle: PriorProfileLifecycle;
   page: Pick<Window, "addEventListener" | "removeEventListener">;
   createChannel(name: string): Pick<BroadcastChannel, "addEventListener" | "removeEventListener" | "close">;
   createWorker(signal: AbortSignal): Promise<OwnedWorker>;
+  observeAdmission?(stage: SavedChatAdmissionStage): void;
 }
 /** Local-only Rust admission of the existing TS key (no server call). It serves
  * cache-first reads of the retained IndexedDB rows ONLY: no server read, send,
@@ -162,11 +174,13 @@ export async function admitLocalSavedChatSession(input: AdmissionInput): Promise
   } catch (error) { close(); throw error; }
 }
 
-export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): Promise<ProductionSavedChatSession> {
+export async function admitSecondDeviceSavedChatSession(
+  input: AdmissionInput, original?: OriginalFirstSessionWorker,
+): Promise<ProductionSavedChatSession> {
   const lifetime = new AbortController();
   let closed = false, busy = false;
   let witness: ExistingSavedChatProfile | null = null;
-  let worker: Awaited<ReturnType<typeof input.createWorker>> | null = null;
+  let worker: Awaited<ReturnType<typeof input.createWorker>> | null = original ?? null;
   let releaseInvalidations: (() => void) | null = null;
   let invalidateSender: (() => void) | null = null;
   const close = () => {
@@ -180,30 +194,40 @@ export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): 
     if (input.signal.aborted) throw new Error("cancelled");
     releaseInvalidations = bindProductionCoreInvalidations({ ...input, host: { close } });
     const generation = input.lifecycle.current();
+    input.observeAdmission?.("profile-capture-start");
     witness = await input.sources.capture(generation);
     await input.sources.assertCurrent(witness);
     if (closed || lifetime.signal.aborted || input.lifecycle.current() !== generation) throw new Error("cancelled");
     const owned = await input.createWorker(lifetime.signal);
     worker = owned;
     if (closed || lifetime.signal.aborted) { owned.close(); throw new Error("cancelled"); }
+    input.observeAdmission?.("worker-acquired");
     const current = () => {
       const prior = witness;
       if (!prior || closed || lifetime.signal.aborted || input.lifecycle.current() !== prior.generation
         || prior.profile.principal !== input.expectedPrincipal) throw new Error("invalidated_snapshot");
     };
-    // Hand the existing TS session/key to Rust; Rust re-checks the server session.
-    const response = await owned.host.request({ operation: "restore_existing", key: witness.key,
-      profile: { ...witness.profile }, persistence: "memory_only" }, lifetime.signal);
+    input.observeAdmission?.("restore-start");
+    if (original && (original !== owned || original.witness.generation !== witness.generation ||
+      original.witness.profile.principal !== witness.profile.principal || original.witness.key !== witness.key)) {
+      throw new Error("session_expired");
+    }
+    const response = original ? owned.host.consumeFirstSessionAdmission() :
+      await owned.host.request({ operation: "restore_existing", key: witness.key,
+        profile: { ...witness.profile }, persistence: "memory_only" }, lifetime.signal);
+    input.observeAdmission?.("restore-response");
     current(); await input.sources.assertCurrent(witness!); current();
+    input.observeAdmission?.("profile-verified");
     // A failed restore is a rejected session (the Worker reports every restore error
     // alike), so it fails closed and ends the local session too.
-    if (!response.ok || !response.status || response.status.principal !== input.expectedPrincipal
+    if (!response?.ok || !response.status || response.status.principal !== input.expectedPrincipal
       || response.status.persistence !== "memory_only") throw new Error("session_expired");
     // An unreachable server is not a rejection: the core admits a local-read-only
     // client instead of failing (`Client::browser_session`), so the caller keeps its
     // offline local session.
     if (response.status.localReadOnly === true) throw new Error("unavailable");
     const status = Object.freeze({ ...response.status });
+    original?.confirmHandover();
     const publishPage = async (selector: SavedPageSelector, publish: (page: SavedChatReadback | LocalChatReadback) => void) => {
       if (busy) throw new Error("unavailable");
       busy = true;
@@ -215,11 +239,24 @@ export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): 
         const selected = { host, reader: input.sources, prior: witness!, status, lifecycle: input.lifecycle,
           signal: lifetime.signal, currentSelection: input.currentSelection,
           publish: (page: SavedChatReadback) => { current(); publish(page); } };
-        if (selector.direction === "latest") await publishSelectedSavedChat(selected);
+        if (selector.direction === "latest" && selector.limit === undefined && selector.respectCompressionBoundary === undefined) await publishSelectedSavedChat(selected);
         else await publishSelectedSavedChatPage({ ...selected, selector });
       } finally { busy = false; }
     };
-    const publishCachedPage = async (selector: LocalCursorSelector, publish: (page: LocalChatReadback) => void) => {
+    const publishColdPage = async (publish: (page: BrowserRetainedRead) => void, selector?: SavedPageSelector,
+      observeCoverage?: (witness: OpenedHistoryPageWitness | LegacyOpenedHistoryPage) => void, selectionSignal?: AbortSignal) => {
+      if (busy) throw new Error("unavailable");
+      busy = true;
+      try {
+        current();
+        const host = { request: owned.host.request.bind(owned.host), close };
+        await publishSelectedColdSavedChat({ host, reader: input.sources, prior: witness!, status,
+          lifecycle: input.lifecycle, signal: lifetime.signal, currentSelection: input.currentSelection,
+          selector, observeCoverage, selectionSignal, publish: page => { current(); publish(page); } });
+      } finally { busy = false; }
+    };
+    const publishCachedPage = async (selector: LocalCursorSelector, publish: (page: LocalChatReadback) => void,
+      requestSignal?: AbortSignal) => {
       const execute = input.sources.executeLocalReadPlan;
       if (!execute) throw new Error("unavailable");
       if (busy) throw new Error("unavailable");
@@ -228,8 +265,9 @@ export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): 
         current();
         const host = { request: owned.host.request.bind(owned.host), close };
         const prior = witness!;
+        const signal = requestSignal ? AbortSignal.any([requestSignal, lifetime.signal]) : lifetime.signal;
         await publishSelectedOnlineCachedSavedChat({ host, reader: input.sources, prior, status, lifecycle: input.lifecycle,
-          signal: lifetime.signal, currentSelection: input.currentSelection, selector,
+          signal, currentSelection: input.currentSelection, selector,
           executeReadPlan: (selected, plan, signal) => execute.call(input.sources, prior, selected, plan, signal),
           publish: (page: LocalChatReadback) => { current(); publish(page); } });
       } finally { busy = false; }
@@ -262,7 +300,7 @@ export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): 
       profile: () => witness, assertProfile: prior => input.sources.assertCurrent(prior), currentSelection: input.currentSelection,
       busy: () => busy, setBusy: value => { busy = value; }, close });
     invalidateSender = () => sender.invalidate();
-    return Object.freeze({ status, signal: lifetime.signal, publishPage, publishCachedPage, ingestSocketFrames, admitChat,
+    return Object.freeze({ status, signal: lifetime.signal, publishPage, publishColdPage, publishCachedPage, ingestSocketFrames, admitChat,
       currentSelection: () => input.currentSelection(), assertCurrent: current,
       publish: (publish: (page: SavedChatReadback | LocalChatReadback) => void) => publishPage({ direction: "latest" }, publish),
       startSend: (text: string) => sender.startSend(text), close });

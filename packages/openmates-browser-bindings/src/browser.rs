@@ -50,11 +50,11 @@ impl BrowserOrdinaryLoginRetention{
 /// Worker-local, one-use profile. No field getters, Debug or serialization.
 #[wasm_bindgen]
 pub struct PreparedBrowserProfile { profile: BrowserProfileKey }
-#[cfg(feature="browser-metadata-prototype")]
-#[path="browser_first_session_restore.rs"]
+#[path = "browser_first_session_restore.rs"]
 mod first_session_restore;
-#[cfg(feature="browser-metadata-prototype")]
-pub use first_session_restore::{BrowserPreparedFirstSession,BrowserFirstSessionControlHandle,BrowserFirstSessionReceiptHandle};
+pub use first_session_restore::{
+    BrowserFirstSessionControlHandle, BrowserFirstSessionReceiptHandle, BrowserPreparedFirstSession,
+};
 
 #[wasm_bindgen]
 impl PreparedBrowserProfile {

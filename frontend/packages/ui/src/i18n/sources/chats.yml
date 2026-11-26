@@ -2100,6 +2100,31 @@ loadMore.button:
   he: הצג עוד
   verified_by_human: []
 
+loadMore.account_total:
+  context: Total number of chats in the signed-in user's account. Shown when only the recent subset is loaded automatically.
+  en: "{count} chats in your account"
+  de: "{count} Chats in deinem Konto"
+  zh: "你的账户中有 {count} 个聊天"
+  es: "{count} chats en tu cuenta"
+  fr: "{count} discussions dans votre compte"
+  pt: "{count} conversas na sua conta"
+  ru: "Чатов в вашем аккаунте: {count}"
+  ja: "アカウント内のチャット: {count} 件"
+  ko: "계정에 있는 채팅 {count}개"
+  it: "{count} chat nel tuo account"
+  tr: "Hesabında {count} sohbet"
+  vi: "{count} cuộc trò chuyện trong tài khoản"
+  id: "{count} percakapan di akun Anda"
+  pl: "{count} czatów na Twoim koncie"
+  nl: "{count} chats in je account"
+  ar: "{count} محادثة في حسابك"
+  hi: "आपके खाते में {count} चैट"
+  th: "{count} แชทในบัญชีของคุณ"
+  cs: "{count} chatů ve vašem účtu"
+  sv: "{count} chattar på ditt konto"
+  he: "{count} שיחות בחשבון שלך"
+  verified_by_human: []
+
 latest_news:
   context: Heading above the three newest OpenMates product news links in the chat sidebar
   en: Latest news

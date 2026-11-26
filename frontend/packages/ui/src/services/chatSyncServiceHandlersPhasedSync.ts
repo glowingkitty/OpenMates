@@ -324,6 +324,7 @@ export async function handlePhase2RecentChatsImpl(
   );
 
   try {
+    if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
     for (const chat of payload.chats ?? []) {
       chat.chat_details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
@@ -353,8 +354,9 @@ export async function handlePhase2RecentChatsImpl(
       return;
     }
 
-    // Update total chat count (moved from Phase 3)
-    if (total_chat_count !== undefined) {
+    // The persisted profile count belongs to Personal only.
+    if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
+    if (!payload.team_id && total_chat_count !== undefined) {
       updateTotalChatCount(total_chat_count);
     }
 
@@ -370,6 +372,7 @@ export async function handlePhase2RecentChatsImpl(
 
     // Store metadata-only chats — NO messages, NO embeds, NO validateAndHeal
     phase2ProcessedChatIds = await storeRecentChats(serviceInstance, chats);
+    if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
 
     serviceInstance.dispatchEvent(
       new CustomEvent("phase_2_last_20_chats_ready", {
@@ -377,23 +380,6 @@ export async function handlePhase2RecentChatsImpl(
       }),
     );
 
-    // Phase 3 is no longer part of web startup. If the account has more than
-    // the first 100 chats, continue with metadata-only expansion after Phase 2.
-    if (total_chat_count && total_chat_count > 100) {
-      try {
-        const existingIds = await chatDB.getMetadataOnlyChatIds();
-        console.info(
-          `[ChatSyncService] Phase 2: Triggering metadata sync for chats 101-1000 ` +
-            `(total=${total_chat_count}, existing_metadata=${existingIds.length})`,
-        );
-        await serviceInstance.sendSyncMetadataChats(existingIds);
-      } catch (err) {
-        console.error(
-          "[ChatSyncService] Failed to trigger metadata sync after Phase 2:",
-          err,
-        );
-      }
-    }
   } catch (error) {
     console.error("[ChatSyncService] Error handling Phase 2:", error);
   }
@@ -512,7 +498,8 @@ export async function handlePhase3FullSyncImpl(
     // Persist total_chat_count to IndexedDB and in-memory userProfile store so:
     // - ActiveChat welcome screen can show the "+N" overflow counter without a server round-trip
     // - SettingsAccountChats can use the cached value as a fallback
-    if (total_chat_count && total_chat_count > 0) {
+    if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
+    if (!payload.team_id && total_chat_count !== undefined) {
       updateTotalChatCount(total_chat_count);
     }
 
@@ -522,7 +509,7 @@ export async function handlePhase3FullSyncImpl(
       new CustomEvent("phase_3_last_100_chats_ready", {
         detail: {
           chat_count,
-          total_chat_count: total_chat_count || 0,
+          total_chat_count,
           suggestions_count: new_chat_suggestions?.length || 0,
         },
       }),
@@ -538,24 +525,6 @@ export async function handlePhase3FullSyncImpl(
       }),
     );
 
-    // Trigger metadata sync for chats 101–1000 if the user has more than 100 chats.
-    // This runs after Phase 3 so the sidebar can display up to 1000 chat titles
-    // and search can index them. Metadata-only chats are stored in IndexedDB (no messages).
-    if (total_chat_count && total_chat_count > 100) {
-      try {
-        const existingIds = await chatDB.getMetadataOnlyChatIds();
-        console.info(
-          `[ChatSyncService] Phase 3: Triggering metadata sync for chats 101–1000 ` +
-            `(total=${total_chat_count}, existing_metadata=${existingIds.length})`,
-        );
-        await serviceInstance.sendSyncMetadataChats(existingIds);
-      } catch (err) {
-        console.error(
-          "[ChatSyncService] Failed to trigger metadata sync after Phase 3:",
-          err,
-        );
-      }
-    }
   } catch (error) {
     console.error(
       "[ChatSyncService] Error handling Phase 3 completion:",
@@ -1469,6 +1438,8 @@ export async function handleLoadMoreChatsResponseImpl(
     }
 
     // Dispatch event to Chats.svelte — these chats go to memory only, NOT IndexedDB
+    if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
+    if (!payload.team_id && !payload.error) updateTotalChatCount(payload.total_count);
     serviceInstance.dispatchEvent(
       new CustomEvent("load_more_chats_ready", {
         detail: {
@@ -1551,7 +1522,7 @@ export async function handleSyncMetadataChatsResponseImpl(
     );
 
     // Update total chat count
-    if (payload.total_count && payload.total_count > 0) {
+    if (!payload.team_id && isActiveTeamContext(null, payload.context_epoch) && payload.total_count > 0) {
       updateTotalChatCount(payload.total_count);
     }
 

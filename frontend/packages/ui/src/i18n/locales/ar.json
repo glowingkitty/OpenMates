@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "عرض المزيد"
+      },
+      "account_total": {
+        "text": "{count} محادثة في حسابك"
       }
     },
     "latest_news": {

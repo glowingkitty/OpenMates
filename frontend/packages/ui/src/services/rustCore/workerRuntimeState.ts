@@ -25,7 +25,7 @@ export interface WorkerRuntimeState {
   firstSessionDataOnlyUsed: boolean;
   firstSessionUsed: boolean;
   firstSessionControl: RustFirstSessionControl|null;
-  firstSessionTask: {id:number;stopped:boolean}|null;
+  firstSessionTask: {id:number;stopped:boolean;cancelQueued?:()=>void}|null;
   originalRecoveryBootstrap: RustRecoveryBootstrap | undefined;
   originalStartupStore: RustInitialSyncStoreBootstrap | undefined;
   originalRecoveryPort: RustRecoveryPort|null;
@@ -137,7 +137,11 @@ export const receive = (rt: WorkerRuntimeState, event: Event) => {
     const frame=(event as MessageEvent<unknown>).data;
     if(typeof frame==='object'&&frame!==null&&'firstSessionStop' in frame){
       if(!validFirstSessionStop(frame)){dispose(rt);return;}
-      if(rt.firstSessionTask?.id===frame.id){rt.firstSessionTask.stopped=true;rt.firstSessionControl?.cancel();}
+      if(rt.firstSessionTask?.id===frame.id){
+        rt.firstSessionTask.stopped=true;
+        rt.firstSessionTask.cancelQueued?.();
+        rt.firstSessionControl?.cancel();
+      }
       return;
     }
     if(validRequest(frame)&&(frame.operation==='check_first_session'||frame.operation==='check_first_session_data')&&!rt.firstSessionTask){

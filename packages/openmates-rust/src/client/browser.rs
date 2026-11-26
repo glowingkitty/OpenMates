@@ -11,10 +11,10 @@ mod cache_metadata;
 pub use cache_metadata::BrowserProfileCacheReadiness;
 #[doc(hidden)]
 pub use cache_metadata::OwnedBrowserProfileCacheAbsence;
-#[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+#[cfg(any(target_arch = "wasm32", test))]
 #[path="browser_first_session_restore.rs"]
 mod first_session_restore;
-#[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+#[cfg(any(target_arch = "wasm32", test))]
 #[doc(hidden)]
 pub use first_session_restore::{PreparedBrowserFirstSession,BrowserFirstSessionControl,BrowserFirstSessionReceipt};
 #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]

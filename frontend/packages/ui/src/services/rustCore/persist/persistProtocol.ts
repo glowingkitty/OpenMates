@@ -13,7 +13,44 @@ import type { Message } from '../../../types/chat';
 import type * as cache from '../../db/cacheTypes';
 import type * as chatRows from '../../db/chatRowTypes';
 
+export interface OpenedHistoryCursor {
+	chatId: string; scope: string; createdAt: number; messageId: string;
+}
+export type OpenedHistorySelector = {
+	direction: 'latest'; limit: number; respectCompressionBoundary: false;
+} | {
+	direction: 'before'; cursor: OpenedHistoryCursor; limit: number; respectCompressionBoundary: false;
+};
+export interface OpenedHistoryStorageBinding {
+	owner: string; chatId: string; teamId: null; encryptedChatKey: string;
+	keyVersion: number | null; rowRevision: string;
+}
+export interface OpenedHistoryCompletion { messagesVersion: number; retainedRows: number }
+export type OpenedHistoryRequest =
+	| { kind: 'record'; chatId: string; teamId: string | null }
+	| { kind: 'begin'; ids: string[]; messagesVersions: unknown; refreshHead: boolean;
+		complete: Record<string, { messagesVersion: number | null; verifiedOnConnection: boolean }> }
+	| ({ kind: 'coverageReceipt'; binding: OpenedHistoryStorageBinding } &
+		({ document: string } | OpenedHistoryCompletion))
+	| { kind: 'coverageDigest'; chatId: string; previous: string | null; rows: Record<string, unknown>[] }
+	| { kind: 'advance'; progress: {
+		chatId: string; previous: OpenedHistoryCursor | null; start: OpenedHistoryCursor | null;
+		hasMoreBefore: boolean; hasMoreAfter: boolean; rowsConfirmed: boolean;
+		pagesRead: number; retainedRows: number; serverMessageCount: number | null; messagesVersion: number | null; expectedVersion: number | null;
+		confirmedCoverage?: {
+			cursor: OpenedHistoryCursor | null; messagesVersion: number; retainedRows: number;
+		};
+	} };
+export type OpenedHistoryDecision =
+	| { document: string }
+	| { digest: string }
+	| OpenedHistoryCompletion
+	| { path: string }
+	| { chatIds: string[]; latestChatIds: string[]; selector: OpenedHistorySelector; pageBudget: number }
+	| { done: boolean; selector: OpenedHistorySelector | null; reusedRows?: number };
+
 export interface PersistUnitProtocol extends UnitProtocol {
+	startupOpened: { request: OpenedHistoryRequest; response: OpenedHistoryDecision };
 	/** `shouldUpdateMessage` for each stored/incoming pair, in order. */
 	messageShouldUpdate: {
 		request: { pairs: Array<{ existing: Message; incoming: Message }> };
@@ -96,6 +133,7 @@ export interface PersistUnitProtocol extends UnitProtocol {
 
 /** Worker module exports (snake_case, JSON text) of browser_persist.rs. */
 export interface PersistBinding {
+	persist_startup_opened(input: string): string;
 	persist_message_should_update(input: string): string;
 	persist_message_save_decision(input: string): string;
 	persist_message_content_duplicate(input: string): string;
@@ -123,6 +161,7 @@ export interface PersistBinding {
 
 /** Op name -> binding export; the unit installs one handler per entry. */
 export const PERSIST_OPS: Readonly<Record<keyof PersistUnitProtocol & string, keyof PersistBinding>> = {
+	startupOpened: 'persist_startup_opened',
 	messageShouldUpdate: 'persist_message_should_update',
 	messageSaveDecision: 'persist_message_save_decision',
 	messageContentDuplicate: 'persist_message_content_duplicate',

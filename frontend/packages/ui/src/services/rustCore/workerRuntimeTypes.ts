@@ -91,7 +91,11 @@ export interface RustRecoveryPort {ready():Promise<void>;revoke():void;close_and
 export interface RustRecoveryRestoredClient {take_port():RustRecoveryPort;take_client():RustClient;free():void}
 export interface RustInitialSyncStoreBootstrap {free():void}
 export interface RustFirstSessionControl {cancel():void;ensure_current():void;free():void}
-export interface RustFirstSessionReceipt {observed_http_status():number|undefined|null;response_json():string;control():RustFirstSessionControl;free():void}
+export interface RustFirstSessionReceipt {
+  observed_http_status():number|undefined|null;response_json():string;control():RustFirstSessionControl;free():void;
+  /** One use of the retained ordinary response. The page cannot import a status. */
+  admit_existing?():RustClient;
+}
 /** Distinct DATA result: never accepted by any restore consumer. */
 export interface RustFirstSessionDataHandle {observed_http_status():number|undefined|null;response_json():string;control():RustFirstSessionControl;free():void}
 export interface RustPreparedFirstSessionData {control():RustFirstSessionControl;restrict_remaining_budget_ms(remaining:number):void;wait():Promise<RustFirstSessionDataHandle>;free():void}

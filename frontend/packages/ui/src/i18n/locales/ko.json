@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "더 보기"
+      },
+      "account_total": {
+        "text": "계정에 있는 채팅 {count}개"
       }
     },
     "latest_news": {

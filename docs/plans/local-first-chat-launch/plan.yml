@@ -15,11 +15,13 @@ goal: >-
 scope:
   in:
     - Guest and authorized returning-account startup on web, macOS and iOS.
+    - Read-only access to cached Personal terminal chats after a full offline relaunch with a previously admitted and unexpired encrypted vault.
     - First readable transcript for cached, uncached and deep-linked saved chats.
     - Returning to recently visited workspaces in the same authorized scope.
     - Shared Rust ownership of startup readiness and selected chat loading for web, Apple and the terminal UI.
+    - One server-confirmed browser session check for the returning Personal page and shared Rust chat reader.
   out:
-    - New authentication rules, weaker offline access rules or plaintext persistence.
+    - Server authentication changes, Team offline grants and plaintext persistence.
     - Changes to server retention, archive, feed-cursor or full-history completeness contracts.
 
 contracts:
@@ -34,16 +36,21 @@ acceptance:
   - A confirmed signed-out cold launch paints bundled examples.
   - Use the cross-device last user-opened chat as the first transcript. Paint its authorized local tail, refresh the newest messages, and preempt background work on an explicit selection.
   - Make the next ten distinct previously opened chats available offline on terminal, web and Apple. Persist confirmed page coverage and resume incomplete offline preparation when the client is active.
+  - Share the Rust decision for selecting a changed or unconfirmed transcript across terminal, web and Apple. Give the visible selection precedence over background reads through presentation.
+  - Persist encrypted browser coverage and revoke it atomically with affected message writes or eviction. Verify return after full document reload and safe access to existing caches and pending operations.
   - On Apple and terminal retain at most 100 eligible downloaded transcripts by user open order. Protect recent offline chats and unsent operations. Eviction is local.
   - Measure Apple cached launch to ten readable entries, targeting under one second, separately from the first visible row and the latest cross-device message. Record hardware, build, viewport and cache state.
   - Reveal additional metadata in pages of 20 only on explicit Show more. Automatic startup and reconnect sync only the 100 most recently modified personal chat headers. The sidebar shows the full account count, and older chats remain available on explicit request.
   - Private measurements capture idle CPU and network work on the populated account after the first readable view. Ordinary idle and reconnect do not restart older-header or transcript downloads.
+  - Run populated-account measurement windows sequentially across clients. Exact terminal resume checks correlate the acknowledged selection to the visible frame in memory. Browser reports distinguish durable cohort reads from confirmed network cache misses.
   - With sync busy, terminal cold launch reads zero unrelated transcript sections and opening a cached chat reads only its encrypted section. A scope change revokes the pending result.
   - A capable device with a warm render bundle opens a cached chat before sync or animation completes.
   - On a cache miss the selected chat frame remains stable while its scoped first window loads or reports inline failure.
   - Switches within one authorized workspace scope reuse its last presentation and refresh independently.
   - A transport drop preserves authorized rows and allows another cached selection. The replacement transport catches up from its durable cursor without changing that selection.
   - Logout, authorization denial and scope changes clear invalid projections and reject deferred disk, bridge and network results.
+  - An eligible returning Personal browser shares one verified session response across the page and the selected chat reader. Existing device verification, cookie rotation, revocation and per-chat authorization remain in force.
+  - After online Personal admission, quit and reopen the terminal without connectivity. Verify cached read-only access within the earlier of session expiry or seven days. Reject another device, replaced keys, a changed account, logout, known revocation and expired receipts.
   - Release-mode web, terminal, Mac and iPhone measurements cover their shared startup and chat behavior.
   - Private GitHub CI uses the populated Personal DevTest account to open existing chats on terminal, web, and Apple and report first-content timings.
   - Web key loading is bounded to the recent window. Test an older background message, an older embed update, a conflicting wrapped key and an account switch during lookup.

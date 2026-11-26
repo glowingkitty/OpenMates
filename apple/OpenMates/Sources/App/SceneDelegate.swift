@@ -366,8 +366,9 @@ private struct ExternalDisplayAppSceneView: View {
                     #if DEBUG
                     guard !NativeUnitTestHostPolicy.isUnitTestHost else { return }
                     #endif
-                    await locManager.restoreSavedLanguage()
-                    await authManager.checkSession()
+                    await NativeAppStartup.run(
+                        restoreSession: { [authManager] in await authManager.checkSession() },
+                        refreshTranslations: { [locManager] in await locManager.restoreSavedLanguage() })
                 }
                 .onChange(of: authManager.state) { _, newState in
                     if case .authenticated = newState,

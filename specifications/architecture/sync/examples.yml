@@ -95,7 +95,7 @@ opened_and_edited:
     assertion_ids: [sync.startup.opened-offline-and-archive]
     given: A phone last opened Kitchen renovation. Another conversation was edited later. The laptop has an older cached copy of Kitchen renovation and access to 2,000 chats.
     when: The laptop starts, shows the cached rows and reconnects.
-    then: Kitchen renovation shows its cached tail and receives the newest messages first. The next ten distinct opened conversations become available offline. The sidebar lists the 100 most recently edited chats and the total of 2,000. A user selection takes priority.
+    then: Kitchen renovation shows its cached tail and receives the newest messages first. The next ten distinct opened conversations become available offline. The sidebar lists the 100 most recently edited chats and the total of 2,000. A user selection takes priority. If a message changes while the laptop is offline, its replacement connection refreshes that chat before continuing with the other saved histories.
   - id: browse-with-bounded-offline-storage
     assertion_ids: [sync.startup.opened-offline-and-archive]
     given: A Mac has 100 locally retained saved conversations and an unsent draft.
@@ -267,3 +267,28 @@ overview_ready:
     given: A fresh device signs in to an account with 2,000 chats whose last opened chat is older than the 20 most recent chats.
     when: The cold start runs.
     then: The overview appears from Phase 1a metadata and the startup due-soon set, including the last opened chat, before any transcript content arrives.
+
+
+terminal_offline_receipt:
+  - id: reopen-personal-vault-without-a-network
+    assertion_ids: [sync.startup.terminal-personal-offline-receipt]
+    given: Yesterday a user signed into their Personal terminal on this device and opened Kitchen renovation. The session is still valid.
+    when: They quit the terminal, disconnect from the network and unlock the same encrypted vault.
+    then: They can read the saved Kitchen renovation messages. Sending a message or switching to a Team requires online authorization.
+  - id: remote-revocation-after-offline-relaunch
+    assertion_ids: [sync.startup.terminal-personal-offline-receipt]
+    given: A user revokes the terminal session from another device while the terminal is offline.
+    when: The terminal reconnects or its offline deadline arrives, whichever happens first.
+    then: Its cached Personal chats become inaccessible until an authorized login. Copying the vault to another device, switching account or rotating the key also prevents the old receipt from opening those chats.
+
+browser_durable_history:
+  - id: complete-recent-chats-survive-document-reload
+    assertion_ids: [sync.startup.browser-durable-history]
+    given: The browser finished saving the eleven recently opened conversations and their encrypted proofs. Another device then added a message to Kitchen renovation.
+    when: The browser reopens the same account and receives the current revisions.
+    then: It shows its admitted recent chats immediately, refreshes Kitchen renovation and can reuse the ten unchanged verified histories.
+  - id: a-removed-page-retires-its-proof
+    assertion_ids: [sync.startup.browser-durable-history]
+    given: Local storage pressure removes part of a completed conversation.
+    when: The browser next opens that conversation and reconnects.
+    then: It can show any available messages, identifies the incomplete history and fetches the missing history before marking the conversation fully available offline.

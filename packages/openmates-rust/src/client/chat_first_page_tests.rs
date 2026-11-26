@@ -91,7 +91,6 @@ fn cold_responses(client: &mut Client, finish: bool) -> Vec<(String, u16, Value)
     let rows = client.history[CHAT].clone();
     let mut responses = vec![
         settlement_metadata(client),
-        settlement_metadata(client),
         (
             format!(
                 "GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"
@@ -164,8 +163,8 @@ async fn cold_first_page_is_committed_before_older_request_and_canonical_final_s
         assert!(!client.selected_first_pages.contains_key(CHAT));
         assert_eq!(
             server.await.unwrap(),
-            4,
-            "same latest response, no duplicate latest fetch"
+            3,
+            "one metadata request, one latest page, one older page"
         );
     })
     .await
@@ -206,7 +205,7 @@ async fn cold_callback_cancellation_key_denial_snapshot_and_wrong_receipt_stop_b
                     .is_err(),
                 "{change}"
             );
-            assert_eq!(server.await.unwrap(), 3, "{change}");
+            assert_eq!(server.await.unwrap(), 2, "{change}");
             if matches!(change, "request" | "operation" | "owner-key" | "denial") {
                 assert!(
                     sink.publication.take().unwrap().into_window().is_err(),
@@ -225,7 +224,7 @@ async fn opt_in_keeps_warm_cache_and_single_terminal_page_on_their_existing_path
         for cold in [false,true] {
             let (mut client,monitor,server)=settlement_fixture(2,2,|client| {
                 if !cold {return vec![settlement_metadata(client)];}
-                vec![settlement_metadata(client),settlement_metadata(client),
+                vec![settlement_metadata(client),
                     (format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"),200,
                         json!({"messages":client.history[CHAT],"has_more_before":false}))]
             }).await;
@@ -234,7 +233,7 @@ async fn opt_in_keeps_warm_cache_and_single_terminal_page_on_their_existing_path
             let result=client.read_chat_view_prefer_cache_with_first_page(Some(&monitor),CHAT,request,&mut sink).await.unwrap();
             assert_eq!(sink.calls.load(Ordering::SeqCst),0);
             assert!(if cold {matches!(result,ChatViewRead::Canonical(_))} else {matches!(result,ChatViewRead::CacheSettled(_))});
-            assert_eq!(server.await.unwrap(),if cold {3}else{1});
+            assert_eq!(server.await.unwrap(),if cold {2}else{1});
         }
     }).await.unwrap();
 }
@@ -249,7 +248,7 @@ async fn first_page_restores_only_loaded_user_mappings_without_claiming_older_hi
             }
             rows[2]["encrypted_content"]=json!(crypto::encrypt_combined("[older] [known] [assistant]",&[9;32]).unwrap());
             let rows=rows.clone();
-            vec![settlement_metadata(client),settlement_metadata(client),
+            vec![settlement_metadata(client),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"),200,
                     json!({"messages":[rows[1].clone(),rows[2].clone()],"server_message_count":3,"has_more_before":true,"start_cursor":{"created_at":1,"message_id":rows[1]["id"]}})),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=before&limit=100&respect_compression_boundary=false&before_timestamp=1&before_message_id=10000000-0000-4000-8000-000000000001 HTTP/1.1"),200,
@@ -262,7 +261,7 @@ async fn first_page_restores_only_loaded_user_mappings_without_claiming_older_hi
         assert_eq!(interim.chat.messages[1].content,"[older] Current user [assistant]");
         assert_eq!(interim.pii_restoration,"page_local");assert!(!interim.history_complete);
         assert!(matches!(result,ChatViewRead::Canonical(_)));assert_eq!(client.history[CHAT].len(),3);
-        assert_eq!(server.await.unwrap(),4);
+        assert_eq!(server.await.unwrap(),3);
     }).await.unwrap();
 }
 
@@ -311,8 +310,8 @@ async fn setters_after_legitimate_first_page_commit_cannot_rebind_strict_continu
             assert_eq!(client.selected_first_pages[CHAT].messages.len(), 1);
             assert_eq!(
                 server.await.unwrap(),
-                3,
-                "{change}: metadata+metadata+latest only, no older IO"
+                2,
+                "{change}: metadata and latest only, no older IO"
             );
         }
     })
@@ -325,7 +324,7 @@ async fn strict_real_hundred_row_first_page_uses_distinct_checkpoint_without_wid
     tokio::time::timeout(std::time::Duration::from_secs(10),async {
         let (mut client,monitor,server)=settlement_fixture(140,140,|client| {
             let rows=client.history[CHAT].clone();
-            vec![settlement_metadata(client),settlement_metadata(client),
+            vec![settlement_metadata(client),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"),200,
                     json!({"messages":rows[40..].to_vec(),"server_message_count":140,"has_more_before":true,"start_cursor":{"created_at":40,"message_id":rows[40]["id"]},"end_cursor":{"created_at":139,"message_id":rows[139]["id"]}})),
                 (format!("GET /v1/chats/{CHAT}/messages/window?direction=before&limit=100&respect_compression_boundary=false&before_timestamp=40&before_message_id=10000000-0000-4000-8000-000000000040 HTTP/1.1"),200,
@@ -338,7 +337,7 @@ async fn strict_real_hundred_row_first_page_uses_distinct_checkpoint_without_wid
         let window=sink.publication.take().unwrap().into_window().unwrap();assert_eq!(window.chat.messages.len(),100);assert_eq!(window.chat.messages[0].content,"cached-line-040");assert_eq!(window.chat.messages[99].content,"cached-line-139");assert!(!window.history_complete&&window.refreshing);
         let ChatViewRead::Canonical(candidate)=result else{panic!("final must remain canonical")};
         let receipt=exact_candidate_receipt(&candidate);client.acknowledge_credentials(candidate.credential_revision()).unwrap();assert_eq!(client.commit_chat_view(candidate,receipt).unwrap().into_chat().unwrap().messages.len(),140);
-        assert!(!client.selected_first_pages.contains_key(CHAT));assert_eq!(server.await.unwrap(),4);
+        assert!(!client.selected_first_pages.contains_key(CHAT));assert_eq!(server.await.unwrap(),3);
     }).await.unwrap();
 }
 
@@ -409,7 +408,7 @@ async fn declared_quota_alone_skips_optional_preview_while_io_errors_fail_closed
                 assert!(matches!(result, Err(Error::Io)));
                 assert!(!client.history.contains_key(CHAT));
             }
-            assert_eq!(server.await.unwrap(), if mode == "quota" { 4 } else { 3 });
+            assert_eq!(server.await.unwrap(), if mode == "quota" { 3 } else { 2 });
         }
     })
     .await
@@ -548,7 +547,7 @@ async fn unknown_adapter_capacity_keeps_original_strict_history_without_partial_
         assert!(matches!(result, ChatViewRead::Canonical(_)));
         assert_eq!(client.history[CHAT].len(), 2);
         assert!(client.selected_first_pages.is_empty());
-        assert_eq!(server.await.unwrap(), 4);
+        assert_eq!(server.await.unwrap(), 3);
     })
     .await
     .unwrap();
@@ -604,7 +603,7 @@ async fn composite_and_opaque_hundred_row_first_page_keep_logical_ids_and_full_h
                     row["message_id"]=json!(supported_read_id(mode,index));
                 }
                 let rows=rows.clone();let first=supported_read_id(mode,40);let last=supported_read_id(mode,139);
-                vec![settlement_metadata(client),settlement_metadata(client),
+                vec![settlement_metadata(client),
                     (format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"),200,
                         json!({"messages":rows[40..].to_vec(),"server_message_count":140,"has_more_before":true,"start_cursor":{"created_at":40,"message_id":first},"end_cursor":{"created_at":139,"message_id":last}})),
                     (format!("GET /v1/chats/{CHAT}/messages/window?direction=before&limit=100&respect_compression_boundary=false&before_timestamp=40&before_message_id={first} HTTP/1.1"),200,
@@ -616,7 +615,7 @@ async fn composite_and_opaque_hundred_row_first_page_keep_logical_ids_and_full_h
             assert_eq!(sink.calls.load(Ordering::SeqCst),1,"{mode}: first_page may not silently skip100 rows");
             let window=sink.publication.take().unwrap().into_window().unwrap();assert_eq!(window.chat.messages.len(),100);assert_eq!(window.chat.messages[0].id,supported_read_id(mode,40));assert_eq!(window.chat.messages[99].id,supported_read_id(mode,139));assert_eq!(window.chat.messages[0].content,"cached-line-040");assert!(!window.history_complete&&window.refreshing);
             let ChatViewRead::Canonical(candidate)=result else{panic!("{mode}: original full-history result must stay canonical")};let receipt=exact_candidate_receipt(&candidate);client.acknowledge_credentials(candidate.credential_revision()).unwrap();let chat=client.commit_chat_view(candidate,receipt).unwrap().into_chat().unwrap();
-            assert_eq!(chat.messages.len(),140);assert_eq!(chat.messages[0].id,supported_read_id(mode,0));assert_eq!(chat.messages[139].id,supported_read_id(mode,139));assert!(!client.selected_first_pages.contains_key(CHAT));assert_eq!(server.await.unwrap(),4,"same latest response, no duplicate fetch");
+            assert_eq!(chat.messages.len(),140);assert_eq!(chat.messages[0].id,supported_read_id(mode,0));assert_eq!(chat.messages[139].id,supported_read_id(mode,139));assert!(!client.selected_first_pages.contains_key(CHAT));assert_eq!(server.await.unwrap(),3,"one request each for metadata, latest and older history");
         }
     }).await.unwrap();
 }

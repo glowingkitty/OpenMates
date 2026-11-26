@@ -36,6 +36,11 @@ pub(in crate::client) use first_page::FirstPageRead;
 #[path = "cached_view_open.rs"]
 mod open;
 pub use open::ChatOwnerLease;
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "cached_view_file.rs"]
+mod file;
+#[cfg(not(target_arch = "wasm32"))]
+pub use file::{CachedChatFilePublication, CachedChatFileReader};
 
 const MAX_CACHED_CHATS: usize = 20;
 const MAX_CACHED_MESSAGES: usize = 30;
@@ -458,14 +463,14 @@ impl Client {
         id: &str,
         request: CancellationToken,
     ) -> Result<ChatViewRead> {
-        self.read_chat_view_policy(monitor, id, request, false, None).await
+        self.read_chat_view_policy(monitor, id, request, false, None, None, true).await
     }
     /// Match the interactive cache-preferred contract: all owned cached rows,
     /// strict history only for an empty/unusable cache. No export authority.
     pub async fn read_chat_view_prefer_cache(
         &mut self, monitor: Option<&ChatMonitor>, id: &str, request: CancellationToken,
     ) -> Result<ChatViewRead> {
-        self.read_chat_view_policy(monitor, id, request, true, None).await
+        self.read_chat_view_policy(monitor, id, request, true, None, None, true).await
     }
     /// Interactive cold-cache preview only. The sink must explicitly admit the
     /// total prospective checkpoint against its real adapter capacity BEFORE
@@ -479,11 +484,30 @@ impl Client {
         &mut self, monitor: Option<&ChatMonitor>, id: &str, request: CancellationToken,
         sink: &mut dyn ChatFirstPageSink,
     ) -> Result<ChatViewRead> {
-        self.read_chat_view_policy(monitor, id, request, true, Some(sink)).await
+        self.read_chat_view_policy(monitor, id, request, true, Some(sink), None, true).await
     }
+    // Resume prioritizes the newest server tail even with an older local cache.
+    pub(crate) async fn read_chat_view_refresh_with_first_page(
+        &mut self, monitor: Option<&ChatMonitor>, id: &str, request: CancellationToken,
+        sink: &mut dyn ChatFirstPageSink,
+        budget: Option<&crate::client::StartupForegroundBudget>,
+    ) -> Result<ChatViewRead> {
+        self.read_chat_view_policy(monitor, id, request, false, Some(sink), budget, true).await
+    }
+    /// Hydrate history without ever changing the active-chat subscription target,
+    /// including when the host drops the future to admit a foreground operation.
+    pub(crate) async fn read_chat_view_for_startup_hydration(
+        &mut self, monitor: Option<&ChatMonitor>, id: &str, cancel: CancellationToken,
+    ) -> Result<ChatViewRead> {
+        let budget = crate::client::StartupForegroundBudget::cancellable(&cancel);
+        self.read_chat_view_policy(monitor, id, cancel, false, None, Some(&budget), false).await
+    }
+
+    #[allow(clippy::too_many_arguments)] // Independent view, deadline and selection policies.
     async fn read_chat_view_policy(
         &mut self, monitor: Option<&ChatMonitor>, id: &str, request: CancellationToken,
         prefer_cache: bool, sink: Option<&mut dyn ChatFirstPageSink>,
+        budget: Option<&crate::client::StartupForegroundBudget>, select_chat: bool,
     ) -> Result<ChatViewRead> {
         let fence = self.cached_view_owner(monitor)?;
         self.verify_private_operation()?;
@@ -497,10 +521,10 @@ impl Client {
         let result = if prefer_cache {
             match self.open_chat_cache_preferred(id, false).await {
                 Ok(Some(chat)) => Ok((chat, true)),
-                Ok(None) => self.open_chat_live_with_first_page(id, first_page.as_mut()).await.map(|chat| (chat, false)),
+                Ok(None) => self.open_chat_live_with_first_page(id, first_page.as_mut(), budget, select_chat).await.map(|chat| (chat, false)),
                 Err(error) => Err(error),
             }
-        } else { self.open_chat_live(id).await.map(|chat| (chat, false)) };
+        } else { self.open_chat_live_with_first_page(id, first_page.as_mut(), budget, select_chat).await.map(|chat| (chat, false)) };
         match result {
             Ok((chat, from_cache)) => {
                 let chat=Plain::new(chat);
@@ -535,9 +559,29 @@ impl Client {
                 if request.is_cancelled() {
                     return Err(Error::Cancelled);
                 }
-                let row = self.chats.get(id).ok_or(Error::Offline)?;
-                let wrapping = self.cached_wrapping_key()?;
-                let (mut window, _) = self.decode_cached_window(row, &wrapping)?;
+                let mut window = if self.has_retained_startup_history(id) {
+                    let chat = Plain::new(self.cached_chat_with_capability(id).await?);
+                    self.check_cached_view_owner(&fence)?;
+                    if request.is_cancelled()
+                        || fence.owner.cached_denial_revision()? != denial_revision
+                        || !fence.owner.cached_chat_allowed(id)
+                    {
+                        return Err(Error::Cancelled);
+                    }
+                    let history_complete = self.has_current_opened_history(id);
+                    CachedChatWindow {
+                        chat: chat.into_inner(),
+                        has_more_before: history_complete.then_some(false),
+                        history_complete,
+                        cached: true,
+                        refreshing: false,
+                        pii_restoration: "all_cached_user_rows",
+                    }
+                } else {
+                    let row = self.chats.get(id).ok_or(Error::Offline)?;
+                    let wrapping = self.cached_wrapping_key()?;
+                    self.decode_cached_window(row, &wrapping)?.0
+                };
                 window.refreshing = false;
                 let publication = CachedChatPublication {
                     denial_revision,
@@ -682,29 +726,48 @@ impl Client {
         // Reuse the existing keyless Personal draft display rule only for an
         // actually empty draft shell. No message key ever aliases the master.
         if self.team()?.is_none() && self.cached_draft_shell(id)? {
-            bounded_bytes(row, MAX_WINDOW_BYTES).ok_or(Error::Protocol)?;
-            let mut item=Plain::new(self.chat_item(row,wrapping)?);
-            let chat=Plain::new(Chat {
-                id: id.into(),
-                title:std::mem::take(&mut item.title),
-                category:std::mem::take(&mut item.category),
-                messages:vec![],
-            });
-            let bytes=bounded_bytes(&*chat,MAX_WINDOW_BYTES).ok_or(Error::Protocol)?;
-            return Ok((
-                CachedChatWindow {
-                    chat:chat.into_inner(),
-                    has_more_before: None,
-                    history_complete: false,
-                    cached: true,
-                    refreshing: true,
-                    pii_restoration: "page_local",
-                },
-                bytes,
-            ));
+            let item = Plain::new(self.chat_item(row, wrapping)?);
+            return decode_cached_draft(id, row, item);
         }
-        let synced = self.synced_window(row)?;
-        let (rows,has_more_before) = if let Some(window)=synced {
+        let inputs = cached_rows(row, self.synced_window(row)?, self.history.get(id).map(Vec::as_slice))?;
+        let key = self.chat_key(row, wrapping)?;
+        let item = Plain::new(self.chat_item(row, &key)?);
+        decode_cached_rows(id, inputs, &key, item, MAX_WINDOW_BYTES)
+    }
+}
+
+fn decode_cached_draft(
+    id: &str, row: &Value, mut item: Plain<crate::model::Item>,
+) -> Result<(CachedChatWindow, usize)> {
+    bounded_bytes(row, MAX_WINDOW_BYTES).ok_or(Error::Protocol)?;
+    let chat = Plain::new(Chat {
+        id: id.into(),
+        title: std::mem::take(&mut item.title),
+        category: std::mem::take(&mut item.category),
+        messages: vec![],
+    });
+    let bytes = bounded_bytes(&*chat, MAX_WINDOW_BYTES).ok_or(Error::Protocol)?;
+    Ok((CachedChatWindow {
+        chat: chat.into_inner(),
+        has_more_before: None,
+        history_complete: false,
+        cached: true,
+        refreshing: true,
+        pii_restoration: "page_local",
+    }, bytes))
+}
+
+struct CachedRows<'a> {
+    rows: &'a [Value],
+    has_more_before: Option<bool>,
+}
+
+fn cached_rows<'a>(
+    row: &Value,
+    synced: Option<&'a crate::client::sync_windows::CiphertextMessageWindow>,
+    history: Option<&'a [Value]>,
+) -> Result<CachedRows<'a>> {
+        let (rows, has_more_before) = if let Some(window)=synced {
             if window.messages.iter().any(|row|row.get("large_payload").is_some()
                 && row.get("encrypted_content").is_none_or(Value::is_null)) {
                 // Keep the encrypted reference and all other received rows in
@@ -713,7 +776,7 @@ impl Client {
             }
             (window.messages.as_slice(),Some(window.has_more_before))
         } else {
-            let history=self.history.get(id).ok_or(Error::Offline)?;
+            let history = history.ok_or(Error::Offline)?;
             let start=history.len().saturating_sub(MAX_CACHED_MESSAGES);
             (&history[start..],(start>0).then_some(true))
         };
@@ -726,57 +789,67 @@ impl Client {
         } else {
             bounded_bytes(&rows, MAX_WINDOW_BYTES.saturating_sub(metadata_bytes)).ok_or(Error::Protocol)?;
         }
-        let key = self.chat_key(row, wrapping)?;
-        let mut item=Plain::new(self.chat_item(row,&key)?);
-        let mut seen = HashSet::new();
-        let mut messages=Plain::new(Vec::<crate::model::Message>::new());
-        let mut mappings=Plain::new(Vec::<Value>::new());
-        for row in rows {
-            let (raw,message)=decode_chat_message(row,id,&key,&mut seen)?;
-            let message=Plain::new(message);
-            if message.role == "user" {
-                let mapping=zeroize::Zeroizing::new(decrypt_optional(&raw,"encrypted_pii_mappings",&key)?);
-                if !mapping.is_empty() {
-                    mappings.extend(serde_json::from_str::<Vec<Value>>(&mapping)?);
-                }
-            }
-            mappings.extend(crate::client::memory_privacy::response_mappings(&message)?);
-            messages.push(message.into_inner());
-        }
-        // Same explicit page-local policy as bounded saved reads: mappings from
-        // loaded user rows only; unknown/unloaded tokens remain literal.
-        let mut output_bytes = 0usize;
-        for message in messages.iter_mut() {
-            let restored=crate::privacy::restore_page(&message.content,&mappings)?;replace_text(&mut message.content,restored);
-            let restored=crate::privacy::restore_page(&message.thinking,&mappings)?;replace_text(&mut message.thinking,restored);
-            output_bytes = output_bytes
-                .checked_add(message.content.len())
-                .and_then(|n| n.checked_add(message.thinking.len()))
-                .ok_or(Error::Protocol)?;
-            if output_bytes > MAX_WINDOW_BYTES {
-                return Err(Error::Protocol);
-            }
-        }
-        let chat=Plain::new(Chat {
-            id: id.into(),
-            title:std::mem::take(&mut item.title),
-            category:std::mem::take(&mut item.category),
-            messages:messages.into_inner(),
-        });
-        let bytes=bounded_bytes(&*chat,MAX_WINDOW_BYTES).ok_or(Error::Protocol)?;
-        Ok((
-            CachedChatWindow {
-                chat:chat.into_inner(),
-                has_more_before,
-                history_complete: false,
-                cached: true,
-                refreshing: true,
-                pii_restoration: "page_local",
-            },
-            bytes,
-        ))
-    }
+
+    Ok(CachedRows { rows, has_more_before })
 }
+
+fn decode_cached_rows(
+    id: &str,
+    inputs: CachedRows<'_>,
+    key: &[u8; 32],
+    mut item: Plain<crate::model::Item>,
+    max_bytes: usize,
+) -> Result<(CachedChatWindow, usize)> {
+    let CachedRows { rows, has_more_before } = inputs;
+    let mut seen = HashSet::new();
+    let mut messages=Plain::new(Vec::<crate::model::Message>::new());
+    let mut mappings=Plain::new(Vec::<Value>::new());
+    for row in rows {
+        let (raw,message)=decode_chat_message(row,id,key,&mut seen)?;
+        let message=Plain::new(message);
+        if message.role == "user" {
+            let mapping=zeroize::Zeroizing::new(decrypt_optional(&raw,"encrypted_pii_mappings",key)?);
+            if !mapping.is_empty() {
+                mappings.extend(serde_json::from_str::<Vec<Value>>(&mapping)?);
+            }
+        }
+        mappings.extend(crate::client::memory_privacy::response_mappings(&message)?);
+        messages.push(message.into_inner());
+    }
+    // Same explicit page-local policy as bounded saved reads: mappings from
+    // loaded user rows only; unknown/unloaded tokens remain literal.
+    let mut output_bytes = 0usize;
+    for message in messages.iter_mut() {
+        let restored=crate::privacy::restore_page(&message.content,&mappings)?;replace_text(&mut message.content,restored);
+        let restored=crate::privacy::restore_page(&message.thinking,&mappings)?;replace_text(&mut message.thinking,restored);
+        output_bytes = output_bytes
+            .checked_add(message.content.len())
+            .and_then(|n| n.checked_add(message.thinking.len()))
+            .ok_or(Error::Protocol)?;
+        if output_bytes > max_bytes {
+            return Err(Error::Protocol);
+        }
+    }
+    let chat=Plain::new(Chat {
+        id: id.into(),
+        title:std::mem::take(&mut item.title),
+        category:std::mem::take(&mut item.category),
+        messages:messages.into_inner(),
+    });
+    let bytes=bounded_bytes(&*chat,max_bytes).ok_or(Error::Protocol)?;
+    Ok((
+        CachedChatWindow {
+            chat:chat.into_inner(),
+            has_more_before,
+            history_complete: false,
+            cached: true,
+            refreshing: true,
+            pii_restoration: "page_local",
+        },
+        bytes,
+    ))
+}
+
 
 #[cfg(test)]
 #[path = "cached_view_tests.rs"]

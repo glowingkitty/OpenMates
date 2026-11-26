@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "और दिखाएं"
+      },
+      "account_total": {
+        "text": "आपके खाते में {count} चैट"
       }
     },
     "latest_news": {

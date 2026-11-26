@@ -589,6 +589,26 @@ describe("checkAuth auto logout cleanup", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("rechecks the returning-page fallback inside its physical refresh lock", async () => {
+    let runLocked!: () => Promise<unknown>;
+    let finishLock!: (value: unknown) => void;
+    const request = vi.fn((_name, _options, callback) => {
+      runLocked = callback;
+      return new Promise((resolve) => { finishLock = resolve; });
+    });
+    vi.stubGlobal("navigator", { locks: { request } });
+    const pending = checkAuth(undefined, true, true);
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    expect(mockFetch).not.toHaveBeenCalled();
+    bumpLoginSessionGeneration();
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    await expect(runLocked()).rejects.toThrow("cancelled");
+    finishLock(null);
+    expect(await pending).toBe(true);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("skips delayed session-expiry cleanup after a new login", async () => {
     await checkAuth(undefined, true);
     bumpLoginSessionGeneration();

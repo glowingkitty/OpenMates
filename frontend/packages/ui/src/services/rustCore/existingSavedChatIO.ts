@@ -1,3 +1,4 @@
+import { chatTransaction, messageStoreName } from "../db/openedHistoryStorage";
 import {createRustChatOpenRequest,createRustChatReadonlyCursorTransaction,rustChatOpenTerminal,rustChatReadonlyCursorTerminal} from './browserAdapters';
 import type {RustChatIORoutingLease} from './browserAdapters';
 /** Read-only platform IO for the deployed user_db/chats_db schema.
@@ -82,8 +83,8 @@ type IssueRead<T> = (transaction: IDBTransaction, fail: (error: unknown) => void
  * on the transaction's own complete/abort terminal. */
 function transactExisting<T>(database: IDBDatabase, stores: readonly string[], lifetime: AbortSignal, current: () => void,
   issue: IssueRead<T>, routingLease?: RustChatIORoutingLease): { result: Promise<T>; terminal: Promise<void> | null } {
-  if (stores.some(store => !database.objectStoreNames.contains(store))) throw new Error("unavailable");
-  const transaction = routingLease ? createRustChatReadonlyCursorTransaction(routingLease, database, stores) : database.transaction([...stores], "readonly");
+  if (stores.some(store => !database.objectStoreNames.contains(store === MESSAGE_STORE ? messageStoreName(database) : store))) throw new Error("unavailable");
+  const transaction = routingLease ? createRustChatReadonlyCursorTransaction(routingLease, database, stores) : chatTransaction(database, [...stores], "readonly");
   const terminal = routingLease ? rustChatReadonlyCursorTerminal(routingLease, transaction) : null;
   const result = new Promise<T>((resolve, reject) => {
     let failure: unknown = null, read: (() => T) | null = null;

@@ -42,7 +42,12 @@ pub use hint_refresh::{OriginalHintRefreshAdmission,OriginalHintRefreshBatch,Ori
 enum ReadKind { Metadata,Messages }
 #[derive(Clone,Copy)]
 enum KeyKind { Server,Local }
-struct SourceEvidence { packet:String,metadata:String,messages_version:Option<u64> }
+struct SourceEvidence {
+    packet: String,
+    metadata: String,
+    messages_version: Option<u64>,
+    cold_live_page: Option<Value>,
+}
 enum Mode {Cold,Incoming(Arc<BrowserOwnedMonitorReadContext>)}
 enum BeginMode {Cold,LocalFirst,ProfileCache(Arc<BrowserProfileCacheReadiness>),Incoming(Arc<ChatMonitor>),OriginalHint(Arc<ChatMonitor>)}
 struct Context {
@@ -304,7 +309,13 @@ fn apply_work(ctx:&Context,c:&mut Client,work:Work)->Result<Resume> {
         Work::Key(row,kind)=>{
             if matches!(kind,KeyKind::Server){c.browser_message_cache_metadata_guard(&row,&ctx.chat)?;ctx.metadata_floor(&row)?;}
             if c.team()?.is_some()||text(&row,"chat_visibility")=="direct"{return Err(unsupported("TEAM_DIRECT_BROWSER_MONITOR_POLICY_REMAINS_REQUIRED"))}
-            let wrappers=if matches!(kind,KeyKind::Server){ctx.server_wrappers.as_ref().map(|rows|rows.as_slice()).unwrap_or(c.wrappers.as_slice())}else{&[]};
+            // Cold metadata came from the selected authorized HTTP response.
+            // A wrapper cached by another operation cannot replace its key.
+            let wrappers = if matches!(kind, KeyKind::Server) && !matches!(&ctx.mode, Mode::Cold) {
+                ctx.server_wrappers.as_ref().map(|rows| rows.as_slice()).unwrap_or(c.wrappers.as_slice())
+            } else {
+                &[]
+            };
             let selected=c.chat_key_ciphertext_from(&row,false,wrappers)?;
             let ciphertext=Zeroizing::new(selected.ciphertext.to_owned());
             Ok(Resume::KeyInput(PreparedKey{master:c.master_capability()?,ciphertext}))
@@ -316,8 +327,22 @@ fn apply_work(ctx:&Context,c:&mut Client,work:Work)->Result<Resume> {
             let mut decoded=Plain::new(crate::client::message_window::decode_message_page_data(
                 &ctx.chat,&metadata,key,item,page.into_inner(),&ctx.options,&ctx.cursor_scope,false,true,||ctx.negative())?);
             let raw=decoded.incoming.take().ok_or(Error::Protocol)?;
-            let evidence=SourceEvidence{packet:packet_source_stamp(&raw.metadata,&raw.messages)?,
-                metadata:decoded.metadata_stamp.clone(),messages_version:raw.metadata["messages_v"].as_u64()};
+            let window = &decoded.window;
+            let cold_live_page = (matches!(&ctx.mode, Mode::Cold) && !window.oversized_message)
+                .then(|| json!({
+                    "hasMoreBefore": window.has_more_before,
+                    "hasMoreAfter": window.has_more_after,
+                    "startCursor": window.start_cursor,
+                    "endCursor": window.end_cursor,
+                    "messagesVersion": window.messages_version,
+                    "serverMessageCount": window.server_message_count,
+                }));
+            let evidence = SourceEvidence {
+                packet: packet_source_stamp(&raw.metadata, &raw.messages)?,
+                metadata: decoded.metadata_stamp.clone(),
+                messages_version: raw.metadata["messages_v"].as_u64(),
+                cold_live_page,
+            };
             *ctx.evidence.lock().map_err(|_|Error::Protocol)?=Some(evidence);
             *ctx.source_metadata.lock().map_err(|_|Error::Protocol)?=Some(normalized(&raw.metadata,&ctx.chat,&ctx.owner,false)?);
             Ok(Resume::Incoming(raw))
@@ -437,7 +462,16 @@ impl OwnedBrowserReadPublication {
         let mut output=super::super::retained_view::retained_projection(client,&self.context.owner,&self.context.chat,
             &self.data.readback["metadata"],rows,&self.data.key,&self.data.dispositions,
             Some(if self.local.is_some(){"local"}else{match &self.context.mode{Mode::Cold=>"cold",Mode::Incoming(_)=>"monitor"}}),None)?;
-        if let Some(checkpoints)=&self.local {local_first::add_checkpoint(&self.context,&mut output,checkpoints,&self.data.key)?;}
+        if let Some(checkpoints) = &self.local {
+            local_first::add_checkpoint(&self.context, &mut output, checkpoints, &self.data.key)?;
+        } else if matches!(&self.context.mode, Mode::Cold) {
+            let evidence = self.context.evidence.lock().map_err(|_| Error::Protocol)?;
+            if let Some(page) = evidence.as_ref().and_then(|evidence| evidence.cold_live_page.as_ref()) {
+                // Retained coverage is still unknown. These boundaries belong
+                // to the exact network page that supplied this cold read.
+                output["coldLivePage"] = page.clone();
+            }
+        }
         let encoded=Zeroizing::new(serde_json::to_string(&*output)?);local_json::validate(&encoded)?;
         self.context.check(client)?;self.selected_taken=true;Ok(encoded)
     }
@@ -546,7 +580,36 @@ async fn drive(channel:Channel,host:BrowserMetadataCacheScope,now_seconds:u64)->
     let response=channel.read(ReadKind::Metadata).await?;
     let rows=response["chats"].as_array().ok_or(Error::Protocol)?;
     if rows.len()!=1||text(&rows[0],"id")!=channel.context.chat{return Err(Error::Forbidden)}
-    let metadata=Plain::new(rows[0].clone());drop(response);
+    let row = &rows[0];
+    let mut metadata = Plain::new(row.clone());
+    // The watch projection stringifies clocks for legacy readers. Cache predicates
+    // need the raw clocks from the same authenticated row's selected read details.
+    if let Some(details) = row.get("read_details") {
+        let details = details.as_object().ok_or(Error::Protocol)?;
+        for field in [
+            "created_at",
+            "updated_at",
+            "last_edited_overall_timestamp",
+            "encrypted_follow_up_request_suggestions",
+            "unread_count",
+        ] {
+            metadata[field] = details.get(field).ok_or(Error::Protocol)?.clone();
+        }
+        metadata.as_object_mut().ok_or(Error::Protocol)?.remove("read_details");
+    }
+    drop(response);
+    if matches!(&channel.context.mode, Mode::Cold)
+        && metadata.get("encrypted_chat_key").is_none_or(|value| value.is_null() || value.as_str() == Some(""))
+    {
+        // Scope and unwrap checks still run on this same selected response.
+        // Move its unambiguous master wrapper into the physical header shape
+        // so the local reader can later authenticate and unwrap it offline.
+        let selected = Client::select_chat_key_ciphertext(&metadata, true, &[], None)?;
+        if selected.ambiguous {
+            return Err(Error::Conflict);
+        }
+        metadata["encrypted_chat_key"] = Value::String(selected.ciphertext.to_owned());
+    }
     let key=channel.unwrap(Plain::new((*metadata).clone()),KeyKind::Server).await?;
     let page=channel.read(ReadKind::Messages).await?;
     let Resume::Incoming(raw)=channel.apply(Work::Decode{metadata,key,page}).await? else{return Err(Error::Protocol)};

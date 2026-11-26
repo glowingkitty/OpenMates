@@ -137,7 +137,7 @@ specifications:
     version: 3
     status: draft
     path: architecture/sync
-    fingerprint: a178178c8a5b0feb06b06166d985f973e2186b74cadcddfe622f6b9c011a6fb3
+    fingerprint: 90c726f91daeb82abd543d9deb8a02fe48d2d05b8bb0853d62badcb77fe300d9
     required_applies_to:
     - rest_api
     - cli
@@ -3089,7 +3089,29 @@ assertions:
     specification: architecture.sync@3
     specification_id: architecture.sync
     type: behavior
-    fingerprint: 7c73619540ee69a9093bd66731890340e507ec5876c5573e44272776acb563f1
+    fingerprint: e3c34de2dd679519b5a1e25ed67e9c9bbeff193faee629287a6a41cdc91d967e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+    - gui.apple
+  sync.startup.browser-durable-history:
+    specification: architecture.sync@3
+    specification_id: architecture.sync
+    type: invariant
+    fingerprint: e14589e9c0293dddcf44f24300eacbf05b8bd62e32140266c5de1799eb693cf0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+    - gui.apple
+  sync.startup.terminal-personal-offline-receipt:
+    specification: architecture.sync@3
+    specification_id: architecture.sync
+    type: security
+    fingerprint: eb946e7c7a710ee37a2c871ec5666228de6b646cc5aa0f94d70442200add305a
     required_applies_to:
     - rest_api
     - cli

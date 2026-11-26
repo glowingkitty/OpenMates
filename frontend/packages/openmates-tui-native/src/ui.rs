@@ -36,6 +36,7 @@ const BLUE: Color = Color::Rgb(90, 133, 235);
 pub enum UiCommand {
     Quit,
     Refresh(Workspace),
+    LoadMoreChats,
     Open(Workspace, String),
     Send {
         chat_id: Option<String>,
@@ -259,6 +260,7 @@ pub struct Ui {
     workspace: Workspace,
     task_order: crate::error::Result<openmates_sdk::task_order::TaskOrder>,
     items: [Vec<Item>; 6],
+    chat_total: Option<u64>,
     inspirations: Vec<openmates_sdk::client::overview::inspirations::Inspiration>,
     all_apps: Vec<Item>,
     show_all_apps: bool,
@@ -416,6 +418,7 @@ impl Ui {
             workspace: Workspace::Chats,
             task_order: crate::task_order::for_host(),
             items: std::array::from_fn(|_| vec![]),
+            chat_total: None,
             inspirations: vec![],
             all_apps: vec![],
             show_all_apps: false,
@@ -623,6 +626,8 @@ impl Ui {
         self.scroll = 0;
         self.hits.clear();
     }
+    /// Set the account count supplied by the shared chat projection.
+    pub fn set_chat_total(&mut self, total: Option<u64>) { self.chat_total = total; }
     pub fn set_items(&mut self, workspace: Workspace, mut items: Vec<Item>) {
         let i = index(workspace);
         let selected_id = (workspace == Workspace::Tasks)
@@ -2188,6 +2193,7 @@ impl Ui {
             }
             "/settings" => self.settings_toggle(),
             "/refresh" => vec![UiCommand::Refresh(self.workspace)],
+            "/more-chats" => vec![UiCommand::LoadMoreChats],
             "/login" => {
                 self.login_form();
                 vec![]
@@ -3059,6 +3065,7 @@ impl Ui {
         self.chat_layout = None;
         self.embed_offsets.clear();
         self.items = std::array::from_fn(|_| vec![]);
+        self.chat_total = None;
         self.selected = [0; 6];
         self.chat = None;
         self.cached_chat_state = None;
@@ -3102,6 +3109,7 @@ impl Ui {
             ("Create Project", "/project-create"),
             ("Create Workflow", "/workflow-create"),
             ("Refresh", "/refresh"),
+            ("Load older chats", "/more-chats"),
             ("Toggle sidebar", "/sidebar"),
             ("Check pending delivery", "/pending"),
             ("Copy pending message", "/copy-pending"),
@@ -3300,7 +3308,11 @@ impl Ui {
         self.hit(rect, action);
     }
     fn draw_sidebar(&mut self, frame: &mut Frame, area: Rect) {
-        frame.render_widget(panel(" Recent chats ", self.focus == Focus::Sidebar), area);
+        let title = match self.chat_total {
+            Some(total) if total > 100 => format!(" Recent chats · {total} total "),
+            _ => String::from(" Recent chats "),
+        };
+        frame.render_widget(panel(title, self.focus == Focus::Sidebar), area);
         let inner = inset(area, 1, 1);
         if inner.height == 0 {
             return;
@@ -5881,6 +5893,8 @@ mod tests {
             assert_eq!(ui.draft.text.as_str(), "keep this local draft");
             assert!(ui.focus == Focus::Sidebar);
         }
+        ui.set_chat_total(Some(1284));
+        assert!(render(&mut ui, 120, 24).contains("Recent chats · 1284 total"));
         ui.resize(120, 5);
         assert!(ui.key(key(KeyCode::Home)).is_empty());
         assert!(ui.key(key(KeyCode::PageDown)).is_empty());

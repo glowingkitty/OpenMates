@@ -853,10 +853,14 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertFalse(ownership.claimReconnectWork(secondWindow))
         XCTAssertTrue(ownership.claimReconnectWork(firstWindow))
         XCTAssertEqual(ownership.reconnectWorkCount, 1)
+        XCTAssertFalse(ownership.hasReconnected, "The boot list belongs to initial admission")
 
         ownership.unregister(firstWindow)
         XCTAssertTrue(ownership.claimReconnectWork(secondWindow))
         XCTAssertEqual(ownership.reconnectWorkCount, 2)
+        XCTAssertTrue(ownership.hasReconnected, "The replacement transport needs cursor catch-up")
+        ownership.resetSessionWork()
+        XCTAssertFalse(ownership.hasReconnected, "A replacement account starts its own boot list")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted

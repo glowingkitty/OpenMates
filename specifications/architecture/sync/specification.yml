@@ -341,8 +341,16 @@ assertions:
     depends_on: [models.StartupLimits.phase2_metadata_chat_limit, models.SyncStatusResponse, examples.recent_metadata_cap]
   - id: sync.startup.opened-offline-and-archive
     type: behavior
-    must: The automatic sidebar metadata window contains up to 100 chats ordered by last modification. Show the full authorized count. Show more requests the next 20 headers in the same order and scope. Selecting an older entry fetches its exact missing transcript and usable previews. Terminal and Apple retain at most 100 evictable saved transcripts per account, ordered by actual user opens, with the admitted recent offline set protected. Local eviction removes replaceable downloaded data only. Preserve unsent work until acknowledged. The server retains the chat. Repeated launch, idle and reconnect perform bounded work and coalesce duplicate requests. They never enumerate or hydrate the archive solely because it exists.
+    must: The automatic sidebar metadata window contains up to 100 chats ordered by last modification. Show the full authorized count. Show more requests the next 20 headers in the same order and scope. Selecting an older entry fetches its exact missing transcript and usable previews. Terminal and Apple retain at most 100 evictable saved transcripts per account, ordered by actual user opens, with the admitted recent offline set protected. Local eviction removes replaceable downloaded data only. Preserve unsent work until acknowledged. The server retains the chat. Repeated launch, idle and reconnect perform bounded work and coalesce duplicate requests. They never enumerate or hydrate the archive solely because it exists. On a replacement connection, a complete local transcript can skip its latest check only when the authoritative version for the same chat still matches. Recheck changed or unknown versions in opened order and reuse confirmed history when its fresh tail agrees.
     depends_on: [models.StartupLimits, examples.opened_and_edited]
+  - id: sync.startup.browser-durable-history
+    type: invariant
+    must: The shared Rust core can certify a completed browser transcript using an encrypted record bound to the admitted Personal account, chat key and confirmed history revision. Committing, replacing or removing a participating row updates or invalidates its proof in the same storage transaction. Reload verifies that proof against the current server revision. A missing, stale or unverifiable proof requires exact bounded recovery after the foreground view is readable. Previously stored conversations and pending edits remain available during migration.
+    depends_on: [examples.browser_durable_history]
+  - id: sync.startup.terminal-personal-offline-receipt
+    type: security
+    must: After the server admits a Personal terminal session, its encrypted vault may hold a device-bound receipt identifying that account and session. After a full quit, unlocking that vault offline permits read-only access to its cached Personal chats until the earlier of session expiry and seven days after admission. Logout, account change or key rotation invalidates the receipt. Reconnect revalidates with the server and applies any revocation immediately. A receipt grants no Team, server or write access.
+    depends_on: [examples.terminal_offline_receipt]
   - id: sync.phase2.metadata-only
     type: privacy
     must: Phase 2 sends encrypted metadata and encrypted draft metadata only; messages, embeds, embed keys, chat key wrappers, Code Run outputs, and compression checkpoints are absent.

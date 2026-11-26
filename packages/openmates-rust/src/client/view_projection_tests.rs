@@ -167,7 +167,7 @@ fn held_message_rows_project_metadata_by_message_id() {
     client
         .history
         .insert(CHAT.into(), vec![json!(user.to_string()), reply_row()]);
-    let found = client.message_metadata_by_id(CHAT).unwrap();
+    let found = client.message_metadata_by_id(CHAT, &["m1", "m2"].into_iter().collect()).unwrap();
     assert_eq!(found.len(), 2);
     assert_eq!(
         found["m1"],
@@ -209,10 +209,33 @@ fn held_message_rows_project_metadata_by_message_id() {
 
 // contract-test: supporting surface=sdks.rust assertions=chats.persistence.client-encrypted
 #[test]
+fn window_metadata_reads_only_the_requested_rows() {
+    let mut client = client_with(full_row());
+    let mut older = reply_row();
+    older["client_message_id"] = json!("older");
+    older["thinking_token_count"] = json!(-3);
+    client.history.insert(CHAT.into(), vec![older, reply_row()]);
+
+    let found = client
+        .message_metadata_by_id(CHAT, &["m2"].into_iter().collect())
+        .unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(found["m2"].model_name.as_deref(), Some("synthetic-model"));
+    assert!(matches!(
+        client.message_metadata_by_id(CHAT, &["older"].into_iter().collect()),
+        Err(Error::Protocol)
+    ));
+}
+
+// contract-test: supporting surface=sdks.rust assertions=chats.persistence.client-encrypted
+#[test]
 fn a_chat_without_a_held_row_has_no_message_metadata() {
     let mut client = Client::new("https://api.example.org", Some(session(None))).unwrap();
     client.history.insert(CHAT.into(), vec![reply_row()]);
-    assert!(client.message_metadata_by_id(CHAT).unwrap().is_empty());
+    assert!(client
+        .message_metadata_by_id(CHAT, &["m2"].into_iter().collect())
+        .unwrap()
+        .is_empty());
 }
 
 // contract-test: supporting surface=sdks.rust assertions=chats.persistence.client-encrypted

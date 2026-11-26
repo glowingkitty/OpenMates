@@ -36,7 +36,12 @@ import * as chatKeyManagementOps from "./db/chatKeyManagement";
 import * as messageOps from "./db/messageOperations";
 import * as chatCrudOps from "./db/chatCrudOperations";
 import * as offlineOps from "./db/offlineChangesAndUpdates";
-import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { chatKeyManager, type PersistedChatKey } from "./encryption/ChatKeyManager";
+import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import {
+  chatTransaction, COVERED_CHAT_DATABASE_VERSION, COVERED_MESSAGE_STORE, invalidateOpenedHistory, LEGACY_CHAT_DATABASE_VERSION,
+  messageStoreName, OPENED_HISTORY_STORE, preferredChatDatabaseVersion,
+} from "./db/openedHistoryStorage";
 import { notificationStore } from "../stores/notificationStore";
 import { writeWithQuotaRetry } from "./db/quotaRecovery";
 import { cacheDecisions } from "./db/cacheDecisions";
@@ -176,7 +181,7 @@ class ChatDatabase {
   // Version 32: bounded pending-message retry indexes. Backfill the numeric
   // pending-turn marker from existing encrypted preflight journals.
   // Version 33: queued live CRDT update packets survive editor restarts.
-  private readonly VERSION = 33;
+  private VERSION = LEGACY_CHAT_DATABASE_VERSION;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
@@ -291,10 +296,14 @@ class ChatDatabase {
     console.warn("[ChatDatabase] Disabled skipOrphanDetection mode");
   }
 
+  private hasChatStore(db: IDBDatabase, name: string): boolean {
+    return db.objectStoreNames.contains(name === this.MESSAGES_STORE_NAME ? messageStoreName(db) : name);
+  }
+
   private getMissingRequiredStores(db: IDBDatabase | null = this.db): string[] {
     if (!db) return [...this.REQUIRED_STORE_NAMES];
     return this.REQUIRED_STORE_NAMES.filter(
-      (storeName) => !db.objectStoreNames.contains(storeName),
+      (storeName) => !this.hasChatStore(db, storeName),
     );
   }
 
@@ -304,11 +313,11 @@ class ChatDatabase {
     if (!db) return [];
 
     const storeNames = Object.keys(this.REQUIRED_STARTUP_INDEX_NAMES_BY_STORE).filter(
-      (storeName) => db.objectStoreNames.contains(storeName),
+      (storeName) => this.hasChatStore(db, storeName),
     );
     if (storeNames.length === 0) return [];
 
-    const transaction = db.transaction(storeNames, "readonly");
+    const transaction = chatTransaction(db, storeNames, "readonly");
     return storeNames.flatMap((storeName) => {
       const store = transaction.objectStore(storeName);
       return this.REQUIRED_STARTUP_INDEX_NAMES_BY_STORE[storeName]
@@ -347,14 +356,14 @@ class ChatDatabase {
     if (this.catastrophicSchemaRepairAttempted) return false;
 
     const hasAnyDataBearingStore = this.DATA_BEARING_STORE_NAMES.some(
-      (storeName) => db.objectStoreNames.contains(storeName),
+      (storeName) => this.hasChatStore(db, storeName),
     );
     return !hasAnyDataBearingStore;
   }
 
   private getExistingDataBearingStores(db: IDBDatabase): string[] {
     return this.DATA_BEARING_STORE_NAMES.filter((storeName) =>
-      db.objectStoreNames.contains(storeName),
+      this.hasChatStore(db, storeName),
     );
   }
 
@@ -364,7 +373,7 @@ class ChatDatabase {
   ): Promise<unknown[]> {
     return new Promise((resolve, reject) => {
       try {
-        const transaction = db.transaction(storeName, "readonly");
+        const transaction = chatTransaction(db, storeName, "readonly");
         const store = transaction.objectStore(storeName);
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result ?? []);
@@ -593,14 +602,14 @@ class ChatDatabase {
   ): Promise<void> {
     const storeNames = Object.keys(snapshot).filter(
       (storeName) =>
-        db.objectStoreNames.contains(storeName) &&
+        this.hasChatStore(db, storeName) &&
         (snapshot[storeName]?.length ?? 0) > 0,
     );
     if (storeNames.length === 0) return;
 
     await new Promise<void>((resolve, reject) => {
       try {
-        const transaction = db.transaction(storeNames, "readwrite");
+        const transaction = chatTransaction(db, storeNames, "readwrite");
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
         transaction.onabort = () =>
@@ -1011,7 +1020,18 @@ class ChatDatabase {
       return this.initializationPromise;
     }
 
-    this.initializationPromise = new Promise((resolve, reject) => {
+    this.initializationPromise = preferredChatDatabaseVersion(indexedDB, this.DB_NAME).then(version => {
+      if (version > COVERED_CHAT_DATABASE_VERSION) throw new DOMException("Unsupported chat database version", "VersionError");
+      this.VERSION = version;
+      return this.openDatabase(options);
+    }).catch((error: unknown) => {
+      this.initializationPromise = null;
+      throw error;
+    });
+  }
+
+  private openDatabase(options: { skipOrphanDetection?: boolean }): Promise<void> {
+    return new Promise((resolve, reject) => {
       console.warn(
         "[ChatDatabase] Initializing database, Version:",
         this.VERSION,
@@ -1121,26 +1141,23 @@ class ChatDatabase {
 
         // Wire ChatKeyManager's encrypted chat key fetcher for on-demand key loading.
         // This enables chatKeyManager.getKey(chatId) to load keys from IDB when not in cache.
-        chatKeyManager.setEncryptedChatKeyFetcher(async (chatId: string) => {
-          const chat = await this.getChat(chatId);
-          if (chat?.parent_id) {
-            console.debug(`[ChatKeyManager] Resolving key for sub-chat ${chatId} using parent chat ${chat.parent_id}`);
-            const parentChat = await this.getChat(chat.parent_id);
-            return parentChat?.encrypted_chat_key || parentChat?.anonymous_encrypted_chat_key || null;
-          }
-          return chat?.encrypted_chat_key || chat?.anonymous_encrypted_chat_key || null;
-        });
+        chatKeyManager.setEncryptedChatKeyFetcher(chatId => this.readPersistedChatKey(chatId));
 
         // Wire ChatKeyManager's key persister for atomic key creation.
         // This enables createAndPersistKey() to save the encrypted key to IDB
         // in a single atomic operation — preventing the race where a key is
         // created in memory but not yet persisted when data gets encrypted.
         chatKeyManager.setEncryptedChatKeyPersister(
-          async (chatId: string, encryptedChatKey: string) => {
-            const chat = await this.getChat(chatId);
+          async (chatId: string, encryptedChatKey: string, isCurrent?: () => boolean) => {
+            const assertCurrent = () => {
+              if (isCurrent && !isCurrent()) throw new Error("Chat key persistence scope changed");
+            };
+            assertCurrent();
+            const chat = await this.getRawChat(chatId);
+            assertCurrent();
             if (chat) {
               chat.encrypted_chat_key = encryptedChatKey;
-              await this.updateChat(chat);
+              await this.addChat(chat, undefined, { writeGuard: assertCurrent });
             }
             // If chat doesn't exist yet, the key will be set when addChat() runs
           },
@@ -1148,13 +1165,13 @@ class ChatDatabase {
 
         // Wire candidate key fetcher/persister for fallback key recovery.
         chatKeyManager.setCandidateKeyFetcher(async (chatId: string) => {
-          const chat = await this.getChat(chatId);
+          const chat = await this.getRawChat(chatId);
           return chat?.candidate_encrypted_keys ?? [];
         });
 
         chatKeyManager.setCandidateKeyPersister(
-          async (chatId: string, encryptedKeyBlob: string) => {
-            await chatCrudOps.addCandidateKey(this, chatId, encryptedKeyBlob);
+          async (chatId: string, encryptedKeyBlob: string, isCurrent?: () => boolean) => {
+            await chatCrudOps.addCandidateKey(this, chatId, encryptedKeyBlob, isCurrent);
           },
         );
 
@@ -1181,16 +1198,6 @@ class ChatDatabase {
           );
         }
 
-        // Clean up duplicate messages on initialization
-        try {
-          await messageOps.cleanupDuplicateMessages(this);
-        } catch (error) {
-          console.error(
-            "[ChatDatabase] Error during duplicate cleanup on initialization:",
-            error,
-          );
-        }
-
         resolve();
       };
 
@@ -1198,6 +1205,12 @@ class ChatDatabase {
         console.warn("[ChatDatabase] Database upgrade needed");
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = (event.target as IDBOpenDBRequest).transaction;
+        if (db.version === COVERED_CHAT_DATABASE_VERSION && event.oldVersion > 0) {
+          // A legacy origin may have an offline document. An existing
+          // database is not an exclusively owned fresh cache.
+          transaction?.abort();
+          return;
+        }
 
         this.performMigrations(
           db,
@@ -1333,8 +1346,14 @@ class ChatDatabase {
     }
 
     // Messages store
-    if (!db.objectStoreNames.contains(this.MESSAGES_STORE_NAME)) {
-      const messagesStore = db.createObjectStore(this.MESSAGES_STORE_NAME, {
+    const physicalMessages = messageStoreName(db);
+    if (physicalMessages === COVERED_MESSAGE_STORE) {
+      if (!db.objectStoreNames.contains(OPENED_HISTORY_STORE)) {
+        db.createObjectStore(OPENED_HISTORY_STORE, { keyPath: "chatId" });
+      }
+    }
+    if (!db.objectStoreNames.contains(physicalMessages)) {
+      const messagesStore = db.createObjectStore(physicalMessages, {
         keyPath: "message_id",
       });
       messagesStore.createIndex(
@@ -1347,7 +1366,7 @@ class ChatDatabase {
       messagesStore.createIndex("status_created_at_message_id", ["status", "created_at", "message_id"], { unique: false });
       messagesStore.createIndex("pending_turn_created_at_message_id", ["pending_turn_preflight_v1", "created_at", "message_id"], { unique: false });
     } else if (transaction) {
-      const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+      const messagesStore = transaction.objectStore(physicalMessages);
       if (oldVersion < 7) {
         if (messagesStore.indexNames.contains("chat_id_timestamp")) {
           messagesStore.deleteIndex("chat_id_timestamp");
@@ -1730,7 +1749,7 @@ class ChatDatabase {
           );
           cursor.delete();
           // Cascade: delete all messages for this chat
-          const msgStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+          const msgStore = transaction.objectStore(messageStoreName(transaction.db));
           const msgIdx = msgStore.index("chat_id");
           msgIdx.openCursor(IDBKeyRange.only(chatId)).onsuccess = (me) => {
             const mc = (me.target as IDBRequest<IDBCursorWithValue>).result;
@@ -1758,7 +1777,7 @@ class ChatDatabase {
       `[ChatDatabase] Migrating messages from chats to messages store`,
     );
     const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
-    const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+    const messagesStore = transaction.objectStore(messageStoreName(transaction.db));
 
     const cursorRequest = chatStore.openCursor();
     cursorRequest.onsuccess = (e) => {
@@ -1793,7 +1812,7 @@ class ChatDatabase {
     console.warn(
       `[ChatDatabase] Migrating message timestamps: renaming timestamp to created_at`,
     );
-    const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+    const messagesStore = transaction.objectStore(messageStoreName(transaction.db));
     const cursorRequest = messagesStore.openCursor();
     cursorRequest.onsuccess = (e) => {
       const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>)
@@ -1942,7 +1961,7 @@ class ChatDatabase {
       : [storeNames];
     const existingMissingStores = this.getMissingRequiredStores(this.db);
     const requestedMissingStores = requestedStores.filter(
-      (storeName) => !this.db?.objectStoreNames.contains(storeName),
+      (storeName) => !this.db || !this.hasChatStore(this.db, storeName),
     );
     if (
       this.db &&
@@ -1952,7 +1971,7 @@ class ChatDatabase {
       !get(forcedLogoutInProgress) &&
       !get(isLoggingOut)
     ) {
-      return this.db.transaction(storeNames, mode);
+      return chatTransaction(this.db, storeNames, mode);
     }
 
     await this.init();
@@ -1963,7 +1982,7 @@ class ChatDatabase {
       throw new Error("Database not initialized despite awaiting init()");
     }
     let missingStores = requestedStores.filter(
-      (storeName) => !this.db?.objectStoreNames.contains(storeName),
+      (storeName) => !this.db || !this.hasChatStore(this.db, storeName),
     );
     if (missingStores.length > 0) {
       this.closeInvalidSchemaConnection(
@@ -1975,7 +1994,7 @@ class ChatDatabase {
         throw new Error("Database not initialized after schema repair attempt");
       }
       missingStores = requestedStores.filter(
-        (storeName) => !this.db?.objectStoreNames.contains(storeName),
+        (storeName) => !this.db || !this.hasChatStore(this.db, storeName),
       );
       if (missingStores.length > 0) {
         throw new Error(
@@ -1983,7 +2002,7 @@ class ChatDatabase {
         );
       }
     }
-    return this.db.transaction(storeNames, mode);
+    return chatTransaction(this.db, storeNames, mode);
   }
 
   public async ensureReadyForSend(): Promise<void> {
@@ -2018,7 +2037,7 @@ class ChatDatabase {
 
   async getAllChats(
     transaction?: IDBTransaction,
-    options?: { limit?: number },
+    options?: chatCrudOps.ChatListReadOptions,
   ): Promise<Chat[]> {
     return chatCrudOps.getAllChats(this, transaction, options);
   }
@@ -2048,6 +2067,31 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<Chat | null> {
     return chatCrudOps.getChat(this, chat_id, transaction);
+  }
+
+  private async readPersistedChatKey(chatId: string): Promise<PersistedChatKey | null> {
+    const epoch = getWorkspaceCacheEpoch();
+    const isCurrent = () => epoch === getWorkspaceCacheEpoch();
+    const { getActiveTeamContextSnapshot } = await import("../stores/teamStore");
+    if (!isCurrent()) return null;
+    const { teamId } = getActiveTeamContextSnapshot();
+
+    // Read ciphertext only. Loading a display projection can publish a key
+    // before the caller checks whether its original scope is still current.
+    const chat = await this.getRawChat(chatId);
+    if (!isCurrent() || !chat || (chat.team_id ?? null) !== teamId) return null;
+    const ownKey = chat.encrypted_chat_key || chat.anonymous_encrypted_chat_key;
+    if (ownKey) {
+      return { encryptedKey: ownKey, teamId, keyChatId: chat.chat_id, visibility: chat.chat_visibility };
+    }
+    if (!chat.parent_id) return null;
+
+    const parent = await this.getRawChat(chat.parent_id);
+    if (!isCurrent() || !parent || (parent.team_id ?? null) !== teamId) return null;
+    const inheritedKey = parent.encrypted_chat_key || parent.anonymous_encrypted_chat_key;
+    return inheritedKey
+      ? { encryptedKey: inheritedKey, teamId, keyChatId: parent.chat_id, visibility: parent.chat_visibility }
+      : null;
   }
 
   async getRawChat(
@@ -2282,10 +2326,6 @@ class ChatDatabase {
     return messageOps.getLastMessageForChat(this, chat_id, transaction);
   }
 
-  async getAllMessages(duringInit: boolean = false): Promise<Message[]> {
-    return messageOps.getAllMessages(this, duringInit);
-  }
-
   async getPendingMessageRetryPage(
     kind: messageOps.PendingMessageRetryKind,
     after: messageOps.PendingMessageRetryCursor | null = null,
@@ -2379,6 +2419,7 @@ class ChatDatabase {
           resolve(deleted);
           return;
         }
+        invalidateOpenedHistory(transaction, chat_id);
         cursor.delete();
         deleted += 1;
         cursor.continue();
@@ -2447,10 +2488,6 @@ class ChatDatabase {
       request.onsuccess = () => resolve((request.result || []) as ChatCompressionCheckpoint[]);
       request.onerror = () => reject(request.error);
     });
-  }
-
-  async cleanupDuplicateMessages(): Promise<void> {
-    return messageOps.cleanupDuplicateMessages(this);
   }
 
   // ============================================================================
@@ -2636,7 +2673,7 @@ class ChatDatabase {
       };
 
       storesToClear.forEach((storeName) => {
-        if (this.db?.objectStoreNames.contains(storeName)) {
+        if (this.db && this.hasChatStore(this.db, storeName)) {
           const store = transaction.objectStore(storeName);
           store.clear();
         } else {
@@ -3082,9 +3119,9 @@ export const chatDB = new ChatDatabase();
 
 /**
  * Resolves after the database has been opened AND all encrypted_chat_keys have
- * been decrypted into ChatKeyManager.  Components that display encrypted content
- * (chat list, message view) MUST await this before rendering so that
- * chatKeyManager.getKeySync() never returns null for a chat the user owns.
+ * been prepared for ChatKeyManager. Initialization warms recent Personal chat
+ * keys and schedules a retry when the master key is still loading. Callers that
+ * need a specific chat key can await chatKeyManager.getKey(chatId).
  *
  * Usage in a SvelteKit +page.svelte:
  *
@@ -3098,7 +3135,6 @@ export const chatDB = new ChatDatabase();
 export const cryptoReady: Promise<void> = browser
   ? chatDB
       .init()
-      .then(() => chatDB.loadChatKeysFromDatabase())
       .catch((err) => {
         // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
         console.warn(

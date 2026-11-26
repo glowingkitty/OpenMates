@@ -24,12 +24,14 @@
 	import { tooltip } from '../../actions/tooltip';
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 	import { chatSyncService } from '../../services/chatSyncService';
+	import { webSocketService } from '../../services/websocketService';
 	import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
 	import { getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
 	import { buildGroupInput, buildSortInput } from './utils/chatListInput'; // Rust chat-list policy input
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle and reactivity in visiblePublicChats
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
+	import { getCachedPinnedChatIds } from '../../services/db/chatKeyManagement';
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
@@ -41,7 +43,8 @@
 	import { anonymousChatStorage } from '../../services/anonymousChatStorage';
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
 	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
-	import { activeTeamId } from '../../stores/teamStore';
+	import { cancelOpenedChatStartup } from '../../services/rustCore/startupOpenedChats';
+	import { activeTeamId, getActiveTeamContextSnapshot } from '../../stores/teamStore';
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
 	// NOTE: Demo chats are now decrypted server-side, so decryptShareKeyBlob is no longer needed here
@@ -99,7 +102,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 }
 
 	// --- Component State ---
-	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
+	let allChatsFromDB: ChatType[] = $state([]);
+	let explicitlyUnlockedChats: ChatType[] = $state([]);
 	let sidebarProjects = $state<SidebarProject[]>([]);
 	let projectLocation = $state<ChatProjectLocation | null>(null);
 	let projectLoadError = $state(false);
@@ -209,16 +213,37 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		}
 	}
 
+	const RECENT_CHAT_LIMIT = 100;
+
 	// Phased Loading State — progressive display with incremental pagination:
 	// Display starts at 11 user chats, each "Show more" click reveals 20 more.
-	// When all local chats (from IndexedDB) are shown, server pagination kicks in.
+	// Show more uses cached history first and falls through to server pagination.
 	// loadTier tracks server fetch state: 'initial'→'all_local'→'loading_server'
 	let loadTier: 'initial' | 'all_local' | 'loading_server' = $state('initial');
-	let olderChatsFromServer: ChatType[] = $state([]); // Chats beyond IndexedDB, in-memory only
+	let olderChatsOnDemand: ChatType[] = $state([]);
+	let localPaginationOffset = RECENT_CHAT_LIMIT;
+	let localHistoryExhausted = $state(false);
+	let cachedRecentWindowFull = $state(false);
 	let hasMoreOnServer = $state(false); // Whether the server has more chats beyond what's been loaded
-	let serverPaginationOffset = $state(100); // Next offset for fetching older chats from server
+	let serverPaginationOffset = $state(RECENT_CHAT_LIMIT); // Next offset for fetching older chats from server
 	let loadingMoreChats = $state(false); // True while a "load more" request is in-flight
-	let totalServerChatCount = $state(0); // Total chat count reported by the server
+	let totalServerChatCount = $state<number | undefined>(); // Total chat count reported by the server
+	$effect(() => {
+		void $activeTeamId;
+		void $authStore.isAuthenticated;
+		searchController?.abort();
+		cachedSearchHistory = null;
+		olderChatsOnDemand = [];
+		explicitlyUnlockedChats = [];
+		localPaginationOffset = RECENT_CHAT_LIMIT;
+		localHistoryExhausted = false;
+		cachedRecentWindowFull = false;
+		serverPaginationOffset = RECENT_CHAT_LIMIT;
+		totalServerChatCount = undefined;
+		hasMoreOnServer = false;
+		loadingMoreChats = false;
+		loadTier = 'initial';
+	});
 
 	// Select Mode State
 	let selectMode = $state(false); // Whether we're in multi-select mode
@@ -499,7 +524,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		return uniqueChats;
 	}
 
-	function getSearchableChats(): ChatType[] {
+	function getSearchableChats(cachedHistory: ChatType[]): ChatType[] {
 		const hiddenIds = getHiddenPublicChatIds();
 		const allExampleChats = getAllExampleChats()
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
@@ -508,7 +533,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				group_key: 'examples'
 			}));
 
-		return uniqueChatsById([...allChats, ...allExampleChats]);
+		return uniqueChatsById([...allChats, ...cachedHistory, ...allExampleChats]);
 	}
 
 	// Public chat sections contain introductions, examples and tips.
@@ -614,7 +639,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats, and sub-chats - they are rendered nested)
 		const processedRealChats = uniqueChatsById(chatListCache.filterDeletedChats([
-			...allChatsFromDB, ...$runningChatGroups.map(group => group.chat)
+			...allChatsFromDB, ...explicitlyUnlockedChats, ...$runningChatGroups.map(group => group.chat)
 		]))
 			.filter(chat =>
 				(chat.team_id ?? null) === contextTeamId &&
@@ -700,8 +725,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// CRITICAL SAFEGUARD: Deduplicate the final array by chat_id
 		// ORDER MATTERS: We put processedRealChats first so that dynamic demo chats (which have group_key='examples')
 		// are preferred over hardcoded visiblePublicChats (which might have group_key='intro')
-		// olderChatsFromServer are appended last — these are in-memory-only older chats loaded on demand
-		const contextOlderChats = chatListCache.filterDeletedChats(olderChatsFromServer).filter(
+		// Append older chats loaded on demand after the current DB snapshot.
+		const contextOlderChats = chatListCache.filterDeletedChats(olderChatsOnDemand).filter(
 			(chat) => (chat.team_id ?? null) === contextTeamId
 		);
 		const contextPublicChats = contextTeamId ? [] : filteredPublicChats;
@@ -787,10 +812,10 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// stale due to a race between the disconnect and the auth double-check (now removed).
 	// Always reloading from IDB on sync restart guarantees the user always sees their chats
 	// regardless of server availability. The reload is a no-op if IDB has no data.
-	let _prevSyncingForReload = false;
+	let _prevSyncingForReload: boolean | undefined;
 	$effect(() => {
 		const currentSyncing = syncing;
-		if (currentSyncing && !_prevSyncingForReload && $authStore.isAuthenticated) {
+		if (currentSyncing && _prevSyncingForReload === false && $authStore.isAuthenticated) {
 			// Sync restarted (server disconnect/reconnect) — always reload from IndexedDB.
 			// This is the primary offline-first guarantee: chats must be visible even when
 			// the server is down, overloaded, or restarting.
@@ -927,8 +952,15 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		return [...visible, ...staticChats];
 	});
 	let showMoreButtonVisible = $derived.by(() => userChatsAtLocation.length > visibleUserChatLimit ||
-		(!projectLocation && (hasMoreOnServer || loadTier === 'loading_server')));
+		(!projectLocation && (hasMoreOnServer || accountChatCount > serverPaginationOffset ||
+			(!localHistoryExhausted && cachedRecentWindowFull && scopedServerCount === undefined) || loadTier === 'loading_server')));
 	let remainingChatsCount = $derived(Math.max(0, userChatsAtLocation.length - visibleUserChatLimit));
+	let scopedServerCount = $derived($activeTeamId
+		? totalServerChatCount
+		: ($userProfile.total_chat_count ?? totalServerChatCount));
+	let accountChatCount = $derived(!projectLocation && !$activeTeamId && $authStore.isAuthenticated
+		? (scopedServerCount ?? 0)
+		: 0);
 	$effect(() => {
 		if (!$authStore.isAuthenticated || !locationChatIds) return;
 		const available = new Set(allChatsFromDB.map(chat => chat.chat_id));
@@ -937,7 +969,19 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		for (const id of missing) requestedFolderChats.set(id, now);
 		for (let start = 0; start < missing.length; start += 50) {
 			const batch = missing.slice(start, start + 50);
-			void chatSyncService.hydrateSidebarChats(batch).catch(error => {
+			const teamId = $activeTeamId;
+			const readVersion = chatListCache.getContextVersion();
+			void (async () => {
+				const cachedChats = await Promise.all(batch.map(id => chatDB.getChat(id)));
+				if (readVersion !== chatListCache.getContextVersion() || teamId !== $activeTeamId) return;
+				const missingIds = batch.filter((id, index) => {
+					const chat = cachedChats[index];
+					if (!chat || (chat.team_id ?? null) !== teamId) return true;
+					upsertLocalChatList(chat);
+					return false;
+				});
+				if (missingIds.length) await chatSyncService.hydrateSidebarChats(missingIds);
+			})().catch(error => {
 				for (const id of batch) requestedFolderChats.delete(id);
 				console.warn('[Chats] Could not load folder chats:', error);
 			});
@@ -1348,10 +1392,9 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 		// Set total chat count early so "Show more (N)" button shows the correct remaining
 		// count immediately — don't wait for Phase 3 which can take several seconds.
-		if (event.detail.total_chat_count && event.detail.total_chat_count > 0) {
+		if (event.detail.total_chat_count !== undefined) {
 			totalServerChatCount = event.detail.total_chat_count;
-			hasMoreOnServer = event.detail.total_chat_count > 100;
-			serverPaginationOffset = 100;
+			hasMoreOnServer = event.detail.total_chat_count > serverPaginationOffset;
 			console.info(`[Chats] Phase 2: totalServerChatCount=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
 		}
 
@@ -1371,20 +1414,15 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number; total_chat_count?: number}>) => {
 		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats, total on server: ${event.detail.total_chat_count || 'unknown'}.`);
 
-		// Phase 3 is the definitive chat load — force a full IDB re-read to ensure
-		// we pick up ALL chats. A non-forced read would use the cache, which can be
-		// stale if Phase 2 upserts were dropped during the cold-boot race (cacheReady
-		// is false while the initial IDB read is in progress, so upserts are silently
-		// skipped). The forced read guarantees the sidebar has the full set.
+		// Refresh the bounded snapshot so writes that raced the earlier phases are visible.
 		chatListCache.markDirty();
 		await updateChatListFromDB(true);
 		
 		// Phase 3 complete — stay on current tier (user clicks "Show more" to expand).
 		// Only track server-side pagination metadata.
-		if (event.detail.total_chat_count) {
+		if (event.detail.total_chat_count !== undefined) {
 			totalServerChatCount = event.detail.total_chat_count;
-			hasMoreOnServer = event.detail.total_chat_count > 100;
-			serverPaginationOffset = 100; // Next fetch starts after the initial 100
+			hasMoreOnServer = event.detail.total_chat_count > serverPaginationOffset;
 			console.info(`[Chats] Phase 3: total_chat_count=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
 		}
 		
@@ -1517,46 +1555,53 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		}
 	}
 
-	/**
-	 * Handles "Show more" button click — incremental progressive loading:
-	 * 1. Increase visible limit by 20 to show more local chats from IndexedDB
-	 * 2. If all local chats are already shown and server has more, fetch 20 from server
-	 */
+	/** Reveal already loaded recent rows, then request one authoritative archive page per click. */
 	const handleShowMoreClick = async () => {
-		const totalUserChats = sortedAllChatsFiltered.filter(
-			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
-		).length;
-
-		// If there are more local chats to reveal, just increase the limit
-		if (visibleUserChatLimit < totalUserChats) {
+		if (visibleUserChatLimit < userChatsAtLocation.length) {
 			visibleUserChatLimit += SHOW_MORE_INCREMENT;
-			console.debug(`[Chats] Show more: increased limit to ${visibleUserChatLimit} (${totalUserChats} local user chats available).`);
 			return;
 		}
+		if (loadingMoreChats || projectLocation) return;
 
-		// All local chats are shown — fetch more from server if available.
-		// Also fetch when totalServerChatCount exceeds local count (guards against
-		// metadata sync setting hasMoreOnServer=false before IDB refresh completes).
-		const serverHasMore = hasMoreOnServer || (totalServerChatCount > 0 && totalUserChats < totalServerChatCount);
-		if (serverHasMore && !loadingMoreChats) {
-			loadingMoreChats = true;
-			loadTier = 'loading_server';
-			console.debug(`[Chats] Show more: requesting older chats from server (offset=${serverPaginationOffset}).`);
-			try {
-				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, SHOW_MORE_INCREMENT);
-				// Safety timeout: reset loadingMoreChats if server never responds (10s)
-				setTimeout(() => {
-					if (loadingMoreChats) {
-						console.warn('[Chats] Show more: server response timeout — resetting loading state.');
-						loadingMoreChats = false;
-						loadTier = 'all_local';
-					}
-				}, 10000);
-			} catch (error) {
-				console.error('[Chats] Error requesting more chats:', error);
-				loadingMoreChats = false;
-				loadTier = 'all_local';
+		const teamId = $activeTeamId;
+		const readVersion = chatListCache.getContextVersion();
+		const isCurrent = () => teamId === $activeTeamId && readVersion === chatListCache.getContextVersion();
+		loadingMoreChats = true;
+		try {
+			const online = webSocketService.isConnected();
+			if (!online && !localHistoryExhausted) {
+				const cached = await chatDB.getAllChats(undefined, {
+					teamId, rootsOnly: true, offset: localPaginationOffset, limit: SHOW_MORE_INCREMENT
+				});
+				if (!isCurrent()) return;
+				localPaginationOffset += cached.length;
+				localHistoryExhausted = cached.length < SHOW_MORE_INCREMENT;
+				const existingIds = new Set(allChats.map(chat => chat.chat_id));
+				const olderChats = chatListCache.filterDeletedChats(cached).filter(chat => !existingIds.has(chat.chat_id));
+				if (olderChats.length) {
+					olderChatsOnDemand = [...olderChatsOnDemand, ...olderChats];
+					visibleUserChatLimit += SHOW_MORE_INCREMENT;
+					return;
+				}
 			}
+
+			if (!online || !(hasMoreOnServer || accountChatCount > serverPaginationOffset ||
+				(scopedServerCount === undefined && cachedRecentWindowFull))) return;
+			loadTier = 'loading_server';
+			const requestedOffset = serverPaginationOffset;
+			await chatSyncService.sendLoadMoreChats(requestedOffset, SHOW_MORE_INCREMENT);
+			setTimeout(() => {
+				if (isCurrent() && serverPaginationOffset === requestedOffset && loadTier === 'loading_server') {
+					console.warn('[Chats] Loading the next page timed out.');
+					loadingMoreChats = false;
+					loadTier = 'all_local';
+				}
+			}, 10000);
+		} catch {
+			console.error('[Chats] Failed to load the next chat page.');
+			if (isCurrent()) loadTier = 'all_local';
+		} finally {
+			if (isCurrent() && loadTier !== 'loading_server') loadingMoreChats = false;
 		}
 	};
 
@@ -1573,8 +1618,16 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		has_more: boolean;
 		total_count: number;
 		offset: number;
+		team_id: string | null;
+		error?: string;
 	}>) => {
-		const { chats, has_more, total_count, offset } = event.detail;
+		const { chats, has_more, total_count, offset, team_id, error } = event.detail;
+		if (team_id !== $activeTeamId || !loadingMoreChats || offset !== serverPaginationOffset) return;
+		if (error) {
+			loadingMoreChats = false;
+			loadTier = 'all_local';
+			return;
+		}
 		console.info(`[Chats] Received ${chats.length} older chats from server (offset=${offset}, has_more=${has_more}, total=${total_count}).`);
 
 		if (chats.length > 0) {
@@ -1583,7 +1636,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			const newChats = chats.filter(c => !existingIds.has(c.chat_id));
 
 			if (newChats.length > 0) {
-				olderChatsFromServer = [...olderChatsFromServer, ...newChats];
+				olderChatsOnDemand = [...olderChatsOnDemand, ...newChats];
 				console.debug(`[Chats] Added ${newChats.length} new older chats (${chats.length - newChats.length} duplicates filtered).`);
 			}
 		}
@@ -1596,14 +1649,12 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
 
 		// Check how many user chats are now locally available (IDB + in-memory).
-		// sortedAllChatsFiltered already includes chats added to olderChatsFromServer above.
+		// sortedAllChatsFiltered already includes chats added to olderChatsOnDemand above.
 		const totalLocalUserChats = sortedAllChatsFiltered.filter(
 			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
 		).length;
 
-		// Only trust server's has_more if local chats don't already cover everything.
-		// Metadata sync may have loaded all chats into IDB while this fetch was in-flight,
-		// so the server's has_more can be stale.
+		// Local history may already cover the entire server list.
 		if (totalLocalUserChats >= total_count) {
 			hasMoreOnServer = false;
 		} else {
@@ -1614,31 +1665,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		visibleUserChatLimit += SHOW_MORE_INCREMENT;
 	};
 
-	/**
-	 * Handles 'metadata_chats_ready' events from chatSyncService.
-	 * These are metadata-only chats (positions 101–1000) now saved to IndexedDB.
-	 * Refresh the chat list so they appear in the sidebar.
-	 */
-	const handleMetadataChatsReadyEvent = async (event: CustomEvent<{
-		chat_count: number;
-		total_count: number;
-	}>) => {
-		const { chat_count, total_count } = event.detail;
-		console.info(`[Chats] Metadata chats ready: ${chat_count} chats saved to IndexedDB (total=${total_count}).`);
-
-		if (chat_count > 0) {
-			// Update total count and pagination state
-			if (total_count > 0) {
-				totalServerChatCount = total_count;
-				hasMoreOnServer = total_count > 1000; // Beyond 1000, server pagination needed
-				serverPaginationOffset = Math.min(total_count, 1000); // Next offset after metadata chats
-			}
-
-			// Refresh chat list from IndexedDB to include newly saved metadata chats
-			chatListCache.markDirty();
-			await updateChatListFromDB(true);
-		}
-	};
 
 	/**
 		* Handles 'cachePrimed' event. Indicates server-side cache is generally ready.
@@ -1974,11 +2000,10 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			// Reset display state to show all demo chats
 			loadTier = 'all_local';
 			visibleUserChatLimit = INITIAL_USER_CHAT_LIMIT;
-			olderChatsFromServer = [];
+			olderChatsOnDemand = [];
 			hasMoreOnServer = false;
-			serverPaginationOffset = 100;
 			loadingMoreChats = false;
-			totalServerChatCount = 0;
+			totalServerChatCount = undefined;
 			
 			// Force a reactive update to ensure UI reflects the cleared state
 			// This is especially important if chats were already loaded before logout
@@ -2013,7 +2038,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				setLastActiveChatIdForDisplay(null);
 				_chatIdToSelectAfterUpdate = null;
 				currentServerSortOrder = [];
-				olderChatsFromServer = [];
+				olderChatsOnDemand = [];
 				activeChatStore.clearActiveChat();
 				// Clear global cache on logout to prevent stale data
 				chatListCache.clear();
@@ -2066,7 +2091,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.addEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
-		chatSyncService.addEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
@@ -2255,6 +2279,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 		// Listen for hidden chats auto-locked event
 		handleHiddenChatsAutoLocked = () => {
+			explicitlyUnlockedChats = [];
 			// Refresh chat list so hidden chats re-lock and disappear from unlocked list
 			chatListCache.markDirty();
 			updateChatListFromDB(true);
@@ -2263,6 +2288,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 		// Listen for hidden chats manually locked event
 		const handleHiddenChatsLocked = async () => {
+			explicitlyUnlockedChats = [];
 			// Refresh chat list so hidden chats disappear from unlocked list
 			chatListCache.markDirty();
 			await updateChatListFromDB(true);
@@ -2363,14 +2389,12 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
 		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
-		// If sync was already completed before this component mounted, do a FORCED full
-		// IDB read. The cold-boot load above used limit=20 (for fast first paint), and
-		// the Phase 2/3 events fired while the sidebar was closed — so the cache is stale
-		// with only 20 chats. A forced read bypasses the cache and loads ALL chats from IDB.
+		// If sync already completed while the sidebar was closed, refresh the
+		// recent window beyond the first 20 rows used for the initial paint.
 		if ($phasedSyncState.initialSyncCompleted) {
 			chatListCache.markDirty();
 			await updateChatListFromDB(true);
-			console.debug('[Chats] Sync was already complete on mount — forced full IDB read:', allChatsFromDB.length, 'chats loaded');
+			console.debug('[Chats] Sync was already complete on mount — refreshed recent IndexedDB rows:', allChatsFromDB.length, 'chats loaded');
 		}
 
 		// SEARCH RESTORE: If the search store has an active query when this component mounts
@@ -2435,10 +2459,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				// Re-throw other errors
 				throw initError;
 			}
-		// FAST INITIAL LOAD: Skip the 300ms debounce and read only the 20 most-recently-edited
-		// chats from IDB. This makes chats appear immediately on tab reload without waiting for
-		// the debounce or reading the full ~100-chat set. Phase 2 sync (arriving ~1-2s later)
-		// calls updateChatListFromDB(true) without a limit to replace this with the full set.
+		// Paint the first 20 cached rows immediately. Later refreshes read the recent window.
 		await updateChatListFromDB(false, /* skipDebounce */ true, /* limit */ 20);
 		console.debug("[Chats] Loaded chats from IndexedDB:", allChatsFromDB.length);
 		} catch (error) {
@@ -2480,7 +2501,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.removeEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
-		chatSyncService.removeEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		if (handleGlobalChatSelectedEvent) {
 			window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
@@ -2594,6 +2614,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		closePanelOnMobile: boolean = true,
 		preserveActiveComposer: boolean = false,
 	) {
+		const openedIn = userInitiated ? getActiveTeamContextSnapshot() : undefined;
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
 		setLastActiveChatIdForDisplay(chat.chat_id);
@@ -2602,6 +2623,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// This ensures sync phases will NEVER override the user's choice
 		if (userInitiated) {
 			phasedSyncState.markUserMadeExplicitChoice();
+			if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') cancelOpenedChatStartup(chat.chat_id);
 		}
 
 		// Update last selected for potential range selection (even when not in select mode)
@@ -2616,7 +2638,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			void (async () => {
 				try {
 					const { chatSyncService } = await import('../../services/chatSyncService');
-					await chatSyncService.sendSetActiveChat(chat.chat_id);
+					await chatSyncService.sendSetActiveChat(chat.chat_id, openedIn);
 					console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
 				} catch (error) {
 					console.error('[Chats] Error updating last_opened in IndexedDB:', error);
@@ -2675,6 +2697,22 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	/** Track whether search index warm-up has been triggered this session */
 	let searchWarmUpTriggered = false;
 	let searchController: AbortController | null = null;
+	let cachedSearchHistory: Promise<ChatType[]> | null = null;
+
+	function readCachedSearchHistory(): Promise<ChatType[]> {
+		if (!$authStore.isAuthenticated) return Promise.resolve([]);
+		const teamId = $activeTeamId;
+		const readVersion = chatListCache.getContextVersion();
+		cachedSearchHistory ??= chatDB.getAllChats(undefined, { teamId, rootsOnly: true })
+			.then(chats => teamId === $activeTeamId && readVersion === chatListCache.getContextVersion()
+				? chatListCache.filterDeletedChats(chats).filter(chat => !chat.is_hidden && !chat.is_hidden_candidate)
+				: [])
+			.catch(error => {
+				cachedSearchHistory = null;
+				throw error;
+			});
+		return cachedSearchHistory;
+	}
 
 	/**
 	 * Trigger search index warm-up on first search interaction.
@@ -2725,7 +2763,11 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// Pass auth context so settings search filters out entries the user cannot access.
 		// The sidebar intentionally shows only the newest examples, but global search
 		// must cover the complete public example catalog.
-		const searchableChats = getSearchableChats();
+		// Search explicitly includes previously cached history, without admitting it
+		// into the sidebar snapshot or requesting older headers from the server.
+		const cachedHistory = await readCachedSearchHistory();
+		if (controller.signal.aborted) return;
+		const searchableChats = getSearchableChats(cachedHistory);
 		const results = await performSearch(
 			query,
 			searchableChats,
@@ -2750,6 +2792,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	 */
 	function handleSearchClose(): void {
 		searchController?.abort();
+		cachedSearchHistory = null;
 		closeSearch();
 		searchResults = null;
 		// Clear in-chat text highlighting when search closes
@@ -2908,7 +2951,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
  };
 
  /**
-  * Fetches all chats from IndexedDB and updates the component's state.
+  * Fetches the recent sidebar rows from IndexedDB and updates the component's state.
   * This function is the main source for populating `allChatsFromDB`.
   * It also handles re-selection logic after updates.
   *
@@ -2916,11 +2959,9 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
   * @param skipDebounce - If true, call the internal function immediately without the 300ms
   *   debounce delay. Use on initial mount (cold-boot) for instant first render. The debounce
   *   is still applied for all mid-session sync events where rapid calls are expected.
-  * @param limit - If set, read only the N most-recently-edited chats from IDB instead of
-  *   the full set. Used on initial mount to show the 20 most recent chats as fast as possible;
-  *   Phase 2/3 sync handlers call without a limit to load the complete set afterwards.
+  * @param limit - Number of recent chats to read. The first paint uses a smaller window.
   */
-async function updateChatListFromDB(force = false, skipDebounce = false, limit?: number) {
+async function updateChatListFromDB(force = false, skipDebounce = false, limit = RECENT_CHAT_LIMIT) {
 	// On initial cold-boot mount, skip the debounce so chats appear immediately.
 	// For all other callers (sync events, chat updates) the debounce is still applied.
 	if (skipDebounce) {
@@ -2942,7 +2983,7 @@ async function updateChatListFromDB(force = false, skipDebounce = false, limit?:
 	});
 }
 
-async function updateChatListFromDBInternal(force = false, limit?: number) {
+async function updateChatListFromDBInternal(force: boolean, limit: number) {
 	const cacheStats = chatListCache.getStats();
 	console.debug("[Chats] Updating chat list from DB...", { force, limit, cacheStats, inProgress: chatListCache.isUpdateInProgress() });
 
@@ -2983,7 +3024,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 	chatListCache.setUpdateInProgress(true);
 	try {
 		// CRITICAL: For non-authenticated users, only load shared chats (tracked in sessionStorage)
-		// For authenticated users, load all chats normally
+		// For authenticated users, load the recent rows in the active workspace
 		if (!$authStore.isAuthenticated) {
 			console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
 			// NOTE: Community demo chats are now stored in-memory (exampleChatStore), not IndexedDB
@@ -3065,19 +3106,31 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// disappearing during server restarts. The auth subscriber (in onMount) handles the
 		// legitimate logout scenario by listening to authStore and clearing allChatsFromDB there.
 		
-		// Fetch chats from IDB. On initial cold-boot mount a limit of 20 is passed so we only
-		// read the most-recently-edited chats — Phase 2 sync will load the full set shortly after.
-		// All other callers (sync events, chat updates) pass no limit to get the complete set.
+		const teamId = $activeTeamId;
 		const readVersion = chatListCache.getContextVersion();
-		const dbSnapshot = await chatDB.getAllChats(undefined, limit ? { limit } : undefined);
+		const dbSnapshot = await chatDB.getAllChats(undefined, { limit, teamId, rootsOnly: true });
+		const presentIds = new Set(dbSnapshot.map(chat => chat.chat_id));
+		const pinnedIds = new Set(getCachedPinnedChatIds(teamId));
+		for (const chat of allChatsFromDB) {
+			if (chat.pinned && (chat.team_id ?? null) === teamId) pinnedIds.add(chat.chat_id);
+		}
+		const olderPins = await Promise.all([...pinnedIds]
+			.filter(chatId => !presentIds.has(chatId))
+			.map(chatId => chatDB.getChat(chatId)));
 		// A prior account/team context cannot commit its snapshot. Deletions in
 		// this context are filtered at setCache so other chats from the read survive.
-		if (readVersion !== chatListCache.getContextVersion()) {
+		if (readVersion !== chatListCache.getContextVersion() || teamId !== $activeTeamId) {
 			console.debug('[Chats] Discarding chat-list read after context change');
 			return;
 		}
-		const chatsFromDb = mergeDbSnapshotWithInFlightUpserts(dbSnapshot);
-		console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
+		const existingFolderIds = locationChatIds;
+		const folderRows = existingFolderIds
+			? allChatsFromDB.filter(chat => existingFolderIds.has(chat.chat_id) && (chat.team_id ?? null) === teamId)
+			: [];
+		const pinnedRows = olderPins.filter((chat): chat is ChatType =>
+			!!chat?.pinned && (chat.team_id ?? null) === teamId && !chat.parent_id && !chat.is_sub_chat);
+		const chatsFromDb = mergeDbSnapshotWithInFlightUpserts(uniqueChatsById([...dbSnapshot, ...pinnedRows, ...folderRows]));
+		if (limit === RECENT_CHAT_LIMIT) cachedRecentWindowFull = dbSnapshot.length === limit;
 
 		// CRITICAL: Post-read auth check. If auth flipped to false during the async IDB read
 		// (e.g., session expiry fired while getAllChats was reading the cursor), the results
@@ -3492,6 +3545,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                 chatIdToHideAfterInlineUnlock = null;
                 
                 // Refresh chat list to show hidden chats (or "No hidden chats" if decryptedCount === 0)
+                await refreshExplicitlyUnlockedChats();
                 chatListCache.markDirty();
                 await updateChatListFromDB(true);
             } else {
@@ -3527,6 +3581,15 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
      * Note: The unlock result and chat hiding is handled in HiddenChatUnlock component,
      * this is called after successful unlock
      */
+    async function refreshExplicitlyUnlockedChats(): Promise<void> {
+        const teamId = $activeTeamId;
+        const readVersion = chatListCache.getContextVersion();
+        const cached = await chatDB.getAllChats(undefined, { teamId, rootsOnly: true });
+        if (hiddenChatState.isUnlocked && teamId === $activeTeamId && readVersion === chatListCache.getContextVersion()) {
+            explicitlyUnlockedChats = cached.filter(chat => chat.is_hidden);
+        }
+    }
+
     async function handleUnlockSuccess() {
         showHiddenChatUnlock = false;
         
@@ -3534,6 +3597,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         chatIdToHideAfterUnlock = null;
         
         // Refresh chat list to show hidden chats
+        await refreshExplicitlyUnlockedChats();
         chatListCache.markDirty();
         await updateChatListFromDB(true);
     }
@@ -4554,6 +4618,12 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					</div>
 				{/if}
 				
+				{#if accountChatCount > 100}
+					<p class="account-chat-count" data-testid="chat-account-total" data-chat-count={accountChatCount}>
+						{$text('chats.loadMore.account_total', { values: { count: accountChatCount.toLocaleString() } })}
+					</p>
+				{/if}
+
 				<!-- 4. Static chat groups that appear before Events -->
 				{#each orderedStaticChatGroups.filter(([k]) => ['shared_by_others', 'intro'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}

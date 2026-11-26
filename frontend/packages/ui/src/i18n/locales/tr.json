@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Daha fazla göster"
+      },
+      "account_total": {
+        "text": "Hesabında {count} sohbet"
       }
     },
     "latest_news": {

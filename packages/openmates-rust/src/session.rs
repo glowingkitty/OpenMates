@@ -22,6 +22,22 @@ pub struct Session {
     pub active_team_id: Option<String>,
 }
 impl Session {
+    /// Whether the active native client and protected storage still describe
+    /// the same credential payload. A mismatch requires a fresh client bind.
+    pub fn matches_stored_session(&self, stored: &Self) -> bool {
+        self.api_url == stored.api_url
+            && self.session_id == stored.session_id
+            && self.hashed_email == stored.hashed_email
+            && self.active_team_id == stored.active_team_id
+            && self.created_at == stored.created_at
+            && self.paired_session_expires_at == stored.paired_session_expires_at
+            && *self.master_key == *stored.master_key
+            && self.user_email_salt == stored.user_email_salt
+            && self.email_encryption_key == stored.email_encryption_key
+            && self.cookies == stored.cookies
+            && self.ws_token == stored.ws_token
+    }
+
     pub fn is_expired(&self) -> bool {
         self.paired_session_expires_at
             .is_some_and(|deadline| deadline <= crate::client::now_ms())

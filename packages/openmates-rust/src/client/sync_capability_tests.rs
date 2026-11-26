@@ -99,6 +99,49 @@ async fn genuine_native_and_opaque_legacy_wrappers_unwrap_identical_child_keys()
     }
 }
 #[tokio::test]
+async fn personal_sidebar_refresh_keeps_wrapper_only_neighbors_after_keyless_row() {
+    let mut client = fixture(false, None);
+    let mut wrapper_only = input().chat_metadata;
+    client.wrappers.push(json!({
+        "hashed_chat_id": sha256(CHAT),
+        "key_type": "master",
+        "encrypted_chat_key": wrapper_only["encrypted_chat_key"],
+    }));
+    wrapper_only["encrypted_chat_key"] = Value::Null;
+    client.chats.insert(CHAT.into(), wrapper_only);
+    client.chats.insert(FIRST.into(), json!({"id":FIRST}));
+    client.chats.insert(LAST.into(), json!({"id":LAST,"chat_visibility":"direct"}));
+    assert!(matches!(client.cached_chat_items(), Err(Error::Protocol | Error::Forbidden)));
+    assert!(matches!(client.render_chat_inventory_with_capability().await, Err(Error::Protocol)));
+
+    client.startup_opened_policy_enabled = true;
+    let rendered = client.render_chat_inventory_with_capability().await.unwrap();
+    assert_eq!(rendered.len(), 3);
+    for id in [FIRST, LAST] {
+        let row = rendered.iter().find(|row| row.id == id).unwrap();
+        assert_eq!(row.status, "locked");
+        assert_eq!(row.title, "Locked chat");
+    }
+    let readable = rendered.iter().find(|row| row.id == CHAT).unwrap();
+    assert_eq!(readable.title, "Synthetic title");
+    assert!(matches!(client.cached_chat_with_capability(FIRST).await, Err(Error::Protocol)));
+    assert!(matches!(client.cached_chat_with_capability(LAST).await, Err(Error::Forbidden)));
+
+    // The async offline-list fallback still has its prior Direct behavior.
+    client.chats.remove(LAST);
+    let cached = client.cached_chats_with_capability().await.unwrap();
+    assert_eq!(cached.len(), 2);
+    assert_eq!(cached.iter().find(|row| row.id == FIRST).unwrap().status, "locked");
+    assert_eq!(cached.iter().find(|row| row.id == CHAT).unwrap().title, "Synthetic title");
+
+    client.chats.get_mut(FIRST).unwrap()["encrypted_chat_key"] = json!("");
+    assert!(matches!(client.render_chat_inventory_with_capability().await, Err(Error::Protocol)));
+    client.chats.get_mut(FIRST).unwrap()["encrypted_chat_key"] = Value::Null;
+    client.chats.get_mut(FIRST).unwrap()["user_id"] = json!("different-synthetic-owner");
+    assert!(matches!(client.render_chat_inventory_with_capability().await, Err(Error::Protocol)));
+}
+
+#[tokio::test]
 async fn local_profile_page_has_explicit_provenance_no_new_salt_or_server_receipts() {
     let client = fixture(true, None);
     let before = client.ciphertext_snapshot();

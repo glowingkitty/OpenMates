@@ -686,7 +686,7 @@ test.describe('Queued follow-up authenticated protocol', () => {
                 request.onsuccess = () => {
                   const database = request.result;
                   try {
-                    const rows = database.transaction('messages', 'readonly').objectStore('messages')
+                    const rows = database.transaction((database.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readonly').objectStore((database.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'))
                       .index('chat_id').getAll(IDBKeyRange.only(selectedChat));
                     rows.onerror = () => { database.close(); clearTimeout(timeout); resolve(null); };
                     rows.onsuccess = () => {

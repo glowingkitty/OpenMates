@@ -199,10 +199,17 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
         let coldDirectory = try makeTemporaryDirectory()
         let coldAccount = "perf-cold-account"
         let coldServer = URL(string: "https://synthetic.invalid")!
+        let otherChat = try XCTUnwrap(fixture.chats.dropFirst().first)
+        let otherKey = try await CryptoManager.shared.unwrapChatKey(
+            encryptedChatKeyBase64: try XCTUnwrap(otherChat.encryptedChatKey), masterKey: fixture.masterKey)
+        let otherMessage = Message(
+            id: "perf-secondary-chat-message", chatId: otherChat.id, role: .user, content: nil,
+            encryptedContent: try await CryptoManager.shared.encryptContent("Retained offline", key: otherKey),
+            createdAt: Self.isoTimestamp(0), updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
         do {
             let seeding = try OfflineStore(directory: coldDirectory, userId: coldAccount, apiBaseURL: coldServer)
             seeding.persistChats(fixture.chats)
-            seeding.persistMessagesBatch([busyChatId: fixture.messages])
+            seeding.persistMessagesBatch([busyChatId: fixture.messages, otherChat.id: [otherMessage]])
             seeding.deactivate()
         }
         var chatStore = ChatStore()
@@ -219,6 +226,10 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
                 XCTAssertFalse(chatStore.chats.isEmpty)
                 XCTAssertNotNil(chatStore.chat(for: busyChatId))
                 XCTAssertEqual(chatStore.messages(for: busyChatId).count, ChatStore.boundedWindowSize)
+                XCTAssertNotNil(chatStore.chat(for: otherChat.id))
+                XCTAssertTrue(chatStore.messages(for: otherChat.id).isEmpty)
+                XCTAssertEqual(self.openedStores.last?.loadLatestMessageWindow(chatId: otherChat.id).first?.id,
+                               otherMessage.id)
             })
 
         // 6 and 7. Chat open: load from the reopened store and decrypt for display,

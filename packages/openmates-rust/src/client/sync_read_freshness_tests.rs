@@ -114,7 +114,7 @@ impl Peer {
                             s.fetch_add(1,Ordering::SeqCst);
                             let mut frames=vec![
                                 json!({"type":"server_capabilities","payload":{"capabilities":[]}}),
-                                json!({"type":"phase_2_last_20_chats_ready","payload":{"chats":[{"chat_details":row(CHAT)},{"chat_details":row(OTHER)}]}}),
+                                json!({"type":"phase_2_last_20_chats_ready","payload":{"chats":[{"chat_details":row(CHAT)},{"chat_details":row(OTHER)}],"total_chat_count":2,"authoritative":true,"authoritative_chat_ids":[CHAT,OTHER]}}),
                                 json!({"type":"recovery_jobs_available","payload":{"jobs":[]}}),
                                 json!({"type":"metadata_jobs_available","payload":{"jobs":[]}}),
                                 json!({"type":"task_update_jobs_available","payload":{"jobs":[],"complete":true}}),

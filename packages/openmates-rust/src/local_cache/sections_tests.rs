@@ -31,6 +31,7 @@ pub(super) struct MemStore {
     files: Mutex<BTreeMap<String, (Vec<u8>, u64)>>,
     held: Arc<Mutex<BTreeSet<String>>>,
     log: Mutex<Vec<Op>>,
+    reads: Mutex<Vec<String>>,
     clock: Mutex<u64>,
 }
 
@@ -81,6 +82,7 @@ impl MemStore {
 impl ByteStore for MemStore {
     type Version = u64;
     fn get(&self, name: &str) -> std::result::Result<Option<Vec<u8>>, ByteStoreError> {
+        self.reads.lock().unwrap().push(name.to_owned());
         Ok(self.bytes(name))
     }
     fn version(&self, name: &str) -> std::result::Result<Option<u64>, ByteStoreError> {
@@ -241,6 +243,44 @@ fn golden_index_mode_reads_one_record_and_one_chat_on_demand() {
         .unwrap()
         .unwrap();
     assert_eq!(chat["history"][0]["id"], "m2");
+}
+
+#[test]
+fn index_and_selected_transcript_reads_do_not_scale_with_archive_size() {
+    let index_name = name("sync-personal#index");
+    let chosen_name = name("sync-personal#chat:chat-a");
+    for archived_chats in [0, 130] {
+        let engine = CacheEngine::new(MemStore::with_fence(FENCE));
+        let mut snapshot = golden_snapshot();
+        for i in 0..archived_chats {
+            let id = format!("older-{i}");
+            snapshot["chats"][&id] = json!({"id":id});
+            snapshot["history"][&id] = json!([{"id":"older-message","encrypted_content":"opaque"}]);
+        }
+        let prepared = engine.prepare_sync_sections(snapshot, None).unwrap();
+        engine
+            .write_sync_sections(&admission(), OWNER_RAW, "sync-personal", &KEY, prepared)
+            .unwrap();
+        engine.bytes.reads.lock().unwrap().clear();
+        let read = engine
+            .read_sync_cache(&admission(), OWNER_RAW, "sync-personal", &KEY, SyncReadMode::Index)
+            .unwrap().unwrap();
+        assert!(matches!(read, SyncCacheRead::Index(_)));
+        let cache_reads = |want: &[&str]| {
+            let reads = std::mem::take(&mut *engine.bytes.reads.lock().unwrap());
+            let names: Vec<_> = reads.iter()
+                .filter(|name| name.starts_with("cache-"))
+                .filter(|read| *read != &name("sync-personal#list-freshness-revoked"))
+                .map(String::as_str)
+                .collect();
+            assert_eq!(names, want);
+        };
+        cache_reads(&[&index_name]);
+        assert!(engine
+            .read_sync_chat(&admission(), OWNER_RAW, "sync-personal", &KEY, "chat-a")
+            .unwrap().is_some());
+        cache_reads(&[&chosen_name]);
+    }
 }
 
 #[test]
@@ -477,6 +517,37 @@ fn a_chat_read_before_the_index_is_refused() {
         engine.read_sync_chat(&admission(), OWNER_RAW, "sync-personal", &KEY, "chat-a"),
         Err(Error::Cancelled)
     ));
+}
+
+#[test]
+fn selected_chat_refuses_a_manifest_from_a_prior_epoch_before_reading_the_file() {
+    let engine = CacheEngine::new(golden_store());
+    engine
+        .read_sync_cache(
+            &admission(),
+            OWNER_RAW,
+            "sync-personal",
+            &KEY,
+            SyncReadMode::Index,
+        )
+        .unwrap()
+        .unwrap();
+    // Rotate to a valid, unrevoked epoch while retaining the old physical file
+    // and in-memory manifest. The old set is no longer eligible for reading.
+    let next_fence = FENCE.replace(
+        "c4f86cef-590c-4a5e-8120-eb6a27ded8a2",
+        "0d1b5c1e-2f0a-4a4b-9e0e-5a3f2d5f9b11",
+    );
+    let selected = name("sync-personal#chat:chat-a");
+    assert!(engine.bytes().bytes(&selected).is_some());
+    engine.bytes().insert(REVOCATION_FILE, next_fence.as_bytes());
+    engine.bytes().reads.lock().unwrap().clear();
+
+    assert!(matches!(
+        engine.read_sync_chat(&admission(), OWNER_RAW, "sync-personal", &KEY, "chat-a"),
+        Err(Error::Cancelled)
+    ));
+    assert!(!engine.bytes().reads.lock().unwrap().contains(&selected));
 }
 
 #[test]

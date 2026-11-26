@@ -227,10 +227,9 @@ impl<S: ByteStore> CacheEngine<S> {
         let _session_guard = self.lock(SESSION_LOCK)?;
         let context = admission.admit(owner)?;
         let _cache_guard = self.lock(&format!("{}.lock", cache_file_name(owner, cache_key)))?;
-        let manifest = self.current_manifest(owner, cache_key, &epoch)?;
-        let section = match manifest.records.get(chat) {
+        let section = match self.current_chat_set(owner, cache_key, &epoch, chat)? {
             Some(set) => {
-                self.read_section_locked(&context, owner, cache_key, key, &epoch, Some(chat), set)?
+                self.read_section_locked(&context, owner, cache_key, key, &epoch, Some(chat), &set)?
             }
             None => None,
         };
@@ -621,6 +620,23 @@ impl<S: ByteStore> CacheEngine<S> {
             .filter(|manifest| manifest.epoch == epoch)
             .cloned()
     }
+    // The caller holds the cache lock through the section read. Copy just the
+    // set from the committed epoch so unrelated chat records stay untouched.
+    fn current_chat_set(
+        &self,
+        owner: &str,
+        cache_key: &str,
+        epoch: &str,
+        chat: &str,
+    ) -> Result<Option<String>> {
+        let manifests = self.manifests.lock().map_err(|_| Error::Cancelled)?;
+        let manifest = manifests
+            .get(&cache_file_name(owner, cache_key))
+            .filter(|manifest| manifest.epoch == epoch)
+            .ok_or(Error::Cancelled)?;
+        Ok(manifest.records.get(chat).cloned())
+    }
+
     fn current_manifest(&self, owner: &str, cache_key: &str, epoch: &str) -> Result<Manifest> {
         self.loaded_manifest(owner, cache_key, epoch)
             .ok_or(Error::Cancelled)

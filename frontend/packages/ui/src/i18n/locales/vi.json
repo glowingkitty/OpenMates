@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Hiển thị thêm"
+      },
+      "account_total": {
+        "text": "{count} cuộc trò chuyện trong tài khoản"
       }
     },
     "latest_news": {

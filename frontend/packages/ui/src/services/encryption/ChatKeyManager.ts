@@ -34,6 +34,7 @@ import {
 } from "./chatKeyStateMirror";
 import { clearDecryptionFailureCache } from "../db/decryptionFailureCache";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
+import { getWorkspaceCacheEpoch } from "../workspaceCacheLifecycle";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -183,6 +184,17 @@ type CrossTabMessage =
   /** A tab loaded a new key — broadcast so other tabs can warm their cache */
   | { type: "keyLoaded"; chatId: string; encryptedChatKey: string };
 
+export type PersistedChatKey = string | {
+  encryptedKey: string;
+  teamId: string | null;
+  keyChatId: string;
+  visibility?: "team" | "direct" | null;
+};
+
+function persistedCiphertext(source: PersistedChatKey | null): string | null {
+  return typeof source === "string" ? source : source?.encryptedKey ?? null;
+}
+
 export class ChatKeyManager {
   // ---- State ----
 
@@ -197,6 +209,8 @@ export class ChatKeyManager {
 
   /** Per-chat loading promises (so multiple concurrent getKey() calls share one load) */
   private loadingPromises: Map<string, Promise<Uint8Array | null>> = new Map();
+  private loadWorkspaceEpoch = getWorkspaceCacheEpoch();
+  private loadLifetime = 0;
 
   /** Operations queued waiting for a key to arrive */
   private pendingOps: Map<string, QueuedOperation[]> = new Map();
@@ -224,7 +238,7 @@ export class ChatKeyManager {
 
   /** Callback to fetch encrypted_chat_key from IndexedDB for a given chatId */
   private fetchEncryptedChatKey:
-    | ((chatId: string) => Promise<string | null>)
+    | ((chatId: string) => Promise<PersistedChatKey | null>)
     | null = null;
 
   /** Callback to fetch candidate_encrypted_keys array from IDB for a given chatId */
@@ -233,7 +247,7 @@ export class ChatKeyManager {
 
   /** Callback to persist a new candidate key blob to IDB (appended to array, max 5) */
   private persistCandidateKeyFn:
-    | ((chatId: string, encryptedKeyBlob: string) => Promise<void>)
+    | ((chatId: string, encryptedKeyBlob: string, isCurrent?: () => boolean) => Promise<void>)
     | null = null;
 
   /** Hidden chat key decryptor (combined secret) — set by hiddenChatService */
@@ -247,7 +261,7 @@ export class ChatKeyManager {
    * Used by createAndPersistKey() to atomically create + persist keys.
    */
   private persistEncryptedChatKeyFn:
-    | ((chatId: string, encryptedChatKey: string) => Promise<void>)
+    | ((chatId: string, encryptedChatKey: string, isCurrent?: () => boolean) => Promise<void>)
     | null = null;
 
   /**
@@ -333,9 +347,10 @@ export class ChatKeyManager {
    * prevent key injection from succeeding. The server relays this as
    * key_delivery_confirmed to the originating sender device.
    */
-  private sendKeyReceivedAck(chatId: string): void {
+  private sendKeyReceivedAck(chatId: string, isCurrent: () => boolean): void {
     import("../websocketService")
       .then(({ webSocketService }) => {
+        if (!isCurrent()) return;
         webSocketService
           .sendMessage("key_received", { chat_id: chatId })
           .catch((ackError: unknown) => {
@@ -361,6 +376,8 @@ export class ChatKeyManager {
    */
   private async tryDecryptWithCandidates(
     chatId: string,
+    isCurrent: () => boolean,
+    isScopeCurrent: () => boolean,
   ): Promise<Uint8Array | null> {
     if (!this.fetchCandidateKeysFn) return null;
 
@@ -370,12 +387,14 @@ export class ChatKeyManager {
     } catch {
       return null;
     }
-    if (!candidates.length) return null;
+    if (!isCurrent() || !candidates.length) return null;
 
     for (let i = 0; i < candidates.length; i++) {
+      if (!isCurrent()) return null;
       const blob = candidates[i];
       try {
         const key = await decryptChatKeyWithMasterKey(blob);
+        if (!isCurrent()) return null;
         if (!key) continue;
 
         const candidateFp = computeKeyFingerprint(key);
@@ -389,23 +408,19 @@ export class ChatKeyManager {
 
         // Force-replace the corrupt primary key with the working candidate
         this.injectKey(chatId, key, "master_key", true);
-        this.flushPendingOps(chatId, key);
+        if (!isCurrent()) return null;
 
         // Persist the corrected blob as the new primary encrypted_chat_key in IDB
         if (this.persistEncryptedChatKeyFn) {
-          this.persistEncryptedChatKeyFn(chatId, blob).catch((err) =>
-            console.warn(
-              `[ChatKeyManager] Failed to persist promoted candidate for ${chatId}:`,
-              err,
-            ),
-          );
+          await this.persistEncryptedChatKeyFn(chatId, blob, isCurrent).catch((error) => {
+            if (isCurrent()) console.warn("[ChatKeyManager] Failed to persist promoted key", error);
+          });
         }
+        if (!isCurrent()) return null;
 
-        // Broadcast the corrected key to other tabs
         this.broadcastKeyLoaded(chatId, blob);
-
-        // Notify server to overwrite its stale encrypted_chat_key so other devices heal
-        this.sendCandidatePromotionToServer(chatId, blob, candidateFp);
+        this.sendCandidatePromotionToServer(chatId, blob, candidateFp,
+          () => isScopeCurrent() && this.getKeySync(chatId) === key);
 
         return key;
       } catch {
@@ -475,18 +490,21 @@ export class ChatKeyManager {
     chatId: string,
     encryptedChatKey: string,
   ): Promise<Uint8Array | null> {
+    const isCurrent = this.captureKeyScope();
+    if (!isCurrent()) return null;
     const serverKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
-    if (!serverKey) return null;
+    if (!serverKey || !isCurrent()) return null;
 
     const existingEncryptedKey = this.fetchEncryptedChatKey
-      ? await this.fetchEncryptedChatKey(chatId).catch(() => null)
+      ? persistedCiphertext(await this.fetchEncryptedChatKey(chatId).catch(() => null))
       : null;
+    if (!isCurrent()) return null;
     if (
       existingEncryptedKey &&
       existingEncryptedKey !== encryptedChatKey &&
       this.persistCandidateKeyFn
     ) {
-      this.persistCandidateKeyFn(chatId, existingEncryptedKey).catch((err) =>
+      this.persistCandidateKeyFn(chatId, existingEncryptedKey, isCurrent).catch((err) =>
         console.warn(
           `[ChatKeyManager] Failed to persist previous key candidate for ${chatId}:`,
           err,
@@ -494,11 +512,12 @@ export class ChatKeyManager {
       );
     }
 
+    if (!isCurrent()) return null;
     this.injectKey(chatId, serverKey, "server_sync", true);
-    this.flushPendingOps(chatId, serverKey);
+    if (!isCurrent()) return null;
 
     if (this.persistEncryptedChatKeyFn) {
-      this.persistEncryptedChatKeyFn(chatId, encryptedChatKey).catch((err) =>
+      this.persistEncryptedChatKeyFn(chatId, encryptedChatKey, isCurrent).catch((err) =>
         console.warn(
           `[ChatKeyManager] Failed to persist authoritative server key for ${chatId}:`,
           err,
@@ -506,6 +525,7 @@ export class ChatKeyManager {
       );
     }
 
+    if (!isCurrent()) return null;
     this.broadcastKeyLoaded(chatId, encryptedChatKey);
     return serverKey;
   }
@@ -519,9 +539,11 @@ export class ChatKeyManager {
     chatId: string,
     encryptedChatKey: string,
     candidateFp: string,
+    isCurrent?: () => boolean,
   ): void {
     import("../websocketService")
       .then(({ webSocketService }) => {
+        if (isCurrent && !isCurrent()) return;
         webSocketService
           .sendMessage("encrypted_chat_metadata", {
             chat_id: chatId,
@@ -551,7 +573,7 @@ export class ChatKeyManager {
    * Called once during ChatDatabase initialization.
    */
   setEncryptedChatKeyFetcher(
-    fetcher: (chatId: string) => Promise<string | null>,
+    fetcher: (chatId: string) => Promise<PersistedChatKey | null>,
   ): void {
     this.fetchEncryptedChatKey = fetcher;
   }
@@ -574,7 +596,7 @@ export class ChatKeyManager {
    * Used by createAndPersistKey() to atomically create + persist keys.
    */
   setEncryptedChatKeyPersister(
-    persister: (chatId: string, encryptedChatKey: string) => Promise<void>,
+    persister: (chatId: string, encryptedChatKey: string, isCurrent?: () => boolean) => Promise<void>,
   ): void {
     this.persistEncryptedChatKeyFn = persister;
   }
@@ -592,7 +614,7 @@ export class ChatKeyManager {
    * Called once during ChatDatabase initialization.
    */
   setCandidateKeyPersister(
-    persister: (chatId: string, encryptedKeyBlob: string) => Promise<void>,
+    persister: (chatId: string, encryptedKeyBlob: string, isCurrent?: () => boolean) => Promise<void>,
   ): void {
     this.persistCandidateKeyFn = persister;
   }
@@ -625,6 +647,7 @@ export class ChatKeyManager {
    * NEVER generates a new key. Returns null if the key cannot be obtained.
    */
   async getKey(chatId: string): Promise<Uint8Array | null> {
+    this.refreshLoadScope();
     // Fast path: key already in memory
     const cached = this.keys.get(chatId);
     if (cached) return cached;
@@ -693,7 +716,7 @@ export class ChatKeyManager {
     encryptedChatKey: string;
   }> {
     const persistedEncryptedChatKey = this.fetchEncryptedChatKey
-      ? await this.fetchEncryptedChatKey(chatId).catch(() => null)
+      ? persistedCiphertext(await this.fetchEncryptedChatKey(chatId).catch(() => null))
       : null;
 
     if (persistedEncryptedChatKey) {
@@ -815,97 +838,100 @@ export class ChatKeyManager {
 
   // ---- Key Loading ----
 
+  private captureKeyScope(): () => boolean {
+    const epoch = getWorkspaceCacheEpoch();
+    const lifetime = this.loadLifetime;
+    return () => !this.deferredClearAll && lifetime === this.loadLifetime && epoch === getWorkspaceCacheEpoch();
+  }
+
+  private refreshLoadScope(): void {
+    const epoch = getWorkspaceCacheEpoch();
+    if (epoch === this.loadWorkspaceEpoch) return;
+    this.loadWorkspaceEpoch = epoch;
+    this.loadingPromises.clear();
+    for (const [chatId, state] of this.states) {
+      if (state === "loading" || state === "failed") this.states.delete(chatId);
+    }
+  }
+
   /**
-   * Load a key from IndexedDB's encrypted_chat_key field.
-   * Sets state to 'loading' during the operation.
+   * Load a persisted key within the originating workspace and request. A stale
+   * load must leave a replacement request and its key state untouched.
    */
   private async loadKeyFromDB(chatId: string): Promise<Uint8Array | null> {
-    if (!this.fetchEncryptedChatKey) {
-      console.warn(
-        `[ChatKeyManager] No encrypted chat key fetcher registered, cannot load key for ${chatId}`,
-      );
-      return null;
-    }
+    this.refreshLoadScope();
+    const fetchKey = this.fetchEncryptedChatKey;
+    if (!fetchKey || this.deferredClearAll) return null;
 
     this.states.set(chatId, "loading");
-
-    const loadPromise = (async (): Promise<Uint8Array | null> => {
+    const isScopeCurrent = this.captureKeyScope();
+    const isCurrent = (): boolean => isScopeCurrent() && this.loadingPromises.get(chatId) === loadPromise;
+    const retain = (key: Uint8Array, source: KeySource) => {
+      if (!isCurrent()) return null;
+      // A server key may have arrived while IndexedDB or WebCrypto was pending.
+      if (!this.injectKey(chatId, key, source)) return this.getKeySync(chatId);
+      return isCurrent() ? key : null;
+    };
+    const loadPromise: Promise<Uint8Array | null> = Promise.resolve().then(async () => {
       try {
-        const encryptedKey = await this.fetchEncryptedChatKey!(chatId);
+        if (!isCurrent()) return null;
+        const source = await fetchKey(chatId);
+        if (!isCurrent()) return null;
+        const encryptedKey = persistedCiphertext(source);
         if (!encryptedKey) {
-          // No encrypted_chat_key in DB — this chat might be brand new or not synced yet
-          this.states.set(chatId, "unloaded");
-          return null;
+          if (!this.keys.has(chatId)) this.states.set(chatId, "unloaded");
+          return this.getKeySync(chatId);
         }
 
-        // Direct-chat envelopes are bound to this account, Team, chat and key ID.
-        // Never pass them through master/hidden/candidate fallback paths.
+        if (source && typeof source !== "string" && source.teamId) {
+          const { unwrapTeamOrDirectChatKey } = await import("../directChatService");
+          if (!isCurrent()) return null;
+          const key = await unwrapTeamOrDirectChatKey(source.teamId, source.keyChatId, encryptedKey, source.visibility);
+          return retain(key, source.visibility === "direct" ? "direct_chat" : "server_sync");
+        }
+
+        // Direct envelopes from legacy fetchers have no master-key fallback.
         if (encryptedKey.startsWith('OMDM1.')) {
-          const { getActiveTeamContextSnapshot } = await import('../../stores/teamStore');
-          const { unwrapDirectTeamChatKey } = await import('../directChatService');
+          const [{ getActiveTeamContextSnapshot }, { unwrapDirectTeamChatKey }] = await Promise.all([
+            import('../../stores/teamStore'), import('../directChatService'),
+          ]);
+          if (!isCurrent()) return null;
           const teamId = getActiveTeamContextSnapshot().teamId;
           if (!teamId) throw new Error('No active Team for direct chat key');
-          const directKey = await unwrapDirectTeamChatKey(teamId, chatId, encryptedKey);
-          this.setKeyWithProvenance(chatId, directKey, 'direct_chat');
-          this.flushPendingOps(chatId, directKey);
-          return directKey;
+          return retain(await unwrapDirectTeamChatKey(teamId, chatId, encryptedKey), 'direct_chat');
         }
 
-        // Try master key decryption first
-        const chatKey = await decryptChatKeyWithMasterKey(encryptedKey);
-        if (chatKey) {
-          this.setKeyWithProvenance(chatId, chatKey, "master_key");
-          this.flushPendingOps(chatId, chatKey);
-          return chatKey;
-        }
+        const masterKey = await decryptChatKeyWithMasterKey(encryptedKey);
+        if (!isCurrent()) return null;
+        if (masterKey) return retain(masterKey, "master_key");
 
-        // Master key failed — try hidden chat decryptor if available
         if (this.hiddenChatKeyDecryptor) {
-          const hiddenKey = await this.hiddenChatKeyDecryptor(
-            encryptedKey,
-            chatId,
-          );
-          if (hiddenKey) {
-            this.setKeyWithProvenance(chatId, hiddenKey, "hidden_chat");
-            this.flushPendingOps(chatId, hiddenKey);
-            return hiddenKey;
-          }
+          const hiddenKey = await this.hiddenChatKeyDecryptor(encryptedKey, chatId);
+          if (!isCurrent()) return null;
+          if (hiddenKey) return retain(hiddenKey, "hidden_chat");
         }
 
         const anonymousKey = await unwrapAnonymousChatKey(encryptedKey);
-        if (anonymousKey) {
-          this.setKeyWithProvenance(chatId, anonymousKey, "anonymous_session");
-          this.flushPendingOps(chatId, anonymousKey);
-          return anonymousKey;
-        }
+        if (!isCurrent()) return null;
+        if (anonymousKey) return retain(anonymousKey, "anonymous_session");
 
-        // Both primary methods failed — try candidate keys (multi-tab race survivors)
-        const candidateKey = await this.tryDecryptWithCandidates(chatId);
-        if (candidateKey) {
-          return candidateKey;
-        }
+        const candidateKey = await this.tryDecryptWithCandidates(chatId, isCurrent, isScopeCurrent);
+        if (!isCurrent()) return null;
+        if (candidateKey) return candidateKey;
 
-        console.warn(
-          `[ChatKeyManager] Failed to decrypt chat key for ${chatId} — ` +
-            `master key, hidden chat decryptors, and all ${await this.fetchCandidateKeysFn?.(
-              chatId,
-            )
-              .then((c) => c.length)
-              .catch(() => 0)} candidate(s) failed`,
-        );
-        this.states.set(chatId, "failed");
-        return null;
+        if (!this.keys.has(chatId)) this.states.set(chatId, "failed");
+        return this.getKeySync(chatId);
       } catch (error) {
-        console.error(
-          `[ChatKeyManager] Error loading key for ${chatId}:`,
-          error,
-        );
-        this.states.set(chatId, "failed");
-        return null;
+        if (!isCurrent()) return null;
+        console.error(`[ChatKeyManager] Error loading key for ${chatId}:`, error);
+        if (!this.keys.has(chatId)) this.states.set(chatId, "failed");
+        return this.getKeySync(chatId);
       } finally {
-        this.loadingPromises.delete(chatId);
+        if (this.loadingPromises.get(chatId) === loadPromise) {
+          this.loadingPromises.delete(chatId);
+        }
       }
-    })();
+    });
 
     this.loadingPromises.set(chatId, loadPromise);
     return loadPromise;
@@ -951,23 +977,28 @@ export class ChatKeyManager {
     chatId: string,
     encryptedChatKey: string,
   ): Promise<Uint8Array | null> {
+    const isCurrent = this.captureKeyScope();
+    if (!isCurrent()) return null;
     if (encryptedChatKey.startsWith('OMDM1.')) {
       try {
         const { getActiveTeamContextSnapshot } = await import('../../stores/teamStore');
         const { unwrapDirectTeamChatKey } = await import('../directChatService');
+        if (!isCurrent()) return null;
         const teamId = getActiveTeamContextSnapshot().teamId;
         if (!teamId) return null;
         const directKey = await unwrapDirectTeamChatKey(teamId, chatId, encryptedChatKey);
+        if (!isCurrent()) return null;
         const cached = this.keys.get(chatId);
         if (cached && !keysAreEqual(cached, directKey)) {
           console.error(`[ChatKeyManager] Refusing conflicting direct-chat key for ${chatId}`);
           return null;
         }
         if (!cached) this.setKeyWithProvenance(chatId, directKey, 'direct_chat');
+        if (!isCurrent()) return null;
         this.flushPendingOps(chatId, directKey);
-        return directKey;
+        return isCurrent() ? directKey : null;
       } catch (error) {
-        console.error(`[ChatKeyManager] Could not open direct-chat key for ${chatId}`, error);
+        if (isCurrent()) console.error(`[ChatKeyManager] Could not open direct-chat key for ${chatId}`, error);
         return null;
       }
     }
@@ -978,6 +1009,7 @@ export class ChatKeyManager {
       // than what we have locally, which is the root cause of decryption failures.
       try {
         const serverKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
+        if (!isCurrent()) return null;
         if (serverKey && !keysAreEqual(existing, serverKey)) {
           const existingFp = computeKeyFingerprint(existing);
           const serverFp = computeKeyFingerprint(serverKey);
@@ -989,33 +1021,35 @@ export class ChatKeyManager {
           // Save the conflicting server key as a candidate. If the local key is wrong
           // (e.g. corrupted by a prior race), tryDecryptWithCandidates will recover it.
           if (this.persistCandidateKeyFn) {
-            this.persistCandidateKeyFn(chatId, encryptedChatKey).catch((err) =>
+            this.persistCandidateKeyFn(chatId, encryptedChatKey, isCurrent).catch((err) =>
               console.warn(
                 `[ChatKeyManager] Failed to persist candidate key for ${chatId}:`,
                 err,
               ),
             );
           }
-          return existing;
         }
       } catch {
         // Decryption of server key failed — keep existing
       }
-      return existing;
+      return isCurrent() ? this.getKeySync(chatId) : null;
     }
 
     try {
       const chatKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
+      if (!isCurrent()) return null;
       if (chatKey) {
         this.setKeyWithProvenance(chatId, chatKey, "server_sync");
         console.debug(
           `[ChatKeyManager] Received and cached key from server for chat ${chatId}`,
         );
+        if (!isCurrent()) return null;
         this.flushPendingOps(chatId, chatKey);
+        if (!isCurrent()) return null;
         // Broadcast to other tabs (loop-guarded by _receivingFromBroadcast)
         this.broadcastKeyLoaded(chatId, encryptedChatKey);
         // SYNC-01: Send key_received acknowledgment to server (non-blocking)
-        this.sendKeyReceivedAck(chatId);
+        this.sendKeyReceivedAck(chatId, isCurrent);
         return chatKey;
       }
 
@@ -1025,10 +1059,12 @@ export class ChatKeyManager {
           encryptedChatKey,
           chatId,
         );
+        if (!isCurrent()) return null;
         if (hiddenKey) {
           this.setKeyWithProvenance(chatId, hiddenKey, "hidden_chat");
+          if (!isCurrent()) return null;
           this.flushPendingOps(chatId, hiddenKey);
-          return hiddenKey;
+          return isCurrent() ? hiddenKey : null;
         }
       }
 
@@ -1037,6 +1073,7 @@ export class ChatKeyManager {
       );
       return null;
     } catch (error) {
+      if (!isCurrent()) return null;
       console.error(
         `[ChatKeyManager] Error decrypting server key for ${chatId}:`,
         error,
@@ -1456,6 +1493,9 @@ export class ChatKeyManager {
    * also clear their in-memory keys (cross-tab logout safety).
    */
   clearAll({ broadcast = true }: { broadcast?: boolean } = {}): void {
+    // Retire read-only loads immediately, even while authorized writes drain.
+    this.loadLifetime++;
+    this.loadingPromises.clear();
     if (this.criticalOpCount > 0) {
       console.warn(
         `[ChatKeyManager] clearAll() DEFERRED — ${this.criticalOpCount} critical crypto op(s) in progress. ` +
@@ -1494,7 +1534,6 @@ export class ChatKeyManager {
     this.keys.clear();
     this.states.clear();
     this.provenances.clear();
-    this.loadingPromises.clear();
     this.pendingOps.clear();
     this.deferredClearAll = false;
     // Clear all cached CryptoKey objects since all raw keys are gone

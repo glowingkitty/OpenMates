@@ -3725,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Показать ещё"
+      },
+      "account_total": {
+        "text": "Чатов в вашем аккаунте: {count}"
       }
     },
     "latest_news": {

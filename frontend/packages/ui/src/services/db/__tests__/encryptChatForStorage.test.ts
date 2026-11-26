@@ -125,6 +125,7 @@ import {
 } from "../chatCrudOperations";
 import { getEncryptedChatKey } from "../chatKeyManagement";
 import type { Chat } from "../../../types/chat";
+import { invalidateWorkspaceCaches } from "../../workspaceCacheLifecycle";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -152,6 +153,7 @@ function makeChat(overrides: Partial<Chat> = {}): Chat {
 
 function makeDbInstance() {
   const put = vi.fn();
+  const getChat = vi.fn().mockResolvedValue(null);
   return {
     db: null,
     CHATS_STORE_NAME: "chats",
@@ -159,7 +161,8 @@ function makeDbInstance() {
     getTransaction: vi.fn().mockResolvedValue({
       objectStore: vi.fn().mockReturnValue({ put }),
     }),
-    getChat: vi.fn().mockResolvedValue(null),
+    getChat,
+    getRawChat: getChat,
     getEncryptedChatKey: vi.fn().mockResolvedValue(null),
     put,
   };
@@ -191,6 +194,46 @@ describe("encryptChatForStorage — isFromSync guard", () => {
       chatKey: fakeKey,
       encryptedChatKey: "encrypted-key-base64",
     });
+  });
+
+  // contract-test: direct surface=gui.web assertions=auth.keys.client-wrapped
+  it("keeps a persisted wrapper when an incoming key conflicts with a cold cache", async () => {
+    const db = makeDbInstance();
+    db.getRawChat.mockResolvedValue(makeChat({ encrypted_chat_key: "retained-wrapper" }));
+    const incomingKey = new Uint8Array(32).fill(9);
+    mockDecryptChatKeyWithMasterKey.mockImplementation(async (wrapped: string) =>
+      wrapped === "retained-wrapper" ? fakeKey : incomingKey,
+    );
+
+    const saved = await encryptChatForStorage(
+      db, makeChat({ encrypted_chat_key: "conflicting-wrapper" }), { isFromSync: true },
+    );
+
+    expect(saved.encrypted_chat_key).toBe("retained-wrapper");
+    expect(mockInjectKey).toHaveBeenCalledWith("test-chat-123", fakeKey, "master_key");
+    expect(mockInjectKey).not.toHaveBeenCalledWith("test-chat-123", incomingKey, expect.anything());
+  });
+
+  // contract-test: direct surface=gui.web assertions=auth.keys.client-wrapped,chats.persistence.client-encrypted
+  it.each([false, true])("rejects an unreadable replacement wrapper with a warm cache of %s", async warm => {
+    const db = makeDbInstance();
+    const retained = makeChat({
+      encrypted_chat_key: "retained-wrapper",
+      encrypted_title: "retained-title",
+    });
+    db.getRawChat.mockResolvedValue(retained);
+    mockGetKeySync.mockReturnValue(warm ? fakeKey : null);
+    mockDecryptChatKeyWithMasterKey.mockImplementation(async (wrapped: string) =>
+      wrapped === retained.encrypted_chat_key ? fakeKey : null,
+    );
+
+    await expect(encryptChatForStorage(
+      db as any,
+      makeChat({ encrypted_chat_key: "unreadable-wrapper", encrypted_title: "untrusted-title" }),
+      { isFromSync: true, forceIncomingEncryptedChatKey: true },
+    )).rejects.toThrow("Incoming chat key could not be unwrapped");
+    expect(db.put).not.toHaveBeenCalled();
+    expect(mockInjectKey).not.toHaveBeenCalledWith("test-chat-123", expect.anything(), "server_sync", true);
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
@@ -368,7 +411,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
-  it("does NOT overwrite IDB key when server key is rejected by injectKey (step 2 regression)", async () => {
+  it("does NOT overwrite IDB key when an incoming wrapper conflicts with the cold persisted key", async () => {
     // Regression: aac318eee added injectKey guard for memory but forgot to gate
     // the IDB write. When injectKey returns false (key conflict), the server's
     // encrypted_chat_key must NOT be saved to IDB — it would corrupt decryption
@@ -376,13 +419,11 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     const db = makeDbInstance();
     const chat = makeChat({ encrypted_chat_key: "server-encrypted-key-wrong" });
 
-    // Step 2: server key decrypts but injectKey REJECTS it (conflict with loaded key)
-    mockDecryptChatKeyWithMasterKey
-      .mockResolvedValueOnce(new Uint8Array(32).fill(99)) // server key (rejected)
-      .mockResolvedValueOnce(fakeKey); // IDB key (accepted in step 3)
-    mockInjectKey
-      .mockReturnValueOnce(false) // step 2 rejection
-      .mockReturnValueOnce(true); // step 3 acceptance
+    // The persisted wrapper is consulted before the incoming wrapper.
+    mockDecryptChatKeyWithMasterKey.mockImplementation(async (wrapped: string) =>
+      wrapped === "idb-correct-key" ? fakeKey : new Uint8Array(32).fill(99),
+    );
+    mockInjectKey.mockReturnValueOnce(true);
 
     // Step 3: IDB has the correct key
     db.getChat.mockResolvedValue({
@@ -455,6 +496,29 @@ describe("encryptChatForStorage — isFromSync guard", () => {
         candidate_encrypted_keys: ["old-local-key"],
       }),
     );
+  });
+
+  // contract-test: direct surface=gui.web assertions=auth.secrets.lifecycle
+  it("discards an authoritative rotation when the workspace changes during candidate persistence", async () => {
+    const db = makeDbInstance();
+    const incomingKey = new Uint8Array(32).fill(99);
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockDecryptChatKeyWithMasterKey.mockResolvedValue(incomingKey);
+    db.getRawChat.mockResolvedValue(makeChat({ encrypted_chat_key: "old-local-key" }));
+    db.getTransaction.mockImplementationOnce(async () => {
+      invalidateWorkspaceCaches();
+      return { objectStore: () => ({ put: db.put }) };
+    });
+
+    await expect(encryptChatForStorage(
+      db as any,
+      makeChat({ encrypted_chat_key: "server-encrypted-key" }),
+      { isFromSync: true, forceIncomingEncryptedChatKey: true },
+    )).rejects.toThrow("Chat key scope changed");
+
+    expect(db.getTransaction).toHaveBeenCalledOnce();
+    expect(db.put).not.toHaveBeenCalled();
+    expect(mockInjectKey).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
@@ -618,6 +682,72 @@ describe("addChat transaction completion", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  // contract-test: direct surface=gui.web assertions=auth.secrets.lifecycle
+  it("discards a write if the workspace changes while opening a replacement transaction", async () => {
+    const expired = {
+      mode: "readwrite",
+      error: null,
+      objectStore: () => ({
+        put: () => { throw new DOMException("transaction expired", "TransactionInactiveError"); },
+      }),
+    } as unknown as IDBTransaction;
+    const put = vi.fn();
+    const db = {
+      ...makeDbInstance(),
+      db: {} as IDBDatabase,
+      getTransaction: vi.fn(async () => {
+        invalidateWorkspaceCaches();
+        return { objectStore: () => ({ put }) };
+      }),
+    };
+
+    await expect(addChat(db as any, makeChat(), expired, { isFromSync: true }))
+      .rejects.toThrow("Chat write scope changed");
+
+    expect(db.getRawChat).toHaveBeenCalledWith("test-chat-123", expired);
+    expect(db.getTransaction).toHaveBeenCalledOnce();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=auth.keys.client-wrapped,chats.persistence.client-encrypted
+  it("discards a prepared rotation after another writer replaces the wrapper", async () => {
+    const expired = {
+      mode: "readwrite",
+      error: null,
+      objectStore: () => ({
+        put: () => { throw new DOMException("transaction expired", "TransactionInactiveError"); },
+      }),
+    } as unknown as IDBTransaction;
+    const put = vi.fn();
+    const incomingKey = new Uint8Array(32).fill(99);
+    const latest = {
+      result: makeChat({ encrypted_chat_key: "newer-concurrent-wrapper" }),
+      onsuccess: undefined as (() => void) | undefined,
+    };
+    const get = vi.fn(() => {
+      queueMicrotask(() => latest.onsuccess?.());
+      return latest;
+    });
+    const db = {
+      ...makeDbInstance(),
+      db: {} as IDBDatabase,
+      getTransaction: vi.fn().mockResolvedValue({ objectStore: () => ({ get, put }) }),
+    };
+    db.getRawChat.mockResolvedValue(makeChat({ encrypted_chat_key: "old-local-wrapper" }));
+    mockDecryptChatKeyWithMasterKey.mockResolvedValue(incomingKey);
+
+    await expect(addChat(
+      db as any,
+      makeChat({ encrypted_chat_key: "incoming-wrapper" }),
+      expired,
+      { isFromSync: true, forceIncomingEncryptedChatKey: true },
+    )).rejects.toThrow("Persisted chat key changed");
+
+    expect(get).toHaveBeenCalledWith("test-chat-123");
+    expect(put).not.toHaveBeenCalled();
+    expect(mockInjectKey).not.toHaveBeenCalled();
   });
 
   // contract-test: infrastructure

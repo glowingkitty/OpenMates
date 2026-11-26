@@ -5018,6 +5018,9 @@
     "loadMore": {
       "button": {
         "text": "Show more"
+      },
+      "account_total": {
+        "text": "{count} chats in your account"
       }
     },
     "latest_news": {

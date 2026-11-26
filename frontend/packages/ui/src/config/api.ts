@@ -157,6 +157,18 @@ export function isDevEnvironment(): boolean {
   return import.meta.env.VITE_ENV !== "production";
 }
 
+export const RUST_HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
+
+/** Negotiate at socket creation, including sockets opened before the Worker is ready. */
+export function usesOpenedChatStartup(): boolean {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' || typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(RUST_HISTORY_OPT_OUT_KEY) !== 'ts';
+  } catch {
+    return false;
+  }
+}
+
 // Helper to get WebSocket URL
 export function getWebSocketUrl(sessionId?: string, token?: string): string {
   const apiUrl = getApiUrl();
@@ -171,6 +183,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     params.push(`token=${encodeURIComponent(token)}`);
   }
   const clientCapabilities = [
+    ...(usesOpenedChatStartup() ? ["chat_startup_opened_v1"] : []),
     "canonical_embed_receipts_v1",
     "typed_recovery_outputs_v2",
     ...(chatMetadataRecoveryCapabilityEnabled ? ["chat_metadata_recovery"] : []),

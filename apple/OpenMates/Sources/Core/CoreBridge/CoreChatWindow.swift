@@ -46,6 +46,37 @@ enum CoreChatWindowChange: Equatable {
     case cleared
 }
 
+#if DEBUG
+/// A viewport probe reads only these monotonic timestamps from the accepted window.
+struct CoreChatWindowStartupTimings: Equatable {
+    private(set) var cached: Int?
+    private(set) var firstServerPage: Int?
+    private(set) var canonical: Int?
+    private(set) var refreshed: Int?
+    var deliberateOpenStarted: Int?
+    var deliberateOpenSettled: Int?
+
+    mutating func recordWindow(source: ChatWindowSourceRecord, uptimeMS: Int) {
+        switch source {
+        case .cached, .cachedOffline:
+            if cached == nil { cached = uptimeMS }
+        case .firstPage:
+            if firstServerPage == nil { firstServerPage = uptimeMS }
+        case .canonical:
+            // A one-page canonical read emits no separate first-page event.
+            if firstServerPage == nil { firstServerPage = uptimeMS }
+            if canonical == nil { canonical = uptimeMS }
+            if refreshed == nil { refreshed = uptimeMS }
+        case .cacheSettled:
+            // A validated local window can settle an open without server rows.
+            if refreshed == nil { refreshed = uptimeMS }
+        default:
+            break
+        }
+    }
+}
+#endif
+
 /// How an `open` call ended.
 enum CoreChatOpenOutcome: Equatable {
     case opened
@@ -57,6 +88,11 @@ enum CoreChatOpenOutcome: Equatable {
     case cancelled
     /// The app has no core (creation failed, unit-test host).
     case noCore
+}
+
+struct CoreStartupChatSelection: Equatable {
+    let chatID: String
+    let request: UInt64
 }
 
 @MainActor
@@ -71,6 +107,11 @@ final class CoreChatWindow {
     private(set) var messages: [Message] = []
     /// Origin of the last window; `nil` before the first one.
     private(set) var source: ChatWindowSourceRecord?
+    #if DEBUG
+    let benchmarkChanges = CurrentValueSubject<CoreChatWindowStartupTimings, Never>(.init())
+    private let measureStartupWindow: Bool
+    private var pendingDeliberateOpenStartedUptimeMS: Int?
+    #endif
     /// The core's title and category of the open chat (empty until a window arrives).
     private(set) var title = ""
     private(set) var category = ""
@@ -89,6 +130,13 @@ final class CoreChatWindow {
     private(set) var mappedMessageCount = 0
     /// What changed, in event order; the chat view model applies it.
     let changes = PassthroughSubject<CoreChatWindowChange, Never>()
+    let startupSelections = PassthroughSubject<CoreStartupChatSelection, Never>()
+    let unavailableStartupChats = PassthroughSubject<String, Never>()
+    let deliberateOpenSettled = PassthroughSubject<Void, Never>()
+    let deliberateOpenStarted = PassthroughSubject<Void, Never>()
+    let deliberateOpenFinished = PassthroughSubject<Void, Never>()
+    private(set) var startupSelection: CoreStartupChatSelection?
+    private var startupRequest: UInt64?
 
     var isAttached: Bool { session != nil }
 
@@ -101,7 +149,13 @@ final class CoreChatWindow {
     private var olderPagePending = false
     private var openedAt = NativeSyncPerfLog.now()
 
+    #if DEBUG
+    init(measureStartupWindow: Bool = ProcessInfo.processInfo.arguments.contains("--ui-test-startup-chat-readiness")) {
+        self.measureStartupWindow = measureStartupWindow
+    }
+    #else
     init() {}
+    #endif
 
     /// Attaches the app's window to the app's core. Without a core (creation
     /// failed, see `CoreSession.launchError`) opens report `.noCore`.
@@ -135,6 +189,11 @@ final class CoreChatWindow {
     /// then asks the core.
     @discardableResult
     func begin(chatId: String) -> UInt64 {
+        stopStartupSelection()
+        #if DEBUG
+        pendingDeliberateOpenStartedUptimeMS = nil
+        updateStartupTimings { $0 = .init() }
+        #endif
         nextRequest &+= 1
         if self.chatId != chatId {
             resetWindow()
@@ -146,6 +205,43 @@ final class CoreChatWindow {
         olderPagePending = false
         openedAt = NativeSyncPerfLog.now()
         return openRequest
+    }
+
+    /// Reserves a request that can accept a scoped choice made by the core.
+    func beginStartupSelection() -> UInt64? {
+        guard chatId == nil, startupRequest == nil else { return nil }
+        nextRequest &+= 1
+        openRequest = nextRequest
+        startupRequest = openRequest
+        openedAt = NativeSyncPerfLog.now()
+        return openRequest
+    }
+
+    /// The initial local paint and the authoritative network read share a request.
+    func resumeStartup() async -> [String] {
+        guard let session, let request = beginStartupSelection() else { return [] }
+        do {
+            try await session.perform { core, cancellation in
+                try await core.paintStartupChat(request: request, cancellation: cancellation)
+            }
+            guard !Task.isCancelled, startupRequest == request else { return [] }
+            return try await session.perform { core, cancellation in
+                try await core.resumeStartupChat(request: request, cancellation: cancellation)
+            }
+        } catch {
+            NativeSyncPerfLog.warning("phase=core.window.startup outcome=\(CoreSession.errorClass(error))")
+            return []
+        }
+    }
+
+    func stopStartupSelection() {
+        startupRequest = nil
+        startupSelection = nil
+    }
+
+    func adoptedStartupRequest(for id: String) -> UInt64? {
+        guard startupSelection?.chatID == id, chatId == id else { return nil }
+        return startupSelection?.request
     }
 
     /// A request id for a core action on the open window (send, edit, retry,
@@ -170,10 +266,20 @@ final class CoreChatWindow {
             return .noCore
         }
         guard request == openRequest, self.chatId == chatId else { return .cancelled }
+        #if DEBUG
+        if measureStartupWindow {
+            // Publish the start on the next existing window/settle update.
+            pendingDeliberateOpenStartedUptimeMS = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+        }
+        #endif
         // A restore still running holds no account yet; wait for its outcome
         // instead of reading it as signed out.
         await session.settled()
         guard request == openRequest, self.chatId == chatId, !Task.isCancelled else { return .cancelled }
+        deliberateOpenStarted.send(())
+        defer {
+            if request == openRequest { deliberateOpenFinished.send(()) }
+        }
         let started = NativeSyncPerfLog.now()
         do {
             try await session.perform { core, cancellation in
@@ -181,7 +287,18 @@ final class CoreChatWindow {
             }
             NativeSyncPerfLog.info(
                 "phase=core.window.open outcome=ok windows=\(windowsSinceOpen) ms=\(NativeSyncPerfLog.ms(since: started))")
-            if request == openRequest { lastError = nil }
+            if request == openRequest {
+                lastError = nil
+                deliberateOpenSettled.send(())
+                #if DEBUG
+                if measureStartupWindow {
+                    updateStartupTimings {
+                        $0.deliberateOpenStarted = pendingDeliberateOpenStartedUptimeMS
+                        $0.deliberateOpenSettled = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+                    }
+                }
+                #endif
+            }
             return .opened
         } catch let error as CoreError {
             NativeSyncPerfLog.warning(
@@ -192,6 +309,15 @@ final class CoreChatWindow {
                 "phase=core.window.open outcome=\(CoreSession.errorClass(error)) ms=\(NativeSyncPerfLog.ms(since: started))")
             let wrapped = CoreError.Internal(reason: String(describing: type(of: error)))
             return settleFailedOpen(wrapped, request: request, chatId: chatId, session: session)
+        }
+    }
+
+    /// Refresh the current window for an external notification.
+    func refreshOpenChat(chatId: String) async -> Bool {
+        guard self.chatId == chatId else { return false }
+        let request = nextActionRequest()
+        return await run("refresh_open") { core, cancellation in
+            try await core.refreshOpenChat(request: request, chatId: chatId, cancellation: cancellation)
         }
     }
 
@@ -212,8 +338,10 @@ final class CoreChatWindow {
     /// Closes the window of `request` in the core and empties it here; a
     /// newer open (another request) is left alone. The core's `closeChat`
     /// takes no cancellation; it emits nothing and never reads the network.
-    func close(request: UInt64) async {
-        guard request == openRequest, let chatId else { return }
+    func close(request: UInt64, expectedChatId: String? = nil) async {
+        guard request == openRequest, let chatId,
+              expectedChatId == nil || expectedChatId == chatId else { return }
+        stopStartupSelection()
         resetWindow()
         self.chatId = nil
         changes.send(.cleared)
@@ -224,19 +352,40 @@ final class CoreChatWindow {
     func apply(_ event: ViewEventRecord) {
         switch event {
         case .chatWindow(let request, let window):
-            replace(request: request, window: window)
+            if startupRequest == request {
+                if chatId != window.chatId {
+                    resetWindow()
+                    chatId = window.chatId
+                    windowsSinceOpen = 0
+                }
+                replace(request: request, window: window)
+                let selection = CoreStartupChatSelection(chatID: window.chatId, request: request)
+                if startupSelection != selection {
+                    startupSelection = selection
+                    startupSelections.send(selection)
+                }
+            } else {
+                replace(request: request, window: window)
+            }
         case .messageUpdated(let request, let chatId, let message):
             update(request: request, chatId: chatId, record: message)
         case .chatUnavailable(let chatId):
             guard chatId == self.chatId else { return }
+            let removesStartupSelection = startupSelection?.chatID == chatId
             resetWindow()
             changes.send(.unavailable(chatId: chatId))
+            if removesStartupSelection {
+                startupSelection = nil
+                self.chatId = nil
+                unavailableStartupChats.send(chatId)
+            }
         case .chatOpenFailed(let request, let chatId, let error):
             guard request == openRequest, chatId == self.chatId else { return }
             openFailure = error
         case .session(let session):
             switch session {
             case .signedOut, .expired, .accessDenied:
+                stopStartupSelection()
                 guard chatId != nil else { return }
                 resetWindow()
                 chatId = nil
@@ -276,6 +425,15 @@ final class CoreChatWindow {
         indexByID = index
         messages = mapped
         source = window.source
+        #if DEBUG
+        if measureStartupWindow, !mapped.isEmpty {
+            let uptime = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+            updateStartupTimings {
+                $0.deliberateOpenStarted = pendingDeliberateOpenStartedUptimeMS
+                $0.recordWindow(source: window.source, uptimeMS: uptime)
+            }
+        }
+        #endif
         title = window.title
         category = window.category
         hasOlderMessages = window.hasMoreBefore ?? !window.historyComplete
@@ -349,7 +507,19 @@ final class CoreChatWindow {
         }
     }
 
+    #if DEBUG
+    private func updateStartupTimings(_ update: (inout CoreChatWindowStartupTimings) -> Void) {
+        var timings = benchmarkChanges.value
+        update(&timings)
+        if timings != benchmarkChanges.value { benchmarkChanges.send(timings) }
+    }
+    #endif
+
     private func resetWindow() {
+        #if DEBUG
+        pendingDeliberateOpenStartedUptimeMS = nil
+        updateStartupTimings { $0 = .init() }
+        #endif
         records = []
         indexByID = [:]
         messages = []

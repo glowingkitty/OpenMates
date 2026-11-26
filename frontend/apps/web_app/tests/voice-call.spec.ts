@@ -859,7 +859,7 @@ async function evictOwnedCallRows(page:Page,chatId:string,callId:string,transcri
     const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('chats_db');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
     try {
       await new Promise<void>((resolve,reject)=>{
-        const tx=db.transaction('messages','readwrite');const store=tx.objectStore('messages');
+        const tx=db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'),'readwrite');const store=tx.objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'));
         for(const id of ids) { const r=store.get(id);r.onsuccess=()=>{if(r.result?.chat_id===chatId) store.delete(id);}; }
         tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);
       });
@@ -2056,7 +2056,7 @@ test.describe('Voice mode through ordinary chat', () => {
           const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
         });
         try { return await new Promise<string|undefined>((resolve,reject)=>{
-          const request=db.transaction('messages','readonly').objectStore('messages').get(messageId);
+          const request=db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'),'readonly').objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).get(messageId);
           request.onsuccess=()=>resolve(request.result?.status);request.onerror=()=>reject(request.error);
         }); } finally { db.close(); }
       },started.data.message_id)).toBe('synced');
@@ -2886,7 +2886,7 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(protocol.received.some(frame=>frame.type==='audio.interrupted'&&frame.assistantMessageId===boundary.assistant_message_id)).toBe(true);
     const privateRow=await page.evaluate(async id=>{
       const db=await new Promise<IDBDatabase>((resolve,reject)=>{const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
-      try{return await new Promise<{encrypted:boolean;plaintext:boolean;heardMetadata:boolean}>((resolve,reject)=>{const request=db.transaction('messages','readonly').objectStore('messages').get(id);request.onsuccess=()=>resolve({encrypted:typeof request.result?.encrypted_content==='string',plaintext:typeof request.result?.content==='string',heardMetadata:'voice_heard_boundary' in (request.result??{})});request.onerror=()=>reject(request.error);});}
+      try{return await new Promise<{encrypted:boolean;plaintext:boolean;heardMetadata:boolean}>((resolve,reject)=>{const request=db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'),'readonly').objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).get(id);request.onsuccess=()=>resolve({encrypted:typeof request.result?.encrypted_content==='string',plaintext:typeof request.result?.content==='string',heardMetadata:'voice_heard_boundary' in (request.result??{})});request.onerror=()=>reject(request.error);});}
       finally{db.close();}
     },nextId);
     expect(privateRow).toEqual({encrypted:true,plaintext:false,heardMetadata:false});

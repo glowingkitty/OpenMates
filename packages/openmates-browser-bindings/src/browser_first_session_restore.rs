@@ -1,4 +1,4 @@
-//! Feature-only same owning Worker normal session read and opaque restore.
+//! Owning Worker normal session read and opaque one-use restore.
 //! UI response JSON is data; only the retained native Rust receipt can restore.
 use super::*;
 use openmates_sdk::client::{PreparedBrowserFirstSession,BrowserFirstSessionControl,BrowserFirstSessionReceipt};
@@ -32,6 +32,25 @@ impl BrowserPreparedFirstSession {
 pub struct BrowserFirstSessionReceiptHandle {inner:Option<BrowserFirstSessionReceipt>}
 #[wasm_bindgen]
 impl BrowserFirstSessionReceiptHandle {
+    /// Admit the existing profile using the received session response bound to this receipt.
+    /// The SDK consumes the receipt and rechecks the original Worker profile and key.
+    pub fn admit_existing(mut self) -> Result<BrowserCoreClient, JsValue> {
+        worker_only()?;
+        let client = self
+            .inner
+            .take()
+            .ok_or_else(|| JsValue::from_str("unavailable"))?
+            .restore()
+            .map_err(first_failure)?;
+        Ok(BrowserCoreClient {
+            client,
+            handle: uuid::Uuid::new_v4().to_string(),
+            cache: Default::default(),
+            #[cfg(feature = "browser-metadata-prototype")]
+            initial_sync_store: None,
+        })
+    }
+
     pub fn observed_http_status(&self)->Result<Option<u16>,JsValue>{
         worker_only()?;Ok(self.inner.as_ref().ok_or_else(||JsValue::from_str("unavailable"))?.observed_http_status())
     }
@@ -43,14 +62,16 @@ impl BrowserFirstSessionReceiptHandle {
         worker_only()?;Ok(BrowserFirstSessionControlHandle{inner:self.inner.as_ref().ok_or_else(||JsValue::from_str("unavailable"))?.control()})
     }
 }
+#[cfg(feature = "browser-metadata-prototype")]
 impl BrowserFirstSessionReceiptHandle {
-    /// Internal typed consumer only; original Root/store bind precedes escape.
+    /// Consume the original-store receipt only after rechecking its store binding.
     pub(in crate::browser) async fn restore_client(mut self,store:&BrowserInitialSyncStoreBootstrap)->Result<BrowserCoreClient,JsValue>{
         worker_only()?;let original=store.inner.as_ref().ok_or_else(||JsValue::from_str("unavailable"))?;
         let client=self.inner.take().ok_or_else(||JsValue::from_str("unavailable"))?.restore_with_original_store(original).await.map_err(first_failure)?;
         Ok(BrowserCoreClient{client,handle:uuid::Uuid::new_v4().to_string(),cache:Default::default(),initial_sync_store:None})
     }
 }
+#[cfg(feature = "browser-metadata-prototype")]
 #[wasm_bindgen]
 impl BrowserCoreClient {
     /// Genuine original native configuration/profile, separate DATA-only type.
@@ -71,7 +92,11 @@ impl BrowserCoreClient {
         let inner=original.prepare_first_session_original(prepared.profile,signals,tokio_util::sync::CancellationToken::new()).map_err(first_failure)?;
         let control=inner.control();Ok(BrowserPreparedFirstSession{inner:Some(inner),control})
     }
-    /// Called for the actual NORMAL session read, under its existing auth lock.
+}
+
+#[wasm_bindgen]
+impl BrowserCoreClient {
+    /// Prepare the real session read under the existing auth lock.
     /// There is no accepted response/status/validated flag argument.
     pub fn prepare_first_session(api_url:&str,app_origin:&str,session_id:&str,prepared:PreparedBrowserProfile,device_signals_json:&str)->Result<BrowserPreparedFirstSession,JsValue>{
         worker_only()?;if device_signals_json.len()>16*1024{return Err(JsValue::from_str("invalid_request"))}
@@ -81,15 +106,19 @@ impl BrowserCoreClient {
     }
 }
 
+#[cfg(feature = "browser-metadata-prototype")]
 #[wasm_bindgen]
 pub struct BrowserPreparedFirstSessionData {inner:Option<openmates_sdk::client::PreparedBrowserFirstSessionData>,control:openmates_sdk::client::BrowserFirstSessionDataControl}
+#[cfg(feature = "browser-metadata-prototype")]
 #[wasm_bindgen]
 pub struct BrowserFirstSessionDataControlHandle {inner:openmates_sdk::client::BrowserFirstSessionDataControl}
+#[cfg(feature = "browser-metadata-prototype")]
 #[wasm_bindgen]
 impl BrowserFirstSessionDataControlHandle {
     pub fn cancel(&self){self.inner.cancel();}
     pub fn ensure_current(&self)->Result<(),JsValue>{worker_only()?;self.inner.ensure_current().map_err(first_failure)}
 }
+#[cfg(feature = "browser-metadata-prototype")]
 #[wasm_bindgen]
 impl BrowserPreparedFirstSessionData {
     pub fn control(&self)->BrowserFirstSessionDataControlHandle{BrowserFirstSessionDataControlHandle{inner:self.control.clone()}}
@@ -102,8 +131,10 @@ impl BrowserPreparedFirstSessionData {
         Ok(BrowserFirstSessionDataHandle{inner:pending.wait().await.map_err(first_failure)?})
     }
 }
+#[cfg(feature = "browser-metadata-prototype")]
 #[wasm_bindgen]
 pub struct BrowserFirstSessionDataHandle {inner:openmates_sdk::client::BrowserFirstSessionData}
+#[cfg(feature = "browser-metadata-prototype")]
 #[wasm_bindgen]
 impl BrowserFirstSessionDataHandle {
     pub fn control(&self)->Result<BrowserFirstSessionDataControlHandle,JsValue>{worker_only()?;Ok(BrowserFirstSessionDataControlHandle{inner:self.inner.control()})}

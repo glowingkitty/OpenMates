@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C001749B9767A20A42634E04 /* ChatFlowRealAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70F655DF8D46FDACA2F99319 /* ChatFlowRealAccountUITests.swift */; };
+		C002BE9212C042EA1A01E400 /* RealAccountUITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41EBFB4B72DFB093F385CB54 /* RealAccountUITestSupport.swift */; };
 		02579462C21865A97612EFF6 /* VoiceCallEventNoticeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F76ACB65785B1EF714B8BA /* VoiceCallEventNoticeTests.swift */; };
 		653B8DC774018458820D9927 /* AppStrings+VoiceCallEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7375DFC86BA3286B32072E57 /* AppStrings+VoiceCallEvents.swift */; };
 		B213191118DDA065FFDF8053 /* AppStrings+VoiceCallEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7375DFC86BA3286B32072E57 /* AppStrings+VoiceCallEvents.swift */; };
@@ -6677,6 +6679,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C001749B9767A20A42634E04 /* ChatFlowRealAccountUITests.swift in Sources */,
+				C002BE9212C042EA1A01E400 /* RealAccountUITestSupport.swift in Sources */,
 				946161DD3504AE35C3734705 /* ChatHistoryMacParityUITests.swift in Sources */,
 				C8B5A508A54D249CF3FF3612 /* MacMenuBarQuickCaptureUITests.swift in Sources */,
 				E507121191A7189E161EEB8F /* SettingsMacPrivacyParityUITests.swift in Sources */,

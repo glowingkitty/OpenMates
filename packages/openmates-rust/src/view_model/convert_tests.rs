@@ -32,6 +32,26 @@ fn chat_row_reads_every_metadata_field() {
 }
 
 #[test]
+fn chat_row_accepts_decimal_rest_timestamps_alongside_sync_metadata() {
+    let mut item = row_item();
+    item.fields["created_at"] = json!("1700000000");
+    let row = chat_list_row_from_item(&item).unwrap();
+    assert_eq!(row.created_at, Some(1_700_000_000));
+    assert_eq!(row.updated_at, Some(1_700_000_500));
+
+    for invalid in [json!(true), json!(1.25), json!("-1"), json!("9007199254740992")] {
+        item.fields["created_at"] = invalid;
+        assert_eq!(
+            chat_list_row_from_item(&item),
+            Err(ViewModelError::InvalidField {
+                record: "chat_row",
+                field: "created_at",
+            }),
+        );
+    }
+}
+
+#[test]
 fn draft_row_has_no_title_but_keeps_the_draft_flag() {
     let item = Item {
         status: "draft".into(),

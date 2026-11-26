@@ -106,7 +106,9 @@
 	import { waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
+	import { cancelOpenedChatStartup } from '@openmates/ui/src/services/rustCore/startupOpenedChats';
 	import { declareRustChatHistorySource } from '@openmates/ui/src/services/rustCore/activeChatRustHistory';
+	import { getWorkspaceCacheIdentity } from '@openmates/ui/src/services/workspaceQueryCache';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
@@ -391,6 +393,7 @@
 	const EDGE_SWIPE_COMPLETE_PROGRESS = 0.35;
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
+	const SAVED_CHAT_ID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 	const PAIR_LOGIN_HASH_PATTERN = /^#pair=[A-Za-z0-9]{6}$/i;
 	const EXAMPLE_CHAT_ID_PREFIX = 'example-';
 	const ANONYMOUS_RELOAD_CATEGORY = 'general_knowledge';
@@ -473,7 +476,7 @@
 		} | null;
 	};
 
-	async function fetchAuthenticatedDraftChat(chatId: string): Promise<Chat | null> {
+	async function fetchAuthenticatedDraftChat(chatId: string, isCurrent: () => boolean): Promise<Chat | null> {
 		try {
 			const response = await fetch(getApiEndpoint(`/v1/drafts/${encodeURIComponent(chatId)}`), {
 				method: 'GET',
@@ -487,7 +490,8 @@
 
 			const data = (await response.json().catch(() => null)) as AuthenticatedDraftResponse | null;
 			const draft = data?.draft;
-			if (!draft?.encrypted_draft_md && !draft?.encrypted_draft_preview) return null;
+			if (!isCurrent() || (draft?.chat_id && draft.chat_id !== chatId) ||
+				(!draft?.encrypted_draft_md && !draft?.encrypted_draft_preview)) return null;
 
 			const now = Math.floor(Date.now() / 1000);
 			const chat: Chat = {
@@ -504,7 +508,13 @@
 				unread_count: 0
 			};
 
-			await chatDB.upsertRawChat(chat);
+			const localChat = await chatDB.getRawChat(chatId);
+			if (!isCurrent()) return null;
+			if (localChat) return localChat;
+			await chatDB.addChat(chat, undefined, { isFromSync: true, writeGuard: () => {
+				if (!isCurrent()) throw new Error('Draft link scope changed');
+			} });
+			if (!isCurrent()) return null;
 			chatListCache.upsertChat(chat);
 			window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chat.chat_id } }));
 			return chat;
@@ -933,7 +943,12 @@
 	 * After loading, immediately clears the URL to prevent sharing chat history
 	 */
 	async function prepareTeamChatDeepLink(chatId: string, teamId: string): Promise<boolean> {
-		pendingTeamDeepLink = { chatId, teamId };
+		const request = { chatId, teamId };
+		const hash = window.location.hash;
+		const ownerId = get(userProfile).user_id;
+		const currentIntent = () => pendingTeamDeepLink === request &&
+			$authStore.isAuthenticated && !get(forcedLogoutInProgress) && ownerId === get(userProfile).user_id;
+		pendingTeamDeepLink = request;
 		authorizedTeamDeepLink = null;
 		if (!$authStore.isAuthenticated) {
 			sessionStorage.setItem('pendingDeepLink', window.location.hash);
@@ -941,15 +956,22 @@
 			return false;
 		}
 		try {
+			const scope = getWorkspaceCacheIdentity();
+			const currentBeforeSwitch = () => currentIntent() && window.location.hash === hash &&
+				scope === getWorkspaceCacheIdentity();
 			await cryptoReady;
+			if (!currentBeforeSwitch()) return false;
 			const team = (await listTeams()).find((candidate) => candidate.team_id === teamId && candidate.status === 'active');
+			if (!currentBeforeSwitch()) return false;
 			if (!team) throw new Error('Team membership unavailable');
 			await getTeamKey(teamId);
+			if (!currentBeforeSwitch()) return false;
 			// A chat ID alone is not proof of Team scope. This endpoint checks the
 			// authenticated membership and chat's hashed Team ID before returning.
 			const response = await fetch(getApiEndpoint(
 				`/v1/chats/${encodeURIComponent(chatId)}/messages/window?team_id=${encodeURIComponent(teamId)}&limit=1`
 			), { credentials: 'include' });
+			if (!currentBeforeSwitch()) return false;
 			if (!response.ok) throw new Error('Team chat access unavailable');
 			if (get(activeTeamId) !== teamId) {
 				// ActiveChat clears the previous workspace selection asynchronously.
@@ -972,29 +994,18 @@
 				if (previousChatReset) await previousChatReset;
 			}
 
-			// Context switching starts Team-scoped phased sync and clears the prior
-			// Personal selection. Open only after its authenticated metadata is local.
-			const deadline = Date.now() + 30_000;
-			while (Date.now() < deadline) {
-				if (get(activeTeamId) !== teamId) {
-					pendingTeamDeepLink = null;
-					return false;
-				}
-				const chat = await chatDB.getRawChat(chatId).catch(() => null);
-				if (chat?.team_id === teamId) {
-					authorizedTeamDeepLink = `${chatId}/${teamId}`;
-					pendingTeamDeepLink = null;
-					return true;
-				}
-				await new Promise((resolve) => setTimeout(resolve, 250));
-			}
-			throw new Error('Team chat did not arrive during sync');
+			if (!currentIntent() || get(activeTeamId) !== teamId ||
+				hasDifferentCurrentChatNavigationTarget(chatId)) return false;
+			authorizedTeamDeepLink = `${chatId}/${teamId}`;
+			return true;
 		} catch (error) {
-			pendingTeamDeepLink = null;
+			if (!currentIntent() || hasDifferentCurrentChatNavigationTarget(chatId)) return false;
 			console.warn('[+page.svelte] Team chat link could not be opened:', error);
 			notificationStore.error('Team chat could not be opened');
 			activeChatStore.setWithoutHashUpdate(null);
 			return false;
+		} finally {
+			if (pendingTeamDeepLink === request) pendingTeamDeepLink = null;
 		}
 	}
 
@@ -1041,6 +1052,9 @@
 			return;
 		}
 		if (teamId && !(await prepareTeamChatDeepLink(chatId, teamId))) return;
+		const authenticated = $authStore.isAuthenticated;
+		const scope = authenticated ? getWorkspaceCacheIdentity() : null;
+		const selectedTeam = get(activeTeamId);
 		pendingAuthenticatedDeepLinkCleanup?.();
 		pendingAuthenticatedDeepLinkCleanup = null;
 		console.debug(
@@ -1314,23 +1328,31 @@
 			}
 		}
 
-		// This is a user chat - load from IndexedDB
-		// CRITICAL: For non-authenticated users, shared chats are already in IndexedDB, so load immediately
-		// For authenticated users, wait for sync to complete (chat might not be in IndexedDB yet)
+		const resolveSavedHeader = authenticated && SAVED_CHAT_ID.test(chatId)
+			&& sessionStorage.getItem('openmates_shared_chat_redirect') !== chatId;
+		const isCurrent = () => isCurrentChatNavigationTarget(chatId) &&
+			(!authenticated || ($authStore.isAuthenticated && !get(forcedLogoutInProgress) &&
+				scope === getWorkspaceCacheIdentity()));
+		let selectedHeaderRequested = false;
+		let draftRequested = false;
+		let serverClassifiedSaved = false;
 		const loadChatFromIndexedDB = async (retries = 20): Promise<void> => {
-			if (skipStaleChatNavigationTarget(chatId, 'deep-linked chat load')) return;
+			if (!isCurrent()) return;
 
 			try {
-				if ($authStore.isAuthenticated) await cryptoReady;
+				if (authenticated) await cryptoReady;
+				if (!isCurrent()) return;
 				const cachedDraftChat = $authStore.isAuthenticated
 					? chatListCache.getPendingOrCachedChat(chatId)
 					: null;
-				if (cachedDraftChat?.encrypted_draft_md || cachedDraftChat?.encrypted_draft_preview) {
+				if ((cachedDraftChat?.team_id ?? null) === selectedTeam &&
+					(cachedDraftChat?.encrypted_draft_md || cachedDraftChat?.encrypted_draft_preview)) {
 					console.debug(`[+page.svelte] Loading cached encrypted draft chat directly: ${chatId}`);
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'cached draft deep-link load')) return;
 						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
 						await activeChat.loadChat(cachedDraftChat, { scrollToLatestResponse, messageId });
+						if (!isCurrent()) return;
 						lastLoadedChatId = cachedDraftChat.chat_id;
 
 						window.dispatchEvent(
@@ -1355,14 +1377,31 @@
 				}
 
 				await chatDB.init(); // Ensure DB is initialized
-				if (skipStaleChatNavigationTarget(chatId, 'deep-linked IndexedDB lookup')) return;
-				let chat = $authStore.isAuthenticated
+				if (!isCurrent()) return;
+				let chat = authenticated
 					? await chatDB.getRawChat(chatId).catch(() => null)
 					: await chatDB.getChat(chatId);
-				if ($authStore.isAuthenticated) {
+				if (!isCurrent()) return;
+				if (authenticated) {
 					chat = mergeCachedDraftFields(chat, chatId);
-					if (!chat) chat = await fetchAuthenticatedDraftChat(chatId);
+					if (chat && (chat.team_id ?? null) !== selectedTeam) chat = null;
+					if (!chat && resolveSavedHeader && !selectedHeaderRequested) {
+						selectedHeaderRequested = true;
+						const classified = await chatSyncService.hydrateSidebarChats([chatId], {
+							isCurrent, allowMissing: selectedTeam === null
+						});
+						if (!isCurrent()) return;
+						serverClassifiedSaved = classified.has(chatId);
+						chat = mergeCachedDraftFields(await chatDB.getRawChat(chatId), chatId);
+						if (chat && (chat.team_id ?? null) !== selectedTeam) chat = null;
+					}
+					if (!isCurrent()) return;
+					if (!chat && selectedTeam === null && !draftRequested) {
+						draftRequested = true;
+						chat = await fetchAuthenticatedDraftChat(chatId, isCurrent);
+					}
 				}
+				if (!isCurrent()) return;
 
 				if (chat) {
 					console.debug(`[+page.svelte] Found deep-linked chat in IndexedDB:`, chat.chat_id);
@@ -1371,7 +1410,8 @@
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'deep-linked IndexedDB chat load')) return;
 						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
-						await activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
+						await activeChat.loadChat(chat, { scrollToLatestResponse, messageId, serverClassifiedSaved });
+						if (!isCurrent()) return;
 						lastLoadedChatId = chat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -1447,6 +1487,7 @@
 					}
 				}
 			} catch (error) {
+				if (!isCurrent()) return;
 				console.error(`[+page.svelte] Error loading deep-linked chat:`, error);
 				showChatLinkUnavailable(chatId);
 			}
@@ -1458,8 +1499,12 @@
 				`[+page.svelte] Non-auth user - loading shared chat immediately from IndexedDB: ${chatId}`
 			);
 			await loadChatFromIndexedDB();
+		} else if (resolveSavedHeader) {
+			// An authorized bounded lookup can open the selected saved chat
+			// while the rest of the account is still synchronizing.
+			await loadChatFromIndexedDB();
 		} else {
-			// For authenticated users, we MUST wait for phased sync to complete before loading
+			// Legacy authenticated link shapes still wait for phased sync to complete before loading
 			// the chat. The phased sync (Phase 2+) is responsible for decrypting and caching
 			// chat keys in IndexedDB. If we call loadChat() before that, ActiveChat.loadChat()
 			// will call resetChatHeaderState() (clearing title/category) and then fail to
@@ -1631,6 +1676,7 @@
 			$forcedLogoutInProgress ||
 			!activeChatId ||
 			teamChatLinkNeedsValidation(activeChatId) ||
+			(hashChatId === activeChatId && SAVED_CHAT_ID.test(activeChatId)) ||
 			isStaticPublicChatTarget(activeChatId) ||
 			isAnonymousChatId(activeChatId) ||
 			lastLoadedChatId === activeChatId ||
@@ -1641,6 +1687,9 @@
 		}
 
 		authenticatedHashRecoveryChatId = activeChatId;
+		const scope = getWorkspaceCacheIdentity();
+		const isCurrent = () => $authStore.isAuthenticated && !get(forcedLogoutInProgress) &&
+			getWorkspaceCacheIdentity() === scope && isCurrentChatNavigationTarget(activeChatId);
 		void (async () => {
 			try {
 				await cryptoReady;
@@ -1652,9 +1701,9 @@
 					chat = await chatDB.getChat(activeChatId).catch(() => null);
 					chat = mergeCachedDraftFields(chat, activeChatId);
 				}
-				if (!chat) chat = await fetchAuthenticatedDraftChat(activeChatId);
+				if (!chat && isCurrent() && get(activeTeamId) === null) chat = await fetchAuthenticatedDraftChat(activeChatId, isCurrent);
 
-				if (!isCurrentChatNavigationTarget(activeChatId)) {
+				if (!isCurrent()) {
 					console.debug(`[+page.svelte] Skipping stale authenticated hash/store recovery: ${activeChatId}`);
 					return;
 				}
@@ -2615,6 +2664,7 @@
 
 		// Now check auth state after optimistic loading (used throughout onMount)
 		const isAuth = $authStore.isAuthenticated;
+		let initialSavedChatLink: Promise<void> | null = null;
 
 		// Process the requested hash now, but defer signup intent until checkAuth()
 		// has reconciled the cached profile with the server's saved stage.
@@ -2678,21 +2728,30 @@
 			// A workspace hash is handled by the shared shell. Processing an empty
 			// chat hash here invokes onNoHash and can restore a draft or welcome chat,
 			// which overwrites the workspace fragment during a reload.
-			if (originalWorkspaceHashRoute.workspace === 'chats') {
-				// Signup intent waits for authoritative auth hydration below.
-				if (!hashToProcess.startsWith('#signup/')) await processDeepLink(hashToProcess, handlers);
+			const processInitialHash = async () => {
+				try {
+					if (originalWorkspaceHashRoute.workspace === 'chats') {
+						if (!hashToProcess.startsWith('#signup/')) await processDeepLink(hashToProcess, handlers);
+					} else {
+						processWorkspaceSettingsPath(originalHash);
+					}
+					const settingsPath = originalHashChatId ? getSettingsPathFromHash(hashToProcess) : null;
+					if (settingsPath) processSettingsDeepLink(buildSettingsHash(settingsPath));
+					deepLinkProcessed = true;
+				} finally {
+					deepLinkProcessing.set(false);
+				}
+			};
+			if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' &&
+				isAuth && hashToProcess && originalHashChatId && SAVED_CHAT_ID.test(originalHashChatId) &&
+				sharedChatRedirectId !== originalHashChatId && !getHashParam(hashToProcess, 'team-id')) {
+				// Let retained history render immediately. A cold Rust read may need
+				// the auth bootstrap below, so join this task after that check settles.
+				initialSavedChatLink = processInitialHash();
+				void initialSavedChatLink.catch(() => undefined); // Observed below after auth.
+			} else {
+				await processInitialHash();
 			}
-			if (originalWorkspaceHashRoute.workspace !== 'chats') {
-				processWorkspaceSettingsPath(originalHash);
-			}
-			const settingsPathFromCombinedHash = originalHashChatId ? getSettingsPathFromHash(hashToProcess) : null;
-			if (settingsPathFromCombinedHash) {
-				processSettingsDeepLink(buildSettingsHash(settingsPathFromCombinedHash));
-			}
-			deepLinkProcessed = true; // Mark that processing was completed
-
-			// Clear the deep link processing flag
-			deepLinkProcessing.set(false);
 		}
 
 		// NOTE: Shared chat cleanup for unauthenticated users
@@ -2961,7 +3020,7 @@
 
 		// Validate optimistic local auth on every reload. isInitialized keeps the
 		// cached UI responsive, but must not bypass the server's expiry decision.
-		const authInitialization = hasLocalAuthData ? checkAuth(undefined, true) : initialize();
+		const authInitialization = hasLocalAuthData ? checkAuth(undefined, true, true) : initialize();
 		// Await auth and cryptoReady in parallel so IDB + key loading completes
 		// alongside the session check instead of after it.
 		if (cryptoReadyPromise) {
@@ -2971,6 +3030,7 @@
 		}
 		authSessionValidated = true;
 		settleAuthBootstrapReadiness(authBootstrapToken);
+		await initialSavedChatLink;
 		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.
 		// checkAuth() (called inside initialize()) has already had a chance to read it.
@@ -3639,6 +3699,11 @@
 			return;
 		}
 		const hashChatId = getHashParam(newHash, 'chat-id');
+		if (event && hashChatId && hashChatId !== $activeChatStore &&
+			!isProgrammaticHashUpdate() && !isProgrammaticEmbedHashUpdate() &&
+			import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+			cancelOpenedChatStartup(hashChatId);
+		}
 		const hashEmbedId = getHashParam(newHash, 'embed-id') ?? getHashParam(newHash, 'embed_id');
 		const hashMessageId = getHashParam(newHash, 'message-id') ?? getHashParam(newHash, 'message_id') ?? getHashParam(newHash, 'messageid');
 		// Canonical fullscreen writes publish their target before the host resolves.

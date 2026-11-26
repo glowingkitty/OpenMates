@@ -115,8 +115,8 @@ async function getChatKeyInvariantReport(page: any, chatId: string): Promise<Cha
 
 			const getMessages = () =>
 				new Promise<Record<string, any>[]>((resolve, reject) => {
-					const tx = db.transaction('messages', 'readonly');
-					const store = tx.objectStore('messages');
+					const tx = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readonly');
+					const store = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages');
 					const index = store.index('chat_id');
 					const request = index.getAll(id);
 					request.onerror = () => reject(request.error);

@@ -3,10 +3,9 @@
  * Startup Sync Contract Test
  *
  * Guards the bounded startup sync architecture:
- * - Web login must not receive background_message_sync for parents outside the first 20.
- * - Phase 1b full-content sync is capped to 20 parent chats; child content stays on demand.
- * - Phase 2 remains metadata-only.
- * - Older chat content still hydrates on demand when needed.
+ * - Capable web sockets receive ordered offline chat selectors, then metadata and completion.
+ * - Legacy sockets receive at most 20 parent content windows; child content stays on demand.
+ * - Phase 2 is metadata-only and uncached content still hydrates on demand.
  */
 export {};
 
@@ -16,7 +15,9 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { createStartupEvidence, persistedCounts } = require('./helpers/startup-performance-evidence.cjs');
 const { createBrowserProcessEvidence, assessObservation } = require('./helpers/browser-process-evidence.cjs');
 const { installResourceTimingCapture, browserResourceSnapshot, resourceEvidence, performanceAttachment, provenance, routeSelectionSha256 } = require('./helpers/performance-evidence.cjs');
-const { dismissSecurityReminderIfPresent, loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
+const {
+	createIsolatedBrowserContext, declareTestState, dismissSecurityReminderIfPresent, loginToTestAccount, waitForChatReady,
+} = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
@@ -73,22 +74,61 @@ function phase2PayloadSummary(payload: any): Record<string, unknown> {
 	};
 }
 
+const OPENED_STARTUP_FRAME = 'chat_startup_opened_ready';
+const LEGACY_STARTUP_FRAME = 'phase_1b_chat_content_ready';
+const METADATA_FRAME = 'phase_2_last_20_chats_ready';
+const COMPLETION_FRAME = 'phased_sync_complete';
+
+type StartupFrame = { type: string; epoch: number | undefined; phase: string | undefined };
+type StartupSocket = { closed: boolean; openedStartup: boolean; frames: StartupFrame[] };
+
+function observeStartupSocket(socket: any): StartupSocket {
+	const capabilities = new URL(socket.url()).searchParams.get('client_capabilities')?.split(',') ?? [];
+	const state: StartupSocket = {
+		closed: false, openedStartup: capabilities.includes('chat_startup_opened_v1'), frames: [],
+	};
+	socket.on('close', () => { state.closed = true; });
+	return state;
+}
+
+function recordStartupFrame(socket: StartupSocket, type: string, payload: any): void {
+	if (payload?.team_id != null ||
+		![OPENED_STARTUP_FRAME, LEGACY_STARTUP_FRAME, METADATA_FRAME, COMPLETION_FRAME, 'server_capabilities'].includes(type)) return;
+	socket.frames.push({ type, epoch: payload?.context_epoch, phase: payload?.phase });
+}
+
+function hasCompletedMetadata(socket: StartupSocket): boolean {
+	if (socket.closed) return false;
+	return socket.frames.some((frame, index) => frame.type === COMPLETION_FRAME &&
+		(frame.phase === 'all' || frame.phase === 'phase2') &&
+		socket.frames.slice(0, index).some(metadata => metadata.type === METADATA_FRAME && metadata.epoch === frame.epoch));
+}
+
+function hasCompletedStartup(socket: StartupSocket): boolean {
+	if (socket.closed) return false;
+	return socket.frames.some((frame, index) => {
+		if (frame.type !== COMPLETION_FRAME || frame.phase !== 'all') return false;
+		const prior = socket.frames.slice(0, index).filter(item => item.epoch === frame.epoch);
+		const metadata = prior.findIndex(item => item.type === METADATA_FRAME);
+		const startup = prior.findIndex(item => item.type === (socket.openedStartup ? OPENED_STARTUP_FRAME : LEGACY_STARTUP_FRAME));
+		return startup >= 0 && metadata >= 0 && (!socket.openedStartup || startup < metadata);
+	});
+}
+
 async function waitForStartupSyncFrames(
-	receivedTypes: string[],
+	sockets: StartupSocket[],
 	getDiagnostics: () => Record<string, unknown>
-): Promise<void> {
+): Promise<StartupSocket> {
 	try {
-		await expect.poll(() => ({
-			phase1b: receivedTypes.includes('phase_1b_chat_content_ready'),
-			phase2: receivedTypes.includes('phase_2_last_20_chats_ready')
-		}), {
+		await expect.poll(() => sockets.some(hasCompletedStartup), {
 			timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
-			message: 'Startup sync should receive Phase 1b content and Phase 2 metadata frames'
-		}).toEqual({ phase1b: true, phase2: true });
+			message: 'The same Personal socket must deliver its negotiated startup frames and all-phase completion',
+		}).toBe(true);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`${message}\nStartup sync diagnostics: ${JSON.stringify(getDiagnostics(), null, 2)}`);
 	}
+	return sockets.find(hasCompletedStartup)!;
 }
 
 /** Read existing selected-chat metadata/count without manufacturing a cold cache. */
@@ -116,9 +156,9 @@ async function readLocalStartupChat(page: any, chatId: string): Promise<{ exists
 				if (settled) { db.close(); return; }
 				db.onversionchange = () => finish(null);
 				try {
-					tx = db.transaction(['chats', 'messages'], 'readonly');
+					tx = db.transaction(['chats', (db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readonly');
 					const chat = tx.objectStore('chats').get(id);
-					const count = tx.objectStore('messages').index('chat_id').count(id);
+					const count = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').index('chat_id').count(id);
 					tx.oncomplete = () => finish({ exists: Boolean(chat.result), messageCount: count.result });
 					tx.onerror = tx.onabort = () => finish(null);
 				} catch { finish(null); }
@@ -153,16 +193,16 @@ async function prepareLocalMetadataOnlyChat(page: any, preferredChatId: string |
 				if (chat.encrypted_draft_md || chat.encrypted_draft_preview) continue;
 
 				const messages = await new Promise<any[]>((resolve, reject) => {
-					const tx = db.transaction(['messages'], 'readonly');
-					const index = tx.objectStore('messages').index('chat_id');
+					const tx = db.transaction([(db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readonly');
+					const index = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').index('chat_id');
 					const request = index.getAll(chatId);
 					request.onerror = () => reject(request.error);
 					request.onsuccess = () => resolve(request.result || []);
 				});
 				if (messages.length > 0) {
 					await new Promise<void>((resolve, reject) => {
-						const tx = db.transaction(['messages'], 'readwrite');
-						const store = tx.objectStore('messages');
+						const tx = db.transaction([(db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readwrite');
+						const store = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages');
 						for (const message of messages) store.delete(message.message_id);
 						tx.oncomplete = () => resolve();
 						tx.onerror = () => reject(tx.error);
@@ -176,6 +216,52 @@ async function prepareLocalMetadataOnlyChat(page: any, preferredChatId: string |
 			db.close();
 		}
 	}, { targetChatId: preferredChatId, excludedChatId });
+}
+
+/** Locate the two six-message parents from the real encrypted CI fixture by cached metadata. */
+async function fixtureChatPair(page: any): Promise<[string, string]> {
+	let ids: string[] = [];
+	await expect.poll(async () => {
+		ids = await page.evaluate(() => new Promise<string[]>((resolve, reject) => {
+			const open = indexedDB.open('chats_db');
+			open.onerror = () => reject(open.error);
+			open.onsuccess = () => {
+				const db = open.result;
+				if (!db.objectStoreNames.contains('chats')) { db.close(); resolve([]); return; }
+				const read = db.transaction('chats').objectStore('chats').getAll();
+				read.onerror = () => { db.close(); reject(read.error); };
+				read.onsuccess = () => {
+					db.close();
+					resolve(read.result.filter(chat => chat.messages_v === 6 && !chat.parent_id && !chat.is_sub_chat &&
+						!chat.team_id && !chat.encrypted_draft_md && !chat.encrypted_draft_preview)
+						.sort((a, b) => Number(b.updated_at ?? 0) - Number(a.updated_at ?? 0))
+						.map(chat => chat.chat_id ?? chat.id)
+						.filter((id): id is string => typeof id === 'string' && /^[a-f0-9-]{36}$/.test(id)));
+				};
+			};
+		}));
+		return new Set(ids).size;
+	}, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS, message: 'Encrypted metadata for both six-message CI fixture parents' }).toBe(2);
+	return [ids[0], ids[1]];
+}
+
+async function openFixtureChat(page: any, id: string): Promise<void> {
+	await page.evaluate((chatId: string) => {
+		window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+	}, id);
+	const active = page.getByTestId('active-chat-container');
+	await expect(active).toHaveAttribute('data-current-chat-id', id, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS });
+	await expect(active).toHaveAttribute('data-chat-load-state', 'ready', { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS });
+	await expect(active).toHaveAttribute('data-current-message-count', '6');
+	await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
+	await expect.poll(async () => (await readLocalStartupChat(page, id)).messageCount,
+		{ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS, message: 'The deliberately opened fixture transcript persisted' }).toBe(6);
+}
+
+async function cacheFixtureChatPair(page: any): Promise<[string, string]> {
+	const pair = await fixtureChatPair(page);
+	for (const id of pair) await openFixtureChat(page, id);
+	return pair;
 }
 
 async function getLocalChatSwitchPair(
@@ -206,8 +292,8 @@ async function getLocalChatSwitchPair(
 				if (chat.encrypted_draft_md || chat.encrypted_draft_preview) continue;
 
 				const messages = await new Promise<any[]>((resolve, reject) => {
-					const tx = db.transaction(['messages'], 'readonly');
-					const index = tx.objectStore('messages').index('chat_id');
+					const tx = db.transaction([(db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readonly');
+					const index = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').index('chat_id');
 					const request = index.getAll(chatId);
 					request.onerror = () => reject(request.error);
 					request.onsuccess = () => resolve(request.result || []);
@@ -229,8 +315,8 @@ async function getLocalChatSwitchPair(
 				: [];
 			if (messagesToDelete.length > 0) {
 				await new Promise<void>((resolve, reject) => {
-					const tx = db.transaction(['messages'], 'readwrite');
-					const store = tx.objectStore('messages');
+					const tx = db.transaction([(db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readwrite');
+					const store = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages');
 					for (const message of messagesToDelete) store.delete(message.message_id);
 					tx.oncomplete = () => resolve();
 					tx.onerror = () => reject(tx.error);
@@ -250,6 +336,9 @@ async function getLocalChatSwitchPair(
 async function verifyCachedShortChatOpening(page: any): Promise<void> {
 	await waitForChatReady(page, undefined, 60000);
 
+	// Capable startup only prefetches previous deliberate opens. Establish
+	// both saved windows through the product before delaying a later repair.
+	await cacheFixtureChatPair(page);
 	let localChats: Array<{ chatId: string; messageCount: number }> = [];
 	await expect.poll(async () => {
 		localChats = await getLocalChatSwitchPair(page);
@@ -360,7 +449,8 @@ async function holdSelectedChatStoreReads(page: any): Promise<void> {
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
 		});
-		const transaction = db.transaction(['chats', 'messages'], 'readwrite');
+		const messages = db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages';
+		const transaction = db.transaction(['chats', messages], 'readwrite');
 		const store = transaction.objectStore('chats');
 		let held = true;
 		const keepAlive = () => {
@@ -370,9 +460,11 @@ async function holdSelectedChatStoreReads(page: any): Promise<void> {
 		};
 		keepAlive();
 		testWindow.__recentChatBlockedReadDone = { chats: false, messages: false };
-		for (const storeName of ['chats', 'messages'] as const) {
+		const stores = { chats: 'chats', messages } as const;
+		for (const key of ['chats', 'messages'] as const) {
+			const storeName = stores[key];
 			const blockedRead = db.transaction(storeName, 'readonly').objectStore(storeName).get('__recent_chat_blocked_read__');
-			blockedRead.onsuccess = () => { testWindow.__recentChatBlockedReadDone![storeName] = true; };
+			blockedRead.onsuccess = () => { testWindow.__recentChatBlockedReadDone![key] = true; };
 		}
 		testWindow.__releaseRecentChatStoreLock = () => { held = false; };
 		transaction.oncomplete = () => db.close();
@@ -400,22 +492,19 @@ async function getContinueCarouselState(page: any): Promise<{ visible: boolean; 
 	});
 }
 
-type ReconnectSocketObservation = { closed: boolean; phase2Frames: number };
-
-async function observeReconnectSockets(page: any, evidence: any = null): Promise<ReconnectSocketObservation[]> {
-	const sockets: ReconnectSocketObservation[] = [];
+async function observeReconnectSockets(page: any, evidence: any = null): Promise<StartupSocket[]> {
+	const sockets: StartupSocket[] = [];
 	page.on('websocket', (socket: any) => {
 		if (!socket.url().includes('/v1/ws')) return;
 		if (sockets.length === 0) evidence?.begin('startup-transport');
-		const observation = { closed: false, phase2Frames: 0 };
+		const observation = observeStartupSocket(socket);
 		sockets.push(observation);
-		socket.on('close', () => { observation.closed = true; });
 		socket.on('framereceived', (frame: any) => {
 			try {
 				const parsed = JSON.parse(String(frame.payload));
 				evidence?.recordFrame(frame.payload, parsed);
-				if (parsed?.type === 'phase_2_last_20_chats_ready') observation.phase2Frames++;
-			} catch { /* Only count real Phase 2 completion frames. */ }
+				recordStartupFrame(observation, parsed?.type, parsed?.payload);
+			} catch { /* Ignore non-JSON frames. */ }
 		});
 	});
 	await page.addInitScript(() => {
@@ -432,16 +521,19 @@ async function observeReconnectSockets(page: any, evidence: any = null): Promise
 	return sockets;
 }
 
-async function verifyContinueCarouselSurvivesReconnectChurn(page: any, sockets: ReconnectSocketObservation[], evidence: any = null): Promise<void> {
+async function verifyContinueCarouselSurvivesReconnectChurn(page: any, sockets: StartupSocket[], evidence: any = null): Promise<void> {
 	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
 		await newChatButton.click();
 	}
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS });
-
-	const initialState = await getContinueCarouselState(page);
-	expect(initialState.chatIds.length, 'test account needs at least one continue card for carousel stability coverage').toBeGreaterThan(0);
+	const [expectedResumeId] = await fixtureChatPair(page);
+	// The shell renders before cached titles are decrypted. Prove the actual
+	// fixture card is visible before measuring layout or starting reconnect.
+	const resumeCard = page.getByTestId('recent-chats-scroll-container')
+		.locator('button[data-chat-id="' + expectedResumeId + '"]');
+	await expect(resumeCard, 'The known startup fixture must appear in Continue')
+		.toBeVisible({ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS });
 
 	// The authenticated start row is large cards only and must fit in the real pane above the composer.
 	for (const size of [{ width: 390, height: 844 }, { width: 1366, height: 700 }, { width: 1366, height: 1032 }]) {
@@ -465,7 +557,7 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, sockets: 
 	}
 	await page.setViewportSize({ width: 1366, height: 900 });
 
-	await expect.poll(() => sockets.some(socket => !socket.closed && socket.phase2Frames > 0), {
+	await expect.poll(() => sockets.some(hasCompletedMetadata), {
 		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
 		message: 'Initial socket must complete Phase 2 before reconnect coverage'
 	}).toBe(true);
@@ -484,21 +576,22 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, sockets: 
 		message: 'The original real WebSocket must close'
 	}).toBe(true);
 
-	const samples: Array<{ visible: boolean; count: number }> = [];
+	const samples: Array<{ visible: boolean; count: number; expectedResume: boolean }> = [];
 	const deadline = Date.now() + 2000;
 	while (Date.now() < deadline) {
 		const state = await getContinueCarouselState(page);
-		samples.push({ visible: state.visible, count: state.chatIds.length });
+		samples.push({ visible: state.visible, count: state.chatIds.length, expectedResume: state.chatIds.includes(expectedResumeId) });
 		await page.waitForTimeout(50);
 	}
 
-	const blankSample = samples.find((sample) => !sample.visible || sample.count === 0);
-	expect(blankSample, `Continue carousel must not blank during reconnect churn; samples=${JSON.stringify(samples)}`).toBeUndefined();
-	await expect.poll(() => sockets.slice(previousSocketCount).some(socket => !socket.closed && socket.phase2Frames > 0), {
+	const lostCard = samples.find((sample) => !sample.visible || !sample.expectedResume);
+	expect(lostCard, `Continue must keep the known resume card during reconnect churn; samples=${JSON.stringify(samples)}`).toBeUndefined();
+	await expect.poll(() => sockets.slice(previousSocketCount).some(hasCompletedMetadata), {
 		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
 		message: 'A replacement real WebSocket must complete metadata delta sync with a nullable legacy version'
 	}).toBe(true);
 	await waitForChatReady(page);
+	await expect(resumeCard).toBeVisible();
 	await evidence?.end();
 }
 
@@ -511,6 +604,8 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	const startupEvidence = await createStartupEvidence(page);
 	let startupSocketObserved = false;
 	const receivedTypes: string[] = [];
+	const sockets: StartupSocket[] = [];
+	const openedStartupPayloads = new Map<StartupSocket, any[]>();
 	const phase1bChatCounts: number[] = [];
 	const phase1Metadata: any[] = [];
 	const onDemandBatchChatIds: string[] = [];
@@ -531,6 +626,10 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		receivedTypesTail: tail(receivedTypes),
 		sentTypeCounts: countTypes(sentTypes),
 		sentTypesTail: tail(sentTypes),
+		openedStartup: sockets.map(socket => ({
+			negotiated: socket.openedStartup, closed: socket.closed, frames: socket.frames,
+			offeredCounts: openedStartupPayloads.get(socket)?.map(payload => payload.offline_chat_ids?.length),
+		})),
 		phase1bChatCounts,
 		phase1bMessageWindows,
 		phase1bAuxWindows,
@@ -560,6 +659,11 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 
 	page.on('websocket', (ws: any) => {
 		const isAppSocket = ws.url().includes('/v1/ws');
+		const startupSocket = isAppSocket ? observeStartupSocket(ws) : null;
+		if (startupSocket) {
+			sockets.push(startupSocket);
+			openedStartupPayloads.set(startupSocket, []);
+		}
 		if (isAppSocket && !startupSocketObserved) { startupEvidence.begin('startup-transport'); startupSocketObserved = true; }
 		websocketEvents.push('opened');
 		ws.on('close', () => websocketEvents.push('closed'));
@@ -583,9 +687,11 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 				if (isAppSocket) startupEvidence.recordFrame(frame.payload, parsed);
 				const type = parsed?.type || parsed?.event;
 				const payload = parsed?.payload ?? parsed;
-				if (!type || !isAppSocket) return;
+				if (!type || !startupSocket) return;
 
 				receivedTypes.push(type);
+				recordStartupFrame(startupSocket, type, payload);
+				if (type === OPENED_STARTUP_FRAME) openedStartupPayloads.get(startupSocket)!.push(payload);
 				if (type === 'phase_1_last_chat_ready') {
 					if (payload?.chat_details) phase1Metadata.push(payload.chat_details);
 					phase1Metadata.push(...(payload?.recent_chat_metadata || []));
@@ -640,20 +746,48 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
-	await waitForStartupSyncFrames(receivedTypes, diagnostics);
+	const startupSocket = await waitForStartupSyncFrames(sockets, diagnostics);
 	await startupEvidence.snapshotPhaseReceipts();
 	await waitForChatReady(page);
 	await startupEvidence.end();
 	await startupEvidence.attach(testInfo);
 
-	expect(receivedTypes).toContain('phase_1b_chat_content_ready');
-	expect(receivedTypes).toContain('phase_2_last_20_chats_ready');
+	expect(receivedTypes).toContain(METADATA_FRAME);
 	expect(receivedTypes).not.toContain('background_message_sync');
-	expect(phase1bChatCounts.length).toBeGreaterThan(0);
-	for (const count of phase1bChatCounts) expect(count).toBe(20);
-	const startupContentIds = new Set<string>(phase1bAuxWindows.flatMap(frame => frame.chatIds));
-	expect(startupContentIds.size, 'Cold startup must deliver exactly 20 distinct parent content IDs').toBe(20);
-	for (const frame of phase1bAuxWindows) expect(new Set(frame.chatIds).size).toBe(frame.chatIds.length);
+	const startupContentIds = new Set<string>();
+	if (startupSocket.openedStartup) {
+		expect(receivedTypes).not.toContain(LEGACY_STARTUP_FRAME);
+		const offered = openedStartupPayloads.get(startupSocket)!;
+		expect(offered.length).toBeGreaterThan(0);
+		for (const payload of offered) {
+			expect(payload.team_id).toBeNull();
+			expect(payload.context_epoch).toEqual(expect.any(Number));
+			const ids: string[] = payload.offline_chat_ids;
+			expect(Array.isArray(ids)).toBe(true);
+			expect(ids.length).toBeLessThanOrEqual(11);
+			expect(new Set(ids).size).toBe(ids.length);
+			expect(payload.chat_id).toBe(ids[0] ?? null);
+			for (const id of ids) {
+				expect(id).toMatch(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
+				startupContentIds.add(id);
+			}
+			expect(payload.messages_versions).toEqual(expect.any(Object));
+			for (const [id, version] of Object.entries(payload.messages_versions)) {
+				expect(ids).toContain(id);
+				expect(typeof version === 'number' && Number.isSafeInteger(version) && version >= 0).toBe(true);
+			}
+			for (const field of ['chats', 'messages', 'embeds', 'chat_key_wrappers']) expect(payload[field]).toBeUndefined();
+		}
+	} else {
+		expect(receivedTypes).not.toContain(OPENED_STARTUP_FRAME);
+		expect(phase1bChatCounts.length).toBeGreaterThan(0);
+		for (const count of phase1bChatCounts) expect(count).toBe(20);
+		for (const frame of phase1bAuxWindows) {
+			expect(new Set(frame.chatIds).size).toBe(frame.chatIds.length);
+			for (const id of frame.chatIds) startupContentIds.add(id);
+		}
+		expect(startupContentIds.size, 'Legacy startup delivers exactly 20 distinct parent content IDs for this fixture').toBe(20);
+	}
 	const metadata = new Map<string, any>([
 		...phase1Metadata,
 		...phase2Payloads.flatMap(payload => (payload?.chats || []).map((wrapper: any) => wrapper.chat_details))
@@ -661,13 +795,15 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	expect([...metadata.values()].filter(chat => !chat.parent_id && !chat.is_sub_chat)).toHaveLength(23);
 	for (const id of startupContentIds) {
 		expect(metadata.has(id)).toBe(true);
-		expect(metadata.get(id)?.parent_id).toBeFalsy();
-		expect(metadata.get(id)?.is_sub_chat).toBeFalsy();
+		if (!startupSocket.openedStartup) {
+			expect(metadata.get(id)?.parent_id).toBeFalsy();
+			expect(metadata.get(id)?.is_sub_chat).toBeFalsy();
+		}
 	}
 	const children = [...metadata.values()].filter(chat => chat.parent_id && chat.is_sub_chat);
 	expect(children, 'Recent parent must carry its real encrypted child metadata').toHaveLength(1);
 	const childId = children[0].id || children[0].chat_id;
-	expect(startupContentIds.has(children[0].parent_id)).toBe(true);
+	if (!startupSocket.openedStartup) expect(startupContentIds.has(children[0].parent_id)).toBe(true);
 	expect(startupContentIds.has(childId), 'Child metadata must not opt in child startup message content').toBe(false);
 	expect(await readLocalStartupChat(page, childId)).toEqual({ exists: true, messageCount: 0 });
 	expect(phase1bMessageWindows.length).toBe(phase1bChatCounts.reduce((sum, count) => sum + count, 0));
@@ -710,8 +846,13 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 
 	const activeChatId = await page.getByTestId('active-chat-container')
 		.getAttribute('data-current-chat-id').catch(() => null);
+	const [, laterFixtureId] = await fixtureChatPair(page);
+	// The separate archive fixture also has one message, but is newer than
+	// the two recent startup parents. Test an older parent from the startup seed.
+	const olderThan = Number(metadata.get(laterFixtureId)?.updated_at);
+	expect(Number.isSafeInteger(olderThan)).toBe(true);
 	const olderParents = [...metadata.entries()].filter(([id, chat]) =>
-		!chat.parent_id && !chat.is_sub_chat && chat.messages_v === 1 &&
+		!chat.parent_id && !chat.is_sub_chat && chat.messages_v === 1 && Number(chat.updated_at) < olderThan &&
 		!startupContentIds.has(id) && id !== activeChatId);
 	expect(olderParents.length, 'Real fixture must leave an older parent outside the startup content window').toBeGreaterThan(0);
 	const metadataOnlyChatId = olderParents[0][0];
@@ -804,9 +945,22 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	await expect(page.getByTestId('chat-history-content').getByTestId('message-content').filter({
 		hasText: /^Synthetic startup chat \d{2}, message 1\.$/
 	})).toBeVisible({ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS });
-	await expect.poll(async () => (await readLocalStartupChat(page, metadataOnlyChatId)).messageCount, {
-		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS
-	}).toBe(1);
+	try {
+		await expect.poll(async () => (await readLocalStartupChat(page, metadataOnlyChatId)).messageCount, {
+			timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+			message: 'Retain the older chat message in IndexedDB after the successful revisit'
+		}).toBe(1);
+	} catch (error) {
+		const retention = await page.evaluate(() => ({
+			history: document.documentElement.dataset.rustCoreHistory,
+			stages: performance.getEntriesByType('mark')
+				.map(entry => entry.name)
+				.filter(name => name.startsWith('openmates:rust:'))
+				.slice(-45)
+		}));
+		console.info('Older chat retention', JSON.stringify(retention));
+		throw error;
+	}
 
 	// The child was genuinely metadata-only above. Opening it now must hydrate actual encrypted content.
 	const childWindowPath = `/v1/chats/${encodeURIComponent(childId)}/messages/window`;
@@ -828,6 +982,26 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS
 	}).toBe(1);
 
+	// A disconnected user must still be able to switch between both visited chats.
+	await context.setOffline(true);
+	try {
+		const visitedChats = [
+			{ id: metadataOnlyChatId, text: /^Synthetic startup chat \d{2}, message 1\.$/ },
+			{ id: childId, text: /^Synthetic startup child chat 01, message 1\.$/ },
+		];
+		for (const chat of visitedChats) {
+			await page.evaluate((chatId: string) => {
+				window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+			}, chat.id);
+			await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', chat.id);
+			await expect(page.getByTestId('chat-history-content').getByTestId('message-content').filter({
+				hasText: chat.text
+			})).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		}
+	} finally {
+		await context.setOffline(false);
+	}
+
 	await verifyCachedShortChatOpening(page);
 });
 
@@ -841,7 +1015,7 @@ test('continue carousel remains visible during reconnect churn', async ({ page }
 	const sockets = await observeReconnectSockets(page, startupEvidence);
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
-	await expect.poll(() => sockets.some(socket => !socket.closed && socket.phase2Frames > 0), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+	await expect.poll(() => sockets.some(hasCompletedMetadata), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
 	await startupEvidence.snapshotPhaseReceipts();
 	await waitForChatReady(page);
 	await startupEvidence.end();
@@ -849,13 +1023,560 @@ test('continue carousel remains visible during reconnect churn', async ({ page }
 	await startupEvidence.attach(testInfo);
 });
 
+// contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,sync.startup.opened-offline-and-archive
+test('a second signed-in browser refreshes the last deliberately opened chat first', async ({ page, browser }: { page: any; browser: any }) => {
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await waitForChatReady(page);
+	// Deliberately select the older modified fixture last so the peer must
+	// resume using actual open order.
+	const [previous, latest] = await fixtureChatPair(page);
+	const api = process.env.PLAYWRIGHT_TEST_API_URL || require('./helpers/cli-test-helpers').deriveApiUrl(page.url());
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	for (const id of [previous, latest]) {
+		if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
+		await sidebar.locator('[data-testid="chat-item-wrapper"][data-chat-id="' + id + '"]').click();
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', id);
+		await expect.poll(async () => {
+			const response = await page.request.get(api + '/v1/chats/startup-opened');
+			expect(response.ok()).toBeTruthy();
+			return (await response.json()).chat_ids?.[0];
+		}).toBe(id);
+	}
+	const serverTail = await page.request.get(api + '/v1/chats/' + latest + '/messages/window?direction=latest&limit=1');
+	expect(serverTail.ok()).toBeTruthy();
+	const newest = (await serverTail.json()).messages?.at(-1)?.message_id;
+	expect(typeof newest).toBe('string');
+
+	const peer = await createIsolatedBrowserContext(browser, declareTestState({
+		auth: 'Independent password and TOTP login',
+		browserStorage: 'fresh',
+		account: 'Same isolated encrypted fixture owner as the first browser',
+		chat: 'Resume the last deliberately opened saved chat',
+		notifications: 'Default account notifications',
+		securityReminders: 'Existing fixture login policy',
+	}));
+	try {
+		const tab = await peer.newPage();
+		let deliverLocalDeletion: ((chatId: string, messageId: string) => void) | null = null;
+		await tab.routeWebSocket(/\/v1\/ws(?:\?|$)/, (socket: any) => {
+			socket.connectToServer();
+			deliverLocalDeletion = (chatId, messageId) => socket.send(JSON.stringify({
+				type: 'message_deleted', payload: { chat_id: chatId, message_id: messageId },
+			}));
+		});
+		await tab.addInitScript(() => {
+			const evidence = { completeChats: 0 };
+			Object.defineProperty(window, '__openedHistoryReceiptEvidence', { value: evidence });
+			window.addEventListener('openmates:opened-chat-coverage', event => {
+				const detail = (event as CustomEvent<{ completeChats: number }>).detail;
+				evidence.completeChats = Math.max(evidence.completeChats, detail.completeChats);
+			});
+		});
+		const frames: Array<{ ids: string[]; versions: Record<string, number> }> = [];
+		const reads: Array<{ chat: string; direction: string | null }> = [];
+		tab.on('websocket', (socket: any) => {
+			if (!socket.url().includes('/v1/ws')) return;
+			socket.on('framereceived', ({ payload }: { payload: string | Buffer }) => {
+				const frame = JSON.parse(payload.toString());
+				if (frame.type === 'chat_startup_opened_ready' && frame.payload.team_id == null) {
+					frames.push({ ids: frame.payload.offline_chat_ids, versions: frame.payload.messages_versions });
+				}
+			});
+		});
+		peer.on('request', (request: any) => {
+			const url = new URL(request.url());
+			const match = url.pathname.match(/^\/v1\/chats\/([^/]+)\/messages\/window$/);
+			if (match && !url.searchParams.has('team_id')) {
+				reads.push({ chat: match[1], direction: url.searchParams.get('direction') });
+			}
+		});
+		// playwright-determinism: allow the server rejects TOTP replay, so the independent login must cross the next protocol time step.
+		await page.waitForTimeout(30000 - Date.now() % 30000 + 500);
+		await loginToTestAccount(tab);
+		await expect.poll(() => frames[0]?.ids.slice(0, 2), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toEqual([latest, previous]);
+		expect(frames[0].ids.length).toBeLessThanOrEqual(11);
+		await expect.poll(() => reads[0], { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toEqual({ chat: latest, direction: 'latest' });
+		await expect.poll(() => tab.evaluate(async ({ chat, message }: { chat: string; message: string }) => {
+			const db = await new Promise<IDBDatabase>((resolve, reject) => {
+				const request = indexedDB.open('chats_db');
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			try {
+				return await new Promise<boolean>((resolve, reject) => {
+					const request = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).get(message);
+					request.onsuccess = () => resolve(request.result?.chat_id === chat);
+					request.onerror = () => reject(request.error);
+				});
+			} finally { db.close(); }
+		}, { chat: latest, message: newest }), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+
+		// The non-head chat has no foreground freshness request to confuse
+		// with the cohort. Inspect only sealed-record presence and one row ID.
+		const coverageState = (messageId?: string) => tab.evaluate(async ({ chatId, messageId }: { chatId: string; messageId?: string }) => {
+			const database = await new Promise<IDBDatabase>((resolve, reject) => {
+				const request = indexedDB.open('chats_db');
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			try {
+				if (!database.objectStoreNames.contains('opened_history_coverage')) {
+					return { databaseVersion: database.version, sealed: false, messageId: null, targetExists: false };
+				}
+				const tx = database.transaction(['opened_history_coverage', 'saved_messages_v34']);
+				const marker = tx.objectStore('opened_history_coverage').get(chatId);
+				const messages = tx.objectStore('saved_messages_v34');
+				const message = messages.index('chat_id').openKeyCursor(chatId);
+				const target = messageId ? messages.getKey(messageId) : null;
+				return await new Promise<{ databaseVersion: number; sealed: boolean; messageId: string | null; targetExists: boolean }>((resolve, reject) => {
+					tx.oncomplete = () => resolve({
+						databaseVersion: database.version, sealed: typeof marker.result?.ciphertext === 'string',
+						messageId: typeof message.result?.primaryKey === 'string' ? message.result.primaryKey : null,
+						targetExists: target?.result !== undefined,
+					});
+					tx.onabort = () => reject(tx.error);
+				});
+			} finally { database.close(); }
+		}, { chatId: previous, messageId });
+		expect(typeof frames[0].versions?.[previous]).toBe('number');
+		await expect.poll(async () => (await coverageState()).sealed, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+		const beforeReload = await coverageState();
+		expect(beforeReload.databaseVersion).toBe(34);
+		expect(beforeReload.messageId).toBeTruthy();
+
+		const reload = async () => {
+			await tab.evaluate(() => history.replaceState(null, '', location.pathname + location.search));
+			await tab.reload({ waitUntil: 'domcontentloaded' });
+		};
+		const warmReads = reads.length;
+		const warmFrame = frames.length;
+		await reload();
+		await expect.poll(() => frames.length, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBeGreaterThan(warmFrame);
+		await expect.poll(() => tab.evaluate(() =>
+			(window as unknown as { __openedHistoryReceiptEvidence: { completeChats: number } }).__openedHistoryReceiptEvidence.completeChats
+		), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBeGreaterThan(0);
+		expect(frames[warmFrame].versions?.[previous]).toBe(frames[0].versions[previous]);
+		expect(reads.slice(warmReads).some(read => read.chat === previous)).toBe(false);
+		expect((await coverageState()).sealed).toBe(true);
+
+		// Exercise the real browser deletion writer without mutating fixture
+		// server data or bumping the offered server version.
+		expect(deliverLocalDeletion).toBeTruthy();
+		const removedMessage = beforeReload.messageId!;
+		expect(await coverageState(removedMessage)).toMatchObject({ sealed: true, targetExists: true });
+		deliverLocalDeletion!(previous, removedMessage);
+		await expect.poll(() => coverageState(removedMessage), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS })
+			.toMatchObject({ sealed: false, targetExists: false });
+
+		const repairReads = reads.length;
+		const repairFrame = frames.length;
+		await reload();
+		await expect.poll(() => frames.length, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBeGreaterThan(repairFrame);
+		expect(frames[repairFrame].versions?.[previous]).toBe(frames[0].versions[previous]);
+		await expect.poll(() => reads.slice(repairReads).some(read => read.chat === previous && read.direction === 'latest'),
+			{ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+		await expect.poll(() => coverageState(removedMessage), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS })
+			.toMatchObject({ sealed: true, targetExists: true });
+	} finally { await peer.close(); }
+});
+
+// contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.recent-metadata-cap
+test('uncached Personal deep link reads only the selected header before phased sync', async ({ page }: { page: any }) => {
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await waitForChatReady(page, undefined, 60000);
+	const priorTabSession = await page.evaluate(() => sessionStorage.getItem('session_id'));
+	expect(Boolean(priorTabSession), 'The document must already have its authenticated tab session').toBe(true);
+
+	const fixtureUrl = process.env.OPENMATES_CI_SHARED_CHAT_URL;
+	expect(fixtureUrl, 'Synthetic owner chat is required').toBeTruthy();
+	const chatId = new URL(fixtureUrl!).pathname.split('/').at(-1)!;
+	expect(chatId).toMatch(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
+	await expect.poll(() => prepareLocalMetadataOnlyChat(page, chatId), {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS
+	}).toBe(chatId);
+	await page.evaluate(async (id: string) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		try {
+			await new Promise<void>((resolve, reject) => {
+				const tx = db.transaction('chats', 'readwrite');
+				tx.objectStore('chats').delete(id);
+				tx.oncomplete = () => resolve();
+				tx.onerror = tx.onabort = () => reject(tx.error);
+			});
+		} finally { db.close(); }
+	}, chatId);
+	expect(await readLocalStartupChat(page, chatId)).toEqual({ exists: false, messageCount: 0 });
+
+	const heldStartup: Array<() => void> = [];
+	let holdStartup = true;
+	await page.routeWebSocket(/\/v1\/ws(?:\?|$)/, (socket: any) => {
+		const server = socket.connectToServer();
+		server.onMessage((data: string | Buffer) => {
+			if (holdStartup && typeof data === 'string') {
+				const { type } = JSON.parse(data);
+				if (typeof type === 'string' && /^(?:chat_startup_opened_ready|phase_[123]|phased_sync_complete)/.test(type)) {
+					heldStartup.push(() => socket.send(data));
+					return;
+				}
+			}
+			socket.send(data);
+		});
+	});
+	let selectedMetadataCalls = 0;
+	let draftCalls = 0;
+	page.on('request', (request: any) => {
+		const url = new URL(request.url());
+		if (url.pathname === '/v1/chats/metadata/batch' && request.method() === 'POST' &&
+			!url.searchParams.has('team_id') && request.postDataJSON()?.chat_ids?.includes(chatId)) {
+			selectedMetadataCalls++;
+			expect(request.postDataJSON().chat_ids).toEqual([chatId]);
+		}
+		if (url.pathname === `/v1/drafts/${chatId}`) draftCalls++;
+	});
+	try {
+		await page.evaluate((id: string) => {
+			history.replaceState(null, '', `${location.pathname}${location.search}#chat-id=${id}`);
+		}, chatId);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		const active = page.getByTestId('active-chat-container');
+		await expect(active).toHaveAttribute('data-current-chat-id', chatId, { timeout: 30000 });
+		await expect.poll(() => selectedMetadataCalls).toBe(1);
+		await expect(active).toHaveAttribute('data-current-message-count', /^[1-9]\d*$/, { timeout: 30000 });
+		await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.locator('html')).toHaveAttribute('data-rust-core-history-source', 'server');
+		await expect.poll(async () => (await readLocalStartupChat(page, chatId)).messageCount, {
+			message: 'The selected cold read must retain its exact chat before startup content is released',
+		}).toBeGreaterThan(0);
+		expect(await page.evaluate((previous: string) => sessionStorage.getItem('session_id') === previous, priorTabSession),
+		'The returning document must use the original authenticated tab session').toBe(true);
+		const firstSession = await page.evaluate(() => {
+			const times = (name: string) => performance.getEntriesByName('openmates:rust:' + name).map(mark => mark.startTime);
+			return {
+				response: times('auth-first-session-response'),
+				adopted: times('auth-first-session-adopted'),
+				coldReady: times('cold-retention-ready'),
+			};
+		});
+		expect(firstSession.response, 'The page receives one original native session response').toHaveLength(1);
+		expect(firstSession.adopted, 'The selected Rust reader adopts the actual original host once').toHaveLength(1);
+		expect(firstSession.adopted[0]).toBeGreaterThanOrEqual(firstSession.response[0]);
+		expect(firstSession.coldReady.length, 'The selected Rust cold window is ready after that handover').toBeGreaterThan(0);
+		expect(firstSession.coldReady[0]).toBeGreaterThanOrEqual(firstSession.adopted[0]);
+		expect(draftCalls).toBe(0);
+	} finally {
+		holdStartup = false;
+		for (const release of heldStartup) release();
+	}
+});
+
+// contract-test: direct surface=gui.web assertions=sync.startup.recent-metadata-cap
+test('startup shows the full account count without fetching older headers', async ({ page }: { page: any }) => {
+	test.setTimeout(90000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const accountTotal = 1284;
+	const olderHeaderRequests: Record<string, number> = { sync_metadata_chats: 0, load_more_chats: 0 };
+	let observedPhase2 = false;
+	let observedSyncComplete = false;
+	await page.routeWebSocket(/\/v1\/ws(?:\?|$)/, (socket: any) => {
+		const server = socket.connectToServer();
+		socket.onMessage((data: string | Buffer) => {
+			if (typeof data === 'string') {
+				const type = JSON.parse(data).type;
+				if (type === 'sync_metadata_chats' || type === 'load_more_chats') olderHeaderRequests[type]++;
+			}
+			server.send(data);
+		});
+		server.onMessage((data: string | Buffer) => {
+			if (typeof data === 'string') {
+				const envelope = JSON.parse(data);
+				if (envelope.type === 'phased_sync_complete') observedSyncComplete = true;
+				if (envelope.type === 'phase_2_last_20_chats_ready' && Array.isArray(envelope.payload?.chats)) {
+					observedPhase2 = true;
+					envelope.payload.total_chat_count = accountTotal;
+					socket.send(JSON.stringify(envelope));
+					return;
+				}
+			}
+			socket.send(data);
+		});
+	});
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await waitForChatReady(page);
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
+	const count = page.getByTestId('chat-account-total');
+	await expect(count).toBeVisible();
+	await expect(count).toHaveAttribute('data-chat-count', String(accountTotal));
+	await expect.poll(() => ({ observedPhase2, observedSyncComplete }), {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+	}).toEqual({ observedPhase2: true, observedSyncComplete: true });
+
+	// playwright-determinism: allow a full negative observation window is required because a forbidden older-header request may arrive after sync completes.
+	await page.waitForTimeout(10000);
+	await expect(count).toHaveAttribute('data-chat-count', String(accountTotal));
+	expect(olderHeaderRequests).toEqual({ sync_metadata_chats: 0, load_more_chats: 0 });
+});
+
+// contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.surface.semantic-parity,chats.local-state.precedence
+test('cached conversations stay readable through a socket drop and reconnect', async ({ page, context }: { page: any; context: any }) => {
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await page.addInitScript(() => {
+		const reads = { archiveEnumerations: 0 };
+		Object.defineProperty(window, '__messageArchiveReads', { value: reads });
+		const selected = { chatId: '', local: 0, coldStops: 0 };
+		Object.defineProperty(window, '__offlineSelectedCacheRead', { value: selected });
+		const postMessage = MessagePort.prototype.postMessage;
+		MessagePort.prototype.postMessage = function (message: {
+			operation?: string; chatId?: string; cacheStop?: { operation?: string; chatId?: string };
+		}, ...args: unknown[]) {
+			if (selected.chatId && message?.chatId === selected.chatId && message.operation === 'read_local_saved_chat_cursor') {
+				selected.local++;
+			}
+			if (selected.chatId && message?.cacheStop?.chatId === selected.chatId &&
+				message.cacheStop.operation === 'read_cold_retained_saved_chat') {
+				selected.coldStops++;
+			}
+			return Reflect.apply(postMessage, this, [message, ...args]);
+		};
+		for (const method of ['getAll', 'getAllKeys', 'openCursor', 'openKeyCursor'] as const) {
+			const descriptor = Object.getOwnPropertyDescriptor(IDBObjectStore.prototype, method)!;
+			Object.defineProperty(IDBObjectStore.prototype, method, {
+				...descriptor,
+				value(this: IDBObjectStore, ...args: unknown[]) {
+					if ((this.name === 'messages' || this.name === 'saved_messages_v34') && this.transaction.db.name === 'chats_db' &&
+						this.transaction.mode !== 'versionchange' && args[0] == null &&
+						((method !== 'getAll' && method !== 'getAllKeys') || args[1] == null)) {
+						reads.archiveEnumerations++;
+					}
+					return Reflect.apply(descriptor.value, this, args);
+				}
+			});
+		}
+	});
+	const expectNoArchiveEnumeration = async () => {
+		const counts = await page.evaluate(() =>
+			(window as Window & { __messageArchiveReads?: { archiveEnumerations: number } }).__messageArchiveReads);
+		expect(counts, 'Startup and reconnect must avoid unbounded message store reads').toEqual({ archiveEnumerations: 0 });
+	};
+	const sockets = await observeReconnectSockets(page);
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await waitForChatReady(page);
+	await expect.poll(() => sockets.some(hasCompletedMetadata),
+		{ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+
+	const [firstChatId, nextChatId] = await fixtureChatPair(page);
+	const view = page.getByTestId('active-chat-container');
+	const assertReadable = async (chatId: string) => {
+		const label = chatId === firstChatId ? '01' : '02';
+		await expect(view).toHaveAttribute('data-current-chat-id', chatId);
+		await expect(view).toHaveAttribute('data-current-message-count', '6');
+		await expect(view).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(view).toHaveAttribute('data-current-message-ids-unique', 'true');
+		const history = view.getByTestId('chat-history-content');
+		await expect(history).toBeVisible();
+		await expect(history).toHaveAttribute('data-current-chat-id', chatId);
+		const messageRows = history.getByTestId('message-user');
+		await expect(messageRows).toHaveCount(6);
+		// Prove content is already readable before revealing the lazy final editor.
+		await expect(history.getByTestId('message-content').filter({
+			hasText: new RegExp('Synthetic startup chat ' + label + ', message [1-6]\\.')
+		}).first()).toBeVisible();
+		const lastMessage = messageRows.last();
+		await lastMessage.scrollIntoViewIfNeeded();
+		await expect(lastMessage.getByTestId('message-content').filter({
+			hasText: 'Synthetic startup chat ' + label + ', message 6.'
+		})).toBeVisible();
+	};
+	const selectChat = (chatId: string) => page.evaluate((id: string) => {
+		window.location.hash = `chat-id=${encodeURIComponent(id)}`;
+	}, chatId);
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	const clickChat = async (chatId: string) => {
+		if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
+		await sidebar.locator('[data-testid="chat-item-wrapper"][data-chat-id="' + chatId + '"]').click();
+	};
+	const nextMessagesPrefix = '/v1/chats/' + encodeURIComponent(nextChatId) + '/messages';
+	const nextWindowPath = nextMessagesPrefix + '/window';
+	const nextWindowRoute = '**' + nextWindowPath + '**';
+	const protectedMessageRoute = (url: URL) => url.pathname === nextMessagesPrefix || url.pathname.startsWith(nextMessagesPrefix + '/');
+	let releaseHeldWindow!: () => void;
+	const heldWindow = new Promise<void>(resolve => { releaseHeldWindow = resolve; });
+	let heldStatus: number | null = null;
+	let watchSelectedWindow = false;
+	let selectedWindowStarted = false;
+	const heldResponses = new Set<Promise<void>>();
+	const holdNextTranscript = (route: any) => {
+		const request = route.request();
+		const url = new URL(request.url());
+		const original = watchSelectedWindow && !selectedWindowStarted && request.method() === 'GET' &&
+			url.pathname === nextWindowPath && url.searchParams.get('direction') === 'latest';
+		if (original) selectedWindowStarted = true;
+		const task = (async () => {
+			try {
+				if (original) heldStatus = (await route.fetch({ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS })).status();
+				await heldWindow;
+			} finally {
+				// No foreground or cohort retry may deliver B’s transcript to
+				// this document while proving the cancelled request's drain.
+				await route.abort().catch(() => undefined);
+			}
+		})();
+		heldResponses.add(task);
+		void task.then(() => heldResponses.delete(task), () => heldResponses.delete(task));
+		return task;
+	};
+	await context.route(protectedMessageRoute, holdNextTranscript);
+	try {
+		await openFixtureChat(page, firstChatId);
+		await expectNoArchiveEnumeration();
+		// Start B with only its authorized header, with all its HTTP transcript
+		// producers already fenced. A remains the normal readable choice.
+		expect(await prepareLocalMetadataOnlyChat(page, nextChatId)).toBe(nextChatId);
+		expect(await readLocalStartupChat(page, nextChatId)).toEqual({ exists: true, messageCount: 0 });
+		const admissionProbeStart = await page.evaluate((chatId: string) => {
+			const state = window as Window & { __offlineSelectedCacheRead: { chatId: string; coldStops: number } };
+			state.__offlineSelectedCacheRead.chatId = chatId;
+			state.__offlineSelectedCacheRead.coldStops = 0;
+			return performance.now();
+		}, nextChatId);
+		watchSelectedWindow = true;
+		await clickChat(nextChatId);
+		await expect(view).toHaveAttribute('data-current-chat-id', nextChatId);
+		await expect.poll(() => heldStatus, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+			message: 'B reaches its real selected bounded window before the deliberate switch' }).toBe(200);
+		await expect(view).toHaveAttribute('data-current-message-count', '0');
+		await clickChat(firstChatId);
+		await assertReadable(firstChatId);
+		// A warm replay can paint A early. Also require the exact original B
+		// operation to stop and finish its drain while the real body is withheld.
+		await expect.poll(() => page.evaluate((start: number) => {
+			const state = window as Window & { __offlineSelectedCacheRead: { coldStops: number } };
+			const cancelled = performance.getEntriesByName('openmates:rust:cold-retention-failed-cancelled')
+				.some(mark => mark.startTime >= start);
+			return state.__offlineSelectedCacheRead.coldStops > 0 && cancelled;
+		}, admissionProbeStart), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+			message: 'B’s owned cold request must drain before its response is released' }).toBe(true);
+		await assertReadable(firstChatId);
+		expect(await readLocalStartupChat(page, nextChatId)).toEqual({ exists: true, messageCount: 0 });
+	} finally {
+		try { await context.unroute(protectedMessageRoute, holdNextTranscript); }
+		finally {
+			releaseHeldWindow();
+			await Promise.allSettled([...heldResponses]);
+		}
+	}
+	await clickChat(nextChatId);
+	await assertReadable(nextChatId);
+	await expect.poll(async () => (await readLocalStartupChat(page, nextChatId)).messageCount,
+		{ message: 'Opening the cold saved chat commits encrypted rows before an offline reselect' }).toBeGreaterThan(0);
+	await selectChat(firstChatId);
+	await assertReadable(firstChatId);
+
+	// A full reload discards the in-memory replay cache. Test the first
+	// offline sidebar click from disk on a real socket. The interrupted online
+	// request and its hard-denial fence are deterministic in selectedHistoryHostFailure.test.ts.
+	const socketsBeforeReload = sockets.length;
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await expect.poll(() => sockets.slice(socketsBeforeReload).some(hasCompletedMetadata),
+		{ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+	await assertReadable(firstChatId);
+	await expectNoArchiveEnumeration();
+	const previousSocketCount = sockets.length;
+	const original = sockets[previousSocketCount - 1];
+	expect(await readLocalStartupChat(page, nextChatId)).toEqual({ exists: true, messageCount: 6 });
+	await page.evaluate((chatId: string) => {
+		const state = window as Window & { __offlineSelectedCacheRead: { chatId: string } };
+		state.__offlineSelectedCacheRead.chatId = chatId;
+	}, nextChatId);
+
+	let nextWindowRequests = 0;
+	const countNextWindow = (request: any) => {
+		if (new URL(request.url()).pathname === nextWindowPath) nextWindowRequests++;
+	};
+	const blockNextWindow = (route: any) => route.abort();
+	await page.route(nextWindowRoute, blockNextWindow);
+	try {
+		await context.setOffline(true);
+		await page.evaluate(() => {
+			const sockets = (window as typeof window & { __reconnectSockets?: WebSocket[] }).__reconnectSockets || [];
+			for (const socket of sockets) {
+				if (socket.readyState === WebSocket.OPEN) socket.close(1000, 'Synthetic offline navigation');
+			}
+		});
+		await expect.poll(() => original.closed, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+		await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+		context.on('request', countNextWindow);
+		await clickChat(nextChatId);
+		await assertReadable(nextChatId);
+		await expect.poll(() => page.evaluate(() => {
+			const state = window as Window & { __offlineSelectedCacheRead: { local: number } };
+			return state.__offlineSelectedCacheRead.local;
+		}), { message: 'B must use the admitted local Worker after reload' }).toBeGreaterThan(0);
+		await clickChat(firstChatId);
+		await assertReadable(firstChatId);
+		await clickChat(nextChatId);
+		await assertReadable(nextChatId);
+		expect(nextWindowRequests).toBe(0);
+		await expectNoArchiveEnumeration();
+		await holdProofVideoState(page);
+	} finally {
+		context.off('request', countNextWindow);
+		await page.unroute(nextWindowRoute, blockNextWindow);
+		await context.setOffline(false);
+	}
+	await expect.poll(() => sockets.slice(previousSocketCount).some(hasCompletedMetadata),
+		{ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+	await assertReadable(nextChatId);
+	await expectNoArchiveEnumeration();
+
+	// Try the second selection online from a new document without a route
+	// abort or stalled Worker. A synthetic online failure must surface here.
+	await selectChat(firstChatId);
+	await assertReadable(firstChatId);
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await assertReadable(firstChatId);
+	try {
+		await clickChat(nextChatId);
+		await assertReadable(nextChatId);
+	} catch (error) {
+		const stages = await page.evaluate(() => {
+			const allowed = new Set([
+				'history-load', 'history-request', 'session-start', 'session-ready', 'session-failed-session_expired',
+				'local-session-start', 'local-session-ready', 'read-local-session', 'read-no-local-session',
+				'read-online-session', 'cache-read-start', 'cache-plan-messages', 'cache-read-end',
+				'cache-miss-empty', 'cache-miss-unavailable', 'cold-retention-request', 'server-read-start',
+			]);
+			return performance.getEntriesByType('mark').map(mark => mark.name)
+				.filter(name => name.startsWith('openmates:rust:') && allowed.has(name.slice('openmates:rust:'.length)))
+				.slice(-30);
+		});
+		throw new Error('Unblocked online reread did not paint its selected transcript. Rust stages='
+			+ JSON.stringify(stages), { cause: error });
+	}
+	await expectNoArchiveEnumeration();
+});
+
 // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,sync.startup.bounded-phases
 test('startup socket close smoke reconnects with capabilities and bounded sync', async ({ page, context }: { page: any; context: any }) => {
 	test.setTimeout(120000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const sockets = await observeReconnectSockets(page);
 	await context.addInitScript(() => {
 		const NativeWebSocket = window.WebSocket;
-		const smoke = { attempts: 0, earlyCloses: 0, closedAttempt: 0, replacementTypes: [] as string[] };
+		const smoke = { attempts: 0, earlyCloses: 0, closedAttempt: 0 };
 		const testWindow = window as typeof window & { __startupSocketCloseSmoke?: typeof smoke };
 		testWindow.__startupSocketCloseSmoke = smoke;
 		window.WebSocket = class extends NativeWebSocket {
@@ -870,31 +1591,24 @@ test('startup socket close smoke reconnects with capabilities and bounded sync',
 						this.close(1000, 'Synthetic startup socket close');
 					}
 				});
-				this.addEventListener('message', (event) => {
-					if (smoke.closedAttempt === 0 || attempt <= smoke.closedAttempt || typeof event.data !== 'string') return;
-					try {
-						const type = JSON.parse(event.data)?.type;
-						if (typeof type === 'string') smoke.replacementTypes.push(type);
-					} catch { /* Only record protocol message types, never payloads. */ }
-				});
 			}
 		};
 	});
 	await loginToTestAccount(page);
-	await expect.poll(() => page.evaluate(() => {
-		const smoke = (window as typeof window & {
-			__startupSocketCloseSmoke?: { attempts: number; earlyCloses: number; closedAttempt: number; replacementTypes: string[] }
-		}).__startupSocketCloseSmoke;
-		return {
-			earlyCloses: smoke?.earlyCloses,
-			reconnected: Boolean(smoke && smoke.closedAttempt > 0 && smoke.attempts > smoke.closedAttempt),
-			capabilities: smoke?.replacementTypes.includes('server_capabilities'),
-			phase1b: smoke?.replacementTypes.includes('phase_1b_chat_content_ready'),
-			phase2: smoke?.replacementTypes.includes('phase_2_last_20_chats_ready')
-		};
-	}), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toEqual({
-		earlyCloses: 1, reconnected: true, capabilities: true, phase1b: true, phase2: true
-	});
+	await expect.poll(async () => {
+		const smoke = await page.evaluate(() =>
+			(window as typeof window & {
+				__startupSocketCloseSmoke?: { attempts: number; earlyCloses: number; closedAttempt: number }
+			}).__startupSocketCloseSmoke
+		);
+		if (!smoke?.closedAttempt) return false;
+		const replacement = sockets.slice(smoke.closedAttempt).find(hasCompletedStartup);
+		return smoke.earlyCloses === 1 && smoke.attempts > smoke.closedAttempt &&
+			Boolean(replacement?.frames.some(frame => frame.type === 'server_capabilities'));
+	}, {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'A replacement Personal socket must negotiate capabilities and finish its startup sequence',
+	}).toBe(true);
 	await waitForChatReady(page);
 	// This browser smoke proves recovery after a real early client close. The
 	// deterministic ASGI transport unit and isolated API logs prove server cleanup.
@@ -909,6 +1623,57 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
 	await verifyCachedShortChatOpening(page);
+});
+
+// contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+test('opening a saved chat starts the Rust read while compression checkpoints are pending', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await waitForChatReady(page, undefined, 60000);
+
+	const [selectedChatId] = await cacheFixtureChatPair(page);
+	const active = page.getByTestId('active-chat-container');
+
+	await expect.poll(() => page.evaluate(() => performance.getEntriesByName('openmates:rust:history-install').length)).toBeGreaterThan(0);
+	const testWindowLock = '__releaseCompressionCheckpointStore';
+	await page.evaluate(async (lockName: string) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+		const storeName = 'chat_compression_checkpoints';
+		const transaction = db.transaction(storeName, 'readwrite');
+		const store = transaction.objectStore(storeName);
+		let locked = true;
+		const keepAlive = () => {
+			if (locked) store.get('__chat_checkpoint_lock_probe__').onsuccess = keepAlive;
+		};
+		keepAlive();
+		(window as unknown as Record<string, () => void>)[lockName] = () => { locked = false; };
+		transaction.oncomplete = () => db.close();
+		performance.clearMarks('openmates:rust:history-request');
+	}, testWindowLock);
+
+	try {
+		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, selectedChatId);
+		await expect(active).toHaveAttribute('data-current-chat-id', selectedChatId, { timeout: 10000 });
+		await expect.poll(() => page.evaluate(() => performance.getEntriesByName('openmates:rust:history-request').length), {
+			timeout: 10000,
+			message: 'Rust must start the selected chat read before the checkpoint store is released',
+		}).toBeGreaterThan(0);
+	} finally {
+		await page.evaluate((lockName: string) => {
+			const controls = window as unknown as Record<string, (() => void) | undefined>;
+			controls[lockName]?.();
+			delete controls[lockName];
+		}, testWindowLock);
+	}
+	await expect(page.getByTestId('chat-history-content')).toBeVisible();
+	await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
 });
 
 // contract-test: direct surface=gui.web assertions=storage.cold.independent-message-pages,sync.startup.bounded-phases
@@ -976,7 +1741,10 @@ test('oversized encrypted sync cursor opens one authenticated message without fu
 			payload_bytes: 0,
 			server_message_count: baseline.server_message_count
 		})
-	}), { times: 1 });
+	}));
+	// Both the optional cold retention probe and the canonical selected read
+	// must see the same omission. A one-shot stub makes the canonical retry
+	// read an ordinary complete fixture response without an exact cursor.
 	await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, chatId);
 	await expect.poll(() => exactReads, { timeout: 15000 }).toBeGreaterThanOrEqual(1);
 	expect(fullHistoryReads).toBe(0);
@@ -991,12 +1759,7 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 	await dismissSecurityReminderIfPresent(page);
 	await waitForChatReady(page, undefined, 60000);
 
-	let chats: Array<{ chatId: string; messageCount: number }> = [];
-	await expect.poll(async () => {
-		chats = await getLocalChatSwitchPair(page, false);
-		return chats.length;
-	}, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBeGreaterThanOrEqual(2);
-	const [first, second] = chats;
+	const [firstChatId, secondChatId] = await fixtureChatPair(page);
 	const active = page.getByTestId('active-chat-container');
 	const composerGate = page.getByTestId('chat-warm-composer-gate');
 	const select = async (chatId: string) => {
@@ -1012,8 +1775,11 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 			value: true, writable: true, configurable: true
 		});
 	});
-	await select(first.chatId);
-	await select(second.chatId);
+	await select(firstChatId);
+	await select(secondChatId);
+	for (const id of [firstChatId, secondChatId]) {
+		await expect.poll(async () => (await readLocalStartupChat(page, id)).messageCount).toBe(6);
+	}
 	const sidebar = page.getByTestId('activity-history-wrapper');
 	if (await sidebar.isVisible().catch(() => false)) {
 		await sidebar.getByRole('button', { name: /close/i }).click();
@@ -1021,8 +1787,8 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 	await expect(sidebar).not.toBeVisible();
 	await holdSelectedChatStoreReads(page);
 	try {
-		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, first.chatId);
-		await expect(active).toHaveAttribute('data-current-chat-id', first.chatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, firstChatId);
+		await expect(active).toHaveAttribute('data-current-chat-id', firstChatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
 		await expect(active).toHaveAttribute('data-chat-load-state', 'ready', { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
 		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count') || 0), {
 			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
@@ -1042,8 +1808,8 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 		);
 		expect(readDone, 'IndexedDB chat metadata and message reads should still be blocked when cached content is visible')
 			.toEqual({ chats: false, messages: false });
-		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, second.chatId);
-		await expect(active).toHaveAttribute('data-current-chat-id', second.chatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, secondChatId);
+		await expect(active).toHaveAttribute('data-current-chat-id', secondChatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
 		await expect(active).toHaveAttribute('data-chat-load-state', 'ready', { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
 		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count') || 0), {
 			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
@@ -1061,8 +1827,8 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 		// encrypted window must still render while both selected-chat stores remain locked.
 		await page.evaluate(() => { window.location.hash = 'tasks'; });
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 10000 });
-		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, first.chatId);
-		await expect(active).toHaveAttribute('data-current-chat-id', first.chatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, firstChatId);
+		await expect(active).toHaveAttribute('data-current-chat-id', firstChatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
 		await expect(active).toHaveAttribute('data-chat-load-state', 'ready', { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
 		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count') || 0), {
 			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
@@ -1172,16 +1938,10 @@ test('authenticated startup observes HTTP-cache cold fill and two same-route war
 		const loginStartMs = Date.now();
 		await loginToTestAccount(page);
 		await dismissSecurityReminderIfPresent(page);
-		await expect.poll(() => sockets.some(socket => !socket.closed && socket.phase2Frames > 0), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+		await expect.poll(() => sockets.some(hasCompletedMetadata), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
 		await waitForChatReady(page);
 		const authenticatedShellReadyMs = Date.now() - loginStartMs;
-		let selection: { chatId: string; messageCount: number } | undefined;
-		await expect.poll(async () => {
-			// Read only: unlike the short-window regression, do not trim fixture data.
-			selection = (await getLocalChatSwitchPair(page, false)).find(chat => chat.messageCount === 6);
-			return Boolean(selection);
-		}, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
-		selectedChatId = selection!.chatId;
+		[selectedChatId] = await fixtureChatPair(page);
 		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, selectedChatId);
 		const usable = await assertSelectedDecryptedChatUsable();
 		evidence.loginAutomation = { begin: loginBegin, elapsedMs: Date.now() - loginStartMs, authenticatedShellReadyMs, usable, process: await meter.end() };
@@ -1205,7 +1965,7 @@ test('authenticated startup observes HTTP-cache cold fill and two same-route war
 			const startMs = Date.now();
 			await page.reload({ waitUntil: 'domcontentloaded' });
 			const domContentLoadedMs = Date.now() - startMs;
-			await expect.poll(() => sockets.slice(previousSocketCount).some(socket => !socket.closed && socket.phase2Frames > 0), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
+			await expect.poll(() => sockets.slice(previousSocketCount).some(hasCompletedMetadata), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBe(true);
 			const phase2ObservedMs = Date.now() - startMs;
 			await waitForChatReady(page);
 			// Reload preserves the explicitly selected route; never substitute an empty new chat.

@@ -3,7 +3,7 @@
 //! Every record-building site of the actor calls these right before it
 //! publishes, so all list and window events carry the same facts. Plan
 //! `apple-client-core-migration` (a4 lane 0).
-use super::{ChatListRow, ChatWindowRecord};
+use super::{ChatListRow, ChatRowStatus, ChatWindowRecord};
 use crate::{client::Client, error::Result};
 
 /// Set each row's metadata from its held chat row (all `None` without one).
@@ -12,7 +12,11 @@ use crate::{client::Client, error::Result};
 /// As `Client::chat_row_metadata`.
 pub(super) fn enrich_rows(client: &Client, rows: &mut [ChatListRow]) -> Result<()> {
     for row in rows {
-        row.metadata = client.chat_row_metadata(&row.id)?;
+        row.metadata = if row.status == ChatRowStatus::Locked {
+            client.locked_sidebar_chat_metadata(&row.id)?
+        } else {
+            client.chat_row_metadata(&row.id)?
+        };
     }
     Ok(())
 }
@@ -24,7 +28,8 @@ pub(super) fn enrich_rows(client: &Client, rows: &mut [ChatListRow]) -> Result<(
 /// # Errors
 /// As `Client::message_metadata_by_id`.
 pub(super) fn enrich_window(client: &Client, record: &mut ChatWindowRecord) -> Result<()> {
-    let mut found = client.message_metadata_by_id(&record.chat_id)?;
+    let message_ids = record.messages.iter().map(|message| message.id.as_str()).collect();
+    let mut found = client.message_metadata_by_id(&record.chat_id, &message_ids)?;
     for message in &mut record.messages {
         if let Some(metadata) = found.remove(&message.id) {
             message.metadata = metadata;

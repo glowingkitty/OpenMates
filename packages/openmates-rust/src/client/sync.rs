@@ -1,6 +1,8 @@
 use super::plaintext::{Plain, replace_text};
 use super::transport::{receive, send};
 use crate::sdk_drafts::{DraftRecord, EncryptedDraftRecord};
+#[path = "sync/canonical_oversized.rs"]
+mod canonical_oversized;
 use super::*;
 
 #[path="sync_read_phase.rs"]
@@ -8,7 +10,7 @@ mod read_phase;
 pub(in crate::client) use read_phase::{ReadOnlySyncPhase,SyncPhaseReadData};
 
 #[path="sync/canonical_history.rs"]
-mod canonical_history;
+pub(in crate::client) mod canonical_history;
 #[path="sync/canonical_owned.rs"]
 pub(in crate::client) mod canonical_owned;
 
@@ -38,7 +40,8 @@ pub(super) struct SelectedChatKeyCiphertext<'a> {
     pub(super) ciphertext: &'a str,
     pub(super) ambiguous: bool,
 }
-/// Opaque proof of one fully reconciled, authenticated personal Chat inventory.
+/// Opaque proof of one authenticated personal chat sync and recovery discovery.
+/// The returned chat list may cover only the recent window.
 /// Issued by discovery, consumed only by the same Client. No Clone, Debug or
 /// serde: neither restored ciphertext nor host-created data grants authority.
 /// This is a one-use read result for the same saved-read batch, not a permission
@@ -59,9 +62,16 @@ pub struct FreshChatInventory {
     credential_binding: [u8; 32],
     operation_epoch: u64,
     ciphertext_digest: String,
+    scope_complete: bool,
     canonical_completed_clock: Option<CacheClockEvidence>,
 }
 impl FreshChatInventory {
+    /// Whether the server proved that this sync included every chat in scope.
+    pub(super) fn scope_complete(&self) -> bool {
+        self.scope_complete
+    }
+
+
     /// Consume same-batch evidence without rendering, caching or minting any
     /// authority. Native adapters use this only to cover an immediately adjacent
     /// empty-recovery check. The caller still owns local journal/generation and
@@ -137,9 +147,18 @@ impl Client {
             .or_else(|| self.user["user_id"].as_str().filter(|id| !id.is_empty()))
             .ok_or(Error::Authentication)
     }
+    #[cfg(test)]
     pub(super) fn fresh_chat_inventory(
         &self,
         cancel: &CancellationToken,
+    ) -> Result<Option<FreshChatInventory>> {
+        self.fresh_chat_inventory_with_scope(cancel, true)
+    }
+
+    pub(super) fn fresh_chat_inventory_with_scope(
+        &self,
+        cancel: &CancellationToken,
+        scope_complete: bool,
     ) -> Result<Option<FreshChatInventory>> {
         self.require_session()?;
         if cancel.is_cancelled() || self.operation_cancel.is_cancelled() {
@@ -172,7 +191,8 @@ impl Client {
             credential_binding: self.fresh_auth_binding()?,
             operation_epoch: self.fresh_auth.operation_epoch(),
             ciphertext_digest: self.chat_inventory_digest()?,
-            canonical_completed_clock: self.cache_clock_evidence(),
+            scope_complete,
+            canonical_completed_clock: scope_complete.then(|| self.cache_clock_evidence()).flatten(),
         }))
     }
     pub(super) fn record_complete_chat_list(&mut self, proof: &FreshChatInventory) {
@@ -248,8 +268,17 @@ impl Client {
     pub(super) fn chat_key_ciphertext_from<'a>(
         &'a self, details: &'a Value, require_unambiguous: bool, source_wrappers: &'a [Value],
     ) -> Result<SelectedChatKeyCiphertext<'a>> {
+        let _ = required(details, "id")?;
+        Self::select_chat_key_ciphertext(details, require_unambiguous, source_wrappers, self.team()?)
+    }
+
+    pub(super) fn select_chat_key_ciphertext<'a>(
+        details: &'a Value,
+        require_unambiguous: bool,
+        source_wrappers: &'a [Value],
+        team: Option<&str>,
+    ) -> Result<SelectedChatKeyCiphertext<'a>> {
         let id = required(details, "id")?;
-        let team = self.team()?;
         if text(details, "chat_visibility") == "direct" {
             return Err(Error::Forbidden);
         }
@@ -382,7 +411,7 @@ impl Client {
     pub(super) fn render_chat_inventory(&self) -> Result<Vec<Item>> {
         let wrapping = self.cached_wrapping_key()?;
         let mut items = vec![];
-        for row in self.chat_rows_by_recency() {
+        for row in self.sidebar_chat_rows() {
             // Direct recipient envelopes are an independent protocol; expose a
             // locked row rather than ever trying the Team group key against it.
             if draft_only(row) && self.team()?.is_none() {
@@ -414,7 +443,7 @@ impl Client {
             .await
             .map(|_| ())
     }
-    pub(super) async fn refresh_chat_metadata_for_inventory(&mut self) -> Result<bool> {
+    pub(super) async fn refresh_chat_metadata_for_inventory(&mut self) -> Result<Option<bool>> {
         self.refresh_chat_metadata_with_policy(0, ChatSyncPolicy::InventoryDiscovery)
             .await
     }
@@ -424,10 +453,19 @@ impl Client {
         &mut self,
         refreshes: u8,
         policy: ChatSyncPolicy,
-    ) -> Result<bool> {
-        // A global sync replaces content wholesale: complete any partially
-        // restored native cache first (no-op for complete clients).
-        self.ensure_cached_content_loaded()?;
+    ) -> Result<Option<bool>> {
+        // The interactive terminal can discover chat metadata and recovery
+        // offers from its authenticated index. Only a content sync or actual
+        // recovery write needs to materialize the entire durable cache.
+        let index_only = self.startup_opened_policy_enabled
+            || (self.options.identity == ClientIdentity::Cli
+                && self.options.interactive
+                && self.supports_cached_default_chat_list()
+                && self.partially_restored_chats().is_some()
+                && policy.allows_effects());
+        if !index_only {
+            self.ensure_cached_content_loaded()?;
+        }
         let generation = self.generation;
         let cancel = self.operation_cancel.clone();
         let wrapping = self.wrapping_capability().await?;
@@ -471,11 +509,15 @@ impl Client {
         if cancel.is_cancelled() || self.generation != generation {
             return Err(Error::Cancelled);
         }
-        let phase = policy.requested_phase(
-            !self.options.interactive && self.browser_authority.is_none(),
-            team.is_none(),
-            !self.embeds.is_empty() || !self.embed_keys.is_empty() || !self.wrappers.is_empty(),
-        );
+        let phase = if index_only {
+            "phase2"
+        } else {
+            policy.requested_phase(
+                !self.options.interactive && self.browser_authority.is_none(),
+                team.is_none(),
+                !self.embeds.is_empty() || !self.embed_keys.is_empty() || !self.wrappers.is_empty(),
+            )
+        };
         let mut payload = json!({"phase":phase,"context_epoch":super::sync_windows::REQUEST_CONTEXT_EPOCH,"client_chat_versions":{},"client_chat_ids":[],"client_embed_ids":[]});
         if let Some(team) = team {
             payload["team_id"] = json!(team)
@@ -490,12 +532,15 @@ impl Client {
         let mut embeds = BTreeMap::new();
         // Original live frame order DATA only. Map/snapshot order cannot supply
         // TS's first matching short-ID/alias semantics or fresh source admission.
-        self.saved_embed_selectors=None;
-        self.saved_embed_cache=super::saved_embed_selector::SelectorCache::Legacy;
+        if !index_only {
+            self.saved_embed_selectors = None;
+            self.saved_embed_cache = super::saved_embed_selector::SelectorCache::Legacy;
+        }
         let mut embed_selectors=super::saved_embed_selector::SelectorFrames::default();
         let mut embed_keys = vec![];
         let mut metadata_seen = false;
         let mut reported_total = None;
+        let mut authoritative_ids = None;
         let mut phase1_windows = super::sync_windows::Phase1Windows::default();
         let mut sync_done = false;
         let mut recovery_done = false;
@@ -537,6 +582,8 @@ impl Client {
                 embed_selectors=super::saved_embed_selector::SelectorFrames::default();
                 embed_keys.clear();
                 metadata_seen = false;
+                reported_total = None;
+                authoritative_ids = None;
                 sync_done = false;
                 recovery_done = false;
                 main_seen_jobs = false;
@@ -581,7 +628,22 @@ impl Client {
                 read_phase::accept_sync_ciphertext_frame(&k,&p,self.team()?,
                     &mut phase1_windows,&mut chats,&mut chat_arrival_order,&mut wrappers,
                     &mut embeds,&mut embed_keys,&mut metadata_seen,&mut sync_done)?;
-                if k == "phase_2_last_20_chats_ready" { reported_total = p["total_chat_count"].as_u64().or(reported_total); }
+                if k == "phase_2_last_20_chats_ready" {
+                    reported_total = p["total_chat_count"].as_u64();
+                    // Only the correlated Phase 2 inventory declaration can
+                    // distinguish complete coverage from a recent window.
+                    authoritative_ids = if inventory_discovery && inventory_correlation_supported
+                        && p["authoritative"] == true
+                    {
+                        p["authoritative_chat_ids"].as_array().and_then(|ids| {
+                            ids.iter().map(|id| id.as_str().map(str::to_owned))
+                                .collect::<Option<std::collections::BTreeSet<_>>>()
+                                .filter(|unique| unique.len() == ids.len())
+                        })
+                    } else {
+                        None
+                    };
+                }
                 embed_selectors.observe(&k,&p);
                 super::sync_feed::observe_cold_start(&k, &p, self.team()?, &mut feed_capture);
             }
@@ -665,31 +727,68 @@ impl Client {
         if cancel.is_cancelled() || self.generation != generation {
             return Err(Error::Cancelled);
         }
-        // Validate the entire phase before publishing any new partial window.
-        // Window crypto uses staged wrappers, never a temporary mutation of the
-        // live Client, and cannot replace its complete selected history.
-        phase1_windows.merge_metadata_ordered(&mut chats, &mut chat_arrival_order);
-        let sync_message_windows = self.finish_sync_windows_with_capability(phase1_windows, &chats, &wrappers).await?;
+        if index_only
+            && (!recovery_outputs.is_empty()
+                || !workflow_deliveries.is_empty()
+                || (!inventory_discovery && !task_jobs.is_empty()))
+        {
+            self.ensure_cached_content_loaded()?;
+        }
+        // Validate the entire content phase before publishing an optional
+        // window. Metadata-only sync has no authority to replace sidecars.
+        let mut sync_message_windows = if index_only {
+            BTreeMap::new()
+        } else {
+            phase1_windows.merge_metadata_ordered(&mut chats, &mut chat_arrival_order);
+            self.finish_sync_windows_with_capability(phase1_windows, &chats, &wrappers)
+                .await?
+        };
         if completion_enabled {
             self.completion_recovery_jobs = main_jobs;
             self.metadata_recovery_jobs = metadata_jobs;
         }
-        let mut chats = chats;
-        let mut chat_arrival_order = chat_arrival_order;
-        let mut sync_message_windows = sync_message_windows;
         self.drop_deleted_chats(&mut chats, &mut chat_arrival_order);
-        sync_message_windows.retain(|id, _| !self.is_deleted_chat(id));
+        let scope_complete = authoritative_ids.is_some_and(|ids| {
+            reported_total == u64::try_from(ids.len()).ok()
+                && ids.len() == chats.len()
+                && ids.iter().all(|id| chats.contains_key(id))
+        });
+        if reported_total.is_some_and(|total| total > chats.len() as u64) {
+            self.invalidate_chat_list_freshness();
+        }
+        if index_only {
+            let updated: std::collections::BTreeSet<_> =
+                chats.keys().map(|id| sha256(id)).collect();
+            if !scope_complete {
+                for id in self.chat_arrival_order.clone().unwrap_or_else(|| self.chats.keys().cloned().collect()) {
+                    if let Some(row) = self.chats.get(&id).filter(|_| !self.is_deleted_chat(&id))
+                        && !chats.contains_key(&id)
+                    {
+                        chats.insert(id.clone(), row.clone());
+                        chat_arrival_order.push(id);
+                    }
+                }
+                let preserved: std::collections::BTreeSet<_> = chats.keys().map(|id| sha256(id)).collect();
+                wrappers.extend(self.wrappers.iter().filter(|wrapper| {
+                    required(wrapper, "hashed_chat_id").is_ok_and(|hash| preserved.contains(hash) && !updated.contains(hash))
+                }).cloned());
+            }
+        } else {
+            sync_message_windows.retain(|id, _| !self.is_deleted_chat(id));
+            self.sync_message_windows = sync_message_windows;
+            self.embeds = embeds;
+            self.embed_keys = embed_keys;
+        }
         self.chats = chats;
         self.chat_arrival_order = Some(chat_arrival_order);
         if reported_total.is_some() { self.chat_total_count = reported_total; }
-        self.sync_message_windows = sync_message_windows;
         self.wrappers = wrappers;
-        self.embeds = embeds;
-        self.embed_keys = embed_keys;
         self.adopt_cold_start_feed(feed_capture)?;
         // Optional bounded selector support must not restrict any maintained
         // content workload. Missing/overflow/malformed order remains unavailable.
-        self.saved_embed_selectors=embed_selectors.clone().bind(self).ok().map(std::sync::Arc::new);
+        if !index_only {
+            self.saved_embed_selectors = embed_selectors.clone().bind(self).ok().map(std::sync::Arc::new);
+        }
         let (task_updates, delivered) = if policy.allows_effects() {
             self.replay_outputs(&mut ws, &recovery_outputs, None)
                 .await?;
@@ -716,7 +815,7 @@ impl Client {
             }
             return Box::pin(self.refresh_chat_metadata_with_policy(refreshes + 1, policy)).await;
         }
-        if self.saved_embed_selectors.as_ref().is_some_and(|original| {
+        if !index_only && self.saved_embed_selectors.as_ref().is_some_and(|original| {
             let stored=original.identities.iter().try_fold(embed_selectors.bytes,|n,(id,row)|n.checked_add(id.len())?.checked_add(row.bytes()));
             stored.is_some_and(|n|n<=super::saved_embed_selector::MAX_SELECTOR_BYTES-512)
         }) {
@@ -724,7 +823,7 @@ impl Client {
         }
         // Omitted/timed-out discovery and any offered background effects may
         // still satisfy the historical read API, but cannot authorize reuse.
-        Ok(inventory_discovery
+        let reusable = inventory_discovery
             && inventory_correlation_supported
             && completion_enabled
             && main_seen_jobs
@@ -735,7 +834,8 @@ impl Client {
             && self.metadata_recovery_jobs.is_empty()
             && recovery_outputs.is_empty()
             && workflow_deliveries.is_empty()
-            && task_jobs.is_empty())
+            && task_jobs.is_empty();
+        Ok(reusable.then_some(scope_complete))
     }
     pub async fn open_chat(&mut self, id: &str) -> Result<Chat> {
         self.require_canonical_read_profile()?;
@@ -801,9 +901,11 @@ impl Client {
     pub(super) fn cached_chats(&self) -> Result<Vec<Item>> {
         let wrapping = self.cached_wrapping_key()?;
         let mut items = Plain::new(Vec::<Item>::new());
-        for row in self.chat_rows_by_recency() {
+        for row in self.sidebar_chat_rows() {
             let item = if draft_only(row) && self.team()?.is_none() {
                 self.chat_item(row, &wrapping)?
+            } else if self.has_absent_personal_sidebar_key(row)? {
+                locked_sidebar_item(row)?
             } else {
                 let key = self.chat_key(row, &wrapping)?;
                 self.chat_item(row, &key)?
@@ -838,7 +940,7 @@ impl Client {
         let live = tokio::select! {
             biased;
             _ = cancel.cancelled() => return Err(Error::Cancelled),
-            result = self.open_chat_live_in_transaction(id, Some(&mut transaction), None) => result.map(Plain::new),
+            result = self.open_chat_live_in_transaction(id, Some(&mut transaction), None, None, true) => result.map(Plain::new),
         };
         if cancel.is_cancelled() || self.operation_cancel.is_cancelled() {
             return Err(Error::Cancelled);
@@ -854,19 +956,23 @@ impl Client {
         }
     }
     pub(super) async fn open_chat_live(&mut self, id: &str) -> Result<Chat> {
-        self.open_chat_live_in_transaction(id, None, None).await
+        self.open_chat_live_in_transaction(id, None, None, None, true).await
     }
     pub(super) async fn open_chat_live_with_first_page(
         &mut self, id: &str,
         first_page: Option<&mut monitor::cached_view::FirstPageRead<'_>>,
+        budget: Option<&StartupForegroundBudget>,
+        select_chat: bool,
     ) -> Result<Chat> {
-        self.open_chat_live_in_transaction(id, None, first_page).await
+        self.open_chat_live_in_transaction(id, None, first_page, budget, select_chat).await
     }
     async fn open_chat_live_in_transaction(
         &mut self,
         id: &str,
         mut transaction: Option<&mut read_freshness::ReadFreshnessTransaction>,
         mut first_page: Option<&mut monitor::cached_view::FirstPageRead<'_>>,
+        budget: Option<&StartupForegroundBudget>,
+        select_chat: bool,
     ) -> Result<Chat> {
         self.require_canonical_read_profile()?;
         if self.is_ephemeral_chat(id) {
@@ -879,13 +985,13 @@ impl Client {
         if let Some(transaction) = transaction.as_deref_mut() {
             transaction.before_request(self, id);
         }
-        let metadata = self.request_chat_metadata(id).await;
+        let metadata = self.request_chat_metadata_for_startup(id, budget).await;
         if let Some(transaction) = transaction.as_deref_mut() {
             transaction.after_request(self, id);
         }
         let metadata = match metadata? {
             Some(metadata) => metadata,
-            None => return self.open_canonical_personal_draft(id).await,
+            None => return self.open_canonical_personal_draft(id, select_chat).await,
         };
         let row = metadata["chats"]
             .as_array()
@@ -897,7 +1003,9 @@ impl Client {
         crypto_scope.check(self)?;
         let wrapping = self.wrapping_capability().await?;
         crypto_scope.check(self)?;
-        self.active_chat = Some(id.to_owned());
+        if select_chat {
+            self.active_chat = Some(id.to_owned());
+        }
         let mut row = row;
         self.carry_cached_unread_count(id, &mut row);
         self.insert_chat_row(id.to_owned(), row.clone());
@@ -919,7 +1027,12 @@ impl Client {
         let key = self.chat_key_with_capability(&row, &wrapping).await?;
         let mut item = Plain::new(self.chat_item(&row, &key)?);
         let mut history=canonical_history::CanonicalHistory::new(id);
-        for _ in 0..100 {
+        // Legacy responses still render, but only pages with one known version
+        // and independent server count can prove that cached content is complete.
+        let mut coverage = self.startup_opened_policy_enabled
+            .then(|| row["messages_v"].as_u64()).flatten();
+        let mut expected_count = None;
+        for page_index in 0..100 {
             let mut url = self.url(&format!("/v1/chats/{}/messages/window", segment(id)))?;
             {
                 let mut q = url.query_pairs_mut();
@@ -932,11 +1045,29 @@ impl Client {
             }
             let path=self.scoped(&format!("{}?{}",self.request_route_path(&url)?,url.query().unwrap_or("")))?;
             if let Some(transaction)=transaction.as_deref_mut(){transaction.before_request(self,id);}
-            let page=self.request(Method::GET,&path,None).await;
+            let page=self.request_startup_first_party(Method::GET,&path,None,false,budget)
+                .await.and_then(|page| page.ok_or(Error::Protocol));
             if let Some(transaction)=transaction.as_deref_mut(){transaction.after_request(self,id);}
-            let page=page?;crypto_scope.check(self)?;
+            let mut page=page?;crypto_scope.check(self)?;
+            if let Some(version) = coverage {
+                let count = page["server_message_count"].as_u64();
+                if page_index == 0 {
+                    expected_count = count;
+                }
+                if page["messages_v"].as_u64() != Some(version)
+                    || count.is_none() || count != expected_count
+                    || (page_index == 0 && page["has_more_after"].as_bool() != Some(false))
+                {
+                    coverage = None;
+                }
+            }
+            let exact_oversized = self.startup_opened_policy_enabled && page["oversized_message"] == true;
+            if exact_oversized {
+                self.fill_canonical_oversized_row(id, &mut page).await?;
+                crypto_scope.check_chat(self, id)?;
+            }
             let decoded=history.decode_page(page,&key)?;
-            if decoded.first()&&decoded.more()
+            if !exact_oversized && decoded.first()&&decoded.more()
                 &&let Some(first_page)=first_page.as_deref_mut()
             {
                 self.publish_chat_first_page(first_page,&row,decoded.page(),decoded.decoded(),decoded.encrypted(),&key).await?;
@@ -944,6 +1075,8 @@ impl Client {
             }
             if history.append_page(decoded)? {
                 let(messages,encrypted_history,explicit_terminal)=history.into_parts()?;
+                let complete = coverage.is_some()
+                    && explicit_terminal && expected_count == Some(encrypted_history.len() as u64);
                 self.history.insert(id.to_owned(),encrypted_history);
                 let mut chat=Plain::new(Chat{id:id.to_owned(),title:std::mem::take(&mut item.title),category:std::mem::take(&mut item.category),messages:messages.into_inner()});
                 self.restore_chat_tokens(&mut chat,&key)?;
@@ -951,6 +1084,9 @@ impl Client {
                     crate::client::monitor::cached_view::wipe_chat(&mut chat);return Err(error);
                 }
                 self.sync_message_windows.remove(id);self.selected_first_pages.remove(id);
+                if self.startup_opened_policy_enabled {
+                    self.record_opened_history_coverage(id, complete);
+                }
                 if let Some(transaction)=transaction.as_deref_mut(){transaction.terminal=explicit_terminal;}
                 return Ok(chat.into_inner());
             }
@@ -966,6 +1102,9 @@ impl Client {
     /// Cache snapshots contain only server ciphertext and non-private metadata.
     pub fn ciphertext_snapshot(&self) -> Value {
         let mut snapshot = json!({"chats":self.chats,"wrappers":self.wrappers,"history":self.history,"embeds":self.embeds,"embed_keys":self.embed_keys,"team_wrapped_key":self.team_wrapped_key});
+        if let Some(count) = self.chat_total_count {
+            snapshot[super::snapshot_sections::CHAT_TOTAL_FIELD] = json!(count);
+        }
         if let Some(order) = self.current_chat_arrival_order() {
             snapshot[chat_arrival_order::SNAPSHOT_FIELD] = json!({"version":1,"ids":order});
         }
@@ -988,12 +1127,16 @@ impl Client {
         if let Some(tombstones) = self.deleted_chats_snapshot() {
             snapshot[super::chat_tombstones::SNAPSHOT_FIELD] = tombstones;
         }
+        if let Some(opened) = self.recently_opened.snapshot() {
+            snapshot[super::recently_opened::SNAPSHOT_FIELD] = opened;
+        }
         if let Some(feed) = self.chat_sync_feed_snapshot() {
             snapshot[super::sync_feed::SNAPSHOT_FIELD] = feed;
         }
         snapshot
     }
     pub fn restore_ciphertext_snapshot(&mut self, snapshot: &Value) -> Result<()> {
+        self.chat_total_count = None;
         self.display_name_hint = snapshot
             .get(super::snapshot_sections::DISPLAY_NAME_FIELD)
             .and_then(Value::as_str)
@@ -1048,6 +1191,9 @@ impl Client {
         self.deleted_chats = super::chat_tombstones::restore(snapshot.get(super::chat_tombstones::SNAPSHOT_FIELD));
         self.chat_details_cache = super::chat_details_cache::restore(snapshot.get(super::chat_details_cache::SNAPSHOT_FIELD));
         self.restore_chat_sync_feed(snapshot)?;
+        self.recently_opened = super::recently_opened::RecentlyOpened::restore(
+            snapshot.get(super::recently_opened::SNAPSHOT_FIELD),
+        );
         self.wrappers = snapshot["wrappers"]
             .as_array()
             .ok_or(Error::Protocol)?
@@ -1058,7 +1204,7 @@ impl Client {
 /// TS `chatListItem` parity: a chat with a draft lists "Draft" as its
 /// description and, without a title, the draft preview (master-key
 /// encrypted) as its display title. `fields.has_draft` marks the row.
-fn has_draft(row: &Value) -> bool {
+pub(super) fn has_draft(row: &Value) -> bool {
     row.get("encrypted_draft_md").and_then(Value::as_str).is_some_and(|draft| !draft.is_empty())
 }
 pub(super) fn draft_projection(row: &Value, master: &[u8; 32], item: &mut Item) -> Result<()> {
@@ -1094,7 +1240,7 @@ impl Client {
     // A draft is a user-specific record and can exist before a shared chat row.
     // This path is admitted only after exact metadata 404, never after denied,
     // malformed or successful saved-chat metadata (including promotion).
-    async fn open_canonical_personal_draft(&mut self, id: &str) -> Result<Chat> {
+    async fn open_canonical_personal_draft(&mut self, id: &str, select_chat: bool) -> Result<Chat> {
         let crypto_scope=super::sync_capability::AsyncCryptoScope::begin(self)?;
         let generation = self.generation;
         let cancel = self.operation_cancel.clone();
@@ -1201,7 +1347,9 @@ impl Client {
         self.history.insert(id.into(), vec![]);
         self.sync_message_windows.remove(id);
         self.selected_first_pages.remove(id);
-        self.active_chat = Some(id.into());
+        if select_chat {
+            self.active_chat = Some(id.into());
+        }
         Ok(Chat {
             id: id.into(),
             title: std::mem::take(&mut *title),
@@ -1291,6 +1439,17 @@ impl Client {
             preview: Some(preview_text.map_or_else(|| markdown.chars().take(200).collect(), str::to_owned)),
         })
     }
+}
+
+/// Existing list placeholder for a chat whose key is unavailable.
+pub(super) fn locked_sidebar_item(row: &Value) -> Result<Item> {
+    Ok(Item {
+        id: required(row, "id")?.into(),
+        title: "Locked chat".into(),
+        status: "locked".into(),
+        fields: json!({"chat_list_title":null}),
+        ..Item::default()
+    })
 }
 
 pub(super) fn draft_only(row: &Value) -> bool {

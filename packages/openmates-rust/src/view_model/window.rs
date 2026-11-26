@@ -129,20 +129,10 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         false
     }
 
-    /// The cached first page of `chat_id`, read without any network request.
-    /// A partially restored client first decrypts the chat's cache section
-    /// through the unqueued `CacheStore::cached_chat` fast path.
-    ///
-    /// # Errors
-    /// Cache read and restore errors. A cached window that cannot be shown
-    /// under the owner fences (not yet authenticated, unacknowledged
-    /// credentials, denied chat) is `Ok(None)`: it is an optional preview and
-    /// the strict read that follows reports the real outcome.
-    pub(super) async fn cached_window(
-        &mut self,
-        chat_id: &str,
-        cancel: &CancellationToken,
-    ) -> Result<Option<ChatWindowRecord>> {
+    pub(super) async fn restore_selected_cache_section(
+        &mut self, chat_id: &str, cancel: &CancellationToken,
+    ) -> Result<()> {
+        let generation = self.session.ops().guard();
         let unloaded = self
             .client
             .partially_restored_chats()
@@ -159,9 +149,31 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                     chat_id.to_owned(),
                 )
                 .await?;
+            current(&generation)?;
+            if cancel.is_cancelled() {
+                return Err(Error::Cancelled);
+            }
             self.client
                 .restore_cached_chat_content(chat_id, section.as_ref())?;
         }
+        Ok(())
+    }
+
+    /// The cached first page of `chat_id`, read without any network request.
+    /// A partially restored client first decrypts the chat's cache section
+    /// through the unqueued `CacheStore::cached_chat` fast path.
+    ///
+    /// # Errors
+    /// Cache read and restore errors. A cached window that cannot be shown
+    /// under the owner fences (not yet authenticated, unacknowledged
+    /// credentials, denied chat) is `Ok(None)`: it is an optional preview and
+    /// the strict read that follows reports the real outcome.
+    pub(super) async fn cached_window(
+        &mut self,
+        chat_id: &str,
+        cancel: &CancellationToken,
+    ) -> Result<Option<ChatWindowRecord>> {
+        self.restore_selected_cache_section(chat_id, cancel).await?;
         let publication = match self.client.cached_chat_publication(
             self.monitor.as_ref(),
             chat_id,
@@ -195,6 +207,20 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         cancel: &CancellationToken,
         offline_allowed: bool,
     ) -> Result<ChatWindowRecord> {
+        self.read_window_policy(request, chat_id, sink, cancel, offline_allowed, true, None).await
+    }
+
+    #[allow(clippy::too_many_arguments)] // The two independent view flags preserve the existing owner and request gates.
+    pub(super) async fn read_window_policy<K: ViewSink>(
+        &mut self,
+        request: RequestId,
+        chat_id: &str,
+        sink: &K,
+        cancel: &CancellationToken,
+        offline_allowed: bool,
+        prefer_cache: bool,
+        budget: Option<&crate::client::StartupForegroundBudget>,
+    ) -> Result<ChatWindowRecord> {
         let generation = self.session.ops().guard();
         let mut first = FirstPageEmitter {
             session: &self.session,
@@ -204,15 +230,15 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             request,
             published: None,
         };
-        let read = self
-            .client
-            .read_chat_view_prefer_cache_with_first_page(
-                self.monitor.as_ref(),
-                chat_id,
-                cancel.clone(),
-                &mut first,
-            )
-            .await;
+        let read = if prefer_cache {
+            self.client.read_chat_view_prefer_cache_with_first_page(
+                self.monitor.as_ref(), chat_id, cancel.clone(), &mut first,
+            ).await
+        } else {
+            self.client.read_chat_view_refresh_with_first_page(
+                self.monitor.as_ref(), chat_id, cancel.clone(), &mut first, budget,
+            ).await
+        };
         let published = first.published.take();
         if let Some(record) = published {
             let _ = self.publish_window(request, record);
@@ -380,7 +406,8 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             }
             let models = publication.into_models()?;
             self.apply_live_models(models, sink).await?;
-            super::draft_flows::publish_draft_changes(&self.client, drafts, sink).await
+            super::draft_flows::publish_draft_changes(&self.client, drafts, sink).await?;
+            self.refresh_monitor_startup_cohort(cancel).await
         })
     }
 

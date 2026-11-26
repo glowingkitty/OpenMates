@@ -2,7 +2,9 @@
 // Actual Host/protocol/adapters with explicit native-event/IO fixtures. No Rust,
 // browser, IndexedDB, Worker or inference execution or durability acceptance.
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {api,fixture,connection,held,tick,FixtureNativeEvent,OWNER,CHAT}=require('./helpers/nativeRustChatIOSetup.cjs');
+const { webcrypto } = require('node:crypto');
+const {api,fixture,connection,held,tick,FixtureNativeEvent,OWNER,CHAT,DrainedSelectedColdReadCancellation,
+  BrowserCoreWorkerHost,WorkerDouble,Factory}=require('./helpers/nativeRustChatIOSetup.cjs');
 const A='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',OP='33333333-3333-4333-8333-333333333333',META='44444444-4444-4444-8444-444444444444',PUB='55555555-5555-4555-8555-555555555555',PUB2='66666666-6666-4666-8666-666666666666',MON='77777777-7777-4777-8777-777777777777';
 const scope={lifecycleGeneration:1,workspaceEpoch:2},evidence={packetStamp:'a'.repeat(64),messagesVersion:2};
 function retained(kind='monitor'){
@@ -99,6 +101,41 @@ test('cold final source evidence requires original native owned stage and remain
  const g=await setup({cold:true});await g.stages();g.prepared();await tick();g.worker.dispatchEvent(new MessageEvent('message',{data:{version:1,id:g.id,ok:true,status:g.status,retainedRead:retained('cold'),cacheSourceEvidence:evidence}}));await g.refused;assert.equal(g.host.closed,true);
 });
 
+test('a selected cold stop waits for both original terminals before the same Host can proceed',async()=>{
+ const f=await setup({cold:true,holdNative:true});
+ let settled=false;
+ const result=f.rpc.catch(error=>{settled=true;return error;});
+ f.controller.abort();
+ const stop=f.worker.messages.find(message=>message.cacheStop);
+ assert.deepEqual(stop,{version:1,id:f.id,cacheStop:{operation:'read_cold_retained_saved_chat',handle:f.status.handle,generation:1,owner:OWNER,chatId:CHAT}});
+ f.worker.native('message',{version:1,id:f.id,ok:false,error:'cancelled'});
+ f.terminal();await tick();
+ assert.equal(settled,false);assert.equal(f.worker.terminated,false);
+ f.native.native('abort');
+ const stopped=await result;
+ assert.ok(stopped instanceof DrainedSelectedColdReadCancellation);
+ assert.equal(stopped.message,'cancelled');
+ const next=f.host.request({operation:'start_send',handle:f.status.handle,generation:1,chatId:A,text:'next fixture selection'},new AbortController().signal);
+ const id=f.worker.messages.at(-1).id;
+ f.worker.native('message',{version:1,id,ok:true,status:f.status,send:{kind:'started',operationId:A}});
+ assert.equal((await next).ok,true);
+ assert.equal(f.worker.terminated,false);
+ await f.host.closeAndDrain();
+});
+
+test('a native failure arriving before or during stop cannot become a drained selection cancellation',async()=>{
+ for(const [failure,beforeStop] of [['session_expired',true],['session_expired',false],['unavailable',false]]){
+  const f=await setup({cold:true});
+  const fail=()=>f.worker.native('message',{version:1,id:f.id,ok:false,error:failure});
+  if(beforeStop)fail();
+  f.controller.abort();
+  if(!beforeStop)fail();
+  f.terminal();
+  await assert.rejects(f.rpc,error=>error.message===failure&&!(error instanceof DrainedSelectedColdReadCancellation));
+  await f.host.closeAndDrain();
+ }
+});
+
 function localPlan(kind){return{version:1,kind,operationId:OP,owner:OWNER,chatId:CHAT,maxPacketBytes:kind==='owned_metadata'?262144:262144-Buffer.byteLength(JSON.stringify(localReply({kind:'owned_metadata'})))-2048,maxCheckpointRows:kind==='owned_metadata'?128:0,maxPayloadRows:kind==='owned_metadata'?0:20,lower:null,upper:null,direction:kind==='owned_metadata'?'next':'prev'};}
 function localReply(p){const base={version:1,kind:p.kind,operationId:OP,databaseVersion:1};return p.kind==='owned_metadata'?{...base,chat_metadata:{id:CHAT,chat_id:CHAT,encrypted_chat_key:'original-wrapped'},messages:[],wrappers:[],boundary:null,compression_checkpoints:[]}:{...base,messages:[],nextKey:null,rangeExhausted:true};}
 async function localStages(f,count=4){for(let i=0;i<count;i++){f.worker.native('message',{version:1,id:f.id,effectId:i+1,cacheEffect:JSON.stringify(localPlan(i%2===0?'owned_metadata':'messages')),cacheStage:'owned_local'});await tick();}}
@@ -116,4 +153,60 @@ test('local-first Host refuses unrequested, incomplete and falsely authenticated
  const skipped=await setup({cold:true,local:true});await localStages(skipped,3);skipped.prepared();await skipped.refused;assert.equal(skipped.host.closed,true);
  const source=await setup({cold:true,local:true});await localStages(source);source.prepared();await tick();source.worker.native('message',{...localResult(source),cacheSourceEvidence:evidence});await source.refused;assert.equal(source.host.closed,true);
  const fallback=await setup({cold:true,local:true});await fallback.effect('capture_cold_incoming_insert',1);await fallback.refused;assert.equal(fallback.execute.length,0);
+});
+
+test('only the original native session reply plus original task return can seed the chat session', async () => {
+  const key = await webcrypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  globalThis.CryptoKey = key.constructor;
+  for (const authorised of [true, false]) {
+    const worker = new WorkerDouble(), factory = new Factory();
+    const issuer = api.openNativeRustChatIOFactory(worker, factory,
+      new FixtureNativeEvent('message', { version: 1, ready: true }, worker));
+    const host = new BrowserCoreWorkerHost(worker, undefined, OWNER, issuer);
+    const signal = new AbortController().signal;
+    const pending = host.request({
+      operation: 'check_first_session', key,
+      profile: { principal: OWNER, hashedEmail: null, userEmailSalt: null }, persistence: 'memory_only',
+      deviceSignals: {}, deadlineEpochMs: Date.now() + 10000,
+    }, signal);
+    try {
+      const id = worker.messages.at(-1).id;
+      const status = authorised ? {
+        handle: 'ordinary-original-host', principal: OWNER, generation: 1,
+        persistence: 'memory_only', localReadOnly: false,
+      } : null;
+      const firstSession = authorised
+        ? { httpStatus: 200, data: { success: true, user: { id: OWNER } } }
+        : { httpStatus: 403, data: { success: false, re_auth_required: '2fa' } };
+      const original = { version: 1, id, ok: true, status, firstSession };
+      worker.native('message', original);
+      assert.equal(host.consumeFirstSessionAdmission(), null);
+      worker.native('message', { version: 1, id, firstSessionTerminal: { requestId: id, state: 'returned' } });
+      assert.equal(await pending, original);
+      assert.equal(host.consumeFirstSessionAdmission(), authorised ? original : null);
+      assert.equal(host.consumeFirstSessionAdmission(), null);
+    } finally { await host.closeAndDrain(); }
+  }
+});
+
+test('actual loss of the ordinary Worker port releases the Page RPC without asserting a terminal', async () => {
+  const worker = new WorkerDouble(), factory = new Factory();
+  const issuer = api.openNativeRustChatIOFactory(worker, factory,
+    new FixtureNativeEvent('message', { version: 1, ready: true }, worker));
+  const host = new BrowserCoreWorkerHost(worker, undefined, OWNER, issuer, undefined, true);
+  const master = await webcrypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  globalThis.CryptoKey = master.constructor;
+  const pending = host.request({
+    operation: 'check_first_session', key: master,
+    profile: { principal: OWNER, hashedEmail: null, userEmailSalt: null }, persistence: 'memory_only',
+    deviceSignals: {}, deadlineEpochMs: Date.now() + 10000,
+  }, new AbortController().signal);
+  const negative = assert.rejects(pending, /^Error: unavailable$/);
+  const closed = host.closeAndDrain('cancelled');
+  assert.equal(worker.terminated, false);
+  host.loseFirstSessionTransport();
+  await negative;
+  await closed;
+  assert.equal(host.consumeFirstSessionAdmission(), null);
+  assert.equal(worker.terminated, true);
 });

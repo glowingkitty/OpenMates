@@ -272,11 +272,11 @@ final class AuthManager: ObservableObject {
     /// Start the core once (`ViewModelCore.start`) and follow its session
     /// events; later calls let the core admit the session again.
     func checkSession() async {
-        if let checkTask { await checkTask.value; return }
+        if let pending = checkTask ?? readmitTask { await pending.value; return }
         let task = Task { @MainActor in await self.performCheckSession() }
         checkTask = task
         await task.value
-        checkTask = nil
+        if checkTask == task { checkTask = nil }
     }
 
     private func performCheckSession() async {
@@ -316,6 +316,17 @@ final class AuthManager: ObservableObject {
         #if DEBUG
         if Self.isSyntheticOfflineFixture { return }
         #endif
+        if let checkTask {
+            // Rust emits .restored before its initial server admission finishes.
+            // Cached shell bootstrap must join that attempt instead of rotating
+            // the token in a second admission queued behind it.
+            let rejected = forceReadmit ? sessionRecoveryContext : nil
+            await checkTask.value
+            // A forced caller must still recover an unchanged stale grant.
+            // A newer admission or different account satisfies or fences it.
+            guard let rejected, rejected == sessionRecoveryContext, !Task.isCancelled else { return }
+        }
+        if let readmitTask { await readmitTask.value; return }
         guard let core else { return }
         let holdsAuthority = hasNetworkAuthority && sessionValidationState == .onlineAuthenticated
         switch Self.admissionStep(for: core.state, forceReadmit: forceReadmit, holdsNetworkAuthority: holdsAuthority) {
@@ -326,12 +337,6 @@ final class AuthManager: ObservableObject {
             return
         case .readmit:
             break
-        }
-        // One readmit at a time: a second one would reset the core's client
-        // while the first is admitting, and both rotate the same ws_token.
-        if let readmitTask {
-            await readmitTask.value
-            return
         }
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -498,7 +503,22 @@ final class AuthManager: ObservableObject {
             let record = try await reads.profile()
             let cached = try await Self.decodeProfile(record.json)
             guard generation == admissionGeneration, state != .authenticated else { return }
+            // The cached profile can arrive while the actor admits the session.
+            // A newer denial may already be in the CoreSession relay even when
+            // its AuthManager event is queued behind this local decode.
+            if let current = boundCore?.state {
+                switch current {
+                case .restored, .admitted: break
+                default: return
+                }
+            }
+            #if DEBUG && !os(watchOS)
+            NativeStartupBenchmark.mark(record.fresh ? .freshProfileReady : .cachedProfileReady)
+            #endif
             try activateScope(for: cached)
+            #if DEBUG && !os(watchOS)
+            NativeStartupBenchmark.mark(record.fresh ? .freshScopeActivated : .cachedScopeActivated)
+            #endif
             currentUser = cached
             sessionValidationState = .offlineAuthenticated
             state = .authenticated
@@ -515,10 +535,18 @@ final class AuthManager: ObservableObject {
         do {
             let record = try await reads.profile()
             let received = try await Self.decodeProfile(record.json)
+            #if DEBUG && !os(watchOS)
+            if generation == admissionGeneration {
+                NativeStartupBenchmark.mark(record.fresh ? .freshProfileReady : .cachedProfileReady)
+            }
+            #endif
             let grant = try await reads.socketGrant()
             guard generation == admissionGeneration else { return }
             let user = profilePreservingNewerSelection(received, since: selectionRevision)
             try activateScope(for: user)
+            #if DEBUG && !os(watchOS)
+            NativeStartupBenchmark.mark(record.fresh ? .freshScopeActivated : .cachedScopeActivated)
+            #endif
             currentUser = user
             cacheAuthenticatedUser(user)
             if record.fresh {
