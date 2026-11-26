@@ -834,7 +834,12 @@ async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_a
 # contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
 @pytest.mark.parametrize("team_id", [None, "team-1"])
 async def test_opened_startup_sends_only_resume_metadata_then_modified_inventory(monkeypatch, team_id):
-    recent = [{"id": "opened-first"}, {"id": "opened-second"}]
+    recent = [
+        {"id": "opened-first", "messages_v": 8},
+        {"id": "opened-second", "messages_v": 0},
+        {"id": "opened-no-version"},
+        {"id": "opened-invalid-version", "messages_v": True},
+    ]
     feed = SimpleNamespace(startup_opened=AsyncMock(return_value=recent))
     originating_socket = SimpleNamespace(
         query_params={"client_capabilities": "chat_startup_opened_v1"},
@@ -877,8 +882,10 @@ async def test_opened_startup_sends_only_resume_metadata_then_modified_inventory
     ]
     priority, shell = (frame["payload"] for frame in frames[:2])
     assert priority["chat_id"] == shell["chat_id"] == "opened-first"
-    assert priority["offline_chat_ids"] == ["opened-first", "opened-second"]
-    assert "offline_chat_ids" not in shell
+    assert priority["offline_chat_ids"] == [row["id"] for row in recent]
+    assert priority["messages_versions"] == {"opened-first": 8, "opened-second": 0}
+    feed.startup_opened.assert_awaited_once_with("user-1", None)
+    assert "offline_chat_ids" not in shell and "messages_versions" not in shell
     assert shell["messages"] is None and shell["recent_chat_metadata"] == []
     legacy_metadata.assert_not_awaited()
     assert modified.await_args.kwargs["startup_feed"] is feed

@@ -316,7 +316,10 @@ def test_startup_opened_preserves_actual_order_and_ignores_foreign_scope():
     response = _client(feed).get("/v1/chats/startup-opened")
     assert response.status_code == 200
     assert response.headers["cache-control"] == "private, no-store"
-    assert response.json() == {"chat_ids": [row["id"] for row in opened[:11]]}
+    assert response.json() == {
+        "chat_ids": [row["id"] for row in opened[:11]],
+        "messages_versions": {row["id"]: row["messages_v"] for row in opened[:11]},
+    }
     assert calls == [("opened", {"scope": f"personal:{h(USER)}", "user_scope": f"user:{h(USER)}"})]
 
 

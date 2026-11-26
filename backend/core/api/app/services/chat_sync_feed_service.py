@@ -112,6 +112,15 @@ def _chat_builders():
     return _build_chat_details_from_directus_metadata, _apply_authoritative_draft_metadata, _effective_metadata_v
 
 
+def opened_message_versions(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """Comparable revisions for the already authorized, bounded offline cohort."""
+    return {
+        row["id"]: version
+        for row in rows
+        if type(version := row.get("messages_v")) is int and 0 <= version <= (1 << 53) - 1
+    }
+
+
 def _project_visible(row: dict[str, Any], user_id: str) -> dict[str, Any] | None:
     """Caller-safe chat row, or None when a direct chat no longer includes the caller.
 

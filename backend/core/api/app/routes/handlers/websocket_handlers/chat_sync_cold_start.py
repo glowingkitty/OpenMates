@@ -17,7 +17,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from backend.core.api.app.services.chat_sync_feed_service import socket_has_capability
+from backend.core.api.app.services.chat_sync_feed_service import opened_message_versions, socket_has_capability
 
 logger = logging.getLogger(__name__)
 COLD_START_PHASES = frozenset({"all", "phase2"})
@@ -68,7 +68,7 @@ async def send_opened_startup_shell(
     feed: Any, manager: Any, cache: Any, directus: Any, user_id: str,
     device_hash: str, team_id: str | None, context_epoch: Any,
 ) -> None:
-    """Send cross-device resume IDs without blocking on any transcript read."""
+    """Send scoped resume IDs and version hints without reading transcripts."""
     from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
         _build_chat_details_from_directus_metadata,
         _fetch_daily_inspirations,
@@ -81,6 +81,7 @@ async def send_opened_startup_shell(
         {"type": "chat_startup_opened_ready", "payload": {
             "chat_id": last_opened["id"] if last_opened else None,
             "offline_chat_ids": [row["id"] for row in opened],
+            "messages_versions": opened_message_versions(opened),
             "team_id": team_id,
             "context_epoch": context_epoch,
         }},

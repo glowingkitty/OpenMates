@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.chat_sync_feed_service import (
-    DEFAULT_LIMIT, MAX_CURSOR_LENGTH, MAX_LIMIT, ChatSyncFeedError, validate_request,
+    DEFAULT_LIMIT, MAX_CURSOR_LENGTH, MAX_LIMIT, ChatSyncFeedError, opened_message_versions, validate_request,
 )
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.internal_auth import VerifiedInternalRequest
@@ -66,14 +66,14 @@ async def get_startup_opened(
     response: Response,
     team_id: str | None = Query(default=None, min_length=1, max_length=128),
     current_user: User = Depends(get_current_user),
-) -> dict[str, list[str]]:
+) -> dict[str, list[str] | dict[str, int]]:
     """First-party session-only offline priority. Scoped IDs, no transcript or media."""
     response.headers["Cache-Control"] = "private, no-store"
     try:
         rows = await _feed(request).startup_opened(current_user.id, team_id)
     except ChatSyncFeedError as exc:
         raise HTTPException(status_code=_STATUS.get(exc.code, 503), detail=exc.code) from exc
-    return {"chat_ids": [row["id"] for row in rows]}
+    return {"chat_ids": [row["id"] for row in rows], "messages_versions": opened_message_versions(rows)}
 
 
 class ChatSyncHint(BaseModel):

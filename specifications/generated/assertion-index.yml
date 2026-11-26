@@ -27191,12 +27191,12 @@ assertions:
       surface: rest_api
     - &id3486
       path: backend/tests/test_chat_sync_feed_service.py
-      line: 324
+      line: 327
       name: test_scoped_modified_page_and_deliberate_open_http_contract
       surface: rest_api
     - &id3487
       path: backend/tests/test_phased_sync_handler.py
-      line: 1543
+      line: 1550
       name: test_live_visibility_fence_batches_unknown_ids_and_preserves_order
       surface: gui.web
     - &id3488
@@ -27460,32 +27460,32 @@ assertions:
       surface: gui.web
     - &id3505
       path: backend/tests/test_phased_sync_handler.py
-      line: 1597
+      line: 1604
       name: test_phase1a_reuses_list_metadata_without_per_chat_fence_reads
       surface: gui.web
     - &id3506
       path: backend/tests/test_phased_sync_handler.py
-      line: 1673
+      line: 1680
       name: test_phase1b_uses_one_entry_fence_and_one_pre_send_fence
       surface: gui.web
     - &id3507
       path: backend/tests/test_phased_sync_handler.py
-      line: 1811
+      line: 1818
       name: test_phase1b_honours_row_id_embed_hints_for_finished_embeds
       surface: gui.web
     - &id3508
       path: backend/tests/test_phased_sync_handler.py
-      line: 1930
+      line: 1937
       name: test_phase1b_concurrent_reads_keep_chat_order_under_random_delays
       surface: gui.web
     - &id3509
       path: backend/tests/test_phased_sync_handler.py
-      line: 1954
+      line: 1961
       name: test_phase1b_shared_embed_goes_to_first_chat_even_when_it_finishes_last
       surface: gui.web
     - &id3510
       path: backend/tests/test_phased_sync_handler.py
-      line: 1984
+      line: 1991
       name: test_phase1b_read_failure_is_isolated_to_the_failing_chat
       surface: gui.web
     - &id3511
@@ -27913,7 +27913,7 @@ assertions:
     supporting_tests:
     - &id3574
       path: backend/tests/test_chat_sync_feed_service.py
-      line: 324
+      line: 327
       name: test_scoped_modified_page_and_deliberate_open_http_contract
       surface: rest_api
     tests:
@@ -28053,12 +28053,12 @@ assertions:
       surface: gui.web
     - &id3577
       path: backend/tests/test_phased_sync_handler.py
-      line: 1359
+      line: 1366
       name: test_phase2_window_stays_100_with_pinned_and_draft_only_metadata
       surface: gui.web
     - &id3578
       path: backend/tests/test_phased_sync_handler.py
-      line: 1835
+      line: 1842
       name: test_phase2_skips_current_chats_from_directus_versions_when_redis_is_cold
       surface: gui.web
     - &id3579
@@ -28184,7 +28184,7 @@ assertions:
       surface: gui.web
     - &id3608
       path: backend/tests/test_phased_sync_handler.py
-      line: 1359
+      line: 1366
       name: test_phase2_window_stays_100_with_pinned_and_draft_only_metadata
       surface: gui.web
     tests:
@@ -103168,7 +103168,7 @@ assertions:
     supporting_tests:
     - &id12886
       path: backend/tests/test_phased_sync_handler.py
-      line: 2027
+      line: 2034
       name: test_phase2_always_sends_unread_chats_because_unread_changes_bump_no_version
       surface: gui.web
     - &id12887
@@ -195247,22 +195247,22 @@ assertions:
       surface: rest_api
     - &id24639
       path: backend/tests/test_phased_sync_handler.py
-      line: 1543
+      line: 1550
       name: test_live_visibility_fence_batches_unknown_ids_and_preserves_order
       surface: gui.web
     - &id24640
       path: backend/tests/test_phased_sync_handler.py
-      line: 1570
+      line: 1577
       name: test_live_visibility_fence_applies_team_scope_and_direct_membership
       surface: gui.web
     - &id24641
       path: backend/tests/test_phased_sync_handler.py
-      line: 1706
+      line: 1713
       name: test_phase1b_entry_fence_drops_out_of_scope_chats
       surface: gui.web
     - &id24642
       path: backend/tests/test_phased_sync_handler.py
-      line: 1727
+      line: 1734
       name: test_phase1b_pre_send_fence_drops_frame_when_access_is_revoked
       surface: gui.web
     - &id24643
