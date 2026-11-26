@@ -30,6 +30,17 @@ STARTUP_SECONDS = 45
 SETTLEMENT_SECONDS = 8
 UNREAD_PREFIX = re.compile(r"^●[1-9]\+?\s+")
 SIDEBAR_CONTROLS = {"show more", "load more", "new chat", "＋ new chat"}
+STARTUP_STAGE_LINE = re.compile(rb"OPENMATES_STARTUP_STAGE ([a-z_]+) ([a-z_]+) ([0-9]{1,10})")
+STARTUP_STAGE_NAMES = {
+    "selector_request", "selector_decode", "cold_sidebar_request", "cold_sidebar_decode",
+    "cold_sidebar_envelope", "cold_sidebar_id", "cold_sidebar_wrappers", "cold_sidebar_timestamp",
+    "cold_sidebar_render", "cold_sidebar_persist", "cold_sidebar_projection", "cold_sidebar_publish",
+    "resume", "reconcile", "hydrate", "live_canonical_read",
+}
+STARTUP_STAGE_OUTCOMES = {
+    "ok", "protocol", "crypto", "offline", "io", "cancelled", "denied", "locked", "invalid",
+    "conflict", "other",
+}
 FRAME_END = b"\x1b[?2026l"
 COMPOSER_PANEL = re.compile(
     r"╭ (?:Message · Enter send · Alt\+Enter newline"
@@ -145,29 +156,50 @@ class Terminal:
             raise RuntimeError(f"Native terminal clean quit failed (exit_code={exit_code})")
 
 
+def startup_diagnostic_rows(raw):
+    """Accept only complete, allowlisted records from private native stderr."""
+    rows = []
+    for line in raw.split(b"\n"):
+        if not (match := STARTUP_STAGE_LINE.fullmatch(line)):
+            continue
+        stage, outcome = (part.decode("ascii") for part in match.groups()[:2])
+        if stage in STARTUP_STAGE_NAMES and outcome in STARTUP_STAGE_OUTCOMES:
+            rows.append({"stage": stage, "outcome": outcome, "elapsed_ms": int(match[3])})
+            if len(rows) == 40:
+                break
+    return rows
+
+
 @contextmanager
-def open_tui(binary, state):
+def open_tui(binary, state, diagnostics):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 44, 140, 0, 0))
     try:
-        with subprocess.Popen(
-            [str(binary), "--api-url", API_ORIGIN, "--state-dir", str(state),
-             "--encrypted-vault", "tui"],
-            stdin=slave, stdout=slave, stderr=slave, start_new_session=True,
-            env={**os.environ, "TERM": "xterm-256color"},
-        ) as process:
-            os.close(slave)
-            slave = None
+        with tempfile.TemporaryFile(dir=state) as diagnostics_stream:
             try:
-                yield Terminal(process, master)
-            finally:
-                if process.poll() is None:
-                    process.terminate()
+                with subprocess.Popen(
+                    [str(binary), "--api-url", API_ORIGIN, "--state-dir", str(state),
+                     "--encrypted-vault", "tui"],
+                    stdin=slave, stdout=slave, stderr=diagnostics_stream, start_new_session=True,
+                    env={**os.environ, "TERM": "xterm-256color",
+                         "OPENMATES_TEST_STARTUP_PHASE_DIAGNOSTIC": "1"},
+                ) as process:
+                    os.close(slave)
+                    slave = None
                     try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait()
+                        yield Terminal(process, master)
+                    finally:
+                        if process.poll() is None:
+                            process.terminate()
+                            try:
+                                process.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                process.kill()
+                                process.wait()
+            finally:
+                diagnostics_stream.seek(0)
+                raw = diagnostics_stream.read(128 * 1024)
+                diagnostics.extend(startup_diagnostic_rows(raw[:raw.rfind(b"\n") + 1]))
     finally:
         os.close(master)
         if slave is not None:
@@ -399,6 +431,7 @@ class StartupEvidence:
             "sidebar_visible_at_ms": None,
             "max_distinct_chat_rows": 0,
             "target_seeded": expected is not None,
+            "native_stages": [],
             "ten_distinct_chat_rows_result": "not_observed",
             "last_open_result": "unseeded" if expected is None else "not_observed",
         }
@@ -613,7 +646,7 @@ def measure(binary, private_output):
         with tempfile.TemporaryDirectory(prefix="native-state-", dir=private_output) as state:
             evidence = AuthEvidence(metrics["auth_attempts"], 0)
             startup = StartupEvidence(metrics["startup_samples"], 0, None)
-            with open_tui(binary, Path(state)) as terminal:
+            with open_tui(binary, Path(state), startup.sample["native_stages"]) as terminal:
                 enter_authenticated(terminal, evidence, startup, "login_prompt",
                                     lambda: email + "\t" + password + "\t" + totp(key) + "\t\r")
                 evidence.sample["stage"] = "seed_last_open"
@@ -624,7 +657,7 @@ def measure(binary, private_output):
             for attempt in range(1, 4):
                 auth = AuthEvidence(metrics["auth_attempts"], attempt)
                 startup = StartupEvidence(metrics["startup_samples"], attempt, expected)
-                with open_tui(binary, Path(state)) as terminal:
+                with open_tui(binary, Path(state), startup.sample["native_stages"]) as terminal:
                     elapsed = enter_authenticated(terminal, auth, startup, "vault_prompt", lambda: password + "\t\r")
                     metrics["vault_unlock_to_recent_rows_ms"].append(elapsed)
 

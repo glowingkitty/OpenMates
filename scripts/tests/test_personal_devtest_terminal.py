@@ -205,3 +205,20 @@ def test_real_click_timing_ignores_other_transcripts_appearing_after_selection()
     assert not evidence.observe(startup_screen(["One", "Two"], "Other title", "Some text"))
     assert evidence.observe(startup_screen(["One", "Two"], "Selected title", "Some text"))
     assert evidence.sample["result"] == "readable"
+
+
+def test_private_native_startup_probes_admit_only_fixed_bounded_fields():
+    evidence = benchmark.startup_diagnostic_rows(
+        b"private native stderr\n"
+        b"OPENMATES_STARTUP_STAGE cold_sidebar_request ok 0\n"
+        b"OPENMATES_STARTUP_STAGE cold_sidebar_wrappers protocol 120\n"
+        b"OPENMATES_STARTUP_STAGE resume protocol 124 private suffix\n"
+        b"OPENMATES_STARTUP_STAGE resume private_outcome 124\n"
+        b"OPENMATES_STARTUP_STAGE invalid_stage ok 136\n"
+        b"OPENMATES_STARTUP_STAGE reconcile ok 123456789012\n"
+    )
+    assert evidence == [
+        {"stage": "cold_sidebar_request", "outcome": "ok", "elapsed_ms": 0},
+        {"stage": "cold_sidebar_wrappers", "outcome": "protocol", "elapsed_ms": 120},
+    ]
+    assert len(benchmark.startup_diagnostic_rows(b"OPENMATES_STARTUP_STAGE resume ok 100\n" * 50)) == 40
