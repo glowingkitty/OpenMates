@@ -100,7 +100,7 @@ jobs:
           umask 077
           tar -C "$private" -czf - . | openssl cms -encrypt -binary -aes-256-gcm -outform DER \
             -out "$RUNNER_TEMP/personal-devtest-evidence.cms" "$RUNNER_TEMP/personal-devtest-recipient.pem"
-      - uses: actions/upload-artifact@ea165f8d65e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: personal-devtest-encrypted-evidence
