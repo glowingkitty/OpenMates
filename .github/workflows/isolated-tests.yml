@@ -101,6 +101,10 @@ on:
         description: Base64-encoded public PEM certificate for private benchmark evidence
         type: string
         default: ''
+      personal_devtest_local_build:
+        description: Build the trusted dev web baseline on the runner for a paired candidate comparison
+        type: boolean
+        default: false
 permissions:
   actions: read
   contents: read
@@ -111,7 +115,13 @@ jobs:
     uses: ./.github/workflows/personal-devtest.yml
     with:
       surface: ${{ inputs.personal_devtest_surface }}
+      local_build: ${{ inputs.personal_devtest_local_build }}
       evidence_recipient: ${{ inputs.personal_devtest_evidence_recipient }}
+      checkout_ref: ${{ inputs.checkout_ref }}
+      source_commit: ${{ inputs.source_commit }}
+      candidate_tree: ${{ inputs.candidate_tree }}
+      candidate_owner: ${{ inputs.candidate_owner }}
+      candidate_patch_sha256: ${{ inputs.candidate_patch_sha256 }}
     secrets:
       OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
       OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}

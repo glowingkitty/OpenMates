@@ -19,7 +19,10 @@ import termios
 import time
 from contextlib import contextmanager
 
-from cli_video_capture import CliCaptureError, _latest_screen
+if __package__:
+    from .cli_video_capture import CliCaptureError, _latest_screen
+else:
+    from cli_video_capture import CliCaptureError, _latest_screen
 
 API_ORIGIN = "https://api.dev.openmates.org"
 MAX_FRAME_BYTES = 4 * 1024 * 1024
@@ -123,6 +126,13 @@ def terminal_status(rows):
     status = rows[-1].strip().lower() if rows else ""
     for prefix, label in (
         ("signed in", "signed_in"),
+        ("opening saved chat", "opening"),
+        ("this saved chat has no messages", "empty_chat"),
+        ("chat refreshed", "chat_refreshed"),
+        ("cached chat · refreshing", "cached_refreshing"),
+        ("cached chat · offline", "cached_offline"),
+        ("canonical completion recovery pending", "recovery_pending"),
+        ("response recovery pending", "recovery_pending"),
         ("offline", "offline"),
         ("live updates delayed", "live_updates_delayed"),
         ("encrypted data could not be authenticated", "encrypted_data_invalid"),
@@ -159,44 +169,100 @@ def recent(rows):
     return len(recent_chat_cells(rows)[1]) >= 3
 
 
+def transcript_header(rows):
+    # The main view starts below the fixed two-row terminal toolbar.
+    if len(rows) <= 2:
+        return None
+    row = rows[2]
+    if "‹ Back" in row and row.rstrip().endswith("Close"):
+        return 2, row.index("‹ Back")
+    return None
+
+
 def readable_chat(rows):
-    for index, row in enumerate(rows):
-        if "‹ Back" in row and "Close" in row:
-            transcript_start = row.index("‹ Back")
-            return any(
-                re.search(r"\w", line[transcript_start:])
-                for line in rows[index + 2:-10]
-            )
-    return False
+    header = transcript_header(rows)
+    if header is None:
+        return False
+    index, column = header
+    return any(re.search(r"\w", line[column:]) for line in rows[index + 2:-10])
+
+
+class OpenEvidence:
+    """Capture first-paint milestones without retaining any account text."""
+
+    def __init__(self, samples, candidate_index):
+        self.started = time.monotonic()
+        self.sample = {"candidate_index": candidate_index, "status_transitions": []}
+        samples.append(self.sample)
+
+    def observe(self, rows):
+        elapsed = round((time.monotonic() - self.started) * 1000)
+        status = terminal_status(rows)
+        transitions = self.sample["status_transitions"]
+        if len(transitions) < 20 and (not transitions or transitions[-1]["status"] != status):
+            transitions.append({"status": status, "at_ms": elapsed})
+        if status == "opening":
+            self.sample.setdefault("selection_received_ms", elapsed)
+        if transcript_header(rows) is not None:
+            self.sample.setdefault("chat_header_ms", elapsed)
+        if readable_chat(rows):
+            self.sample["first_readable_message_ms"] = elapsed
+            self.sample["result"] = "readable"
+            return True
+        if status == "empty_chat" and transcript_header(rows) is not None:
+            self.sample["result"] = "empty_chat"
+            return True
+        return False
+
+    def finish(self, terminal):
+        self.sample.setdefault("result", "timeout")
+        self.sample["last_status"] = terminal_status(terminal.rows)
+        self.sample["visible_chat_rows"] = len(recent_chat_cells(terminal.rows)[1])
 
 
 def measure(binary, private_output):
     email, password, key = credentials()
-    with tempfile.TemporaryDirectory(prefix="native-state-", dir=private_output) as state:
-        with open_tui(binary, Path(state)) as terminal:
-            terminal.wait("sign-in form", lambda rows: any("Sign in to OpenMates" in row for row in rows))
-            terminal.send(email + "\t" + password + "\t" + totp(key) + "\t\r")
-            terminal.wait("authenticated session", lambda rows: any("Signed in" in row for row in rows))
-            terminal.send("\x02")
-            terminal.wait("recent chats", recent)
-
-        recent_ms = []
-        message_ms = []
-        for index in range(3):
+    metrics = {
+        "vault_unlock_to_recent_rows_ms": [],
+        "select_to_visible_message_ms": [],
+        "open_samples": [],
+    }
+    try:
+        with tempfile.TemporaryDirectory(prefix="native-state-", dir=private_output) as state:
             with open_tui(binary, Path(state)) as terminal:
-                terminal.wait("vault unlock", lambda rows: any("Unlock local vault" in row for row in rows))
-                start = time.monotonic()
-                terminal.send(password + "\t\r")
-                terminal.wait("restored session", lambda rows: any("Signed in" in row for row in rows))
+                terminal.wait("sign-in form", lambda rows: any("Sign in to OpenMates" in row for row in rows))
+                terminal.send(email + "\t" + password + "\t" + totp(key) + "\t\r")
+                terminal.wait("authenticated session", lambda rows: any("Signed in" in row for row in rows))
                 terminal.send("\x02")
-                shown = terminal.wait("restored recent chats", recent)
-                recent_ms.append(round((shown - start) * 1000))
-                selection = recent_chat_cells(terminal.rows)[1][index]
-                opening = time.monotonic()
-                terminal.click(*selection)
-                shown = terminal.wait("readable saved chat", readable_chat)
-                message_ms.append(round((shown - opening) * 1000))
-        metrics = {"vault_unlock_to_recent_rows_ms": recent_ms, "select_to_visible_message_ms": message_ms}
+                terminal.wait("recent chats", recent)
+
+            candidate_index = 0
+            for _ in range(3):
+                with open_tui(binary, Path(state)) as terminal:
+                    terminal.wait("vault unlock", lambda rows: any("Unlock local vault" in row for row in rows))
+                    start = time.monotonic()
+                    terminal.send(password + "\t\r")
+                    terminal.wait("restored session", lambda rows: any("Signed in" in row for row in rows))
+                    terminal.send("\x02")
+                    shown = terminal.wait("restored recent chats", recent)
+                    metrics["vault_unlock_to_recent_rows_ms"].append(round((shown - start) * 1000))
+
+                    while True:
+                        _, visible_cells = recent_chat_cells(terminal.rows)
+                        if candidate_index >= len(visible_cells):
+                            raise RuntimeError("Ran out of visible saved conversations for three timing samples")
+                        selection = visible_cells[candidate_index]
+                        evidence = OpenEvidence(metrics["open_samples"], candidate_index)
+                        candidate_index += 1
+                        terminal.click(*selection)
+                        try:
+                            terminal.wait("readable or explicitly empty saved chat", evidence.observe)
+                        finally:
+                            evidence.finish(terminal)
+                        if evidence.sample["result"] == "readable":
+                            metrics["select_to_visible_message_ms"].append(evidence.sample["first_readable_message_ms"])
+                            break
+    finally:
         (private_output / "terminal-timings.json").write_text(json.dumps(metrics) + "\n")
 
 
