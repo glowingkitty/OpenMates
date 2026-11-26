@@ -29,6 +29,18 @@ CREATE TABLE IF NOT EXISTS chat_sync_changes (
 );
 CREATE INDEX IF NOT EXISTS chat_sync_changes_retention_idx
     ON chat_sync_changes (created_at);
+-- Small durable MRU derived from actual explicit opens, independently of the
+-- change journal's 30-day retention. The account hash partitions Team members.
+CREATE TABLE IF NOT EXISTS chat_sync_opened_chats (
+    user_scope text NOT NULL,
+    chat_scope text NOT NULL,
+    chat_id text NOT NULL,
+    revision bigint NOT NULL,
+    PRIMARY KEY (user_scope, chat_scope, chat_id)
+);
+CREATE INDEX IF NOT EXISTS chat_sync_opened_chats_order_idx
+    ON chat_sync_opened_chats (user_scope, chat_scope, revision DESC, chat_id);
+
 CREATE INDEX IF NOT EXISTS chats_storage_hashed_id_idx
     ON chats ((encode(digest(id::text, 'sha256'), 'hex')));
 
@@ -237,15 +249,46 @@ DROP TRIGGER IF EXISTS chat_sync_deletion_fence_trigger ON chat_recovery_chat_de
 CREATE TRIGGER chat_sync_deletion_fence_trigger AFTER INSERT ON chat_recovery_chat_deletion_fences
 FOR EACH ROW EXECUTE FUNCTION chat_sync_deletion_fence_changed();
 
--- The user's single last opened chat (set_active_chat) orders every device's overview.
+-- Use the same saved account value as Continue where you left off. The
+-- user row and its feed revision serialize repeated opens across devices.
 CREATE OR REPLACE FUNCTION chat_sync_last_opened_changed()
 RETURNS trigger AS $$
-DECLARE opened text;
+DECLARE opened text; lookup_scope text; account_scope text; account_revision bigint;
 BEGIN
     opened := regexp_replace(COALESCE(NEW.last_opened, ''), '^.*/', '');
-    PERFORM chat_sync_record('user:' || encode(digest(NEW.id::text, 'sha256'), 'hex'),
-                             CASE WHEN chat_sync_is_uuid(opened) THEN lower(opened) ELSE NULL END,
-                             NULL, 256);
+    account_scope := 'user:' || encode(digest(NEW.id::text, 'sha256'), 'hex');
+    IF NOT COALESCE(chat_sync_is_uuid(opened), false) THEN
+        PERFORM chat_sync_record(account_scope, NULL, NULL, 256);
+        RETURN NEW;
+    END IF;
+    opened := lower(opened);
+    PERFORM chat_sync_record(account_scope, opened, NULL, 256);
+    SELECT chat_sync_scope(hashed_user_id, hashed_team_id) INTO lookup_scope
+      FROM chats c WHERE c.id = opened::uuid AND c.storage_state IS DISTINCT FROM 'deleting'
+        AND NOT EXISTS (SELECT 1 FROM chat_recovery_chat_deletion_fences f WHERE f.id = c.id)
+        AND (
+            (NULLIF(c.hashed_team_id, '') IS NULL AND c.hashed_user_id = substring(account_scope FROM 6))
+            OR (
+                EXISTS (SELECT 1 FROM team_memberships m
+                  WHERE m.hashed_team_id = c.hashed_team_id
+                    AND m.hashed_user_id = substring(account_scope FROM 6) AND m.status = 'active')
+                AND (c.chat_visibility IS DISTINCT FROM 'direct'
+                    OR c.participant_user_hashes::jsonb @> jsonb_build_array(substring(account_scope FROM 6)))
+            )
+        );
+    IF lookup_scope IS NULL THEN RETURN NEW; END IF;
+    SELECT revision INTO account_revision FROM chat_sync_clocks WHERE scope = account_scope;
+    INSERT INTO chat_sync_opened_chats(user_scope, chat_scope, chat_id, revision)
+      VALUES (account_scope, lookup_scope, opened, account_revision)
+      ON CONFLICT (user_scope, chat_scope, chat_id) DO UPDATE SET revision = EXCLUDED.revision;
+    -- Allow recently deleted/revoked entries to be skipped at read time.
+    DELETE FROM chat_sync_opened_chats AS retained
+      WHERE retained.user_scope = account_scope AND retained.chat_scope = lookup_scope
+        AND retained.chat_id IN (
+            SELECT chat_id FROM chat_sync_opened_chats
+              WHERE user_scope = account_scope AND chat_scope = lookup_scope
+              ORDER BY revision DESC, chat_id OFFSET 32
+        );
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -253,6 +296,33 @@ DROP TRIGGER IF EXISTS chat_sync_last_opened_trigger ON directus_users;
 CREATE TRIGGER chat_sync_last_opened_trigger AFTER UPDATE OF last_opened ON directus_users
 FOR EACH ROW WHEN (OLD.last_opened IS DISTINCT FROM NEW.last_opened)
 EXECUTE FUNCTION chat_sync_last_opened_changed();
+
+-- Recover genuine ordering from retained open events and the current profile.
+-- Old installations contain no evidence for other opens after log pruning.
+WITH prior_opens AS (
+    SELECT scope AS user_scope, chat_id, revision FROM chat_sync_changes
+      WHERE (kinds & 256) <> 0 AND chat_id IS NOT NULL
+    UNION ALL
+    SELECT 'user:' || encode(digest(u.id::text, 'sha256'), 'hex'),
+           lower(regexp_replace(u.last_opened, '^.*/', '')), COALESCE(clock.revision, 0)
+      FROM directus_users u
+      LEFT JOIN chat_sync_clocks clock
+        ON clock.scope = 'user:' || encode(digest(u.id::text, 'sha256'), 'hex')
+      WHERE chat_sync_is_uuid(regexp_replace(u.last_opened, '^.*/', ''))
+), scoped_opens AS (
+    SELECT prior.user_scope, chat_sync_scope(c.hashed_user_id, c.hashed_team_id) AS chat_scope,
+           prior.chat_id, max(prior.revision) AS revision
+      FROM prior_opens prior JOIN chats c ON c.id::text = prior.chat_id
+      WHERE chat_sync_scope(c.hashed_user_id, c.hashed_team_id) IS NOT NULL
+        AND c.storage_state IS DISTINCT FROM 'deleting'
+      GROUP BY 1, 2, 3
+), ranked_opens AS (
+    SELECT *, row_number() OVER (PARTITION BY user_scope, chat_scope ORDER BY revision DESC, chat_id) AS position
+      FROM scoped_opens
+)
+INSERT INTO chat_sync_opened_chats(user_scope, chat_scope, chat_id, revision)
+SELECT user_scope, chat_scope, chat_id, revision FROM ranked_opens WHERE position <= 32
+ON CONFLICT (user_scope, chat_scope, chat_id) DO NOTHING;
 
 -- Due-soon inputs: reminders and the saved-item memory categories used by the
 -- welcome overview. Only a content-free user-lane marker is recorded.

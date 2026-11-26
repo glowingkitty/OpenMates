@@ -64,6 +64,56 @@ async def _send_overview(feed: Any, manager: Any, cache_service: Any, directus_s
     )
 
 
+async def send_opened_startup_shell(
+    feed: Any, manager: Any, cache: Any, directus: Any, user_id: str,
+    device_hash: str, team_id: str | None, context_epoch: Any,
+) -> None:
+    """Send cross-device resume IDs without blocking on any transcript read."""
+    from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
+        _build_chat_details_from_directus_metadata,
+        _fetch_daily_inspirations,
+        _fetch_new_chat_suggestions,
+    )
+
+    opened = await feed.startup_opened(user_id, team_id)
+    last_opened = opened[0] if opened else None
+    await manager.send_personal_message(
+        {"type": "chat_startup_opened_ready", "payload": {
+            "chat_id": last_opened["id"] if last_opened else None,
+            "offline_chat_ids": [row["id"] for row in opened],
+            "team_id": team_id,
+            "context_epoch": context_epoch,
+        }},
+        user_id, device_hash,
+    )
+    suggestions, inspirations = [], []
+    if not team_id:
+        suggestions, inspirations = await asyncio.gather(
+            _fetch_new_chat_suggestions(cache, directus, user_id),
+            _fetch_daily_inspirations(cache, directus, user_id),
+        )
+    await manager.send_personal_message(
+        {
+            "type": "phase_1_last_chat_ready",
+            "payload": {
+                "chat_id": last_opened["id"] if last_opened else None,
+                "chat_details": _build_chat_details_from_directus_metadata(
+                    last_opened, last_opened["id"],
+                ) if last_opened else None,
+                "messages": None,
+                "recent_chat_metadata": [],
+                "new_chat_suggestions": suggestions,
+                "daily_inspirations": inspirations,
+                "team_id": team_id,
+                "context_epoch": context_epoch,
+                "phase": "phase1",
+                "already_synced": False,
+            },
+        },
+        user_id, device_hash,
+    )
+
+
 async def begin_cold_start(websocket: Any, manager: Any, cache_service: Any, directus_service: Any,
                            user_id: str, device_fingerprint_hash: str, team_id: str | None,
                            context_epoch: Any, sync_phase: str) -> ColdStartFeed:

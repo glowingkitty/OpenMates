@@ -14,7 +14,8 @@ CREATE TABLE chats (
     budget_limit integer, budget_spent integer, encrypted_shared_short_url text,
     encrypted_share_cta_text text, storage_state varchar(255), encrypted_auto_speak_response varchar(255),
     encrypted_focus_phase_state text, encrypted_wellbeing_scores text, archive_mutation_v integer, chat_visibility varchar(255),
-    participant_user_hashes json, participant_key_envelopes json, encrypted_suggested_followup_message text
+    participant_user_hashes json, participant_key_envelopes json, encrypted_suggested_followup_message text,
+    last_message_timestamp bigint, encrypted_slug text, slug_lookup_hash text
 );
 CREATE TABLE messages (id uuid PRIMARY KEY, chat_id varchar(255), hashed_user_id varchar(255), encrypted_content text);
 CREATE TABLE drafts (id uuid PRIMARY KEY, chat_id varchar(255), hashed_user_id varchar(255), encrypted_content text, version integer);
@@ -38,4 +39,8 @@ CREATE TABLE user_app_settings_and_memories (
     id uuid PRIMARY KEY, hashed_user_id varchar(255), hashed_team_id varchar(255), app_id varchar(255),
     item_key varchar(255), item_type varchar(255), encrypted_app_key text, encrypted_item_json text,
     created_at integer, updated_at integer, sequence_number integer, item_version integer
+);
+
+CREATE TABLE team_memberships (
+    hashed_team_id varchar(255), hashed_user_id varchar(255), status varchar(255)
 );

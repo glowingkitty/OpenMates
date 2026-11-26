@@ -124,6 +124,8 @@ async def handle_set_active_chat(
     device_fingerprint_hash: str,
     active_chat_id: Optional[str],
     user_otel_attrs: dict | None = None,
+    *,
+    persist_last_opened: bool = True,
 ) -> None:
     payload = {"chat_id": active_chat_id}
     _otel_span, _otel_token = start_ws_handler_span(
@@ -155,6 +157,8 @@ async def handle_set_active_chat(
                 )
             )
 
+        if not persist_last_opened:
+            return
         if _is_real_chat_id(active_chat_id):
             asyncio.create_task(
                 _persist_active_chat_selection(

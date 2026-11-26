@@ -306,3 +306,49 @@ def test_internal_hint_endpoint_requires_service_token(monkeypatch):
     bad = client.post("/internal/chat-sync/changed", json={"hints": [{"scope": "team:nope", "revision": "1"}]},
                       headers={"X-Internal-Service-Token": "secret-token"})
     assert bad.status_code == 400
+
+
+# contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated,sync.startup.bounded-phases
+def test_startup_opened_preserves_actual_order_and_ignores_foreign_scope():
+    opened = [chat_row(str(uuid.uuid4()), last_edited_overall_timestamp=i) for i in range(13)]
+    foreign = chat_row(str(uuid.uuid4()), hashed_user_id=h(OTHER))
+    feed, calls = service([{"chats": [opened[0], foreign, *opened]}])
+    response = _client(feed).get("/v1/chats/startup-opened")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.json() == {"chat_ids": [row["id"] for row in opened[:11]]}
+    assert calls == [("opened", {"scope": f"personal:{h(USER)}", "user_scope": f"user:{h(USER)}"})]
+
+
+# contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated,sync.startup.recent-metadata-cap
+def test_scoped_modified_page_and_deliberate_open_http_contract(monkeypatch):
+    from backend.core.api.app.routes import chats as chat_routes
+
+    chat = chat_row(str(uuid.uuid4()))
+    feed, calls = service([{"chats": [chat], "total_count": 2000}])
+    feed.directus.chat = SimpleNamespace(
+        check_chat_ownership=AsyncMock(return_value=True),
+        get_chat_metadata=AsyncMock(return_value=chat),
+    )
+    feed.directus.update_user = AsyncMock(return_value=True)
+    lookup_fence = AsyncMock(side_effect=[
+        {"fenced_chat_ids": []}, {"fenced_chat_ids": [chat["id"]]},
+    ])
+    monkeypatch.setattr(chat_routes.ChatRecoveryService, "execute", lookup_fence)
+    client = _client(feed)
+    client.app.state.directus_service = feed.directus
+    client.app.include_router(chat_routes.router)
+    assert client.get("/v1/chats?order=modified&limit=21&offset=100").status_code == 422
+    page = client.get("/v1/chats?order=modified&limit=20&offset=100")
+    assert page.status_code == 200
+    assert page.json()["total_count"] == 2000
+    assert page.json()["chats"][0]["id"] == chat["id"]
+    assert calls[-1][1]["offset"] == 100 and calls[-1][1]["limit"] == 20
+
+    path = f"/v1/chats/{chat['id']}/opened"
+    assert client.post(path).json() == {"recorded": True}
+    assert client.post(path).status_code == 404
+    feed.directus.update_user.assert_awaited_once_with(USER, {"last_opened": chat["id"], "signup_completed": True})
+    feed.directus.chat.check_chat_ownership.return_value = False
+    assert client.post(path).status_code == 404
+    assert lookup_fence.await_count == 2

@@ -10,6 +10,7 @@ import json
 import hashlib
 import os
 from typing import Any, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, StrictBool
@@ -39,6 +40,8 @@ from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMo
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.chat_timeline import timeline_page
+from backend.core.api.app.services.chat_sync_feed_service import ChatSyncFeedError
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 
 
 router = APIRouter(prefix="/v1", tags=["Chats"])
@@ -275,14 +278,65 @@ def _latest_compression_boundary(checkpoints: list[dict[str, Any]]) -> int | Non
     return boundary
 
 
+@router.post("/chats/{chat_id}/opened")
+@limiter.limit("120/minute")
+async def record_chat_opened(
+    chat_id: UUID,
+    request: Request,
+    response: Response,
+    team_id: str | None = Query(default=None, min_length=1, max_length=128),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, bool]:
+    """First-party session-only deliberate open. Restores and preloads never call it."""
+    chat_id_text = str(chat_id)
+    await _require_chat_read_access(request, chat_id_text, team_id, current_user.id)
+    directus = request.app.state.directus_service
+    try:
+        fence = await ChatRecoveryService(directus).execute("lookup_chat_deletion_fences", {
+            "protocol_version": 1,
+            "hashed_user_id": hashlib.sha256(current_user.id.encode()).hexdigest(),
+            "chat_ids": [chat_id_text],
+        })
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="OPEN_HISTORY_UNAVAILABLE") from exc
+    fenced = fence.get("fenced_chat_ids") if isinstance(fence, dict) else None
+    if not isinstance(fenced, list) or any(item != chat_id_text for item in fenced):
+        raise HTTPException(status_code=503, detail="OPEN_HISTORY_UNAVAILABLE")
+    if fenced:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if not await directus.update_user(current_user.id, {"last_opened": chat_id_text, "signup_completed": True}):
+        raise HTTPException(status_code=503, detail="OPEN_HISTORY_UNAVAILABLE")
+    manager = getattr(request.app.state, "connection_manager", None)
+    # Legacy devices resume the same canonical profile field.
+    if manager is not None:
+        await manager.broadcast_to_user(
+            {"type": "last_opened_updated", "payload": {"chat_id": chat_id_text}},
+            current_user.id,
+        )
+    response.headers["Cache-Control"] = "private, no-store"
+    return {"recorded": True}
+
+
 @router.get("/chats")
 async def list_chats(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     team_id: str | None = Query(default=None),
+    order: Literal["modified"] | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
+    if order == "modified":
+        if offset > 0 and limit > 20:
+            raise HTTPException(status_code=422, detail="OLDER_CHAT_PAGE_LIMIT")
+        feed = getattr(request.app.state, "chat_sync_feed", None)
+        if feed is None:
+            raise HTTPException(status_code=503, detail="chat_sync_unavailable")
+        try:
+            rows, total = await feed.recent_modified(current_user.id, team_id, limit, offset)
+        except ChatSyncFeedError as exc:
+            raise HTTPException(status_code=403 if exc.code == "team_access_revoked" else 503, detail=exc.code) from exc
+        return {"chats": [_watch_chat_payload(row) for row in rows], "limit": limit, "total_count": total}
     if team_id:
         try:
             await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})

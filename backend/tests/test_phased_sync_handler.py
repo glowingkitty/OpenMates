@@ -12,6 +12,7 @@ import asyncio
 import sys
 import types
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 
 if "redis.asyncio" not in sys.modules:
@@ -827,6 +828,61 @@ async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_a
     assert "phase3" not in calls
     assert all(message["type"] != "background_message_sync" for message in manager.sent)
     assert manager.sent[-1]["payload"]["context_epoch"] == 7
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+@pytest.mark.parametrize("team_id", [None, "team-1"])
+async def test_opened_startup_sends_only_resume_metadata_then_modified_inventory(monkeypatch, team_id):
+    recent = [{"id": "opened-first"}, {"id": "opened-second"}]
+    feed = SimpleNamespace(startup_opened=AsyncMock(return_value=recent))
+    originating_socket = SimpleNamespace(
+        query_params={"client_capabilities": "chat_startup_opened_v1"},
+        app=SimpleNamespace(state=SimpleNamespace(chat_sync_feed=feed)),
+    )
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    legacy = AsyncMock()
+    legacy_metadata = AsyncMock(return_value=["legacy-team-parent"])
+    modified = AsyncMock()
+    monkeypatch.setattr(phased_sync_handler, "_handle_phase1_sync", legacy_metadata)
+    monkeypatch.setattr(phased_sync_handler, "_handle_phase1b_sync", legacy)
+    monkeypatch.setattr(phased_sync_handler, "_handle_phase2_sync", modified)
+    async def suggestions_after_priority(*_args):
+        assert manager.send_personal_message.await_count == 1
+        assert manager.send_personal_message.await_args.args[0]["type"] == "chat_startup_opened_ready"
+        return []
+
+    monkeypatch.setattr(phased_sync_handler, "_fetch_new_chat_suggestions", suggestions_after_priority)
+    monkeypatch.setattr(phased_sync_handler, "_fetch_daily_inspirations", AsyncMock(return_value=[]))
+    monkeypatch.setattr(phased_sync_handler, "_handle_app_settings_memories_sync", AsyncMock())
+
+    await handle_phased_sync_request(
+        websocket=originating_socket, manager=manager, cache_service=SimpleNamespace(),
+        directus_service=SimpleNamespace(team=SimpleNamespace(require_team_role=AsyncMock())),
+        encryption_service=SimpleNamespace(), user_id="user-1", device_fingerprint_hash="device-1",
+        payload={"phase": "all", "context_epoch": 7, "team_id": team_id},
+    )
+
+    frames = [call.args[0] for call in manager.send_personal_message.await_args_list]
+    modified.assert_awaited_once()
+    if team_id:
+        legacy_metadata.assert_awaited_once()
+        legacy.assert_awaited_once()
+        feed.startup_opened.assert_not_awaited()
+        assert "startup_feed" not in modified.await_args.kwargs
+        assert [frame["type"] for frame in frames] == ["phased_sync_complete"]
+        return
+    assert [frame["type"] for frame in frames] == [
+        "chat_startup_opened_ready", "phase_1_last_chat_ready", "phased_sync_complete",
+    ]
+    priority, shell = (frame["payload"] for frame in frames[:2])
+    assert priority["chat_id"] == shell["chat_id"] == "opened-first"
+    assert priority["offline_chat_ids"] == ["opened-first", "opened-second"]
+    assert "offline_chat_ids" not in shell
+    assert shell["messages"] is None and shell["recent_chat_metadata"] == []
+    legacy_metadata.assert_not_awaited()
+    assert modified.await_args.kwargs["startup_feed"] is feed
+    legacy.assert_not_awaited()
 
 
 @pytest.mark.anyio

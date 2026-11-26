@@ -24874,15 +24874,15 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 13
-        missing: 7
+        not_run: 14
+        missing: 6
         counted: 20
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_chat_sync_feed_service.py
-      - backend/core/directus/extensions/chat-sync/test/operations.test.js
       - backend/tests/test_chat_sync_feed_db.py
+      - backend/core/directus/extensions/chat-sync/test/operations.test.js
       - scripts/tests/test_apple_cross_client_sync_test.py
       - backend/tests/test_cold_archive_pagination.py
       unit_test_files: 7

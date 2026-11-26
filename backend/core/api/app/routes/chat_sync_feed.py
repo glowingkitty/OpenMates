@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.models.user import User
@@ -57,6 +57,23 @@ async def get_chat_changes(
     except ChatSyncFeedError as exc:
         raise HTTPException(status_code=_STATUS.get(exc.code, 503), detail=exc.code) from exc
     return {**page, "team_id": team}
+
+
+@router.get("/chats/startup-opened")
+@limiter.limit("120/minute")
+async def get_startup_opened(
+    request: Request,
+    response: Response,
+    team_id: str | None = Query(default=None, min_length=1, max_length=128),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, list[str]]:
+    """First-party session-only offline priority. Scoped IDs, no transcript or media."""
+    response.headers["Cache-Control"] = "private, no-store"
+    try:
+        rows = await _feed(request).startup_opened(current_user.id, team_id)
+    except ChatSyncFeedError as exc:
+        raise HTTPException(status_code=_STATUS.get(exc.code, 503), detail=exc.code) from exc
+    return {"chat_ids": [row["id"] for row in rows]}
 
 
 class ChatSyncHint(BaseModel):

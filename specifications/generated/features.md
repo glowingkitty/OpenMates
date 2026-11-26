@@ -1070,7 +1070,7 @@ Fast chat sync at start-up (due items, last chat, recent chats) plus an incremen
 | Watch | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | [WatchPairPhoneReadinessUITests.swift](../../apple/OpenMatesUITests/WatchPairPhoneReadinessUITests.swift) |
 | CLI | partial 6/20 | 6 pass · 0 fail · 0 not run · 14 no test | [cli-rust-chat-sync-feed.spec.ts](../../frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts)<br>1 unit test file(s), e.g. [crypto.test.ts](../../frontend/packages/openmates-cli/tests/crypto.test.ts) |
 | TUI | impl | — | — |
-| REST API | not run 0/20 | 0 pass · 0 fail · 13 not run · 7 no test | 7 unit test file(s), e.g. [test_chat_sync_feed_service.py](../../backend/tests/test_chat_sync_feed_service.py), [operations.test.js](../../backend/core/directus/extensions/chat-sync/test/operations.test.js) |
+| REST API | not run 0/20 | 0 pass · 0 fail · 14 not run · 6 no test | 7 unit test file(s), e.g. [test_chat_sync_feed_service.py](../../backend/tests/test_chat_sync_feed_service.py), [test_chat_sync_feed_db.py](../../backend/tests/test_chat_sync_feed_db.py) |
 | npm SDK | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | 1 unit test file(s), e.g. [sdk-session.test.ts](../../frontend/packages/openmates-cli/tests/sdk-session.test.ts) |
 | PyPI SDK | impl | — | — |
 

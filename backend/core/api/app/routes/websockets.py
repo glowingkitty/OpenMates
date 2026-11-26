@@ -170,6 +170,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.notification_read_r
 from .handlers.websocket_handlers.email_notification_settings_handler import (
     handle_email_notification_settings, handle_email_notification_settings_get,
 )
+from backend.core.api.app.services.chat_sync_feed_service import socket_uses_opened_startup
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
 from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync_metadata_chats # Handler for syncing metadata-only chats 101–1000
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
@@ -4694,6 +4695,9 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     active_chat_id=active_chat_id,
                     user_otel_attrs=user_otel_attrs,
+                    persist_last_opened=not socket_uses_opened_startup(
+                        websocket, payload.get("team_id") if isinstance(payload.get("team_id"), str) else None,
+                    ),
                 )
                 await report_presence(
                     cache_service, user_id, presence_connection_id, presence_client_type,
