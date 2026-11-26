@@ -51,9 +51,13 @@ class Terminal:
         self.process = process
         self.master = master
         self.output = bytearray()
+        self.rows = []
 
     def send(self, text):
         os.write(self.master, text.encode())
+
+    def click(self, row, column):
+        self.send(f"\x1b[<0;{column};{row}M\x1b[<0;{column};{row}m")
 
     def wait(self, label, accept, seconds=45):
         deadline = time.monotonic() + seconds
@@ -75,9 +79,14 @@ class Terminal:
                 rows, _, _ = _latest_screen(self.output.decode(errors="replace"))
             except CliCaptureError:
                 continue
+            self.rows = rows
             if accept(rows):
                 return time.monotonic()
-        raise RuntimeError(f"Native terminal did not reach {label}")
+        sidebar_visible, chat_cells = recent_chat_cells(self.rows)
+        raise RuntimeError(
+            f"Native terminal did not reach {label} "
+            f"(sidebar_visible={sidebar_visible}, visible_chat_rows={len(chat_cells)})"
+        )
 
 
 @contextmanager
@@ -109,10 +118,26 @@ def open_tui(binary, state):
             os.close(slave)
 
 
+def recent_chat_cells(rows):
+    for top, row in enumerate(rows):
+        if row.startswith("╭ Recent chats ") and "╮" in row:
+            break
+    else:
+        return False, []
+    # The first two rows inside the panel are New chat and the gap above rows.
+    # The selected marker is optional because saved-memory items are hidden here.
+    cells = []
+    for index, row in enumerate(rows[top + 3:], start=top + 4):
+        if not row.startswith("│"):
+            break
+        panel = row.split("│", 2)
+        if len(panel) == 3 and panel[1].strip(" ›"):
+            cells.append((index, 3))
+    return True, cells
+
+
 def recent(rows):
-    return any("Recent chats" in row for row in rows) and any(
-        re.match(r"^[^\w]*›\s+\S", row) for row in rows
-    )
+    return len(recent_chat_cells(rows)[1]) >= 3
 
 
 def readable_chat(rows):
@@ -147,9 +172,9 @@ def measure(binary, private_output):
                 terminal.send("\x02")
                 shown = terminal.wait("restored recent chats", recent)
                 recent_ms.append(round((shown - start) * 1000))
-                terminal.send("\x1b[B" * index)
+                selection = recent_chat_cells(terminal.rows)[1][index]
                 opening = time.monotonic()
-                terminal.send("\r")
+                terminal.click(*selection)
                 shown = terminal.wait("readable saved chat", readable_chat)
                 message_ms.append(round((shown - opening) * 1000))
         metrics = {"vault_unlock_to_recent_rows_ms": recent_ms, "select_to_visible_message_ms": message_ms}
