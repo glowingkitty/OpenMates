@@ -222,3 +222,40 @@ def test_private_native_startup_probes_admit_only_fixed_bounded_fields():
         {"stage": "cold_sidebar_wrappers", "outcome": "protocol", "elapsed_ms": 120},
     ]
     assert len(benchmark.startup_diagnostic_rows(b"OPENMATES_STARTUP_STAGE resume ok 100\n" * 50)) == 40
+
+
+def test_recorded_open_ignores_old_receipt_and_terminal_footer(monkeypatch, tmp_path):
+    with (tmp_path / "diagnostics").open("w+b", buffering=0) as trace:
+        trace.write(b"OPENMATES_STARTUP_STAGE opened_recorded ok 10\n")
+        terminal = Terminal(SimpleNamespace(poll=lambda: None), 1, trace.fileno())
+        terminal.rows = screen("Chat refreshed")
+        position = terminal.diagnostic_position()
+        steps = iter([b"OPENMATES_STARTUP_STAGE open_selection_completed ok 20\n"])
+
+        def idle(*_args):
+            trace.write(next(steps))
+            return [], [], []
+
+        monkeypatch.setattr(benchmark.select, "select", idle)
+        evidence = {}
+        assert benchmark.wait_for_recorded_open(terminal, position, evidence) == "not_recorded"
+        assert evidence["recorded_open_outcome"] == "not_recorded"
+
+
+def test_next_click_waits_for_empty_candidate_completion(monkeypatch, tmp_path):
+    with (tmp_path / "diagnostics").open("w+b", buffering=0) as trace:
+        terminal = Terminal(SimpleNamespace(poll=lambda: None), 1, trace.fileno())
+        terminal.rows = screen("This saved chat has no messages")
+        steps = iter([
+            b"OPENMATES_STARTUP_STAGE opened_recorded ok 10\n",
+            b"OPENMATES_STARTUP_STAGE open_selection_completed ok 20\n",
+        ])
+
+        def idle(*_args):
+            trace.write(next(steps))
+            return [], [], []
+
+        monkeypatch.setattr(benchmark.select, "select", idle)
+        evidence = {}
+        assert benchmark.wait_for_recorded_open(terminal, 0, evidence, require_completion=True) == "recorded"
+        assert not list(steps)

@@ -35,7 +35,7 @@ STARTUP_STAGE_NAMES = {
     "selector_request", "selector_decode", "cold_sidebar_request", "cold_sidebar_decode",
     "cold_sidebar_envelope", "cold_sidebar_id", "cold_sidebar_wrappers", "cold_sidebar_timestamp",
     "cold_sidebar_render", "cold_sidebar_persist", "cold_sidebar_projection", "cold_sidebar_publish",
-    "resume", "reconcile", "hydrate", "live_canonical_read",
+    "resume", "reconcile", "hydrate", "live_canonical_read", "opened_recorded", "open_selection_completed",
     "list_convert_id", "list_convert_status", "list_convert_title", "list_convert_created_at",
     "list_convert_updated_at", "list_convert_messages_version", "list_convert_unread_count",
     "list_convert_pinned", "list_convert_archived", "list_convert_has_draft", "list_convert_footer",
@@ -87,9 +87,10 @@ class TerminalWaitError(RuntimeError):
 
 
 class Terminal:
-    def __init__(self, process, master):
+    def __init__(self, process, master, diagnostics_fd=None):
         self.process = process
         self.master = master
+        self.diagnostics_fd = diagnostics_fd
         self.output = bytearray()
         self.rows = []
 
@@ -99,13 +100,24 @@ class Terminal:
     def click(self, row, column):
         self.send(f"\x1b[<0;{column};{row}M\x1b[<0;{column};{row}m")
 
-    def wait(self, label, accept, seconds=45):
+    def diagnostic_position(self):
+        return os.fstat(self.diagnostics_fd).st_size
+
+    def diagnostics_after(self, position):
+        # The child still writes to the same file descriptor. Positional reads
+        # observe the trace without seeking or interfering with its writes.
+        raw = os.pread(self.diagnostics_fd, 128 * 1024, position)
+        return startup_diagnostic_rows(raw[:raw.rfind(b"\n") + 1])
+
+    def wait(self, label, accept, seconds=45, observe_idle=False):
         deadline = time.monotonic() + seconds
         if self.rows and self.process.poll() is None and accept(self.rows):
             return time.monotonic()
         pty_closed = False
         while time.monotonic() < deadline and self.process.poll() is None:
             if not select.select([self.master], [], [], 0.1)[0]:
+                if observe_idle and accept(self.rows):
+                    return time.monotonic()
                 continue
             try:
                 incoming = os.read(self.master, 65536)
@@ -196,7 +208,7 @@ def open_tui(binary, state, diagnostics):
                     os.close(slave)
                     slave = None
                     try:
-                        yield Terminal(process, master)
+                        yield Terminal(process, master, diagnostics_stream.fileno())
                     finally:
                         if process.poll() is None:
                             process.terminate()
@@ -584,24 +596,32 @@ def enter_authenticated(terminal, evidence, startup, form, input_text):
         startup.finish(evidence)
 
 
-def remember_open(terminal, title, diagnostics):
-    """Give the ordinary explicit selection time to settle before quitting."""
-    if not title:
-        diagnostics["settlement_outcome"] = "no_title"
-        return
+def wait_for_recorded_open(terminal, position, diagnostics, *, require_completion=False):
+    """Wait for a durable server acknowledgment before qualifying the next launch."""
     began = time.monotonic()
+    outcome = None
+
+    def observe(_rows):
+        nonlocal outcome
+        stages = terminal.diagnostics_after(position)
+        recorded = any(event["stage"] == "opened_recorded" and event["outcome"] == "ok" for event in stages)
+        completed = any(event["stage"] == "open_selection_completed" for event in stages)
+        if recorded and (completed or not require_completion):
+            outcome = "recorded"
+        elif completed:
+            outcome = "not_recorded"
+        return outcome is not None
+
     try:
-        terminal.wait("selected chat settlement", lambda rows: (
-            same_startup_title(title, transcript_title(rows))
-            and terminal_status(rows) in {"chat_refreshed", "cache_settled"}
-        ), seconds=SETTLEMENT_SECONDS)
-        diagnostics["settlement_outcome"] = "seen"
+        terminal.wait("record selected chat open", observe, seconds=SETTLEMENT_SECONDS, observe_idle=True)
     except TerminalWaitError as error:
-        diagnostics["settlement_outcome"] = error.outcome
+        outcome = error.outcome
         if error.outcome != "timeout":
             raise
     finally:
-        diagnostics["settlement_wait_ms"] = round((time.monotonic() - began) * 1000)
+        diagnostics["recorded_open_outcome"] = outcome
+        diagnostics["recorded_open_wait_ms"] = round((time.monotonic() - began) * 1000)
+    return outcome
 
 
 def seed_last_open(terminal, diagnostics):
@@ -614,6 +634,7 @@ def seed_last_open(terminal, diagnostics):
             continue
         if sum(entry[2].casefold() == label.casefold() for entry in entries) != 1:
             continue
+        position = terminal.diagnostic_position()
         terminal.click(row, column)
         break
     else:
@@ -632,13 +653,11 @@ def seed_last_open(terminal, diagnostics):
         if error.outcome != "timeout":
             raise
         return None
-    if not readable_startup_transcript(terminal.rows):
-        diagnostics["result"] = "empty_chat"
-        return None
     title = transcript_title(terminal.rows)
-    diagnostics["result"] = "readable"
-    remember_open(terminal, title, diagnostics)
-    return title
+    readable = readable_startup_transcript(terminal.rows)
+    diagnostics["result"] = "readable" if readable else "empty_chat"
+    recorded = wait_for_recorded_open(terminal, position, diagnostics)
+    return title if readable and recorded == "recorded" else None
 
 
 def measure(binary, private_output):
@@ -682,6 +701,7 @@ def measure(binary, private_output):
                         else:
                             raise RuntimeError("Ran out of distinct already-read conversations for three timing samples")
                         candidates_seen.add(label)
+                        position = terminal.diagnostic_position()
                         evidence = OpenEvidence(metrics["open_samples"], candidate_index, terminal.rows, label)
                         terminal.click(row, column)
                         try:
@@ -691,9 +711,16 @@ def measure(binary, private_output):
                         if evidence.sample["result"] == "readable":
                             metrics["select_to_visible_message_ms"].append(evidence.sample["first_readable_message_ms"])
                             title = transcript_title(terminal.rows)
-                            expected = title if title and title.startswith(label) else None
-                            remember_open(terminal, expected, evidence.sample)
+                            recorded = wait_for_recorded_open(terminal, position, evidence.sample)
+                            expected = title if recorded == "recorded" else None
                             break
+                        # Do not attribute an empty candidate's delayed receipt
+                        # to a later click in the same process.
+                        recorded = wait_for_recorded_open(
+                            terminal, position, evidence.sample, require_completion=True,
+                        )
+                        if recorded == "timeout":
+                            raise RuntimeError("Empty chat open did not finish before the next timing sample")
                     auth.quit(terminal)
     finally:
         (private_output / "terminal-timings.json").write_text(json.dumps(metrics) + "\n")
