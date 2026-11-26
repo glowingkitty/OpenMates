@@ -16,7 +16,6 @@ export interface RealVoicePlayback {
   };
 }
 
-const METER_PATH = '/__openmates_voice_proof_meter.js';
 const METER_SOURCE = `
 registerProcessor('openmates-voice-proof-meter', class extends AudioWorkletProcessor {
   process(inputs) {
@@ -43,11 +42,7 @@ registerProcessor('openmates-voice-proof-meter', class extends AudioWorkletProce
 
 /** Both the microphone and playback use the same browser audio sample clock. */
 export async function installRealVoicePlayback(page: Page, capitalFlac: Buffer): Promise<void> {
-  // Only the meter is supplied by the test. App routes and provider traffic are real.
-  await page.route(url => url.pathname === METER_PATH, route => route.fulfill({
-    contentType: 'text/javascript', body: METER_SOURCE,
-  }));
-  await page.addInitScript(({ encodedFixture, meterPath }) => {
+  await page.addInitScript(({ encodedFixture, meterSource }) => {
     const decode = (encoded: string) => Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
     const audio = new AudioContext();
     const silent = audio.createGain();
@@ -67,7 +62,9 @@ export async function installRealVoicePlayback(page: Page, capitalFlac: Buffer):
 
     // Observe samples in the render graph, not play() promises, incoming bytes,
     // a timer, or a playback event with a silent priming buffer.
-    const meterReady = audio.audioWorklet.addModule(meterPath);
+    // Worklet module requests do not use the page's Playwright route handler.
+    const meterUrl = URL.createObjectURL(new Blob([meterSource], { type: 'text/javascript' }));
+    const meterReady = audio.audioWorklet.addModule(meterUrl).finally(() => URL.revokeObjectURL(meterUrl));
     void meterReady.catch(() => { observerErrorCount++; });
     const attach = (track: MediaStreamTrack, onSignal: (signal: Signal) => void) => {
       if (track.kind !== 'audio') return;
@@ -240,7 +237,7 @@ export async function installRealVoicePlayback(page: Page, capitalFlac: Buffer):
       },
     };
     Object.assign(window, { __omRealVoicePlayback: probe });
-  }, { encodedFixture: capitalFlac.toString('base64'), meterPath: METER_PATH });
+  }, { encodedFixture: capitalFlac.toString('base64'), meterSource: METER_SOURCE });
 }
 
 export function qualifiedVoiceTiming(
