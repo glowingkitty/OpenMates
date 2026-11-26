@@ -42,6 +42,10 @@ The current server sends encrypted recent headings first, full content for at mo
 
 For an unlocked returning account the recent index and the selected cached transcript set the first readable screen. For an admitted account with an empty index the shared core can publish a small partial list before full recovery. Ask for only the selected missing viewport and its keys. Refresh metadata up to the recent 100 separately and show the full account count. Older headers stay outside automatic fetching, indexing and cache growth. Explicit older-chat navigation can read the requested record. Keep broad transcript prefetch off the path to the first frame. Reconnect continues from the durable feed position while preserving the selected chat.
 
+## Selected transcript reads in the terminal
+
+At returning-account startup, the terminal restores the encrypted index. Selecting a chat gives the shared Rust reader the current account, workspace, generation and chat ID. It reads the selected encrypted section independently while the synchronization actor is busy. It rechecks authorization and selection after the disk read and before publication. Revoking a credential or switching scope discards the pending result. The actor retains ownership of writes and recovery. Measure cached launch and chat selection with the actor held and a large store. Record section-read counts and require zero unrelated transcript reads before the selected chat appears.
+
 ## Web key loading on existing installations
 
 The owner approved moving older key unwraps to first use. Resolve a key within the currently admitted account and workspace and discard results when either changes. Background message and embed handlers use the same lookup. Preserve persisted key comparison before writes, including writes in caller-owned transactions. Exercise a cache containing earlier releases' data and time the recent sidebar independently of older key use. Keep tombstone reconciliation available for previously retained IDs.

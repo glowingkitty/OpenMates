@@ -34,6 +34,7 @@ acceptance:
   - A confirmed signed-out cold launch paints bundled examples.
   - Automatic startup and reconnect sync only the most recent 100 personal chat headers. The sidebar shows the full account count, and older chats remain available on explicit request.
   - Private measurements capture idle CPU and network work on the populated account after the first readable view. Ordinary idle and reconnect do not restart older-header or transcript downloads.
+  - With sync busy, terminal cold launch reads zero unrelated transcript sections and opening a cached chat reads only its encrypted section. A scope change revokes the pending result.
   - A capable device with a warm render bundle opens a cached chat before sync or animation completes.
   - On a cache miss the selected chat frame remains stable while its scoped first window loads or reports inline failure.
   - Switches within one authorized workspace scope reuse its last presentation and refresh independently.
