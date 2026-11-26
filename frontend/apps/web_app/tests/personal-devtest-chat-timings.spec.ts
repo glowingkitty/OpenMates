@@ -46,7 +46,7 @@ const READ_STAGES = [
 	'local-session-start', 'local-session-ready', 'session-start', 'session-ready', 'cache-read-start', 'cache-read-end',
 	'cache-plan-owned_metadata', 'cache-plan-messages', 'cache-miss-rust',
 	'cache-miss-unsupported', 'cache-miss-unavailable', 'cache-miss-empty',
-	'load-chat', 'history-load', 'history-request',
+	'load-chat', 'history-load', 'history-request', 'history-joined-pending', 'history-replaced-pending-target',
 	'admission-bootstrap-wait-start', 'admission-bootstrap-wait-end',
 	'admission-platform-ready', 'admission-profile-capture-start', 'admission-worker-acquired',
 	'admission-restore-start', 'admission-restore-response', 'admission-profile-verified',
