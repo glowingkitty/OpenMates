@@ -98,6 +98,55 @@ async def test_nonvoice_request_needs_no_call_authority_and_cannot_inherit_voice
     await require_active_voice_dispatch(cache, {"voice_mode": False})
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.privacy,ai-model-routing.reasoning.preprocessor-recommendation
+async def test_instant_mercury_preference_requires_a_worker_verified_ordinary_low_call(admitted):
+    from backend.apps.ai.processing.main_processor import _prefer_instant_voice_reasoning
+    from backend.apps.ai.processing.preprocessor import PreprocessingResult, _voice_instant_route_proof
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+
+    cache, base, message_id, message, _ = admitted
+    raw = {
+        "message_id": message_id, "user_id": base["user_id"], "chat_id": base["chat_id"],
+        "user_id_hash": hashlib.sha256(base["user_id"].encode()).hexdigest(),
+        "message_history": [], "_verified_live_voice_dispatch": True, **message,
+    }
+    turn = AskSkillRequest.model_validate(raw)
+    mercury = "inception/mercury-3"
+    route = {"early_decisions": {"complexity": "low"}}
+    routed = PreprocessingResult(
+        can_proceed=True, complexity="low", selected_main_llm_model_id=mercury,
+        voice_instant_route_proof=_voice_instant_route_proof(turn, route, True),
+    )
+    assert routed.voice_instant_route_proof and "voice_instant_route_proof" not in routed.model_dump()
+    assert not _prefer_instant_voice_reasoning(turn, routed, mercury)
+
+    foreign = AskSkillRequest.model_validate({**raw, "user_id": "foreign"})
+    with pytest.raises(ValueError):
+        await require_active_voice_dispatch(cache, foreign)
+    assert not _prefer_instant_voice_reasoning(foreign, routed, mercury)
+
+    turn._verified_live_voice_dispatch = await require_active_voice_dispatch(cache, turn) is not None
+    assert _prefer_instant_voice_reasoning(turn, routed, mercury)
+    assert _prefer_instant_voice_reasoning(turn, routed.model_copy(update={"requested_reasoning_level": "LOW"}), mercury)
+    for change in (
+        {"complexity": "medium"}, {"requested_reasoning_level": "HIGH"}, {"user_requested_focus_only": True},
+        {"selected_main_llm_model_id": "google/gemini-3.8-flash"},
+    ):
+        assert not _prefer_instant_voice_reasoning(turn, routed.model_copy(update=change), mercury)
+    assert not _prefer_instant_voice_reasoning(turn, routed, "google/gemini-3.8-flash")
+    for continuation in (
+        {"is_async_skill_continuation": True}, {"is_app_settings_memories_continuation": True},
+        {"is_connected_account_permission_continuation": True}, {"is_e2b_upload_consent_continuation": True},
+        {"is_focus_mode_continuation": True}, {"is_sub_chat_continuation": True},
+        {"same_turn_checkpoint": {"batch_id": "fixture"}}, {"same_turn_batch_id": "fixture"},
+    ):
+        resumed = turn.model_copy(update=continuation)
+        assert resumed._verified_live_voice_dispatch  # Even a currently active call keeps normal effort.
+        assert not _prefer_instant_voice_reasoning(resumed, routed, mercury)
+    turn.voice_mode = False
+    assert not _prefer_instant_voice_reasoning(turn, routed, mercury)
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.audio.spoken-rich-response
 def test_both_ask_schemas_and_recovery_commitment_preserve_nested_voice_delivery():
     # This test's own request data proves schema pass-through without inference.

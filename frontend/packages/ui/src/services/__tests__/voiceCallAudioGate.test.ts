@@ -84,6 +84,23 @@ describe('VoiceCallAudioGate', () => {
     h.gate.stop();
   });
 
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle,video-call.audio.complete-turn-admission
+  it('requires 320 ms of consecutive verified quiet after clear speech on an upgraded call', async () => {
+    const h = harness();
+    await h.ready();
+    h.gate.setVerifiedEndpoint(true);
+    h.frame(0.8, 16);
+    for (let i = 0; i < 9; i++) h.frame();
+    h.frame(0.3);
+    for (let i = 0; i < 9; i++) h.frame();
+    expect(h.events).not.toContain('end');
+    h.frame();
+    expect(h.events.filter(event => event === 'end')).toHaveLength(1);
+    h.frame(0.9, 18);
+    expect(h.events.at(-1)).toBe('audio');
+    h.gate.stop();
+  });
+
   // contract-test: supporting surface=gui.web assertions=video-call.audio.automatic-idle
   it('flushes the 400ms unsent onset history exactly once and keeps sample order', async () => {
     const h = harness(); await h.ready();

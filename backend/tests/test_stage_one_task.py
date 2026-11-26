@@ -234,18 +234,22 @@ def test_main_snapshot_load_precedes_recovery_claim():
 
 # contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity
 @pytest.mark.asyncio
-@pytest.mark.parametrize("outcome", ["published", "stale", "stale_before_handoff", "failed_before_publish"])
-async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(monkeypatch, outcome):
+@pytest.mark.parametrize("outcome", ["published", "stale", "stale_before_handoff", "failed_before_publish", "denied"])
+async def test_stage_one_overlaps_setup_reads_and_rechecks_authority_before_publication(monkeypatch, outcome):
     import asyncio
     from types import SimpleNamespace
     from backend.apps.ai.skills import ask_skill
     from backend.core.api.app.services import client_context_continuation, directus as directus_module
+    from backend.core.api.app.services.directus.chat_model_preference_methods import hash_user_id
     from backend.core.api.app.utils import encryption as encryption_module, secrets_manager as secrets_module
     from backend.shared.python_utils import recent_work_summary_client
     from backend.apps.ai.processing import preprocessor
 
+    owner_id = "owner"
+    owner_hash = hash_user_id(owner_id)
     request = ask_skill.AskSkillRequest(
-        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        chat_id="83645760-7754-43e7-a6a2-66e1a2eb2958", message_id="turn",
+        user_id=owner_id, user_id_hash=owner_hash,
         recovery_task_id="task", recovery_preflight_id="preflight",
         current_user_content="Hello", message_history=[
             {"role": "user", "message_id": "turn", "content": "Hello", "created_at": 1},
@@ -277,9 +281,14 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
         return SimpleNamespace(encrypted_chat_key="sealed-chat-key")
 
     cache.get_chat_list_item_data.side_effect = chat_key
-    directus = SimpleNamespace(get_items=AsyncMock(), close=AsyncMock())
+    directus = SimpleNamespace(
+        chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value={
+            "id": request.chat_id, "hashed_user_id": owner_hash,
+        })),
+        get_items=AsyncMock(return_value=[]),
+        close=AsyncMock(),
+    )
     monkeypatch.setattr(stage_one_task.celery_config, "get_worker_cache_service", AsyncMock(return_value=cache))
-    monkeypatch.setattr(secrets_module, "SecretsManager", lambda: SimpleNamespace(initialize=AsyncMock()))
     monkeypatch.setattr(encryption_module, "EncryptionService", lambda **_kwargs: object())
     monkeypatch.setattr(directus_module, "DirectusService", lambda **_kwargs: directus)
     private_descriptor = {"same_turn_request": {"private": "internal checkpoint"}}
@@ -287,13 +296,23 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
                         AsyncMock(return_value=private_descriptor))
     monkeypatch.setattr(recent_work_summary_client, "bind_restored_context_turn", lambda *_args: None)
     context_ready = asyncio.Event()
+    vault_started = asyncio.Event()
+
+    async def check_vault():
+        assert current.await_count == admitted.await_count == 1
+        vault_started.set()
+        await asyncio.wait_for(context_ready.wait(), timeout=1)
+
+    vault_health = AsyncMock(side_effect=check_vault)
+    monkeypatch.setattr(secrets_module, "SecretsManager", lambda: SimpleNamespace(initialize=vault_health))
 
     async def load_context(**_kwargs):
+        await asyncio.wait_for(vault_started.wait(), timeout=1)
         context_ready.set()
 
     monkeypatch.setattr(client_context_continuation, "await_client_context_phase", load_context)
     current = AsyncMock(side_effect=[True, outcome != "stale", outcome != "stale_before_handoff"])
-    admitted = AsyncMock(return_value=True)
+    admitted = AsyncMock(return_value=outcome != "denied")
     monkeypatch.setattr(stage_one_task, "routing_turn_is_current", current)
     monkeypatch.setattr(stage_one_task, "routing_admission_is_current", admitted)
     handoff = AsyncMock(return_value="sealed-routing-ref")
@@ -326,6 +345,13 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
 
     monkeypatch.setattr(preprocessor, "handle_preprocessing", decision)
     envelope = request.model_dump(mode="json")
+    if outcome == "denied":
+        assert await stage_one_task.route_stage_one(envelope, {}, "task") is None
+        vault_health.assert_not_awaited()
+        cache.get_base_instructions.assert_not_awaited()
+        cache.publish_event.assert_not_awaited()
+        handoff.assert_not_awaited()
+        return
     if outcome in {"stale", "failed_before_publish"}:
         with pytest.raises(RuntimeError, match=(
             "no longer current" if outcome == "stale" else "Jev unavailable"
@@ -347,7 +373,9 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
                                    else 2 if outcome == "stale" else 3)
     assert key_cancelled.is_set() is (outcome == "failed_before_publish")
     assert active_started.is_set() and active_cancelled.is_set()
-    directus.get_items.assert_not_awaited()
+    directus.chat.get_chat_metadata.assert_awaited_once_with(request.chat_id, admin_required=True)
+    # The lineage read is required; the chat-key lookup must stay on the cache.
+    assert [call.args[0] for call in directus.get_items.await_args_list] == ["sub_chat_orchestration_children"]
     assert not hasattr(request, "same_turn_request")
 
 

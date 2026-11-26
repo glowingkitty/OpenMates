@@ -155,6 +155,7 @@
     isTransientResponse = false,
     deferVoiceCallIdentity = false,
     assistantTurnActive = undefined,
+    onStopIndependentReply = undefined,
     status = undefined,
     messageParts = [],
     appCards = undefined,
@@ -199,6 +200,7 @@
     isTransientResponse?: boolean;
     deferVoiceCallIdentity?: boolean;
     assistantTurnActive?: boolean;
+    onStopIndependentReply?: () => void;
     status?: MessageStatus;
     messageParts?: MessagePart[];
     appCards?: AppCardData[];
@@ -3853,6 +3855,10 @@
           <div class="assistant-response-status" data-testid="assistant-response-status" role="status">
             <span class="assistant-status-ai-glyph" data-testid="assistant-status-ai-glyph" aria-hidden="true"></span>
             {responseStatus}
+            {#if onStopIndependentReply}
+              <button type="button" class="assistant-stop-button"
+                onclick={onStopIndependentReply} data-testid="independent-reply-stop">{$text('common.stop')}</button>
+            {/if}
           </div>
         {/if}
       </div>
@@ -4295,7 +4301,8 @@
     font-weight: 600;
   }
 
-  .sub-chat-stop-button {
+  .sub-chat-stop-button,
+  .assistant-stop-button {
     border: 0;
     border-radius: var(--radius-full);
     padding: var(--spacing-4) var(--spacing-8);

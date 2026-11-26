@@ -79,6 +79,9 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.sheet_formatting import SheetFormattingError, split_formatted_sheet
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
+from backend.apps.ai.processing.active_artifact_steering import (
+    ArtifactSnapshot, artifact_reference, load_artifact_snapshot,
+)
 from backend.apps.ai.processing.agentic_context import attach_memory_receipt_assistant_id
 from backend.apps.ai.tasks.loose_application_files import split_loose_application_files
 from backend.apps.ai.tasks.result_embed_references import append_result_embed_references
@@ -365,6 +368,7 @@ async def _publish_call_confirmation_clip(
     *, task_id: str, request_data: AskSkillRequest, clip: dict[str, object],
     cache_service: Any, log_prefix: str, description: str,
     reasoning_phase: int | None = None,
+    work_cue: bool = False,
 ) -> None:
     message_id = _assistant_message_id(task_id, request_data)
     await _publish_to_redis(
@@ -381,6 +385,7 @@ async def _publish_call_confirmation_clip(
                 "clip_id": clip["clip_id"] if reasoning_phase is None else f"{clip['clip_id']}-{task_id}-{reasoning_phase}",
                 "audio_url": clip["asset_url"],
                 **({"voice_call_id": request_data.voice_call_id} if reasoning_phase is not None else {}),
+                **({"work_cue": True} if work_cue else {}),
             },
         },
         log_prefix,
@@ -411,6 +416,7 @@ async def publish_voice_reasoning_confirmation(
                 await _publish_call_confirmation_clip(
                     task_id=task_id, request_data=request_data, clip=clip, cache_service=cache_service,
                     log_prefix=log_prefix, description="voice reasoning confirmation", reasoning_phase=phase,
+                    work_cue=getattr(request_data, "_voice_state_cues", False) is True,
                 )
         except TimeoutError:
             logger.warning("%s Voice reasoning confirmation timed out", log_prefix)
@@ -432,6 +438,8 @@ async def publish_instant_voice_acknowledgement(
     guess one (a previous turn's or a default Mate): a clip in another voice
     than the answer is worse than no clip, so without a known Mate it stays silent.
     """
+    if getattr(request_data, "_voice_state_cues", False) is True:
+        return False
     if not _speaks_call_confirmations(request_data) or mate is None:
         return False
     from backend.apps.ai.assistant_speech.voice_status import (
@@ -3964,6 +3972,10 @@ def _create_redis_payload(
     if category:
         payload["category"] = category
 
+    from backend.shared.python_utils.independent_chat_reply import is_independent_reply
+
+    if is_independent_reply(request_data):
+        payload["independent_reply"] = True
     if _recovery_inference_task_id(request_data):
         payload["recovery_provisional"] = not is_final
         payload["recovery_turn_id"] = request_data.recovery_turn_id
@@ -4385,17 +4397,15 @@ async def _update_chat_metadata(
             "last_mate_category": category,
             "updated_at": int(time.time())
         }
-        success = await directus_service.chat.update_chat_fields_in_directus(
-            request_data.chat_id, fields_to_update
-        )
-        if not success:
-            logger.error(f"{log_prefix} Failed to update recovery chat metadata for {request_data.chat_id}.")
-            return
+        from backend.shared.python_utils.independent_chat_reply import is_independent_reply
 
-        logger.info(
-            f"{log_prefix} Updated recovery chat metadata without advancing terminal messages_v: "
-            f"timestamp {timestamp}, category {category}"
-        )
+        if not is_independent_reply(request_data):
+            success = await directus_service.chat.update_chat_fields_in_directus(
+                request_data.chat_id, fields_to_update
+            )
+            if not success:
+                logger.error(f"{log_prefix} Failed to update recovery chat metadata for {request_data.chat_id}.")
+                return
 
         if cache_service:
             from backend.core.api.app.schemas.chat import MessageInCache
@@ -6914,6 +6924,9 @@ async def _consume_main_processing_stream(
     web_search_performed = False
     # A completed Project file operation has already published a reference-only
     # card. Model prose and fenced file text after that card are never new files.
+    from backend.shared.python_utils.independent_chat_reply import is_independent_reply
+
+    independent_reply = is_independent_reply(request_data)
     project_file_reference_output = False
 
     # Check for revocation before starting
@@ -6955,12 +6968,18 @@ async def _consume_main_processing_stream(
             user_vault_key_id=user_vault_key_id
         )
     
-    # Handle insufficient credits with a predefined message (no billing)
-    # rejection_reason is passed through to the Redis payload so the frontend can render this
-    # as a system notice (smaller text) instead of an assistant bubble
-    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "insufficient_credits":
-        logger.info(f"{log_prefix} Detected insufficient credits case. Generating simple fake stream.")
-        message_text = preprocessing_result.error_message or "You don't have enough credits to run this request. Please add credits and try again."
+    # Credit admission failures use a predefined system notice and no model billing.
+    credit_rejection = preprocessing_result.rejection_reason
+    if not preprocessing_result.can_proceed and credit_rejection in {
+        "insufficient_credits", "credit_balance_unavailable",
+    }:
+        logger.info("%s Credit admission rejected: %s", log_prefix, credit_rejection)
+        fallback_notice = (
+            "You don't have enough credits to run this request. Please add credits and try again."
+            if credit_rejection == "insufficient_credits"
+            else "Your credit balance could not be verified. Please try again later."
+        )
+        message_text = preprocessing_result.error_message or fallback_notice
         await first_chunk_barrier.wait()
         return await _generate_fake_stream_for_simple_message(
             task_id=task_id,
@@ -6971,7 +6990,7 @@ async def _consume_main_processing_stream(
             directus_service=directus_service,
             encryption_service=encryption_service,
             user_vault_key_id=user_vault_key_id,
-            rejection_reason="insufficient_credits"
+            rejection_reason=credit_rejection,
         )
 
     # Handle LLM preprocessing failures (e.g., API errors, service unavailable)
@@ -6998,16 +7017,170 @@ async def _consume_main_processing_stream(
     # and the selected voice before the first provider dispatch.
     reasoning_profile: str | None = None
     reasoning_phase = 0
+    work_cues = None
+
+    async def publish_work_cue(category: str, sequence: int) -> None:
+        from backend.apps.audio.assistant_speech.acknowledgements import build_work_cue
+        if not reasoning_profile or not voice_status_language:
+            return
+        clip = build_work_cue(voice_profile_id=reasoning_profile, language=voice_status_language, category=category)
+        if clip:
+            async with asyncio.timeout(0.15):
+                await _publish_call_confirmation_clip(
+                    task_id=task_id, request_data=request_data, clip=clip, cache_service=cache_service,
+                    log_prefix=log_prefix, description="voice work status", reasoning_phase=sequence, work_cue=True,
+                )
 
     async def announce_voice_reasoning() -> None:
         nonlocal reasoning_phase
         if reasoning_profile is None:
             return
+        if work_cues:
+            work_cues.begin("thinking")
         reasoning_phase += 1
         await publish_voice_reasoning_confirmation(
             task_id=task_id, request_data=request_data, voice_profile_id=reasoning_profile,
             language=voice_status_language, phase=reasoning_phase, cache_service=cache_service, log_prefix=log_prefix,
         )
+
+    artifact_steering_enabled = bool(
+        cache_service and directus_service and encryption_service and user_vault_key_id
+        and not (request_data.is_external or request_data.is_anonymous or request_data.is_incognito)
+        and not independent_reply
+        and not should_disable_learning_mode_application_artifact(_learning_mode_context(request_data))
+    )
+
+    async def read_artifact(*, fallback: bool = False) -> Optional[ArtifactSnapshot]:
+        """A partially streamed file is never the source of a revision."""
+        nonlocal streaming_application_file_count, application_parent_embed_created
+        nonlocal stream_chunk_count, streaming_application_embed_id
+        if (
+            in_code_block or revocation_probe.revoked() or project_file_reference_output
+            or await cache_service.get_active_ai_task(request_data.chat_id) != task_id
+        ):
+            return None
+        if not fallback:
+            # A streaming app can acquire more files after its first working
+            # manifest appeared. Finish that manifest before drafting an edit.
+            manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
+            if manifest and len(manifest["file_refs"]) > streaming_application_file_count:
+                prior_embed_id = streaming_application_embed_id
+                reference = await _create_application_parent_embed_reference(
+                    generated_code_file_embeds=generated_code_file_embeds,
+                    cache_service=cache_service, directus_service=directus_service,
+                    encryption_service=encryption_service, request_data=request_data,
+                    task_id=task_id, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+                    response_text="".join(final_response_chunks),
+                    existing_application_embed_id=prior_embed_id,
+                )
+                if not reference:
+                    return None
+                streaming_application_embed_id = _embed_id_from_reference_block(reference)
+                streaming_application_file_count = len(manifest["file_refs"])
+                application_parent_embed_created = True
+                if not prior_embed_id:
+                    final_response_chunks.append(reference)
+                    stream_chunk_count += 1
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name,
+                        _create_redis_payload(
+                            task_id, request_data, "".join(final_response_chunks), stream_chunk_count,
+                            model_name=stream_model_name,
+                        ),
+                        log_prefix, "Published working application before artifact correction",
+                    )
+                    await observe_visible_artifact(reference)
+        if fallback:
+            producer_ids = [request_data.active_input_steer_task_id]
+        else:
+            producer_ids = [task_id]
+            if request_data.same_turn_batch_id and request_data.continuation_message_id:
+                producer_ids.insert(0, request_data.continuation_message_id)
+        from backend.core.api.app.services.embed_service import EmbedService
+        service = EmbedService(cache_service, directus_service, encryption_service)
+        for producer_id in dict.fromkeys(filter(None, producer_ids)):
+            embed_id = await cache_service.read_artifact_steer_target(
+                request_data.chat_id, producer_id, request_data.user_id,
+            )
+            if not embed_id:
+                continue
+            snapshot = await load_artifact_snapshot(
+                embed_id=embed_id, producer_task_id=producer_id,
+                chat_id=request_data.chat_id, owner_hash=request_data.user_id_hash,
+                embed_service=service, vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+            )
+            if snapshot:
+                return snapshot
+        return None
+
+    async def publish_artifact_revision(snapshot: ArtifactSnapshot, draft: str) -> bool:
+        """Publish a complete staged replacement without exposing any partial source."""
+        nonlocal streaming_application_file_count, live_answer_withdrawal
+        files = snapshot.replacement_files(draft)
+        if not files:
+            logger.warning("%s Model did not return a complete artifact correction", log_prefix)
+            return False
+        if files == snapshot.files:
+            return True
+        if revocation_probe.revoked() or await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
+            return False
+        live_answer_withdrawal = await live_answer_gate.maybe_check(draft)
+        if live_answer_withdrawal:
+            return False
+
+        from backend.core.api.app.services.embed_service import EmbedService
+        service = EmbedService(cache_service, directus_service, encryption_service)
+        cached = await service._get_embed_record(snapshot.embed_id, log_prefix)
+        if not cached:
+            return False
+        if int(cached.get("version_number") or 1) != snapshot.version:
+            # Preview thumbnail refresh can advance the application version
+            # without changing any source files. Keep that working source as
+            # the base only if every file still matches the one in the draft.
+            latest = await load_artifact_snapshot(
+                embed_id=snapshot.embed_id, producer_task_id=snapshot.producer_task_id,
+                chat_id=request_data.chat_id, owner_hash=request_data.user_id_hash,
+                embed_service=service, vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+            )
+            if not latest or latest.files != snapshot.files:
+                logger.info("%s Artifact %s changed during correction", log_prefix, snapshot.embed_id)
+                return False
+            snapshot = latest
+
+        scope = {
+            "chat_id": request_data.chat_id,
+            "user_id": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "user_vault_key_id": user_vault_key_id,
+            "log_prefix": log_prefix,
+        }
+        if snapshot.kind == "code":
+            source = files[0].content
+            return await service.update_code_embed_content(
+                embed_id=snapshot.embed_id, code_content=source, status="finished",
+                version_number=snapshot.version + 1,
+                content_hash=hashlib.sha256(source.encode()).hexdigest(),
+                version_history_rows=_full_replacement_history_rows(
+                    snapshot.embed_id, snapshot.files[0].content, source, snapshot.version, int(time.time()),
+                ),
+                **scope,
+            )
+
+        updated = await service.create_application_artifact_embed(
+            name=snapshot.metadata["name"],
+            framework=snapshot.metadata["framework"],
+            runtime=snapshot.metadata["runtime"],
+            files=[{"path": file.path, "language": file.language, "content": file.content} for file in files],
+            entrypoints=snapshot.metadata["entrypoints"],
+            message_id=cached["message_id"],
+            task_id=snapshot.producer_task_id,
+            replace=(snapshot.embed_id, snapshot.version),
+            **scope,
+        )
+        if updated and snapshot.embed_id == streaming_application_embed_id:
+            # A late manifest refresh must never relink the superseded children.
+            streaming_application_file_count = len(updated["child_embed_ids"])
+        return bool(updated)
 
     # Normal processing flow for other non-harmful content
     main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
@@ -7026,6 +7199,8 @@ async def _consume_main_processing_stream(
         user_overrides=user_overrides,  # Pass user overrides for skip-permission logic
         skill_config_dict=skill_config_dict,
         on_reasoning_dispatch=announce_voice_reasoning if _speaks_call_confirmations(request_data) else None,
+        read_steerable_artifact=read_artifact if artifact_steering_enabled else None,
+        publish_artifact_revision=publish_artifact_revision if artifact_steering_enabled else None,
     )
 
     stream_chunk_count = int((request_data.same_turn_checkpoint or {}).get("published_stream_chunk_count") or 0)
@@ -7125,6 +7300,9 @@ async def _consume_main_processing_stream(
                                 call_id=request_data.voice_call_id, require_instant_feedback=True,
                             ):
                                 reasoning_profile = selected_mate.voice_profile.key
+                                if getattr(request_data, "_voice_state_cues", False) is True:
+                                    from backend.apps.ai.assistant_speech.voice_status import VoiceWorkCues
+                                    work_cues = VoiceWorkCues(publish_work_cue)
                                 categorized_call = True
                     except (TimeoutError, OSError, RuntimeError, RedisError):
                         logger.warning("%s Voice reasoning confirmation capability unavailable", log_prefix)
@@ -7238,26 +7416,27 @@ async def _consume_main_processing_stream(
                 if int(segment["sequence"]) == -1:
                     waiting_speech_segment = segment
                 continuous = realtime_speech_turn is not None and int(segment["sequence"]) >= 0
+                async def register_segment():
+                    await _dispatch_automatic_assistant_speech_segment(
+                        segment=segment,
+                        directus_service=directus_service,
+                        user_id=request_data.user_id,
+                        user_vault_key_id=user_vault_key_id,
+                        voice_profile=voice_profile,
+                        auto_speak=request_data.auto_speak_response,
+                        lazy_dispatch=request_data.assistant_speech_lazy_dispatch,
+                        cache_service=cache_service,
+                        redis_channel_name=redis_channel_name,
+                        log_prefix=log_prefix,
+                        live_mock_mode=voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode),
+                        live_mock_group=voice_speech_fixture.get("live_mock_group", request_data.live_mock_group),
+                        queue_provider_work=not continuous,
+                    )
+
                 if continuous:
-                    # Track identity/status must arrive before semantic clauses.
-                    await realtime_speech_turn.prepare()
-                await _dispatch_automatic_assistant_speech_segment(
-                    segment=segment,
-                    directus_service=directus_service,
-                    user_id=request_data.user_id,
-                    user_vault_key_id=user_vault_key_id,
-                    voice_profile=voice_profile,
-                    auto_speak=request_data.auto_speak_response,
-                    lazy_dispatch=request_data.assistant_speech_lazy_dispatch,
-                    cache_service=cache_service,
-                    redis_channel_name=redis_channel_name,
-                    log_prefix=log_prefix,
-                    live_mock_mode=voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode),
-                    live_mock_group=voice_speech_fixture.get("live_mock_group", request_data.live_mock_group),
-                    queue_provider_work=not continuous,
-                )
-                if continuous:
-                    await realtime_speech_turn.enqueue(segment)
+                    await realtime_speech_turn.enqueue(segment, register=register_segment)
+                else:
+                    await register_segment()
 
             async def finalize_speech_segments(metadata):
                 if realtime_speech_turn is not None:
@@ -7361,6 +7540,30 @@ async def _consume_main_processing_stream(
     application_parent_embed_created = False
     streaming_application_embed_id: Optional[str] = None
     streaming_application_file_count = 0
+    visible_code_artifacts: set[str] = set()
+    visible_app_artifacts: set[str] = set()
+    visible_steer_target: Optional[str] = None
+
+    async def observe_visible_artifact(value: str) -> None:
+        nonlocal visible_steer_target
+        reference = artifact_reference(value) if artifact_steering_enabled else None
+        if not reference or current_code_replacement_ref or project_file_reference_output:
+            return
+        kind, embed_id = reference
+        (visible_app_artifacts if kind == "application" else visible_code_artifacts).add(embed_id)
+        candidates = visible_app_artifacts or visible_code_artifacts
+        target = next(iter(candidates)) if len(candidates) == 1 else None
+        if target == visible_steer_target:
+            return
+        try:
+            await cache_service.set_active_artifact_steer_target(
+                request_data.chat_id, task_id, request_data.user_id, target,
+            )
+        except Exception:
+            logger.exception("%s Could not register artifact steering target", log_prefix)
+        else:
+            visible_steer_target = target
+
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
@@ -7438,7 +7641,8 @@ async def _consume_main_processing_stream(
     live_answer_withdrawal = None
     wellbeing_assessment = await publish_wellbeing(cache_service, request_data, preprocessing_result)
     wellbeing_card_ref = ""
-    if wellbeing_card_due(wellbeing_assessment) and directus_service and encryption_service and user_vault_key_id:
+    if (not independent_reply and wellbeing_card_due(wellbeing_assessment)
+            and directus_service and encryption_service and user_vault_key_id):
         from backend.core.api.app.services.embed_service import EmbedService
         wellbeing_card_ref = await create_wellbeing_card_embed(
             EmbedService(cache_service, directus_service, encryption_service), secrets_manager,
@@ -7524,6 +7728,8 @@ async def _consume_main_processing_stream(
                 continue
 
             if isinstance(chunk, dict) and "__voice_skill_phase__" in chunk:
+                if work_cues:
+                    work_cues.clear()
                 if speech_tracker is not None and request_data.voice_mode:
                     from backend.apps.ai.assistant_speech.voice_status import (
                         build_skill_recap, build_voice_app_use_announcement,
@@ -7625,6 +7831,7 @@ async def _consume_main_processing_stream(
                     source_delivery_task_id=authority_delivery_id,
                     recovery_inference_task_id=inference_id if request_data.recovery_preflight_id else None,
                     handoff_ttl_seconds=handoff_ttl_seconds,
+                    code_work=bool(jobs) and all(job["app_id"] == "code" and job["skill_id"] == "run" for job in jobs),
                 )
                 if inference_id and request_data.recovery_preflight_id:
                     from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
@@ -7963,6 +8170,10 @@ async def _consume_main_processing_stream(
                 if not chunk:
                     continue
 
+                if work_cues and work_cues.phase and chunk.strip():
+                    if work_cues.phase == "thinking" or (not in_code_block and not in_table_block):
+                        work_cues.clear()
+
                 # Detect leaked internal reasoning from Gemini thinking models.
                 # When the model enters an infinite reasoning loop (usually due to temperature < 1.0),
                 # it flushes its scratchpad buffer as plain text — each leaked chunk starts with
@@ -8002,7 +8213,7 @@ async def _consume_main_processing_stream(
                         )
                         continue
 
-                if project_file_reference_output or request_data.is_anonymous:
+                if independent_reply or project_file_reference_output or request_data.is_anonymous:
                     # Anonymous fences are converted to response-only embeds by
                     # the API adapter. Neither path may create persisted embeds.
                     # Preserve server-issued references as ordinary message text.
@@ -8025,6 +8236,10 @@ async def _consume_main_processing_stream(
                             continue
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
+                    if independent_reply:
+                        live_answer_withdrawal = await live_answer_gate.maybe_check("".join(final_response_chunks))
+                        if live_answer_withdrawal:
+                            break
                     if cache_service:
                         payload = _create_redis_payload(
                             task_id, request_data, "".join(final_response_chunks),
@@ -8134,6 +8349,17 @@ async def _consume_main_processing_stream(
                                     extracted_from_first_line = True
                                     logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename from first content line")
                     
+                    if work_cues and not project_file_reference_output:
+                        if _is_document_fence(current_code_language):
+                            work_cues.begin("writing_document")
+                        elif _is_slides_fence(current_code_language):
+                            work_cues.begin("writing_slides")
+                        elif current_code_filename or _is_application_preview_combined_language(current_code_language) or (
+                            current_code_language.lower() in {"html", "css", "javascript", "typescript", "jsx", "tsx",
+                                                              "python", "rust", "go", "java", "swift", "svelte", "vue"}
+                        ):
+                            work_cues.begin("writing_code")
+
                     # DEBUG: Log extracted language and filename
                     logger.info(
                         f"{log_prefix} [CODE_BLOCK_DEBUG] Final metadata: "
@@ -10504,6 +10730,7 @@ async def _consume_main_processing_stream(
                                                     generated_code_file_embeds
                                                 )["file_refs"]
                                             )
+                                            await observe_visible_artifact(application_reference)
                                             logger.info(
                                                 f"{log_prefix} Published streaming generated application embed reference "
                                                 f"after {len(generated_code_file_embeds)} file embed(s)"
@@ -10697,6 +10924,8 @@ async def _consume_main_processing_stream(
                         if is_table_line and not in_table_block:
                             # ── Table starts ─────────────────────────────
                             in_table_block = True
+                            if work_cues:
+                                work_cues.begin("writing_sheet")
                             current_table_content = line + '\n'
                             current_table_col_count = len([c for c in line.split('|') if c.strip()])
                             current_table_row_count = 0  # header doesn't count; separator doesn't count
@@ -10864,6 +11093,7 @@ async def _consume_main_processing_stream(
                         )
                         if completion_timing:
                             completion_timing.mark_first_visible_content()
+                        await observe_visible_artifact(chunk)
                     else:
                         await content_publisher.publish(payload, log_message)
                         if stream_chunk_count == 1:
@@ -10914,6 +11144,8 @@ async def _consume_main_processing_stream(
             terminal_failure_reason = terminal_failure_reason or "stream_error"
             debug_metadata["main_processing_failure_reason"] = terminal_failure_reason
     finally:
+        if work_cues:
+            await work_cues.close()
         if pre_main_open:
             pre_main_scope.__exit__(None, None, None)
         # A zero-chunk or failed stream still joins before terminal output.
@@ -11097,11 +11329,9 @@ async def _consume_main_processing_stream(
         )
         final_response_chunks = [aggregated_response]
     if request_data.same_turn_batch_id and cache_service:
-        latest_turn = await cache_service.get(
-            f"async_skill_latest_user_turn:{request_data.user_id}:{request_data.chat_id}"
-        )
-        active_delivery = await cache_service.get_active_ai_task(request_data.chat_id)
-        if latest_turn != request_data.message_id or active_delivery != task_id:
+        from backend.apps.ai.tasks.same_turn_skill_barrier import verify_resume_delivery
+        if (not await verify_resume_delivery(cache_service, request_data, task_id)
+                or await cache_service.get_active_ai_task(request_data.chat_id) != task_id):
             raise RequiredRecoveryOutputError("Same-turn resume lost chat ownership before finalization")
     terminal_failure_applies = (
         terminal_failure_reason is not None
@@ -11131,6 +11361,7 @@ async def _consume_main_processing_stream(
     # for those passes before showing the runnable application card.
     if (
         aggregated_response
+        and not independent_reply
         and not project_file_reference_output
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
@@ -11163,6 +11394,7 @@ async def _consume_main_processing_stream(
                         log_prefix=log_prefix,
                     )
                     if application_reference:
+                        await observe_visible_artifact(application_reference)
                         aggregated_response = _strip_generated_application_source_text(
                             cleaned_response.rstrip() + "\n\n" + application_reference
                         )
@@ -11186,6 +11418,7 @@ async def _consume_main_processing_stream(
                     response_text=aggregated_response,
                 )
                 if application_reference:
+                    await observe_visible_artifact(application_reference)
                     aggregated_response = _strip_generated_application_source_text(
                         aggregated_response.rstrip() + "\n\n" + application_reference
                     )
@@ -11255,7 +11488,7 @@ async def _consume_main_processing_stream(
             logger.info(f"{log_prefix} Added completed test result embed reference(s) to the reply")
 
     # A later continuation of this reply re-emits these cards first (ids only).
-    if not was_revoked_during_stream:
+    if not independent_reply and not was_revoked_during_stream:
         from backend.apps.ai.processing.carried_reply_references import store_reply_references
 
         await store_reply_references(
@@ -12172,6 +12405,7 @@ async def _consume_main_processing_stream(
     # that references those child file embeds and powers live preview startup.
     if (
         aggregated_response
+        and not independent_reply
         and not project_file_reference_output
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
@@ -12289,12 +12523,13 @@ async def _consume_main_processing_stream(
                 
                 # Update chat metadata to track this disclaimer injection
                 # This prevents showing the same disclaimer type again within the cooldown period
-                await _update_disclaimer_metadata(
-                    cache_service=cache_service,
-                    chat_id=request_data.chat_id,
-                    disclaimer_type=disclaimer_type,
-                    log_prefix=log_prefix
-                )
+                if not independent_reply:
+                    await _update_disclaimer_metadata(
+                        cache_service=cache_service,
+                        chat_id=request_data.chat_id,
+                        disclaimer_type=disclaimer_type,
+                        log_prefix=log_prefix,
+                    )
             else:
                 # Disclaimer text not found in translations - log warning but don't fail
                 logger.warning(
@@ -12563,7 +12798,7 @@ async def _consume_main_processing_stream(
     # Mint an API-process-only completion ticket while this task still owns the
     # chat. Postprocessing may finish after WebSocket/queue handling clears or
     # transfers the marker; the ticket preserves the actual completion timestamp.
-    if (aggregated_response and not was_revoked_during_stream
+    if (not independent_reply and aggregated_response and not was_revoked_during_stream
             and not was_soft_limited_during_stream and not terminal_failure_applies):
         with _project_file_finalization_stage("ticket", project_file_reference_output, log_prefix=log_prefix):
             await mint_response_summary_completion(request_data, task_id)
@@ -12575,10 +12810,9 @@ async def _consume_main_processing_stream(
     # frame; publishing it first lets the next turn build history before the prior
     # assistant message's embed reference is available for diff editing.
     if request_data.same_turn_batch_id and cache_service:
-        if (await cache_service.get(
-                f"async_skill_latest_user_turn:{request_data.user_id}:{request_data.chat_id}"
-            ) != request_data.message_id or
-                await cache_service.get_active_ai_task(request_data.chat_id) != task_id):
+        from backend.apps.ai.tasks.same_turn_skill_barrier import verify_resume_delivery
+        if (not await verify_resume_delivery(cache_service, request_data, task_id)
+                or await cache_service.get_active_ai_task(request_data.chat_id) != task_id):
             raise RequiredRecoveryOutputError("Same-turn resume lost chat ownership before final marker")
     final_payload = _create_redis_payload(
         task_id, request_data, aggregated_response, stream_chunk_count + 1,

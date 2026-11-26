@@ -1051,6 +1051,58 @@ async fn partial_selected_live_refresh_merges_latest_twenty_and_retains_all_olde
     }).await.unwrap();
 }
 #[tokio::test]
+async fn partial_selected_live_refresh_uses_canonical_read_when_latest_cache_projection_disagrees() {
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        let (mut client, monitor, server) = settlement_fixture(2, 3, |client| {
+            let next = json!({
+                "id": "10000000-0000-4000-8000-000000000002", "chat_id": CHAT,
+                "role": "assistant", "created_at": 2,
+                "encrypted_content": crypto::encrypt_combined("recent persisted reply", &[9; 32]).unwrap(),
+            });
+            let start = json!({"created_at": 0, "message_id": client.history[CHAT][0]["id"]});
+            let full = client.history[CHAT].iter().cloned().chain(std::iter::once(next)).collect::<Vec<_>>();
+            vec![
+                settlement_metadata(client),
+                settlement_metadata(client),
+                settlement_metadata(client),
+                (
+                    format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=20&respect_compression_boundary=false HTTP/1.1"),
+                    200,
+                    json!({"messages": full, "server_message_count": 4, "has_more_before": false, "start_cursor": start}),
+                ),
+                settlement_metadata(client),
+                (
+                    format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"),
+                    200,
+                    json!({"messages": full, "has_more_before": false}),
+                ),
+            ]
+        }).await;
+        let candidate = actual_settlement(&mut client, &monitor, CancellationToken::new()).await;
+        let receipt = settlement_receipt(&candidate);
+        client.acknowledge_credentials(candidate.credential_revision()).unwrap();
+        let cached = client.commit_cache_settlement(candidate, receipt).unwrap().into_window().unwrap();
+        assert_eq!(cached.chat.messages.len(), 2);
+        assert!(!cached.history_complete);
+
+        let hint = super::super::ChatInvalidation { fence: monitor.fence.clone(), pending: Default::default() };
+        let refresh = client.refresh_chat_monitor_prefer_cache(&monitor, &hint, Some(CHAT)).await.unwrap();
+        let receipt = super::super::ChatRefreshDurableReceipt {
+            ciphertext_sha256: refresh.ciphertext_sha256().unwrap(),
+            credential_revision: refresh.credential_revision(),
+        };
+        client.acknowledge_credentials(refresh.credential_revision()).unwrap();
+        let published = client.commit_chat_refresh(refresh, receipt).unwrap().into_models().unwrap();
+        let super::super::ChatSelectionUpdate::Updated(chat) = published.selection else {
+            panic!("invalid bounded page must take the strictly authenticated history path");
+        };
+        assert_eq!(chat.messages.len(), 3);
+        assert_eq!(chat.messages[2].content, "recent persisted reply");
+        assert_eq!(server.await.unwrap(), 6);
+    }).await.unwrap();
+}
+
+#[tokio::test]
 async fn cache_settlement_includes_older_retained_sync_rows_alongside_full_local_history() {
     tokio::time::timeout(std::time::Duration::from_secs(10),async {
         let (mut client,monitor,server)=settlement_fixture(70,900,|client| {

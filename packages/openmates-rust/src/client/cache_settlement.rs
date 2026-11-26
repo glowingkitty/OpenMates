@@ -211,8 +211,14 @@ impl Client {
             scope.check_chat(self, id)?;
             // Admission validates the normal server page, keeps ALL older cache
             // rows encrypted, and never moves them to complete-history state.
-            self.retain_settlement_page(&row, &page)?;
-            rows = self.owned_settlement_rows(&row)?;
+            match self.retain_settlement_page(&row, &page) {
+                Ok(()) => rows = self.owned_settlement_rows(&row)?,
+                // A cache projection with invalid counts or pagination cannot
+                // replace retained rows. Let the caller do its normal strict
+                // read, which independently checks ownership and history.
+                Err(Error::Protocol) => return Ok(None),
+                Err(error) => return Err(error),
+            }
         }
         let mut seen = HashSet::new();
         let mut messages = Plain::new(Vec::<crate::model::Message>::new());

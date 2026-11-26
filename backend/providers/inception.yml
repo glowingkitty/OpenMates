@@ -29,6 +29,7 @@ models:
         reasoning_control:
           parameter: reasoning_effort
           levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          instant_for_voice: true
           source_url: https://docs.inceptionlabs.ai/capabilities/reasoning-efforts
         name: Inception
         model_id: mercury-3

@@ -25,6 +25,9 @@ pub mod model;
 #[cfg(feature = "cli")]
 pub mod native_cache_clock;
 #[cfg(feature = "cli")]
+#[doc(hidden)]
+pub mod native_chat_open_trace;
+#[cfg(feature = "cli")]
 pub mod pairing;
 #[cfg(feature = "cli")]
 pub mod privacy;

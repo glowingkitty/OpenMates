@@ -273,6 +273,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private turnAdmission: Promise<void> = Promise.resolve();
   /** Core builds: the call's chat is loaded into the Worker core (turns are built there). */
   private coreAdmitted = false;
+  private interruptedSpeechTasks = new Set<string>();
   private assistantMessagesByTask = new Map<string, string>();
   private assistantTasksByMessage = new Map<string, string>();
   private speechActivity = { chatId: null as string | null, messageId: null as string | null,
@@ -472,7 +473,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
             !this.send({ type: 'audio_stream_end', verified_silence: verifiedSilence })) this.socketLost(generation);
       },
       onState: (state) => {
-        if (current()) this.update(state);
+        if (current()) {
+          assistantSpeechController.setCallerSpeaking(state.userSpeaking);
+          this.update(state);
+        }
       },
       onError: () => { if (current()) this.fail('connection_failed'); },
     });
@@ -600,7 +604,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         speech_output_transport: SPEECH_OUTPUT_TRANSPORT,
         // Core builds prepare a turn early on `turn.likely_end`; the server sends
         // those hints only to clients that ask for them.
-        ...(import.meta.env.VITE_OPENMATES_RUST_CORE === '1' ? { likely_end_hints: true } : {}) });
+        ...(import.meta.env.VITE_OPENMATES_RUST_CORE === '1' ? { likely_end_hints: true, playback_only_barge_in: true } : {}) });
     };
     socket.onmessage = (event: MessageEvent<string>) => {
       if (generation !== this.generation || this.socket !== socket) return;
@@ -769,6 +773,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // Until the resumed call is ready, only its readiness or refusal matters.
       if (message.type === 'ready' && typeof message.call_id === 'string' &&
           message.speech_output_transport === SPEECH_OUTPUT_TRANSPORT) {
+        this.audioGate?.setVerifiedEndpoint(message.verified_endpoint === true);
         this.adoptResumedCall(message.call_id);
         this.resumeWaiter('ready');
       } else if (message.type === 'error') {
@@ -787,6 +792,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       case 'ready': {
         if (this.state.status !== 'connecting' || typeof message.call_id !== 'string') return;
         if (message.speech_output_transport !== SPEECH_OUTPUT_TRANSPORT) { this.fail('call_unavailable'); return; }
+        this.audioGate?.setVerifiedEndpoint(message.verified_endpoint === true);
         this.startedAt = performance.now();
         this.clockUpdatedAt = this.startedAt;
         this.activeMillis = 0;
@@ -863,7 +869,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       case 'audio.interrupted': {
         if (this.state.status !== 'live' || message.call_id !== this.state.callId) return;
         const chatId = this.state.chatId;
-        const taskId = chatId ? this.canonicalService?.activeAITasks.get(chatId)?.taskId : undefined;
+        const taskId = chatId ? this.activeCallReply(chatId)?.taskId : undefined;
         const sameMessage = typeof message.assistant_message_id === 'string' &&
           message.assistant_message_id === this.assistantMessageId;
         const sameTask = typeof message.assistant_task_id === 'string' &&
@@ -874,6 +880,14 @@ export class VoiceCallController implements VoiceCallControllerLike {
         if (!sameMessage && !sameTask) return;
         const boundary = assistantSpeechController.playbackBoundary;
         if (boundary && boundary.assistant_message_id === this.assistantMessageId) this.pendingHeardBoundary = boundary;
+        if (message.scope === 'playback' && chatId) {
+          // The first answer uses the canonical task ID. Continuations can
+          // publish a different message ID when their first chunk arrives.
+          if (sameTask && taskId) this.interruptedSpeechTasks.add(taskId);
+          const replyId = sameMessage ? this.assistantMessageId : taskId;
+          if (replyId) assistantSpeechController.interruptCallReply(chatId, replyId);
+          return;
+        }
         void assistantSpeechController.stop();
         if (sameTask && taskId && chatId) void this.canonicalService?.sendCancelAiTask(taskId, chatId).catch(() => {});
         return;
@@ -1022,13 +1036,20 @@ export class VoiceCallController implements VoiceCallControllerLike {
     }
   }
 
+  private activeCallReply(chatId: string) {
+    if (!this.canonicalService) return null;
+    const secondary = this.canonicalService.getIndependentReplyViews(chatId)
+      .find(reply => this.callTurnIds.has(reply.userMessageId));
+    const task = secondary ?? this.canonicalService.activeAITasks.get(chatId);
+    return task && this.callTurnIds.has(task.userMessageId) ? task : null;
+  }
+
   /** Bind interruption decisions to the exact canonical task, including the
    * interval before preprocessing has issued an assistant message identity. */
   private publishAssistantState(): void {
     const chatId = this.state.chatId;
     if (this.state.status !== 'live' || !chatId) return;
-    const task = this.canonicalService?.activeAITasks.get(chatId);
-    const activeTask = task && this.callTurnIds.has(task.userMessageId) ? task : null;
+    const activeTask = this.activeCallReply(chatId);
     // A locally played call prompt (assistantSpeechController.playCallPrompt,
     // id "call-prompt:<request>:<kind>") is not a stored assistant message:
     // the server accepts only message ids, so it is reported as speech
@@ -1100,6 +1121,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
         if (typeof taskId === 'string' && typeof detail.message_id === 'string') {
           this.assistantMessagesByTask.set(taskId, detail.message_id);
           this.assistantTasksByMessage.set(detail.message_id, taskId);
+          if (this.interruptedSpeechTasks.has(taskId)) {
+            assistantSpeechController.interruptCallReply(chatId, detail.message_id);
+          }
         }
         if (event.type === 'aiMessageChunk' && !detail.rejection_reason &&
             typeof detail.message_id === 'string' && typeof detail.full_content_so_far === 'string' &&
@@ -1364,6 +1388,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.assistantTaskId = null;
     this.pendingHeardBoundary = null;
     this.assistantMessagesByTask.clear();
+    this.interruptedSpeechTasks.clear();
     this.assistantTasksByMessage.clear();
     this.speechActivity = { chatId: null, messageId: null, text: '', speaking: false, language: 'en', clipAudioUrl: null };
     this.canonicalService = null;

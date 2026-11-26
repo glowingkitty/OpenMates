@@ -4150,7 +4150,17 @@
         }
     }
 
-    function handleAiTaskOrChatChange() {
+    function handleAiTaskOrChatChange(event?: Event) {
+        const detail = (event as CustomEvent<{ chat_id?: string; independent_reply?: boolean }> | undefined)?.detail;
+        if (detail?.independent_reply === true) {
+            if (detail.chat_id === currentChatId && awaitingAITaskStart) {
+                // The admitted response has its own transcript row and Stop control.
+                awaitingAITaskStart = false;
+                if (awaitingAITaskTimeoutId) clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
+            return;
+        }
         console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
 
@@ -4189,7 +4199,8 @@
      * Handle AI task ended event - fade out stop button when task completes
      */
     function handleAiTaskEnded(event: CustomEvent) {
-        const { chatId, taskId, status } = event.detail;
+        const { chatId, taskId, status, independentReply } = event.detail;
+        if (independentReply === true) return;
         console.debug('[MessageInput] handleAiTaskEnded received:', {
             chatId,
             taskId,

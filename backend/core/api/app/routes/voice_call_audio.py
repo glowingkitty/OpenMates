@@ -60,12 +60,14 @@ class MicAudioForwarder:
         self._accepted, self._progress = accepted, progress
         self._queue: asyncio.Queue[object] = asyncio.Queue(maxsize=MAX_QUEUED_FRAMES + 2)
         self.queued_bytes = 0
+        self.queued_frames = 0
         self.task: asyncio.Task[None] = asyncio.create_task(self._run())
 
     def push(self, data: str, size: int) -> None:
         if self._queue.qsize() >= MAX_QUEUED_FRAMES:
             raise AudioForwardingStalled("Voice audio forwarding stalled")
         self.queued_bytes += size
+        self.queued_frames += 1
         self._queue.put_nowait(_Frame(data, size, time.monotonic()))
 
     def end(self) -> None:

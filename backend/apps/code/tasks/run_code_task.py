@@ -25,6 +25,7 @@ from backend.shared.python_utils.catalog_unit_prices import skill_price
 from backend.shared.python_utils.metered_author_billing import code_execution_credits
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
+from backend.apps.code.run_cancellation import code_run_cancel_key
 from backend.apps.code.tasks.command_parent_embed import finalize_command_parent_embed, test_run_parent_payload
 from backend.apps.code.tasks.test_result_embed import persist_test_result_embed, run_result_embed_id
 from backend.apps.code.tasks import cloud_command_execution as cloud_cmd
@@ -497,6 +498,8 @@ async def _append_output(execution_id: str, kind: str, text: str) -> None:
 async def _is_cancel_requested(execution_id: str) -> bool:
     cache_service = await get_worker_cache_service()
     client = await cache_service.client
+    if await client.get(code_run_cancel_key(execution_id)):
+        return True
     raw = await client.get(_execution_key(execution_id))
     data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw) if raw else {}
     return bool(data.get("cancel_requested") or data.get("status") == "cancelled")

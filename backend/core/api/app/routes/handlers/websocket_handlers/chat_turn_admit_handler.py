@@ -106,6 +106,9 @@ async def handle_chat_turn_admit(
             or request.get("team_id") != payload.get("team_id")
             or request.get("is_incognito") is True
             or "admission_context" in request
+            or "active_input_reply" in request
+            or "active_input_steer_task_id" in request
+            or "active_input_steer_batch_id" in request
             or "client_context_binding_ref" in request
             or "client_context_turn_id" in request
             or "first_personal_admission" in request

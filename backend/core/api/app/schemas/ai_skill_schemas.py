@@ -41,6 +41,13 @@ class AskSkillRequest(BaseModel):
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
     queue_mode: Literal["follow_up", "steer"] = Field(default="follow_up", description="Disposition when this message waits behind an active AI task.")
     queue_revision: int = Field(default=1, ge=1, description="Optimistic revision of a queued user message.")
+    active_input_parallel_source: Optional[str] = Field(default=None, max_length=64, repr=False,
+        description="Server-bound foreground source for an independent read-only reply.")
+    active_input_parallel_source_message: Optional[str] = Field(default=None, max_length=255, repr=False)
+    active_input_steer_task_id: Optional[str] = Field(default=None, max_length=64)
+    active_input_steer_batch_id: Optional[str] = Field(default=None, max_length=96)
+    active_input_reply: Optional[str] = Field(default=None, max_length=512, repr=False,
+        description="Server-authored read-only status or clarification for active chat work.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     current_chat_summary: Optional[str] = Field(default=None, max_length=4000, description="The current decrypted, client-authorized chat summary used only to bound preprocessing context.")

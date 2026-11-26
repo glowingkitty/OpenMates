@@ -61,6 +61,7 @@ async def test_first_audio_negotiates_voxtral_turn_detection_and_hints(monkeypat
     await session.send_audio("first-captured-frame")
     assert http.connections[0]["url"].endswith("?model=voxtral-mini-transcribe-realtime-3-0")
     assert http.connections[0]["headers"] == {"Authorization": "Bearer server-secret"}
+    assert http.connections[0]["proxy"] is None
     assert socket.sent == [
         {"type": "session.update", "session": {
             "audio_format": {"encoding": "pcm_s16le", "sample_rate": 16000},
@@ -86,11 +87,11 @@ async def test_quiet_parks_provider_without_pcm_and_resumes_the_same_logical_cal
     await session.end_audio()
     assert await session.receive() == {"type": "transcription.text.delta", "text": "Book for"}
     assert await session.receive() == {"type": "transcription.text.delta", "text": " two."}
-    assert await session.receive() == {"type": "turn.end"}
-    assert first.closed and not http.closed
+    assert await session.receive() == {"type": "turn.end", "drained_input_frame": 1}
+    assert not http.closed
     idle_receive = asyncio.create_task(session.receive())
     await asyncio.sleep(0)
-    assert not idle_receive.done() and len(http.connections) == 1
+    assert first.closed and not idle_receive.done() and len(http.connections) == 1
     assert first.sent[1:] == [{"type": "input_audio.append", "audio": "first-speech"},
                              {"type": "input_audio.end"}]
     await session.send_audio("resumed-speech")
@@ -100,9 +101,42 @@ async def test_quiet_parks_provider_without_pcm_and_resumes_the_same_logical_cal
     await session.close()
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.audio.complete-turn-admission
+async def test_final_words_and_next_speech_arrive_while_previous_socket_is_closing(monkeypatch):
+    closing, release = asyncio.Event(), asyncio.Event()
+    first = speech_window({"type": "transcription.done", "text": "A final word."})
+    second = speech_window({"type": "turn.start"}, {"type": "transcription.done", "text": "Next."})
+    session, http = open_transport(monkeypatch, first, second)
+
+    async def slow_close():
+        closing.set()
+        await release.wait()
+        first.closed = True
+
+    monkeypatch.setattr(first, "close", slow_close)
+    await session.open()
+    try:
+        await session.send_audio("first")
+        await session.end_audio()
+        final = await asyncio.wait_for(session.receive(), 0.5)
+        assert final == {"type": "transcription.text.delta", "text": "A final word."}
+        assert await session.receive() == {"type": "turn.end", "drained_input_frame": 1}
+        await asyncio.wait_for(closing.wait(), 0.5)
+        await session.send_audio("second")
+        assert await asyncio.wait_for(session.receive(), 0.5) == {"type": "turn.start"}
+        await session.end_audio()
+        assert await asyncio.wait_for(session.receive(), 0.5) == {"type": "transcription.text.delta", "text": "Next."}
+        assert await session.receive() == {"type": "turn.end", "drained_input_frame": 2}
+        assert not first.closed
+    finally:
+        release.set()
+        await session.close()
+    assert first.closed and second.closed and http.closed
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.lifecycle.recovery-and-billing
 async def test_speech_resuming_during_flush_keeps_events_in_audio_order(monkeypatch):
-    first = speech_window({"type": "turn.end"}, {"type": "transcription.text.delta", "text": "First."},
+    first = speech_window({"type": "turn.end", "drained_input_frame": 42}, {"type": "transcription.text.delta", "text": "First."},
                           {"type": "transcription.done", "text": "First."})
     second = speech_window({"type": "turn.start"})
     session, _ = open_transport(monkeypatch, first, second)
@@ -112,8 +146,10 @@ async def test_speech_resuming_during_flush_keeps_events_in_audio_order(monkeypa
     await session.send_audio("second")
     events = [await session.receive() for _ in range(4)]
     assert [event["type"] for event in events] == ["turn.end", "transcription.text.delta", "turn.end", "turn.start"]
-    assert first.closed and not second.closed
+    assert "drained_input_frame" not in events[0] and events[2]["drained_input_frame"] == 1
+    assert not second.closed
     await session.close()
+    assert first.closed and second.closed
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
@@ -136,11 +172,12 @@ async def test_provider_idle_expiry_is_recoverable_without_replaying_audio(monke
     await session.open()
     await session.send_audio("before-expiry")
     assert await session.receive() == {"type": "turn.end"}
-    assert first.closed and len(http.connections) == 1
+    assert len(http.connections) == 1
     await session.send_audio("after-expiry")
     assert await session.receive() == {"type": "turn.start"}
     assert second.sent[1:] == [{"type": "input_audio.append", "audio": "after-expiry"}]
     await session.close()
+    assert first.closed and second.closed
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.privacy
@@ -168,3 +205,17 @@ async def test_provider_errors_expose_only_safe_bounded_diagnostics(code, expect
         assert "PRIVATE" not in str(failure.value) + caplog.text
     finally:
         await socket.close()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary
+async def test_voxtral_speech_uses_the_scoped_proxy_without_changing_destination(monkeypatch):
+    monkeypatch.setattr(provider, "isolated_voice_websocket_proxy", lambda: "http://runner-gateway:3128")
+    socket = speech_window()
+    session, http = open_transport(monkeypatch, socket)
+    await session.open()
+    try:
+        await session.send_audio("synthetic-frame")
+        assert http.connections[0]["url"].startswith(provider.VOXTRAL_VOICE_URL)
+        assert http.connections[0]["proxy"] == "http://runner-gateway:3128"
+    finally:
+        await session.close()

@@ -353,10 +353,11 @@ def focus_cleanup_envelope(request) -> dict:
     return {**{field: getattr(request, field) for field in fields}, 'message_history': []}
 
 
-async def cancel_focus_execution(cache, user_id: str, chat_id: str, execution_id: str) -> bool:
+async def find_cancellable_focus_execution(cache, user_id: str, chat_id: str, execution_id: str):
+    """Verify one owner-scoped Focus delivery still has its original active authority."""
     raw = await cache.get(f"focus_execution_root:{user_id}:{chat_id}:{execution_id}")
     if not raw:
-        return False
+        return None
     try:
         value = _decode_focus_authority_mapping(raw)
         from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -364,11 +365,19 @@ async def cancel_focus_execution(cache, user_id: str, chat_id: str, execution_id
         root_id = value['root_id']
         object.__setattr__(request, '_focus_authority_task_id', root_id)
     except (TypeError, ValueError, KeyError):
-        return False
+        return None
     if (request.user_id != user_id or request.chat_id != chat_id
             or focus_authority_root(request, execution_id) != root_id
             or await cache.get_active_ai_task(chat_id) != root_id):
+        return None
+    return request, root_id
+
+
+async def cancel_focus_execution(cache, user_id: str, chat_id: str, execution_id: str) -> bool:
+    execution = await find_cancellable_focus_execution(cache, user_id, chat_id, execution_id)
+    if execution is None:
         return False
+    request, root_id = execution
     client = await cache.client
     await client.set(focus_authority_phase_key(user_id, chat_id, root_id), 'expired', ex=FOCUS_AUTHORITY_TTL)
     await client.eval(

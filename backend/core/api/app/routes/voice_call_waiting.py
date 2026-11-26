@@ -61,6 +61,8 @@ class VoiceWaiting:
     async def route(self, text: str, intent: str, *, send: Send, call_id: str,
                     clip: dict[str, object] | None = None, categorized: bool = False) -> tuple[str | None, str]:
         """Decide a complete utterance: (discard reason or None, text to send)."""
+        if intent == "pause_playback":
+            return "pause_playback", text
         if intent == "stop":
             return "stop", text
         if intent == "wait":

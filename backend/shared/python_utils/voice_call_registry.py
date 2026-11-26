@@ -22,6 +22,7 @@ FINALIZATION_GRACE_SECONDS = 300
 class VoiceCallBinding:
     state: str
     grace_expires_at: int | None
+    state_cues: bool = False
 
 
 def _keys(call_id: str) -> tuple[str, str]:
@@ -41,7 +42,7 @@ async def _client(cache: Any) -> Any:
 async def register_active_call(
     cache: Any, *, user_id: str, session_id: str, chat_id: str, call_id: str,
     ttl_seconds: int = ACTIVE_TTL_SECONDS,
-    instant_feedback: bool = False,
+    instant_feedback: bool = False, state_cues: bool = False,
 ) -> None:
     key, _ = _keys(call_id)
     if not all(isinstance(value, str) and value for value in (user_id, session_id, chat_id)):
@@ -49,9 +50,9 @@ async def register_active_call(
     client = await _client(cache)
     created = await client.eval(
         "if redis.call('EXISTS', KEYS[1]) ~= 0 then return 0 end "
-        "redis.call('HSET', KEYS[1], 'user', ARGV[1], 'session', ARGV[2], 'chat', ARGV[3], 'state', 'active', 'instant_feedback', ARGV[5]) "
+        "redis.call('HSET', KEYS[1], 'user', ARGV[1], 'session', ARGV[2], 'chat', ARGV[3], 'state', 'active', 'instant_feedback', ARGV[5], 'state_cues', ARGV[6]) "
         "redis.call('EXPIRE', KEYS[1], ARGV[4]) return 1",
-        1, key, user_id, session_id, chat_id, ttl_seconds, int(instant_feedback),
+        1, key, user_id, session_id, chat_id, ttl_seconds, int(instant_feedback or state_cues), int(state_cues),
     )
     if created != 1:
         raise RuntimeError("Call identity already exists")
@@ -105,9 +106,9 @@ async def require_active_call(
 ) -> VoiceCallBinding:
     key, messages_key = _keys(call_id)
     client = await _client(cache)
-    values = await client.hmget(key, "user", "session", "chat", "state", "grace_expires_at")
+    values = await client.hmget(key, "user", "session", "chat", "state", "grace_expires_at", "state_cues")
     decoded = [value.decode() if isinstance(value, bytes) else value for value in values]
-    owner, bound_session, bound_chat, state, expires_at = decoded
+    owner, bound_session, bound_chat, state, expires_at, state_cues = decoded
     session_matches = bound_session == session_id or (
         bool(legacy_session_hash) and bound_session == legacy_session_hash
     )
@@ -121,7 +122,7 @@ async def require_active_call(
     expiry = int(expires_at) if expires_at else None
     if state == "finalizing" and (expiry is None or expiry <= int(time.time())):
         raise ValueError("Call message not authorized")
-    return VoiceCallBinding(state=state, grace_expires_at=expiry)
+    return VoiceCallBinding(state=state, grace_expires_at=expiry, state_cues=state_cues == "1")
 
 
 async def finalize_active_call(

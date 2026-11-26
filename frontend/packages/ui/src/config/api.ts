@@ -195,6 +195,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     ...(memoryWriteJobsCapabilityEnabled ? ["memory_write_jobs"] : []),
     ...(chatOrchestrationJobsCapabilityEnabled ? ["chat_orchestration_jobs"] : []),
     "agentic-storage-v2",
+    ...(import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? ["parallel_chat_turns_v1"] : []),
   ];
   if (clientCapabilities.length > 0) {
     params.push(`client_capabilities=${clientCapabilities.join(",")}`);

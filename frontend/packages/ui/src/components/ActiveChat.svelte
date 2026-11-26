@@ -780,6 +780,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     };
 
     type AiMessageChunkPayload = {
+        independent_reply?: boolean;
         sequence: number;
         chat_id: string;
         message_id: string;
@@ -787,6 +788,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         created_at?: number;
         full_content_so_far?: string | null;
         is_final_chunk?: boolean;
+        awaiting_async_skill_continuation?: boolean;
         category?: string;
         model_name?: string;
         rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates system message, not AI response
@@ -5987,6 +5989,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         return { taskId, userMessageId };
     });
 
+    const independentAssistantTurns = $derived.by(() => {
+        void _aiTaskStateTrigger;
+        return currentChat?.chat_id ? chatSyncService.getIndependentReplyViews(currentChat.chat_id) : [];
+    });
+
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
@@ -6695,6 +6702,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // FALLBACK: Mark thinking as complete when we start receiving the actual response
         // This ensures the "Thinking..." state ends even if thinking_complete event is missed
         // The message_id in the chunk should match the task_id used for thinking
+        if (chunk.independent_reply === true) _aiTaskStateTrigger++;
+        const typingOwnsReply = currentTypingStatus?.chatId === chunk.chat_id
+            && chunk.independent_reply !== true;
         const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
         if (thinkingEntry && thinkingEntry.isStreaming) {
             console.log(`[ActiveChat] 🧠 Marking thinking as complete (fallback) | message_id: ${chunk.message_id}`);
@@ -6722,12 +6732,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // These should be rendered as system notices, not as assistant bubbles
             const isRejectionMessage = !!chunk.rejection_reason;
             if (isRejectionMessage) {
-                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
+                if (chunk.independent_reply !== true) clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
             }
             
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
-            const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
-            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+            const fallbackCategory = typingOwnsReply ? currentTypingStatus?.category : undefined;
+            const fallbackModelName = typingOwnsReply ? currentTypingStatus?.modelName : undefined;
             const newAiMessage: ChatMessageModel = {
                 message_id: chunk.message_id,
                 chat_id: chunk.chat_id, // Ensure this is correct
@@ -6764,7 +6774,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Wait until the new assistant message is rendered in the DOM before fading
             // out the centered overlay. Also enforces a minimum display time so step
             // cards (title, mate, model) remain readable before disappearing.
-            clearProcessingPhaseWhenReady(chunk.chat_id);
+            if (chunk.independent_reply !== true) clearProcessingPhaseWhenReady(chunk.chat_id);
             
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
@@ -6778,7 +6788,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const previousLength = targetMessage.content?.length || 0;
             const newLength = chunk.full_content_so_far?.length || 0;
             const lengthDiff = newLength - previousLength;
-            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+            const fallbackModelName = typingOwnsReply ? currentTypingStatus?.modelName : undefined;
             
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
@@ -6803,7 +6813,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
                 targetMessage.role = 'system';
                 targetMessage.status = 'waiting_for_user';
-                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
+                if (chunk.independent_reply !== true) clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
             } else if (targetMessage.status !== 'streaming' && targetMessage.status !== 'synced' && !chunk.rejection_reason) {
                 targetMessage.status = 'streaming';
             }
@@ -6957,7 +6967,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const finalMessageInArray = currentMessages.find(m => m.message_id === chunk.message_id);
             if (finalMessageInArray) {
                 // CRITICAL FIX: Ensure model_name is preserved in final message
-                const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+                const fallbackModelName = typingOwnsReply ? currentTypingStatus?.modelName : undefined;
                 const finalModelName = chunk.model_name || finalMessageInArray.model_name || fallbackModelName;
 
                 // Attach thinking metadata to the final message so it persists across devices.
@@ -7186,7 +7196,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
                 // Skip for incognito chats (they're not stored on the server). Recovery-v1 completions are persisted
                 // through sealed recovery jobs; sending legacy ai_response_completed for them is rejected by design.
-                if (!currentChat?.is_incognito && !currentChat?.is_anonymous && !isSealedRecoveryCompletion) {
+                if (chunk.independent_reply !== true && !currentChat?.is_incognito
+                    && !currentChat?.is_anonymous && !isSealedRecoveryCompletion) {
                     try {
                         console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
                             messageId: updatedFinalMessage.message_id,
@@ -7197,7 +7208,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     } catch (error) {
                         console.error('[ActiveChat] Error sending completed AI response to server:', error);
                     }
-                } else if (isSealedRecoveryCompletion) {
+                } else if (isSealedRecoveryCompletion || chunk.independent_reply === true) {
                     console.debug('[ActiveChat] Skipping legacy AI response storage for sealed recovery completion:', {
                         messageId: updatedFinalMessage.message_id,
                         chatId: updatedFinalMessage.chat_id,
@@ -7207,7 +7218,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     console.debug('[ActiveChat] Skipping server storage for incognito chat - not persisted on server');
                 }
 
-                maybeAutoStartCreatedApplicationPreview(updatedFinalMessage);
+                if (chunk.independent_reply !== true) maybeAutoStartCreatedApplicationPreview(updatedFinalMessage);
 
                 if (chatHistoryRef) {
                     chatHistoryRef.updateMessages(currentMessages);
@@ -12610,7 +12621,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 const isStaleAcknowledgementForAnotherTurn = !!processingFeedbackTurn
                     && processingFeedbackTurn.userMessageId !== user_message_id
                     && latestPendingUserMessage?.message_id !== user_message_id;
-                const isDelayedAcknowledgement = terminalProcessingFeedbackTurns.has(feedbackTurnKey)
+                const isDelayedAcknowledgement = event.detail.independent_reply === true
+                    || terminalProcessingFeedbackTurns.has(feedbackTurnKey)
                     || hasKnownTypingForTurn
                     || isStaleAcknowledgementForAnotherTurn;
 
@@ -12664,8 +12676,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             taskId?: string;
             userMessageId?: string;
             status?: string;
+            independentReply?: boolean;
         }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
+                if (event.detail.independentReply) {
+                    _aiTaskStateTrigger++;
+                    return;
+                }
                 if (['cancelled', 'timed_out', 'failed'].includes(event.detail.status ?? '')) {
                     projectFileProgress = null;
                     if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
@@ -12699,11 +12716,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // Empty messages (interrupt before any text streamed) are NOT persisted.
                 const taskEndStatus = event.detail.status ?? 'unknown';
                 const shouldPersistInterruptedPartial = taskEndStatus === 'cancelled' || taskEndStatus === 'timed_out';
+                const ownsAssistantRow = (message: ChatMessageModel) =>
+                    (!!event.detail.taskId && message.message_id === event.detail.taskId)
+                    || (!!event.detail.userMessageId && message.user_message_id === event.detail.userMessageId);
                 let needsUpdate = false;
                 const messagesToPersist: ChatMessageModel[] = [];
                 for (let i = 0; i < currentMessages.length; i++) {
                     const msg = currentMessages[i];
-                    if (shouldPersistInterruptedPartial && msg.role === 'assistant' && msg.status === 'streaming') {
+                    if (shouldPersistInterruptedPartial && msg.role === 'assistant'
+                        && msg.status === 'streaming' && ownsAssistantRow(msg)) {
                         const finalized = { ...msg, status: 'synced' as const };
                         currentMessages[i] = finalized;
                         needsUpdate = true;
@@ -12738,10 +12759,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     }
                 }
                 
-                // FALLBACK: Mark ALL thinking entries as complete when AI task ends
-                // This ensures no thinking state is left in "streaming" mode after the task finishes
+                // Complete only thinking state belonging to the ending response.
                 let hasStreamingThinking = false;
                 thinkingContentByTask.forEach((entry, taskId) => {
+                    if (taskId !== event.detail.taskId
+                        && !currentMessages.some((message) => message.message_id === taskId && ownsAssistantRow(message))) return;
                     if (thinkingPlaceholderMessageIds.has(taskId)) {
                         thinkingContentByTask.delete(taskId);
                         const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
@@ -13259,20 +13281,25 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             chatId: string;
             taskId?: string;
             userMessageId?: string;
+            independentReply?: boolean;
         }>) => {
-            const { chatId, taskId, userMessageId } = event.detail;
+            const { chatId, taskId, userMessageId, independentReply } = event.detail;
             if (chatId !== currentChat?.chat_id) return;
+            if (independentReply) _aiTaskStateTrigger++;
 
             if (
-                processingFeedbackTurn
+                !independentReply && processingFeedbackTurn
                 && !matchesProcessingFeedbackTerminal(processingFeedbackTurn, { taskId, userMessageId })
             ) return;
 
             console.warn(`[ActiveChat] AI stream interrupted for current chat ${chatId} - finalizing streaming/processing messages`);
-            if (processingFeedbackTurn) {
+            if (!independentReply && processingFeedbackTurn) {
                 clearProcessingFeedback(chatId, processingFeedbackTurn.userMessageId, true);
             }
             for (const msg of currentMessages) {
+                const matchesInterruptedRow = msg.message_id === taskId
+                    || (!!userMessageId && (msg.message_id === userMessageId || msg.user_message_id === userMessageId));
+                if ((taskId || userMessageId) && !matchesInterruptedRow) continue;
                 // Recover messages stuck in 'streaming' (stream was interrupted mid-flight)
                 // AND 'processing' (task was dispatched but worker never picked it up / crashed)
                 if (msg.status === 'streaming' || (msg.role === 'user' && msg.status === 'processing')) {
@@ -14343,6 +14370,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                          {processingPhase}
                          {pendingAssistantResponse}
                          {activeAssistantTurn}
+                         {independentAssistantTurns}
+                         onStopIndependentReply={(chatId, taskId) => { void chatSyncService.sendCancelAiTask(taskId, chatId); }}
                          {thinkingContentByTask}
                          chatTitle={activeChatDecryptedTitle}
                          {provisionalChatTitle}

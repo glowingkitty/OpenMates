@@ -1,0 +1,78 @@
+schema_version: 2
+profile: concise
+id: unified-chat-voice-processing
+title: Unified chat and voice processing
+status: implementing
+goal: >-
+  Keep regular chat processing working and drastically speed up voice processing.
+  Use the same pipeline for chat messages, submitted dictation and voice calls as much as reasonable,
+  and provide sub-second audible feedback on completed voice turns.
+specifications:
+  - feature.chat-queued-followups
+  - feature.chat-processing-feedback
+  - feature.video-call
+implementation:
+  - >-
+    Capture a baseline on the exact worktree base. Record speech-end to first audible cue or reply and
+    separately to first audible substantive reply. Keep startup measurements separate.
+  - >-
+    Start with the terminal UI and shared backend. Keep ordinary pre/main/post for a normal turn and
+    prove the existing request and a context-dependent follow-up in the real terminal against real inference.
+    Use the terminal UI first to implement and test shared active-work processing.
+  - >-
+    Route ambiguous active-work follow-ups with a bounded Jev decision over the submitted message and
+    authorized target metadata. Resolve target ambiguity without changing running work. An independent
+    question starts a normal turn. Factual status can use verified execution state. Explicit steering and
+    cancellation use a verified target and permissions.
+  - >-
+    Treat a suspended code.run and a worker still streaming code as separate test cases. The former
+    has released the chat's active delivery. A second turn can claim it while the command runs, and the
+    original completion waits for the foreground to release. The streaming worker still owns that
+    delivery. To answer a question concurrently, bind the second request and its events to their own
+    durable turn and user, and verify recovery, accounting and scoped stop for both. Only the
+    authorized writer may edit its artifact. Read-only concurrent inference must also guard implicit
+    writes from generated code, focus and tool output. Verify the two replies during overlapping
+    streams before counting this case as working.
+  - >-
+    Allow existing skills and linked subchats to continue while an independent turn answers. Apply
+    ordered changes to the original artifact at a safe checkpoint. Reconcile a correction racing commit
+    as an update to the completed artifact. Keep message, execution and artifact identities stable.
+  - >-
+    After real terminal chat passes, verify the shared behavior in web chat and submitted dictation,
+    then in signed-in web calls. Overlap disposable voice preparation and independent admission work
+    while preserving one authenticated encrypted chat request per confirmed transcript.
+  - >-
+    Let barge-in stop audio and highlighting immediately. Play localized Mate cues on confirmed thinking
+    and material work, with occasional updates during prolonged quiet. Keep app announcements and recaps.
+    These voice cues create no assistant messages. Add artifact-start cues for code, sheets, documents
+    and slides. Allow ready answer speech and caller speech to take priority.
+  - >-
+    Implement and test the same architecture in the native Apple apps after real web chat and call requests
+    pass. Evaluate on-device speech using the same authorized text admission. Local mode sends text and
+    does not transmit raw microphone audio or fetch cloud-generated speech.
+required_checks:
+  - >-
+    In order, confirm real requests through the terminal UI, then web chat and calls, then the native
+    Apple apps. Keep fixture checks to cover timing-sensitive races and report live inference evidence
+    for each surface before proceeding to the next.
+  - >-
+    Use exact-source isolated GitHub CI or an isolated E2B environment. Exercise normal chat and
+    submitted text, ordinary queue/retry behavior, reconnect and encrypted history, active subchats
+    and commands, artifact steering, and explicit cancellation of one execution.
+  - >-
+    Keep simulated AI users paused. An individual real-inference run must name one reviewed test
+    and the exact candidate revision. Exclude these tests from nightly collection and bulk retries.
+    Issue development and CI Gemini keys from a dedicated development project on the existing billing
+    account. Configure that project's monthly spend cap in AI Studio. Both projects draw on the
+    account balance and tier limit. Reserve production headroom and allow for delayed project-cap
+    enforcement. Bound explicit test calls across chats, including decision, safety, auxiliary,
+    speech and retry costs where those providers are used.
+    An environment rejection or fixture replay cannot satisfy a real-inference gate.
+  - >-
+    Record paired baseline and candidate real calls, including short replies, thinking, skill execution,
+    multilingual speech, pauses and barge-in. Report cue and substantive playback delays, omissions,
+    false endpoints and repeated cues. The target is first audible feedback under one second and
+    first substantive playback under one second for straightforward fast-model turns.
+  - >-
+    Fix regressions and present the evidence before requesting the owner's explicit confirmation to
+    merge into dev. Worktree and isolated test runs are authorized before that decision.

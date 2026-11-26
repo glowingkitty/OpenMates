@@ -1056,6 +1056,104 @@ def test_main_reasoning_recommendation_is_resolved_per_actual_server(monkeypatch
     assert {key: calls[0][key] for key in ("reasoning_effort", "thinking_level") if key in calls[0]} == expected
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.reasoning.preprocessor-recommendation,video-call.audio.localized-waiting
+@pytest.mark.parametrize("voice,tier,plain_prose,recommendation,catalog_instant,expected", [
+    (True, "low", True, None, True, "instant"),
+    (True, "low", True, "LOW", True, "instant"),
+    (True, None, True, None, True, "medium"),
+    (True, "ambiguous", True, None, True, "medium"),
+    (True, "simple", True, None, True, "medium"),
+    (True, "low", False, None, True, "medium"),
+    (False, "low", True, None, True, "medium"),
+    (True, "low", True, "HIGH", True, "high"),
+    (True, "low", True, None, False, "medium"),
+    (True, "low", True, None, "fixed", "low"),
+])
+async def test_mercury_stream_sends_native_effort_and_announces_only_reasoning(
+    monkeypatch, reasoning_catalog, voice, tier, plain_prose, recommendation, catalog_instant, expected,
+):
+    import json
+    import httpx
+    from backend.apps.ai.llm_providers import inception_client
+    from backend.apps.ai.processing.main_processor import _prefer_instant_voice_reasoning
+    from backend.apps.ai.processing.model_routing import MERCURY_MODEL, normalize_request_tier
+    from backend.apps.ai.processing.jev_preprocessing import WELLBEING_SIGNALS
+    from backend.apps.ai.processing.preprocessor import (
+        PreprocessingResult, _plain_prose_routing_proof, _voice_instant_route_proof,
+    )
+
+    request_data = SimpleNamespace(voice_mode=voice, _verified_live_voice_dispatch=voice)
+    decisions = {"public_decisions": {
+        "temperature": "precise", "enable_subchats": False, "ai_model_topics": [],
+        "harmful_or_illegal": 0, "misuse_risk": 0, "output_language": "en",
+        "preview": "none", "icon_names": [],
+        "request_purpose": {"harmful_purpose": "none", "illegal_category": "none",
+                            "live_site_abuse": 0, "live_site_abuse_repeated_across_sites": 0},
+        "wellbeing_scores": dict.fromkeys(WELLBEING_SIGNALS, 0),
+    }}
+    if tier is not None:
+        decisions["complexity"] = tier
+    route = {"early_decisions": decisions}
+    normalized = normalize_request_tier(tier)
+    prose = _plain_prose_routing_proof(
+        route, is_first_message=False, context_fast_path=plain_prose,
+        task_area="general", complexity=normalized, previews=[],
+    )
+    assert prose is plain_prose
+    preprocessing = PreprocessingResult(
+        complexity=normalized, selected_main_llm_model_id=MERCURY_MODEL,
+        requested_reasoning_level=recommendation,
+        voice_instant_route_proof=_voice_instant_route_proof(request_data, route, prose),
+    )
+    events = []
+    # The public getter normalizes and copies catalog models. Mutate the
+    # source fixture so dispatch reads the intended server declaration.
+    model = llm_utils.config_manager._provider_configs["inception"]["models"][0]
+    controls = model["servers"][0]["reasoning_control"]
+    controls["instant_for_voice"] = catalog_instant is not False
+    if catalog_instant == "fixed":
+        model["reasoning_control"] = {"fixed": True}
+    native_client = inception_client.InceptionClient
+
+    def request_seen(request):
+        payload = json.loads(request.content)
+        assert request.url.path == "/v1/chat/completions"
+        assert payload["model"] == "mercury-3"
+        assert payload["max_completion_tokens"] == 100
+        events.append(payload["reasoning_effort"])
+        return httpx.Response(200, text=(
+            'data: {"choices":[{"delta":{"content":"Answer"},"finish_reason":"stop"}]}\n\n'
+            'data: [DONE]\n\n'
+        ))
+
+    def client(key, *, max_retries):
+        return native_client(key, max_retries=max_retries, transport=httpx.MockTransport(request_seen))
+
+    async def synthetic_key(_):
+        return "synthetic"
+
+    async def admit(_model, _limit, **_kwargs):
+        events.append("admitted")
+        return 100
+
+    async def announce():
+        events.append("thinking")
+
+    monkeypatch.setattr(inception_client, "InceptionClient", client)
+    monkeypatch.setattr(inception_client, "resolve_api_key", synthetic_key)
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: inception_client.invoke_inception_chat_completions)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda *_: ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda *_: [])
+    assert [chunk async for chunk in llm_utils.call_main_llm_stream(
+        task_id="task", model_id="inception/mercury-3", system_prompt="system",
+        message_history=[{"role": "user", "content": "hello"}], temperature=.7,
+        pre_dispatch_admission=admit, on_reasoning_dispatch=announce,
+        prefer_instant_voice=_prefer_instant_voice_reasoning(request_data, preprocessing, MERCURY_MODEL),
+        requested_reasoning_level=recommendation,
+    )] == ["Answer"]
+    assert events == (["admitted", "instant"] if expected == "instant" else ["admitted", "thinking", expected])
+
+
 def test_mercury_high_deadline_is_not_shortened_by_generic_watchdogs(monkeypatch, reasoning_catalog):
     observed = []
     async def provider(**_):

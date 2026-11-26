@@ -84,6 +84,93 @@ fn slash_embed_accepts_the_displayed_short_reference() {
 
 // contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
 #[test]
+fn streamed_code_card_alias_resolves_the_full_id_even_with_a_matching_uuid_prefix() {
+    let mut ui = Ui::new();
+    ui.set_authenticated(true);
+    let request_id = RequestId(41);
+    ui.paste("Build a recipe app");
+    let commands = ui.key(key(KeyCode::Enter));
+    let [UiCommand::Send { chat_id: None, text }] = &commands[..] else {
+        panic!("A fresh chat must submit through the ordinary composer");
+    };
+    ui.register_send(request_id, None, text, false);
+    ui.stream_for(
+        request_id,
+        StreamUpdate::Started {
+            chat_id: "recipe-chat".into(),
+            message_id: "recipe-request".into(),
+            expects_reply: true,
+        },
+        true,
+    );
+    let other = "237a754b-9f65-4ddd-b761-2d601131837e";
+    let reference = |id| format!("```json\n{}\n", json!({"type": "code", "embed_id": id}));
+    let stream = |ui: &mut Ui, content| {
+        ui.stream_for(
+            request_id,
+            StreamUpdate::Content {
+                content,
+                thinking: String::new(),
+                mate: String::new(),
+            },
+            true,
+        );
+    };
+    stream(&mut ui, reference(CODE));
+    // An unfinished fence has no embed card.
+    assert!(!screen(&mut ui).contains("/embed emb-v-1"));
+    stream(&mut ui, format!("{}```\n\n", reference(CODE)));
+    let first_screen = screen(&mut ui);
+    assert!(first_screen.contains("│ Embed · Code "));
+    assert!(first_screen.contains("│ /embed emb-v-1 "));
+    assert!(!first_screen.contains("/embed 237a754b"));
+    stream(
+        &mut ui,
+        format!(
+            "{}```\n\nAnother result.\n\n{}```\n\n",
+            reference(CODE),
+            reference(other)
+        ),
+    );
+    screen(&mut ui);
+    for (alias, expected) in [
+        ("emb-v-1", CODE),
+        ("emb-v-2", other),
+        ("237a754b", "237a754b"),
+        (CODE, CODE),
+    ] {
+        for c in format!("/embed {alias}").chars() {
+            ui.key(key(KeyCode::Char(c)));
+        }
+        let commands = ui.key(key(KeyCode::Enter));
+        assert!(matches!(
+            &commands[..],
+            [UiCommand::Open(Workspace::Apps, id)] if id == &format!("embed:{expected}")
+        ));
+    }
+    ui.set_item(
+        Workspace::Apps,
+        Item {
+            id: CODE.into(),
+            fields: json!({
+                "type": "code",
+                "content": {
+                    "app_id": "code",
+                    "skill_id": "code",
+                    "filename": "recipe.html",
+                    "code": "<h1>Recipes</h1>",
+                },
+            }),
+            ..Default::default()
+        },
+    );
+    let details = screen(&mut ui);
+    assert!(details.contains("Code · Code  ·  emb-v-1"), "{details}");
+    assert!(!details.contains("Code · Code  ·  emb-v-2"));
+}
+
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
+#[test]
 fn embed_detail_shows_a_per_type_summary() {
     let mut ui = chat_with_embeds();
     ui.set_item(

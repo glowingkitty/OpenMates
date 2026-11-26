@@ -100,3 +100,86 @@ async def test_utility_chain_recovers_through_mercury_or_vertex(monkeypatch, pur
     assert result.error_message is None
     expected_calls = ["google", "mercury", "vertex"] if independent_unavailable else ["google", "mercury"]
     assert calls == expected_calls
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "module_name,caller,source_argument,source,output_field,translation",
+    [
+        ("preprocessor", "translate_chat_title", "title", "Kochplanung",
+         "translated_title", "Cooking plans"),
+        ("preprocessor", "translate_chat_summary", "summary", "Der Nutzer plant ein Frühstück.",
+         "translated_summary", "The user is planning breakfast."),
+        ("postprocessor", "translate_chat_summary", "summary", "Der Nutzer plant ein Frühstück.",
+         "translated_summary", "The user is planning breakfast."),
+        ("postprocessor", "translate_new_chat_suggestions", "suggestions", ["Plane ein vegetarisches Frühstück für das Wochenende"],
+         "translated_suggestions", ["Plan a vegetarian breakfast for the weekend"]),
+    ],
+)
+@pytest.mark.parametrize("mercury_available", [True, False])
+async def test_translation_callers_recover_during_google_outage(
+    monkeypatch, module_name, caller, source_argument, source, output_field, translation,
+    mercury_available,
+):
+    import json
+    from importlib import import_module
+
+    module = import_module(f"backend.apps.ai.processing.{module_name}")
+    model = "google/gemini-3.5-flash-lite"
+    attempts = []
+
+    async def invoke(host, **kwargs):
+        attempts.append(host)
+        # Only the isolated metadata and target language are sent to recovery.
+        assert [message["role"] for message in kwargs["messages"]] == ["system", "user"]
+        original = source[0] if isinstance(source, list) else source
+        assert original in kwargs["messages"][1]["content"]
+        if host != "inception" or not mercury_available:
+            return UnifiedOpenAIResponse(
+                task_id=kwargs["task_id"], model_id=kwargs["model_id"], success=False,
+                error_message="503 Service Unavailable",
+            )
+        arguments = {output_field: translation}
+        return UnifiedOpenAIResponse(
+            task_id=kwargs["task_id"], model_id=kwargs["model_id"], success=True,
+            tool_calls_made=[ParsedOpenAIToolCall(
+                tool_call_id="translation",
+                function_name=kwargs["tools"][0]["function"]["name"],
+                function_arguments_raw=json.dumps(arguments),
+                function_arguments_parsed=arguments,
+            )],
+        )
+
+    def provider(host):
+        async def client(**kwargs):
+            return await invoke(host, **kwargs)
+
+        return client
+
+    class NoHealthCache:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "CacheService", NoHealthCache)
+    monkeypatch.setattr(
+        llm_utils, "resolve_default_server_from_provider_config",
+        lambda _model: ("google_ai_studio", "google_ai_studio/gemini-3.5-flash-lite"),
+    )
+    for host in ("inception", "google"):
+        monkeypatch.setitem(llm_utils.PROVIDER_CLIENT_REGISTRY, host, provider(host))
+    monkeypatch.setattr(llm_utils, "_get_provider_client", provider)
+    for target in (llm_utils, module):
+        if hasattr(target, "resolve_fallback_servers_from_provider_config"):
+            monkeypatch.setattr(target, "resolve_fallback_servers_from_provider_config", lambda *_: [model])
+
+    result = await getattr(module, caller)(
+        task_id="translation-outage", target_language="en", secrets_manager=None,
+        **{source_argument: source},
+    )
+    if mercury_available:
+        assert result == translation
+        assert attempts == ["google_ai_studio", "inception"]
+    else:
+        assert result == source
+        assert attempts == ["google_ai_studio", "inception", "google"]

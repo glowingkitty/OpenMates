@@ -747,6 +747,7 @@ pub struct Client {
     /// Opt-in WebSocket capabilities for the next saved-turn socket only
     /// (for example `project_create_requests`); cleared after connecting.
     extra_socket_capabilities: Vec<&'static str>,
+    parallel_chat_turns: bool,
     /// Last successful native session validation (see auth.rs reuse rules).
     recent_validation: Option<auth::RecentValidation>,
     /// Verification the last native session check asked for (session_verification.rs).
@@ -896,6 +897,7 @@ impl Client {
             completion_recovery_jobs: BTreeMap::new(),
             metadata_recovery_jobs: BTreeMap::new(),
             extra_socket_capabilities: Vec::new(),
+            parallel_chat_turns: false,
         })
     }
     pub fn reset(&mut self, api: &str, session: Option<Session>) -> Result<()> {
@@ -908,6 +910,7 @@ impl Client {
         next.ephemeral_chats = std::mem::take(&mut self.ephemeral_chats);
         next.operation_parent = self.operation_parent.clone();
         next.operation_cancel = next.operation_parent.child_token();
+        next.parallel_chat_turns = self.parallel_chat_turns;
         *self = next;
         self.credentials_changed();
         Ok(())
@@ -1003,6 +1006,10 @@ impl Client {
         self.scoped_send_gate.invalidate_publications();
         self.fresh_auth.advance_operation();
         self.options.interactive = interactive;
+    }
+    /// Opt in when the terminal shell can present multiple replies in one chat.
+    pub fn set_parallel_chat_turns(&mut self, enabled: bool) {
+        self.parallel_chat_turns = enabled;
     }
     pub(super) fn lifecycle(&self) -> Value {
         let interactive = self.options.identity == ClientIdentity::Cli && self.options.interactive;
@@ -1352,6 +1359,10 @@ impl Client {
         self.operation_cancel.cancel();
         self.operation_cancel = cancel.child_token();
         self.operation_parent = cancel;
+    }
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(crate) fn operation_token_for_test(&self) -> CancellationToken {
+        self.operation_cancel.clone()
     }
     pub fn set_consent_receiver(
         &mut self,

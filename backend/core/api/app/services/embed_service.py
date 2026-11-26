@@ -2111,6 +2111,7 @@ class EmbedService(SlidesEmbedMixin):
         log_prefix: str = "",
         embed_id: Optional[str] = None,
         project_source: Optional[Dict[str, Any]] = None,
+        expected_version_number: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create a finished generated-application parent embed for code file embeds.
 
@@ -2135,7 +2136,11 @@ class EmbedService(SlidesEmbedMixin):
                     logger.warning(f"{log_prefix} Application embed {embed_id} to re-publish is not cached")
                     return None
                 cached_embed = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
-                version_number = int(cached_embed.get("version_number") or 1) + 1
+                current_version = int(cached_embed.get("version_number") or 1)
+                if expected_version_number is not None and current_version != expected_version_number:
+                    logger.info("%s Application embed %s advanced during source revision", log_prefix, embed_id)
+                    return None
+                version_number = current_version + 1
             embed_id = embed_id or str(uuid.uuid4())
             child_embed_ids = [str(ref.get("embed_id")) for ref in file_refs if ref.get("embed_id")]
             embed_ref = self._generate_direct_embed_ref(
@@ -2404,6 +2409,7 @@ class EmbedService(SlidesEmbedMixin):
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         log_prefix: str = "",
+        replace: Optional[tuple[str, int]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create child file embeds and one parent application embed from a structured artifact."""
         try:
@@ -2504,6 +2510,8 @@ class EmbedService(SlidesEmbedMixin):
             task_id=task_id,
             provenance="structured_artifact",
             log_prefix=log_prefix,
+            embed_id=replace[0] if replace else None,
+            expected_version_number=replace[1] if replace else None,
         )
 
     @staticmethod

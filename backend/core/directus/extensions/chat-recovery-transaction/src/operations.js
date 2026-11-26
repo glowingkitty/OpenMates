@@ -1962,7 +1962,12 @@ async function markQueuedMessageStarted(database, raw, now) {
     if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
       return { status: 'conflict', queue_revision: revision };
     }
-    if (row.queue_dispatch_status === 'queued' && row.queue_dispatch_mode !== mode) {
+    // A still-queued steer can reach the ordinary prefix lease when its
+    // predecessor finishes first. Start only this exact revision with its own
+    // recovery admission; an already-consumed steer cannot enter this branch.
+    const completingAsFollowUp = row.queue_dispatch_mode === 'steer' && mode === 'follow_up';
+    if (row.queue_dispatch_status === 'queued' && row.queue_dispatch_mode !== mode
+      && !completingAsFollowUp) {
       return { status: 'conflict', queue_revision: revision };
     }
     let recoveryBinding = null;
@@ -2792,8 +2797,8 @@ async function holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outbo
     state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId,
     outbox_id: outboxId, enqueued_at: now,
   }) !== 1) fail(409, 'invalid_preflight_state');
-  return responseForPreflight({ ...row, state: 'ENQUEUED',
-    inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId });
+  return { ...responseForPreflight({ ...row, state: 'ENQUEUED',
+    inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId }), newly_enqueued: true };
 }
 
 class AtomicProjectionUnavailable extends Error {}

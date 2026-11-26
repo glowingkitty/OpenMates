@@ -19,9 +19,14 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
 };
+use openmates_sdk::{SendQueueMode, view_model::RequestId};
 use serde_json::{Value, json};
 use unicode_width::UnicodeWidthStr;
 use zeroize::Zeroizing;
+
+#[path = "ui_send.rs"]
+mod send;
+use send::FollowupTurn;
 
 // Adapted from DESIGN.md's dark grey, global action, and product brand tokens.
 const BASE: Color = Color::Rgb(23, 23, 23);
@@ -58,6 +63,7 @@ pub enum UiCommand {
         vault_passphrase: Option<Zeroizing<String>>,
     },
     Cancel,
+    StopSend { request: RequestId, task: Option<(String, String)> },
     /// Mark a chat read on every device (feature.chat-unread@1).
     MarkRead(String),
     OpenUrl(String),
@@ -243,6 +249,7 @@ struct ActiveTurn {
     chat_id: String,
     user_id: String,
     assistant: Option<String>,
+    task_id: Option<String>,
     expects_reply: bool,
 }
 struct Settings {
@@ -282,10 +289,11 @@ pub struct Ui {
     draft: Editor,
     drafts: std::collections::HashMap<String, Zeroizing<String>>,
     pending_send: Option<(String, Zeroizing<String>)>,
-    /// Follow-ups sent while a reply streams, awaiting their user message id.
-    followup_texts: std::collections::VecDeque<Zeroizing<String>>,
-    /// User message ids the server saved behind the active reply (`Queued`).
-    queued_ids: std::collections::HashSet<String>,
+    send_request: Option<RequestId>,
+    followups: std::collections::BTreeMap<RequestId, FollowupTurn>,
+    overlapping_chat: Option<String>,
+    /// User message IDs with a verified queue receipt or saved queue metadata.
+    queued_ids: std::collections::HashMap<String, SendQueueMode>,
     active_turn: Option<ActiveTurn>,
     delivery: Delivery,
     uncertain_turns: std::collections::HashMap<String, UncertainTurn>,
@@ -441,7 +449,9 @@ impl Ui {
             draft: Editor::default(),
             drafts: std::collections::HashMap::new(),
             pending_send: None,
-            followup_texts: Default::default(),
+            send_request: None,
+            followups: Default::default(),
+            overlapping_chat: None,
             queued_ids: Default::default(),
             active_turn: None,
             delivery: Delivery::Staged,
@@ -550,64 +560,14 @@ impl Ui {
         }
         self.streaming = false;
     }
-    /// A reply of the open chat is streaming and its own send is admitted, so
-    /// another message goes to the server at once (it comes back `Queued`).
-    pub fn can_queue_followup(&self) -> bool {
-        self.streaming
-            && self.pending_send.is_some()
-            && self.followup_texts.len() < 8
-            && matches!((&self.chat, &self.active_turn),
-                (Some(chat), Some(turn)) if chat.id == turn.chat_id)
-    }
-    /// Whether the chat is streaming a reply (runtime: a follow-up keeps the
-    /// view epoch so the first send's replies stay current).
-    pub fn is_streaming_chat(&self, chat_id: Option<&str>) -> bool {
-        chat_id.is_some_and(|id| self.streaming && self.active_turn.as_ref().is_some_and(|t| t.chat_id == id))
-    }
-    /// The core returned a `Queued` receipt for a follow-up: its row stays
-    /// labelled until the active reply ends; the running stream is unaffected.
-    pub fn followup_queued(&mut self, chat_id: &str, message_id: Option<&str>) {
-        self.chat_layout = None;
-        if let Some(id) = message_id {
-            self.queued_ids.insert(id.to_string());
-        }
-        if self.chat.as_ref().is_some_and(|c| c.id == chat_id) {
-            self.status = "Queued · it runs after the current reply".into();
-        }
-    }
-    /// A user message the stream announces while a follow-up is pending.
-    fn take_followup_started(&mut self, chat_id: &str, message_id: &str) -> bool {
-        let is_followup = !self.followup_texts.is_empty()
-            && self.active_turn.as_ref().is_some_and(|t| t.chat_id == chat_id && t.user_id != message_id);
-        if !is_followup {
-            return false;
-        }
-        let Some(text) = self.followup_texts.pop_front() else { return false };
-        if let Some(chat) = self.chat.as_mut().filter(|c| c.id == chat_id)
-            && !chat.messages.iter().any(|m| m.id == message_id)
-        {
-            chat.messages.push(Message {
-                id: message_id.to_string(),
-                role: "user".into(),
-                content: text.to_string(),
-                ..Default::default()
-            });
-        }
-        self.queued_ids.insert(message_id.to_string());
-        true
-    }
     pub fn send_succeeded(&mut self) {
         self.active_turn = None;
         self.chat_layout = None;
         if let Some((key, _)) = self.pending_send.take() {
             self.drafts.remove(&format!("__retry__:{key}"));
-            self.uncertain_turns.remove(&key);
         }
-        match &self.delivery {
-            Delivery::Submitted { chat_id, .. } | Delivery::Admitted { chat_id, .. } => {
-                self.uncertain_turns.remove(chat_id);
-            }
-            Delivery::Staged => {}
+        if let Delivery::Submitted { chat_id, message_id } | Delivery::Admitted { chat_id, message_id } = &self.delivery {
+            self.uncertain_turns.retain(|id, turn| id != chat_id || turn.message_id != *message_id);
         }
         self.delivery = Delivery::Staged;
         self.streaming = false;
@@ -630,7 +590,7 @@ impl Ui {
     pub fn set_chat_total(&mut self, total: Option<u64>) { self.chat_total = total; }
     pub fn set_items(&mut self, workspace: Workspace, mut items: Vec<Item>) {
         let i = index(workspace);
-        let selected_id = (workspace == Workspace::Tasks)
+        let selected_id = matches!(workspace, Workspace::Chats | Workspace::Tasks)
             .then(|| {
                 self.items[i]
                     .get(self.selected[i])
@@ -675,16 +635,7 @@ impl Ui {
     }
     /// The live chat list; the selected row stays selected by id.
     pub fn apply_live_chat_items(&mut self, items: Vec<Item>) {
-        let index = index(Workspace::Chats);
-        let selected = self.items[index]
-            .get(self.selected[index])
-            .map(|item| item.id.clone());
         self.set_items(Workspace::Chats, items);
-        if let Some(id) = selected
-            && let Some(position) = self.items[index].iter().position(|item| item.id == id)
-        {
-            self.selected[index] = position;
-        }
     }
     /// The live update of the open chat (from the core's live window).
     pub fn apply_live_selection(&mut self, selection: crate::client::ChatSelectionUpdate) {
@@ -692,6 +643,7 @@ impl Ui {
         match selection {
             crate::client::ChatSelectionUpdate::Updated(chat)
             | crate::client::ChatSelectionUpdate::CacheSettled(chat) => {
+                self.reconcile_followups(&chat);
                 if let Some((saved, _, _, cached)) = self.chat_origin.as_mut()
                     && saved.id == chat.id
                 {
@@ -703,7 +655,7 @@ impl Ui {
                     .as_ref()
                     .is_some_and(|current| current.id == chat.id)
                     && self.pending_send.is_none()
-                    && !self.streaming
+                    && !self.visible_chat_streaming()
                 {
                     // Own-send optimistic/streaming state remains governed by
                     // existing StreamUpdate/Sent admission fences.
@@ -872,11 +824,10 @@ impl Ui {
     /// The chat whose turn is still running (TS `runningTuiChatGroups`).
     fn running_chat_id(&self) -> Option<String> {
         self.active_turn.as_ref().filter(|_| self.streaming).map(|turn| turn.chat_id.clone())
+            .or_else(|| self.followups.values().find(|turn| turn.is_streaming()).map(|turn| turn.chat_id.clone()))
     }
     fn visible_chat_streaming(&self) -> bool {
-        self.streaming && self.active_turn.as_ref().is_some_and(|turn| {
-            self.chat.as_ref().is_some_and(|chat| chat.id == turn.chat_id)
-        })
+        self.is_streaming_chat(self.chat.as_ref().map(|chat| chat.id.as_str()))
     }
     fn cached_action_blocked(&mut self) -> bool {
         if !self.is_cached_chat_read_only() { return false; }
@@ -890,12 +841,7 @@ impl Ui {
         let other_send_streaming = cached_handoff && self.streaming && self.pending_send.is_some()
             && self.active_turn.as_ref().is_some_and(|turn| turn.chat_id != chat.id);
         self.cached_chat_state = None;
-        // A queued row stops being queued once an assistant message follows it.
-        self.queued_ids.retain(|id| {
-            chat.messages.iter().position(|m| &m.id == id)
-                .is_none_or(|at| !chat.messages[at + 1..].iter().any(|m| m.role == "assistant"))
-        });
-
+        self.reconcile_followups(&chat);
         if self.uncertain_turns.get(&chat.id).is_some_and(|turn| {
             chat.messages
                 .iter()
@@ -1109,6 +1055,7 @@ impl Ui {
                         chat_id,
                         user_id: message_id,
                         assistant: None,
+                        task_id: None,
                         expects_reply,
                     });
                 }
@@ -1172,8 +1119,10 @@ impl Ui {
                     form.context = Some(context);
                 }
             }
-            // The TUI shows no Task badge yet; the assignment needs no state here.
-            StreamUpdate::Content { .. } | StreamUpdate::Status(_) | StreamUpdate::TaskAssigned { .. } => {}
+            StreamUpdate::TaskAssigned { chat_id, message_id, task_id } => {
+                if let Some(turn) = self.active_turn.as_mut() { turn.assign_task(&chat_id, &message_id, task_id); }
+            }
+            StreamUpdate::Content { .. } | StreamUpdate::Status(_) => {}
         }
     }
     pub fn stream(&mut self, update: StreamUpdate) {
@@ -1184,9 +1133,6 @@ impl Ui {
                 message_id,
                 expects_reply,
             } => {
-                if self.take_followup_started(&chat_id, &message_id) {
-                    return;
-                }
                 if self.chat.as_ref().is_none_or(|c| c.id != chat_id) {
                     self.remember_draft();
                     let migrate = self
@@ -1229,6 +1175,7 @@ impl Ui {
                         chat_id: chat.id.clone(),
                         user_id: message_id,
                         assistant: None,
+                        task_id: None,
                         expects_reply,
                     });
                 }
@@ -1269,87 +1216,18 @@ impl Ui {
                 thinking,
                 mate,
             } => {
-                if let Some(turn) = self.active_turn.as_mut().filter(|turn| turn.expects_reply)
+                if let Some(turn) = self.active_turn.as_mut()
                     && let Some(chat) = self.chat.as_mut().filter(|chat| chat.id == turn.chat_id)
                 {
-                    let id = turn
-                        .assistant
-                        .get_or_insert_with(|| format!("__pending_assistant__:{}", turn.user_id));
-                    if !chat
-                        .messages
-                        .iter()
-                        .any(|message| message.id == *id && message.role == "assistant")
-                    {
-                        chat.messages.push(Message {
-                            id: id.clone(),
-                            role: "assistant".into(),
-                            ..Default::default()
-                        });
-                    }
-                    if let Some(message) = chat
-                        .messages
-                        .iter_mut()
-                        .find(|message| message.id == *id && message.role == "assistant")
-                    {
-                        message.content = content;
-                        message.thinking = thinking;
-                        if !mate.is_empty() {
-                            message.sender = mate;
-                        }
-                    }
+                    turn.update_content(chat, content, thinking, mate);
                 }
             }
-            StreamUpdate::Completed {
-                chat_id,
-                message_id,
-                content,
-            } => {
-                let mut completed = false;
-                if let Some(turn) = self
-                    .active_turn
-                    .as_ref()
-                    .filter(|turn| turn.chat_id == chat_id)
+            StreamUpdate::Completed { chat_id, message_id, content } => {
+                if let Some(turn) = self.active_turn.as_ref().filter(|turn| turn.chat_id == chat_id)
                     && let Some(chat) = self.chat.as_mut().filter(|chat| chat.id == chat_id)
+                    && let Some(status) = turn.complete(chat, message_id, content)
                 {
-                    if message_id == turn.user_id {
-                        if content.is_empty() {
-                            if let Some(id) = &turn.assistant {
-                                chat.messages.retain(|message| {
-                                    message.id != *id
-                                        || !message.content.is_empty()
-                                        || !message.thinking.is_empty()
-                                });
-                            }
-                            completed = true;
-                            self.status = "Message delivered".into();
-                        }
-                    } else if turn.expects_reply {
-                        if let Some(existing) = chat
-                            .messages
-                            .iter_mut()
-                            .find(|message| message.id == message_id && message.role == "assistant")
-                        {
-                            existing.content = content;
-                        } else if let Some(placeholder) = turn.assistant.as_ref().and_then(|id| {
-                            chat.messages
-                                .iter_mut()
-                                .find(|message| message.id == *id && message.role == "assistant")
-                        }) {
-                            placeholder.id = message_id;
-                            placeholder.content = content;
-                        } else {
-                            chat.messages.push(Message {
-                                id: message_id,
-                                role: "assistant".into(),
-                                content,
-                                ..Default::default()
-                            });
-                        }
-                        completed = true;
-                        self.status = "Response complete".into();
-                    }
-                }
-                if completed {
+                    self.status = status.into();
                     self.send_succeeded();
                 }
             }
@@ -1383,7 +1261,9 @@ impl Ui {
                 self.hits.clear();
             }
             StreamUpdate::Status(status) => self.set_status(&status),
-            StreamUpdate::TaskAssigned { .. } => {}
+            StreamUpdate::TaskAssigned { chat_id, message_id, task_id } => {
+                if let Some(turn) = self.active_turn.as_mut() { turn.assign_task(&chat_id, &message_id, task_id); }
+            }
         }
     }
     fn selected_item(&self) -> Option<&Item> {
@@ -1520,6 +1400,11 @@ impl Ui {
         if ctrl {
             match event.code {
                 KeyCode::Char('c') => {
+                    if (self.send_request.is_some() && self.pending_send.is_some())
+                        || self.followups.values().any(FollowupTurn::is_pending)
+                    {
+                        return self.stop_send("");
+                    }
                     if self.streaming || self.pending_send.is_some() {
                         return vec![UiCommand::Cancel];
                     }
@@ -2077,21 +1962,20 @@ impl Ui {
             return vec![];
         }
         if self.cached_action_blocked() { return vec![]; }
-        if self.uncertain_turns.contains_key(&self.draft_key()) {
+        if self.uncertain_turns.contains_key(&self.draft_key()) || self.failed_followup(&self.draft_key()).is_some_and(FollowupTurn::has_submission) {
             self.set_status("Refresh this chat to check its previous message before sending again");
             return vec![];
         }
-        if self.can_queue_followup() && !self.draft.text.trim().is_empty() {
+        if self.visible_chat_streaming() && self.followups.len() < 8 {
             let chat_id = self.chat.as_ref().map(|c| c.id.clone());
             let key = self.draft_key();
             let text = self.draft.take().to_string();
             self.drafts.remove(&key);
-            self.followup_texts.push_back(Zeroizing::new(text.clone()));
             self.follow_tail = true;
-            self.status = "Queued · sent behind the reply that is streaming".into();
+            self.status = "Sending follow-up…".into();
             return vec![UiCommand::Send { chat_id, text }];
         }
-        if self.streaming || self.pending_send.is_some() {
+        if self.streaming || self.pending_send.is_some() || self.followups.values().any(FollowupTurn::is_pending) {
             self.status = "Response in progress · Ctrl+C stops it".into();
             return vec![];
         }
@@ -2125,29 +2009,35 @@ impl Ui {
                 } else {
                     self.last_uncertain.clone()
                 };
-                if let Some(id) = id
-                    && let Some(turn) = self.uncertain_turns.get(&id)
-                {
-                    return if name == "/copy-pending" {
-                        vec![UiCommand::Copy(turn.text.to_string())]
-                    } else {
-                        vec![UiCommand::Open(Workspace::Chats, id)]
-                    };
+                let draft_key = self.draft_key();
+                if let Some(id) = id.or_else(|| self.failed_followup(&draft_key).map(|turn| turn.chat_id.clone())) {
+                    let pending = self.uncertain_turns.get(&id).map(|turn| turn.text.as_str())
+                        .or_else(|| self.failed_followup(&id).map(|turn| turn.text.as_str()));
+                    if let Some(text) = pending {
+                        return if name == "/copy-pending" { vec![UiCommand::Copy(text.to_owned())] }
+                            else { vec![UiCommand::Open(Workspace::Chats, id)] };
+                    }
                 }
                 self.status = "No uncertain message is awaiting confirmation".into();
                 vec![]
             }
             "/retry" => {
-                if self.uncertain_turns.contains_key(&self.draft_key()) {
+                if self.uncertain_turns.contains_key(&self.draft_key())
+                    || self.failed_followup(&self.draft_key()).is_some_and(FollowupTurn::has_submission)
+                {
                     self.set_status(
                         "This message may already be delivered. Use /pending instead of retrying.",
                     );
                     return vec![];
                 }
                 if self.draft.text.is_empty() {
-                    if let Some(text) = self.drafts.get(&format!("__retry__:{}", self.draft_key()))
-                    {
+                    if let Some(text) = self.drafts.get(&format!("__retry__:{}", self.draft_key())) {
                         self.draft = Editor::from(text);
+                        self.focus = Focus::Composer;
+                    } else if let Some(request) = self.failed_followup_request(&self.draft_key())
+                        && let Some(turn) = self.followups.remove(&request)
+                    {
+                        self.draft = Editor::from(&turn.text);
                         self.focus = Focus::Composer;
                     } else {
                         self.status = "No failed message to retry in this chat".into();
@@ -2157,7 +2047,7 @@ impl Ui {
                 }
                 vec![]
             }
-            "/stop" => vec![UiCommand::Cancel],
+            "/stop" => self.stop_send(value.trim()),
             "/chats" => self.nav(Workspace::Chats),
             "/apps" => self.nav(Workspace::Apps),
             "/app-skill" if !value.is_empty() => {
@@ -3086,7 +2976,9 @@ impl Ui {
         self.settings = None;
         self.username.clear();
         self.authenticated = false;
-        self.followup_texts.clear();
+        self.send_request = None;
+        self.followups.clear();
+        self.overlapping_chat = None;
         self.queued_ids.clear();
         self.streaming = false;
         self.scroll = 0;
@@ -3397,7 +3289,7 @@ impl Ui {
         let footer_rows = if full_inner.height > footer_rows { footer_rows } else { 0 };
         let inner = Rect::new(full_inner.x, full_inner.y, full_inner.width, full_inner.height - footer_rows);
         if footer_rows == 2 {
-            let send = if self.visible_chat_streaming() { "Ctrl+C stop" } else { "Send ↵" };
+            let send = if self.visible_chat_streaming() { "Send follow-up ↵" } else { "Send ↵" };
             let model = format!("Model: Auto{}{send}", " ".repeat((full_inner.width as usize).saturating_sub(12 + send.width())));
             let hint = composer_hint(self.chat.is_some());
             for (offset, text) in [model, hint.to_owned()].into_iter().enumerate() {
@@ -3919,10 +3811,10 @@ impl Ui {
                 } else {
                     app_color(&chat.category)
                 };
-                let label = if user && self.queued_ids.contains(&message.id) {
-                    format!("{label} · Queued")
-                } else {
-                    label.to_string()
+                let label = match self.queued_ids.get(&message.id).filter(|_| user) {
+                    Some(SendQueueMode::FollowUp) => format!("{label} · Queued"),
+                    Some(SendQueueMode::Steer) => format!("{label} · Correction queued"),
+                    None => label.to_string(),
                 };
                 rows.push(markdown::styled(label, Style::default().fg(color).bold()));
                 if !message.thinking.is_empty() {
@@ -6621,12 +6513,14 @@ mod tests {
             });
             ui.paste("Only send once");
             ui.send();
+            let request = RequestId(1);
+            ui.register_send(request, Some("chat"), "Only send once", false);
             let commands = if command == "keyboard" {
                 ui.key(ctrl('c'))
             } else {
                 ui.command("/stop")
             };
-            assert!(matches!(&commands[..], [UiCommand::Cancel]));
+            assert!(matches!(&commands[..], [UiCommand::StopSend { task: None, .. }]));
             assert!(ui.pending_send.is_some());
             assert!(ui.draft.text.is_empty());
             ui.background_stream(StreamUpdate::Started {

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -16,6 +17,20 @@ from backend.apps.audio.pricing import (
     ASSISTANT_RESPONSE_SPEECH_MODEL, ELEVEN_V4_TURBO_SPEECH_MODEL,
     calculate_assistant_response_speech_credits,
 )
+
+
+@pytest.fixture
+def speech_diagnostics(caplog, monkeypatch):
+    # A neighboring test loads Celery, which installs non-propagating backend
+    # logging. Capture this logger directly across either test order.
+    logger = logging.getLogger("backend.apps.audio.assistant_speech.realtime_turn")
+    monkeypatch.setattr(logger, "propagate", False)
+    caplog.set_level(logging.INFO, logger=logger.name)
+    logger.addHandler(caplog.handler)
+    try:
+        yield caplog
+    finally:
+        logger.removeHandler(caplog.handler)
 
 
 class Provider:
@@ -216,6 +231,7 @@ def test_call_v3_profiles_preserve_all_curated_voices_and_manual_mistral_rate():
 def test_actual_consumer_handoff_does_not_wait_for_audio_before_canonical_final():
     source = (Path(__file__).resolve().parents[1] / "apps/ai/tasks/stream_consumer.py").read_text()
     assert "queue_provider_work=not continuous" in source
+    assert "await realtime_speech_turn.enqueue(segment, register=register_segment)" in source
     assert source.index("realtime_speech_turn.finish_input()") < source.index("await realtime_speech_turn.wait()")
     assert source.index("completion_timing.mark_final_marker()") < source.index("await realtime_speech_turn.wait()")
     assert "turn_track_id=realtime_speech_turn.track_id" in source
@@ -412,7 +428,7 @@ async def test_expressive_provider_input_safeguards_and_credits_bind_exact_tagge
     ('unexpected', 'unexpected', 'none'),
     ('unknown_provider_code', 'provider', 'unknown'),
 ])
-async def test_failure_diagnostics_are_content_free_and_identify_reader_stage(caplog, failure, expected_cause, expected_code):
+async def test_failure_diagnostics_are_content_free_and_identify_reader_stage(speech_diagnostics, failure, expected_cause, expected_code):
     class ProviderError(RuntimeError):
         def __init__(self, code):
             self.code = code
@@ -427,30 +443,26 @@ async def test_failure_diagnostics_are_content_free_and_identify_reader_stage(ca
     await owner.enqueue(span(0, 'PRIVATE spoken prose.'))
     owner.finish_input()
     await owner.wait()
-    assert f'stage=reading cause={expected_cause} code={expected_code}' in caplog.text
-    assert 'PRIVATE' not in caplog.text and 'https://' not in caplog.text
+    assert f'stage=reading cause={expected_cause} code={expected_code}' in speech_diagnostics.text
+    assert 'PRIVATE' not in speech_diagnostics.text and 'https://' not in speech_diagnostics.text
     finalize.assert_awaited_once_with(False, 0)
 
 
 # contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
 @pytest.mark.parametrize('timed_out,expected', [(False, 'cancelled'), (True, 'timeout')])
-async def test_cancellation_diagnostics_distinguish_timeout_without_draining(caplog, timed_out, expected):
-    import logging
-    caplog.set_level(logging.INFO, logger='backend.apps.audio.assistant_speech.realtime_turn')
+async def test_cancellation_diagnostics_distinguish_timeout_without_draining(speech_diagnostics, timed_out, expected):
     owner, provider, _events, first, finalize, _credits = make_turn()
     await owner.enqueue(span(0, 'PRIVATE spoken prose.'))
     await asyncio.wait_for(first.wait(), 1)
     await owner.cancel(timed_out=timed_out)
-    assert f'cause={expected} code=none' in caplog.text
-    assert 'PRIVATE' not in caplog.text
+    assert f'cause={expected} code=none' in speech_diagnostics.text
+    assert 'PRIVATE' not in speech_diagnostics.text
     assert not provider.finished and provider.cancel_count == 1
     finalize.assert_awaited_once_with(False, 0)
 
 
 # contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
-async def test_cancel_during_audio_publication_is_not_misdiagnosed_as_transport_failure(caplog):
-    import logging
-    caplog.set_level(logging.INFO, logger='backend.apps.audio.assistant_speech.realtime_turn')
+async def test_cancel_during_audio_publication_is_not_misdiagnosed_as_transport_failure(speech_diagnostics):
     publishing = asyncio.Event()
     async def blocked_publish(*_args):
         publishing.set()
@@ -459,8 +471,8 @@ async def test_cancel_during_audio_publication_is_not_misdiagnosed_as_transport_
     await owner.enqueue(span(0, 'PRIVATE spoken prose.'))
     await asyncio.wait_for(publishing.wait(), 1)
     await owner.cancel()
-    assert 'cause=cancelled code=none' in caplog.text
-    assert 'publication_failed' not in caplog.text and 'PRIVATE' not in caplog.text
+    assert 'cause=cancelled code=none' in speech_diagnostics.text
+    assert 'publication_failed' not in speech_diagnostics.text and 'PRIVATE' not in speech_diagnostics.text
     assert not provider.finished
     finalize.assert_awaited_once_with(False, 0)
 
@@ -497,6 +509,125 @@ async def test_unused_prewarmed_transport_closes_without_finalizing_a_track():
     await cancelled.cancel()
     assert cancelled_provider.cancel_count == 1 and cancelled_events == []
     cancelled_finalize.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,assistant-speech.safety.provider-after-approval
+async def test_first_complete_model_clause_checks_run_while_registering_but_no_audio_can_overtake_it(monkeypatch):
+    from backend.apps.ai.assistant_speech import streaming
+
+    monkeypatch.setattr(streaming, "_token_secret", lambda: b"test-only-key")
+    registration_started = asyncio.Event()
+    registered = asyncio.Event()
+    safety_started = asyncio.Event()
+    safety_finished = asyncio.Event()
+    release_claim = asyncio.Event()
+
+    async def safety(_text):
+        safety_started.set()
+        await safety_finished.wait()
+        return True
+
+    async def prepare():
+        await release_claim.wait()
+        return 3
+
+    owner, provider, events, first, finalize, credits = make_turn()
+    owner._prepare = prepare
+    owner._safety_check = safety
+
+    async def register():
+        registration_started.set()
+        await registered.wait()
+
+    async def handoff(segment):
+        await owner.enqueue(segment, register=register)
+
+    async def finish(_metadata):
+        owner.finish_input()
+
+    tracker = streaming.ImmutableSpeechBoundaryTracker(
+        metadata={"chat_id": "chat", "assistant_message_id": "message", "source_version": 1,
+                  "voice_mode": True, "voice_call_id": "call"},
+        dispatch_speech=handoff, finalize_speech=finish,
+    )
+    tracker.observe("The cache reuses completed results")
+    await asyncio.sleep(0)
+    assert not registration_started.is_set()
+    tracker.observe("The cache reuses completed results. ")
+    try:
+        await asyncio.wait_for(asyncio.gather(registration_started.wait(), safety_started.wait()), 1)
+        credits.assert_awaited_once_with(len("The cache reuses completed results. "))
+        safety_finished.set()
+        assert provider.inputs == [] and events == []
+        registered.set()
+        await tracker.wait_for_handoff()
+        assert provider.inputs == [] and events == []
+        release_claim.set()
+        await asyncio.wait_for(first.wait(), 1)
+        assert provider.inputs == ["The cache reuses completed results. "]
+        assert not provider.finished and not finalize.called
+        assert [row["payload"]["phase"] for row in events] == ["start", "chunk"]
+        assert all(row["payload"]["execution_version"] == 3 for row in events)
+        tracker.observe("The cache reuses completed results. ", is_final=True)
+        await tracker.wait_for_handoff()
+        await owner.wait()
+        finalize.assert_awaited_once_with(True, len(provider.inputs[0]))
+    finally:
+        registered.set()
+        release_claim.set()
+        await owner.cancel()
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.ethics,assistant-speech.safety.provider-after-approval
+@pytest.mark.parametrize("failure", ["registration", "previous_attempt", "cancel"])
+async def test_unconfirmed_registration_never_sends_paid_input_or_allows_later_span_to_pass(failure):
+    held = asyncio.Event()
+    registering = asyncio.Event()
+    owner, provider, events, _first, finalize, credits = make_turn()
+
+    async def register():
+        registering.set()
+        await held.wait()
+        if failure == "registration":
+            raise RuntimeError("registration rejected")
+
+    if failure == "previous_attempt":
+        async def previous_attempt():
+            await held.wait()
+            raise RealtimeTurnUnavailable("Speech track already attempted")
+        owner._prepare = previous_attempt
+
+    first_span = span(0, "The first sentence.")
+    registration = AsyncMock(side_effect=register)
+    handoff = asyncio.create_task(owner.enqueue(first_span, register=registration))
+    try:
+        await asyncio.wait_for(registering.wait(), 1)
+        await owner.enqueue(first_span, register=registration)
+        registration.assert_awaited_once()
+        credits.assert_awaited_once_with(len("The first sentence. "))
+        if failure == "cancel":
+            await owner.cancel()
+        else:
+            # This registration can complete first. Its text must remain second.
+            await owner.enqueue(span(1, "The second sentence."), register=AsyncMock())
+        held.set()
+        if failure == "registration":
+            with pytest.raises(RuntimeError, match="registration rejected"):
+                await handoff
+        else:
+            await handoff
+        owner.finish_input()
+        await owner.wait()
+        assert provider.inputs == [] and not provider.finished and provider.cancel_count == 1
+        assert all(row["payload"]["phase"] == "error" for row in events)
+        if failure == "previous_attempt":
+            finalize.assert_not_awaited()
+        else:
+            finalize.assert_awaited_once_with(False, 0)
+    finally:
+        held.set()
+        await asyncio.gather(handoff, return_exceptions=True)
+        await owner.cancel()
 
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval

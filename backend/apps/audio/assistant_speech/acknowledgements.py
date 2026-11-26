@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+from backend.apps.audio.assistant_speech.voice_profiles import ASSISTANT_VOICE_PROVIDER_IDS
+
 import re
 
 
@@ -175,6 +177,31 @@ PERMISSION_PROMPT_TEXTS: dict[str, dict[str, str]] = {
 PERMISSION_PROMPT_VARIANT = 1
 
 
+# Static work updates. Labels are selected from confirmed worker state only.
+_WORK_LINES = {
+    "en-US": ("I'm still thinking about this.", "I'm still working on this.", "I'm writing the code.", "I'm putting together the spreadsheet.", "I'm drafting the document.", "I'm creating the slides."),
+    "de-DE": ("Ich denke noch darüber nach.", "Ich arbeite noch daran.", "Ich schreibe den Code.", "Ich erstelle die Tabelle.", "Ich schreibe das Dokument.", "Ich erstelle die Folien."),
+    "es-ES": ("Sigo pensando en ello.", "Sigo trabajando en ello.", "Estoy escribiendo el código.", "Estoy preparando la hoja de cálculo.", "Estoy redactando el documento.", "Estoy creando las diapositivas."),
+    "fr-FR": ("Je suis encore en train d’y réfléchir.", "Je travaille toujours dessus.", "J’écris le code.", "Je prépare la feuille de calcul.", "Je rédige le document.", "Je crée les diapositives."),
+    "zh-CN": ("我还在思考。", "我还在处理。", "我正在编写代码。", "我正在制作电子表格。", "我正在起草文档。", "我正在制作幻灯片。"),
+}
+RECORDED_WORK_CUE_LOCALES = frozenset({"en-US", "de-DE"})
+_WORK_CATEGORIES = ("still_thinking", "still_working", "writing_code", "writing_sheet", "writing_document", "writing_slides")
+WORK_CUE_TEXTS = {locale: {category: (line,) for category, line in zip(_WORK_CATEGORIES, lines, strict=True)}
+                  for locale, lines in _WORK_LINES.items()}
+
+
+def build_work_cue(*, voice_profile_id: str, language: str, category: str) -> dict[str, object] | None:
+    locale = _resolve_locale(language, WORK_CUE_TEXTS)
+    if (voice_profile_id not in ASSISTANT_VOICE_PROVIDER_IDS or locale not in RECORDED_WORK_CUE_LOCALES
+            or category not in WORK_CUE_TEXTS[locale]):
+        return None
+    return {
+        "clip_id": f"{voice_profile_id}-{locale}-{category}-1",
+        "asset_url": f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{voice_profile_id}/{locale}/{category}-1.mp3",
+    }
+
+
 def build_acknowledgement_clips(
     *,
     voice_profile_id: str,
@@ -298,6 +325,7 @@ def prerecorded_clip_text(asset_url: str) -> str:
     for catalog in (WAITING_LINE_TEXTS, PERMISSION_PROMPT_TEXTS):
         if category in catalog.get(locale, {}):
             return catalog[locale][category]
-    variants = (VOICE_FEEDBACK_TEXTS.get(locale, {}).get(category)
+    variants = (WORK_CUE_TEXTS.get(locale, {}).get(category)
+                or VOICE_FEEDBACK_TEXTS.get(locale, {}).get(category)
                 or ACKNOWLEDGEMENT_TEXTS.get(locale, {}).get(category, ()))
     return variants[variant - 1] if variant <= len(variants) else ""

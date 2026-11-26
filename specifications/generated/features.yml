@@ -220,9 +220,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 2
+        passing: 3
         failing: 8
-        not_run: 5
+        not_run: 4
         missing: 9
         counted: 24
       failing_tests:
@@ -274,7 +274,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
       - backend/tests/test_ai_ask_model_metadata.py
       - backend/tests/test_client_context_continuation.py
-      unit_test_files: 21
+      unit_test_files: 23
     apple:
       status: partial
       source: tests
@@ -2499,18 +2499,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 5
+  assertions: 7
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 1
         not_run: 1
-        missing: 0
-        counted: 5
+        missing: 1
+        counted: 7
       failing_tests:
       - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts › focus mode UI elements work correctly after activation
       key_tests: []
@@ -2522,11 +2522,11 @@ features:
       - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
-      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
       - frontend/packages/ui/src/services/db/__tests__/recentChatMessageMutation.test.ts
       - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
-      unit_test_files: 11
+      unit_test_files: 12
     apple:
       status: failing
       source: tests
@@ -2535,8 +2535,8 @@ features:
         passing: 3
         failing: 2
         not_run: 0
-        missing: 0
-        counted: 5
+        missing: 2
+        counted: 7
       failing_tests:
       - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift › testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus
       key_tests: []
@@ -2558,16 +2558,17 @@ features:
       assertions:
         passing: 1
         failing: 0
-        not_run: 1
-        missing: 3
-        counted: 5
+        not_run: 2
+        missing: 4
+        counted: 7
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
       - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
       key_unit_tests:
+      - backend/tests/test_final_stream_delivery.py
       - frontend/packages/openmates-cli/tests/client.test.ts
-      unit_test_files: 1
+      unit_test_files: 2
     tui:
       status: not_run
       source: tests
@@ -2589,20 +2590,20 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 4
+        passing: 6
         failing: 0
         not_run: 0
         missing: 1
-        counted: 5
+        counted: 7
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_queued_steering.py
       - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+      - backend/tests/test_active_chat_input.py
       - backend/tests/test_ai_skill_request_schema.py
-      - backend/tests/test_legacy_queued_handoff.py
-      - backend/tests/test_queued_message_persistence.py
-      unit_test_files: 11
+      - backend/tests/test_cancel_ai_task_authority.py
+      unit_test_files: 16
     sdk_npm:
       status: not_planned
       source: intent
@@ -10401,7 +10402,7 @@ features:
   description: Voice and video calls with the assistant, bound to an encrypted chat.
   specifications:
   - id: feature.video-call
-    status: approved
+    status: draft
     path: specifications/features/video-call
   - id: feature.video-call-experiment
     status: superseded
@@ -10413,18 +10414,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 60
+  assertions: 61
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 33
+        passing: 34
         failing: 6
         not_run: 16
         missing: 10
-        counted: 65
+        counted: 66
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10486,7 +10487,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 75
+      unit_test_files: 78
     apple:
       status: partial
       source: tests
@@ -10495,8 +10496,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 22
-        counted: 52
+        missing: 23
+        counted: 53
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift

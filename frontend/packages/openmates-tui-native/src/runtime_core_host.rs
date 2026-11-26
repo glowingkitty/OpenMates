@@ -79,7 +79,7 @@ impl TerminalSink {
             ViewEvent::Session(SessionEvent::VerificationRequired(_)) => return Err(Error::VerificationRequired),
             // The terminal paints a send's turn from its stream updates.
             ViewEvent::ChatList { .. } | ViewEvent::ChatWindow { .. } if self.send.is_some() => None,
-            ViewEvent::Stream { event, .. } => Some(View::Stream(update_from_stream(event)?)),
+            ViewEvent::Stream { request, event, .. } => Some(View::Stream { request, update: update_from_stream(event)? }),
             // Reply text reaches the terminal through the `Stream` content update.
             ViewEvent::MessageUpdated { .. } => None,
             ViewEvent::ChatList { rows, total_count, .. } => {
@@ -89,6 +89,7 @@ impl TerminalSink {
             ViewEvent::ChatWindow { window, .. } => {
                 // Fail closed: a window without an owner lease is never queued.
                 if self.owner.is_none() { return Err(Error::Cancelled); }
+                openmates::native_chat_open_trace::window(window.source);
                 Some(View::Window(self.fence(window)))
             }
             ViewEvent::ChatUnavailable { chat_id } => Some(View::ChatUnavailable(chat_id)),
@@ -251,9 +252,13 @@ impl ViewHost<CacheBytes> for Actor {
     fn read_cold_window_before_recovery(&self) -> bool { true }
     fn recover_before_open<'a>(&'a mut self, sink: &'a TerminalSink, chat_id: &'a str) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            self.recover_before_view(&sink.replies, sink.epoch, Some(chat_id.to_owned()), true)
+            use openmates::native_chat_open_trace::phase;
+            phase("open.recovery.start", Ok(()));
+            let result = self.recover_before_view(&sink.replies, sink.epoch, Some(chat_id.to_owned()), true)
                 .await
-                .map(drop)
+                .map(drop);
+            phase("open.recovery.finish", result);
+            result
         })
     }
     fn recover_after_cold_open<'a>(&'a mut self, sink: &'a TerminalSink, chat_id: &'a str) -> BoxFuture<'a, Result<bool>> {
@@ -261,10 +266,12 @@ impl ViewHost<CacheBytes> for Actor {
             // A cached or authenticated first page is already eligible to paint.
             // The separate recovery socket and its foreground grant drop on
             // timeout. The existing pump resumes from durable checkpoints.
+            use openmates::native_chat_open_trace::phase;
+            phase("open.recovery.start", Ok(()));
             let recovery = self.recover_before_view_with_inventory(
                 &sink.replies, sink.epoch, Some(chat_id.to_owned()), true, false,
             );
-            match tokio::time::timeout(Duration::from_secs(3), recovery).await {
+            let result = match tokio::time::timeout(Duration::from_secs(3), recovery).await {
                 Ok(result) => result.map(|outcome| outcome.canonical_changed || outcome.attempted > 0 || outcome.deferred > 0),
                 Err(_) if sink.request.is_cancelled() => Err(Error::Cancelled),
                 // An auth denial can already have cleared the Client while
@@ -276,7 +283,9 @@ impl ViewHost<CacheBytes> for Actor {
                     self.recovery_retry_at = Some(tokio::time::Instant::now() + Duration::from_secs(5));
                     Ok(true)
                 }
-            }
+            };
+            phase("open.recovery.finish", result.map(drop));
+            result
         })
     }
     fn offline_cache_allowed(&self) -> bool { !self.cached_views_blocked }

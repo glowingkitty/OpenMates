@@ -49,6 +49,8 @@ mod offline;
 #[cfg(target_os = "linux")]
 #[path = "runtime_benchmark_identity.rs"]
 mod benchmark_identity;
+#[path = "runtime_saved_send_admissions.rs"]
+mod saved_send_admissions;
 
 struct TerminalGuard {
     was_raw: bool,
@@ -156,7 +158,13 @@ fn close_cached_views(receiver: &watch::Receiver<Option<NativeCachedChatViews>>)
 fn apply_window(ui: &mut Ui, window: core_host::Fenced<core_view::ChatWindowRecord>) {
     use core_view::ChatWindowSource as Source;
     let source=window.value.source;
-    match window.into_inner().and_then(|record|core_host::chat_from_window(&record)) {
+    match window.into_inner().and_then(|record| {
+        let chat = core_host::chat_from_window(&record)?;
+        if matches!(source, Source::Canonical | Source::Live | Source::LiveSettled) {
+            ui.update_saved_queue_labels(&record);
+        }
+        Ok(chat)
+    }) {
         Ok(chat)=>match source {
             Source::Cached|Source::FirstPage=>ui.set_cached_chat(chat),
             Source::CacheSettled=>ui.set_settled_chat(chat),
@@ -219,13 +227,14 @@ enum View {
     ChatUnavailable(String),
     CachedChat(NativeCachedChatPublication),
     ChatOpenFailed(Error),
-    Sent(Chat),
-    /// A follow-up the server saved behind the active reply (`Queued` receipt).
-    SendQueued { chat_id: String, message_id: Option<String> },
+    Sent { request: RequestId, chat: Chat, message_ids: [Option<String>; 2] },
+    SendQueued { request: RequestId, chat_id: String, message_id: Option<String>, mode: Option<openmates_sdk::SendQueueMode> },
+    SendFailed { request: RequestId, error: Error },
+    StopResult { request: RequestId, result: Result<()> },
     Monitor(Error, CancellationToken),
     AccessDenied(ChatMonitorAccessDenial, CancellationToken),
     Item(Workspace, Item),
-    Stream(StreamUpdate),
+    Stream { request: RequestId, update: StreamUpdate },
     PairUri(String),
     PairPin,
     Share(String),
@@ -264,7 +273,7 @@ impl PendingCachedSelection {
             _=>{},
         }
         self.epoch==reply.epoch&&(matches!(&reply.view,View::Window(window) if completes_open(window.value.source))
-            ||matches!(&reply.view,View::ChatOpenFailed(_)|View::Sent(_)|View::Item(..)|View::MutationSucceeded|View::Done))
+            ||matches!(&reply.view,View::ChatOpenFailed(_)|View::Sent { .. }|View::Item(..)|View::MutationSucceeded|View::Done))
     }
 }
 /// Window sources that settle an open (a cached or first page still refreshes).
@@ -304,7 +313,9 @@ enum Work {
     Monitor,
     Live,
     /// A streamed send ended: publish its sent chat or settle its error.
-    SendFinished(Box<Result<openmates_sdk::view_model::SendReceipt>>),
+    Send { request: RequestId, chat_id: Option<String>, text: String, turn_cancel: CancellationToken },
+    StopReply { request: RequestId, chat_id: String, task_id: String },
+    SendFinished(RequestId, Box<Result<openmates_sdk::view_model::SendReceipt>>),
 }
 type BackgroundReadPreempt = std::sync::Arc<std::sync::Mutex<Option<CancellationToken>>>;
 /// Interactive chat reads and sends take priority over optional background reads.
@@ -323,6 +334,16 @@ fn preempt_background_read(slot: &BackgroundReadPreempt) {
     if let Some(token) = slot.lock().ok().and_then(|mut slot| slot.take()) {
         token.cancel();
     }
+}
+fn register_boot_sync(slot: &BackgroundReadPreempt, requests: &mpsc::Receiver<Request>) -> CancellationToken {
+    let token = CancellationToken::new();
+    track_background_read(slot, &token);
+    // The actor might have observed an empty queue before this branch won.
+    // A request queued before the token was published already takes priority.
+    if !requests.is_empty() {
+        token.cancel();
+    }
+    token
 }
 struct Request {
     epoch: Stamp,
@@ -373,6 +394,8 @@ async fn run_terminal(args: Args) -> Result<()> {
     };
     let mut epoch = Stamp::default();
     let mut active = CancellationToken::new();
+    let mut send_cancellations = std::collections::HashMap::<RequestId, CancellationToken>::new();
+    let mut send_admissions = saved_send_admissions::SavedSendAdmissions::default();
     let (requests, receiver) = mpsc::channel(32);
     let (priority, controls) = mpsc::unbounded_channel();
     let (consent, decisions) = mpsc::unbounded_channel();
@@ -518,6 +541,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                 if !epoch.accepts(&reply){continue}
                 if pending_cached_selection.as_ref().is_some_and(|selection|selection.is_completed_by(&reply)){pending_cached_selection=None;}
                 let mut effects=Vec::new();
+                let mut ready_send = None;
                 match reply.view {
                     View::AdmittedAuth(publication)=>{
                         let Ok((username,deadline))=publication.into_auth() else { continue; };
@@ -537,7 +561,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                     View::RetryOffline=>if offline_personal {monitor_retry=Some(tokio::time::Instant::now()+Duration::from_secs(3));},
                     #[cfg(test)]
                     View::Auth{username,expires_at:deadline}=>{authenticated=true;ui.set_authenticated(true);ui.set_username(&username);expires_at=deadline;pairing=false;membership_check=Some(tokio::time::Instant::now()+Duration::from_secs(30));ui.set_status("Signed in · native encrypted session");},
-                    View::SignedOut=>{offline_personal=false;staged_chat_items=None;close_cached_views(&cached_views);authenticated=false;ui.clear_private();ui.set_authenticated(false);ui.set_status("Signed out");expires_at=None;pairing=false;monitor_retry=None;membership_check=None;},
+                    View::SignedOut=>{offline_personal=false;staged_chat_items=None;close_cached_views(&cached_views);drop(send_admissions.clear());authenticated=false;ui.clear_private();ui.set_authenticated(false);ui.set_status("Signed out");expires_at=None;pairing=false;monitor_retry=None;membership_check=None;},
                     View::Unlock => {
                         if !authenticated {
                             ui.set_unlock_required(true);
@@ -567,8 +591,24 @@ async fn run_terminal(args: Args) -> Result<()> {
                     },
                     View::ChatUnavailable(chat_id)=>ui.apply_live_selection(ChatSelectionUpdate::Unavailable{chat_id}),
                     View::CachedChat(publication)=>{ apply_cached_chat(&mut ui, publication); },
-                    View::SendQueued{chat_id,message_id}=>ui.followup_queued(&chat_id,message_id.as_deref()),
-                    View::Sent(chat)=>{ui.send_succeeded();if reply.epoch.view==epoch.view{ui.set_chat(chat);}},
+                    View::SendQueued{request,chat_id,message_id,mode}=>{
+                        send_cancellations.remove(&request);
+                        ui.send_queued(request,&chat_id,message_id.as_deref(),mode);
+                        ready_send = send_admissions.complete(request);
+                    },
+                    View::Sent{request,chat,message_ids}=>{
+                        send_cancellations.remove(&request);
+                        ui.send_finished(request,chat,reply.epoch.view==epoch.view,&message_ids);
+                        ready_send = send_admissions.complete(request);
+                    },
+                    View::StopResult{request,result}=>{if reply.epoch.view==epoch.view{ui.stop_result(request,result);}},
+                    View::SendFailed{request,error}=>{
+                        send_cancellations.remove(&request);
+                        if matches!(error,Error::Unavailable{code:"completion_recovery_checkpoint_invalid",..}) {
+                            ui.send_failed(request,"Local completion checkpoint is invalid; encrypted data was preserved.");
+                        } else { ui.send_failed(request,&error.to_string()); }
+                        saved_send_admissions::retain_waiting_after_failure(&mut send_admissions, &mut ui, &mut send_cancellations, request);
+                    },
                     View::AccessDenied(denial,lifetime)=>{
                         if lifetime.is_cancelled(){continue}
                         match denial {
@@ -594,7 +634,10 @@ async fn run_terminal(args: Args) -> Result<()> {
                         }
                     },
                     View::Item(workspace,item)=>ui.set_item(workspace,item),
-                    View::Stream(update)=>{if reply.epoch.view==epoch.view{ui.stream(update)}else{ui.background_stream(update)}},
+                    View::Stream{request,update}=>{
+                        ready_send = send_admissions.observe(request, &update);
+                        ui.stream_for(request,update,reply.epoch.view==epoch.view);
+                    },
                     View::PairUri(uri)=>{pairing=true;ui.set_pairing(&uri);},
                     View::PairPin=>ui.set_pair_pin_required(),
                     View::Share(uri)=>ui.set_share_url(&uri),
@@ -608,6 +651,13 @@ async fn run_terminal(args: Args) -> Result<()> {
                         if matches!(error,Error::Expired|Error::Authentication|Error::Forbidden){pairing=false}
                     },
                     View::Done=>{ui.set_busy(false);pair_poll_pending=false;},
+                }
+                if let Some(work) = ready_send
+                    && saved_send_admissions::dispatch_released(
+                        &mut send_admissions, &mut ui, &mut send_cancellations, &requests, work,
+                    )
+                {
+                    preempt_background_read(&background_read_preempt);
                 }
                 dirty=true;
                 effects
@@ -665,9 +715,28 @@ async fn run_terminal(args: Args) -> Result<()> {
                     }
                 }
                 command if demo => demo_command(&mut ui, command),
+                UiCommand::StopSend { request, task } => {
+                    if let Some((chat_id, task_id)) = task {
+                        let stop = Request {
+                            epoch, work: Work::StopReply { request, chat_id, task_id },
+                            cancel: active.clone(),
+                        };
+                        if priority.send(stop).is_err() { ui.stop_result(request, Err(Error::Offline)); }
+                    } else if send_admissions.cancel_waiting(request) {
+                        send_cancellations.remove(&request);
+                        ui.send_failed(request, "Follow-up stopped before sending.");
+                    } else if let Some(cancel) = send_cancellations.get(&request) {
+                        cancel.cancel();
+                        ui.set_status("Stopping this local response…");
+                    }
+                }
                 UiCommand::Cancel => {
                     ui.hide_cached_chat();
                     active.cancel();
+                    send_cancellations.clear();
+                    for pending in send_admissions.clear() {
+                        ui.send_failed(pending, "Follow-up cancelled before sending.");
+                    }
                     active = CancellationToken::new();
                     if !authenticated {
                         epoch.security = epoch.security.wrapping_add(1);
@@ -711,6 +780,8 @@ async fn run_terminal(args: Args) -> Result<()> {
                         close_cached_views(&cached_views);
                         staged_chat_items=None;
                         active.cancel();
+                        send_cancellations.clear();
+                        drop(send_admissions.clear());
                         active = CancellationToken::new();
                         epoch.security = epoch.security.wrapping_add(1);
                         epoch.view = epoch.view.wrapping_add(1);
@@ -743,10 +814,20 @@ async fn run_terminal(args: Args) -> Result<()> {
                         UiCommand::Open(Workspace::Chats, id) if authenticated && benchmark_identity.is_some() => Some(id.clone()),
                         _ => None,
                     };
-                    let request = Request {
-                        epoch,
-                        work: Work::Command(command),
-                        cancel: active.clone(),
+                    let (work, send_id) = match command {
+                        UiCommand::Send { chat_id, text } => {
+                            let request = RequestId(SEND_REQUEST_IDS.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+                            ui.register_send(request, chat_id.as_deref(), &text, followup);
+                            let turn_cancel = active.child_token();
+                            send_cancellations.insert(request, turn_cancel.clone());
+                            (Work::Send { request, chat_id, text, turn_cancel }, Some(request))
+                        }
+                        other => (Work::Command(other), None),
+                    };
+                    let request = Request { epoch, work, cancel: active.clone() };
+                    let Some(request) = send_admissions.stage(request) else {
+                        dirty = true;
+                        continue;
                     };
                     let delivered = if critical {
                         priority.send(request).is_ok()
@@ -762,7 +843,15 @@ async fn run_terminal(args: Args) -> Result<()> {
                     }
                     if !delivered {
                         pending_cached_selection=None;
-                        ui.set_error("The client is busy. Cancel the current operation and retry.");
+                        let error = "The client is busy. Cancel the current operation and retry.";
+                        if let Some(request) = send_id {
+                            send_cancellations.remove(&request);
+                            ui.send_failed(request, error);
+                            saved_send_admissions::retain_waiting_after_failure(
+                                &mut send_admissions, &mut ui, &mut send_cancellations, request,
+                            );
+                        }
+                        else { ui.set_error(error); }
                     }
                 }
             }
@@ -1014,6 +1103,7 @@ async fn actor(
         let mut client = Client::new(&api, None)?;
         client.set_identity(openmates_sdk::ClientIdentity::Cli);
         client.set_interactive(true);
+        client.set_parallel_chat_turns(true);
         client.set_app_origin(openmates::profile::application_origin(
             &api,
             explicit_app.clone(),
@@ -1093,8 +1183,7 @@ async fn actor(
         request=requests.recv()=>request,
         // Only when no command is queued: a chat Open never waits behind it.
         _=std::future::ready(()), if boot_sync.is_some() => {
-            let token = CancellationToken::new();
-            track_background_read(&background_read_preempt, &token);
+            let token = register_boot_sync(&background_read_preempt, &requests);
             boot_sync.take().map(|epoch| Request { epoch, work: Work::BootSync, cancel: token })
         },
         _=std::future::ready(()), if inspirations.is_some() && boot_sync.is_none() => {
@@ -1102,8 +1191,8 @@ async fn actor(
             track_background_read(&background_read_preempt, &token);
             inspirations.take().map(|epoch| Request { epoch, work: Work::Inspirations, cancel: token })
         },
-        outcome = finished.recv() => outcome.map(|(epoch, result)| Request {
-            epoch, work: Work::SendFinished(Box::new(result)), cancel: CancellationToken::new() }),
+        outcome = finished.recv() => outcome.map(|(epoch, request, result)| Request {
+            epoch, work: Work::SendFinished(request, Box::new(result)), cancel: CancellationToken::new() }),
         _=live_tick.tick(), if state.core.monitor_valid() && !state.live_cancel.is_cancelled() => {
             let token = state.live_cancel.child_token();
             track_background_read(&background_read_preempt, &token);
@@ -1126,6 +1215,11 @@ async fn actor(
         let syncing = matches!(&request.work, Work::BootSync);
         let loading_inspirations = matches!(&request.work, Work::Inspirations);
         let opening_chat = matches!(&request.work, Work::Command(UiCommand::Open(Workspace::Chats, _)));
+        let send_id = match &request.work {
+            Work::Send { request, .. } | Work::SendFinished(request, _) => Some(*request),
+            _ => None,
+        };
+        let stop_id = if let Work::StopReply { request, .. } = &request.work { Some(*request) } else { None };
         let epoch = request.epoch;
         let cancel = request.cancel.clone();
         let was_offline = state.offline_personal.is_some();
@@ -1227,7 +1321,10 @@ async fn actor(
             let _ = replies
                 .send(Reply {
                     epoch,
-                    view: if opening_chat { View::ChatOpenFailed(error) } else { View::Failed(error) },
+                    view: if let Some(request) = send_id { View::SendFailed { request, error } }
+                        else if let Some(request) = stop_id { View::StopResult { request, result: Err(error) } }
+                        else if opening_chat { View::ChatOpenFailed(error) }
+                        else { View::Failed(error) },
                 })
                 .await;
         }
@@ -1359,7 +1456,7 @@ impl Actor {
         self.monitor_admission(replies, epoch).await.map(|_| ())
     }
     async fn monitor_admission(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<MonitorAdmission> {
-        self.core.client_mut().set_operation_cancel(self.live_cancel.clone());
+        self.core.begin_client_operation(&self.live_cancel);
         // Periodic membership checks do not reconnect a healthy monitor or
         // manufacture another initial full-refresh event every 30 seconds.
         if self.core.chat_monitor().is_some_and(|m| m.is_valid()) {
@@ -1503,7 +1600,7 @@ impl Actor {
         // Existing Team/Direct recovery keeps its original ordinary policy.
         let inventory = inventory && self.core.client_mut().supports_cached_default_chat_list();
         let cancel = self.live_cancel.clone();
-        self.core.client_mut().set_operation_cancel(cancel.clone());
+        self.core.begin_client_operation(&cancel);
         let mut canonical = RecoveryPersistence::new(self)?;
         let store = self.store.clone();
         let pumped = async {
@@ -1678,6 +1775,9 @@ impl Actor {
         let sink = core_host::TerminalSink::new(replies, self.live_epoch, self.store.generation_guard(), &self.live_cancel).live()
             .owned_by(&self.core, self.core.open_chat_id());
         let refreshed = self.core.refresh_live(hint, &sink, &self.live_cancel).await;
+        if refreshed.is_err() {
+            openmates::native_chat_open_trace::phase("live.refresh", refreshed);
+        }
         match refreshed {
             Ok(()) => {
                 self.live_retry_at = None;
@@ -1880,7 +1980,7 @@ impl Actor {
             self.retire_cached_views();
         }
         let logout = matches!(&request.work, Work::Command(UiCommand::Logout));
-        if !matches!(&request.work, Work::Live | Work::Inspirations | Work::SendFinished(_)) {
+        if !matches!(&request.work, Work::Live | Work::Inspirations | Work::SendFinished(..)) {
             self.live_cancel = request.cancel.clone();
         }
         if matches!(
@@ -2004,14 +2104,40 @@ impl Actor {
                     .await
                     .map(|_| ())
             }),
-            Work::SendFinished(result) => Box::pin(async move {
+            Work::Send { request, chat_id, text, turn_cancel } => Box::pin(async move {
+                // Bind the stable request parent after any cancelled startup
+                // sync. A send child only stops its own turn, and an existing
+                // stream keeps its operation parent.
+                self.core.begin_client_operation(&cancel);
+                // Core admission completes here. The reply streams beside the
+                // actor so another encrypted send can be admitted meanwhile.
+                let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
+                    .sending(&self.relay);
+                let lease = self.core.lease();
+                let stream = core_view::begin_send_with(self, request, chat_id, text,
+                    core_view::SendTurnOptions::default(), sink, &turn_cancel, lease).await?;
+                self.core.release();
+                self.send_streaming = true;
+                send_stream::spawn(stream, self.send_finished.clone(), epoch, request);
+                Ok(())
+            }),
+            Work::StopReply { request, chat_id, task_id } => Box::pin(async move {
+                self.core.client_mut().cancel_ai_task(&chat_id, &task_id).await?;
+                self.persist().await?;
+                Self::emit(replies, epoch, View::StopResult { request, result: Ok(()) }).await
+            }),
+            Work::SendFinished(request, result) => Box::pin(async move {
                 let _request_cancel = &cancel;
                 let receipt = (*result)?;
                 if receipt.status == openmates_sdk::SendStatus::Queued {
                     return Self::emit(replies, epoch, View::SendQueued {
-                        chat_id: receipt.chat_id, message_id: receipt.user_message_id }).await;
+                        request, chat_id: receipt.chat_id, message_id: receipt.user_message_id,
+                        mode: receipt.queue_mode }).await;
                 }
-                Self::emit(replies, epoch, View::Sent(core_host::chat_from_window(&receipt.window)?)).await
+                Self::emit(replies, epoch, View::Sent {
+                    request, chat: core_host::chat_from_window(&receipt.window)?,
+                    message_ids: [receipt.user_message_id, receipt.assistant_message_id],
+                }).await
             }),
             Work::Live => Box::pin(async move {
                 let _request_cancel = &cancel;
@@ -2162,7 +2288,11 @@ impl Actor {
                     let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
                         .owned_by(&self.core, Some(&id));
                     let command = ViewCommand::OpenChat { request: RequestId(SEND_REQUEST_IDS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)), chat_id: id };
-                    core_view::handle(self, command, &sink, &cancel).await
+                    use openmates::native_chat_open_trace::phase;
+                    phase("open.start", Ok(()));
+                    let result = core_view::handle(self, command, &sink, &cancel).await;
+                    phase("open.finish", result);
+                    result
                 }),
                 UiCommand::Open(workspace, id) => Box::pin(async move {
                     let _request_cancel = &cancel;
@@ -2197,19 +2327,6 @@ impl Actor {
                     let items = self.core.client_mut().list(workspace).await?;
                     self.persist().await?;
                     Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { core_view::arrange_chat_list(self.core.client(), items) } else { items }, self.core.client().chat_total_count())).await
-                }),
-                UiCommand::Send { chat_id, text } => Box::pin(async move {
-                    // Core send: mentions and admission run here; the reply streams
-                    // on its own task so a follow-up send is accepted meanwhile.
-                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
-                        .sending(&self.relay);
-                    let lease = self.core.lease();
-                    let stream = core_view::begin_send_with(self, RequestId(epoch.view), chat_id, text,
-                        core_view::SendTurnOptions::default(), sink, &cancel, lease).await?;
-                    self.core.release();
-                    self.send_streaming = true;
-                    send_stream::spawn(stream, self.send_finished.clone(), epoch);
-                    Ok(())
                 }),
                 UiCommand::Share {
                     chat_id,

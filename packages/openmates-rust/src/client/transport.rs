@@ -185,6 +185,8 @@ fn plaintext_request(
     let serialized = PlaintextBytes::serialize(&source.value)?;
     Ok(request.header("Content-Type", "application/json").body(serialized.owned(source)))
 }
+const PARALLEL_CHAT_TURNS_CAPABILITY: &str = "parallel_chat_turns_v1";
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SocketSelectionPolicy {
     AnnounceActiveChat,
@@ -1139,6 +1141,10 @@ impl Client {
                 capabilities.push(',');
                 capabilities.push_str(extra);
             }
+            if self.parallel_chat_turns && self.options.identity == ClientIdentity::Cli {
+                capabilities.push(',');
+                capabilities.push_str(PARALLEL_CHAT_TURNS_CAPABILITY);
+            }
             // architecture.sync@2: cold-start cursor, overview and delta feed.
             capabilities.push(',');
             capabilities.push_str(super::sync_feed::CAPABILITY);
@@ -1589,6 +1595,34 @@ pub(super) fn test_socket(inner: crate::platform::socket::Stream) -> Socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parallel_chat_turns_capability_serializes_only_on_opted_in_durable_terminal_sockets() {
+        let mut session = super::super::sdk_boundary_tests::session();
+        session.ws_token = Some("fixture-ws-token".into());
+        let mut client = Client::new("https://api.example.org", Some(session)).unwrap();
+        let check = |client: &Client, ephemeral, expected| {
+            let staged = client
+                .prepare_socket_connection(false, ephemeral, false, SocketSelectionPolicy::Passive, None)
+                .unwrap();
+            let url = url::Url::parse(&staged.request.uri().to_string()).unwrap();
+            let advertised = url.query_pairs().any(|(name, value)| {
+                name == "client_capabilities"
+                    && value.split(',').any(|part| part == PARALLEL_CHAT_TURNS_CAPABILITY)
+            });
+            assert_eq!(advertised, expected);
+        };
+
+        client.set_identity(ClientIdentity::Cli);
+        check(&client, false, false);
+        client.set_parallel_chat_turns(true);
+        check(&client, false, true);
+        check(&client, true, false);
+        client.reset("https://api.example.org", client.session.clone()).unwrap();
+        check(&client, false, true);
+        client.set_identity(ClientIdentity::Apple);
+        check(&client, false, false);
+    }
     // contract-test: supporting surface=sdks.rust assertions=chats.message.identity-idempotent
     #[test]
     fn only_explicit_preflight_rejections_become_turn_rejected() {

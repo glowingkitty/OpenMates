@@ -31,6 +31,7 @@ from backend.shared.python_utils.voice_call_admission import paused_voice_delive
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.apps.ai.processing.specialised_skill_preference import (
     empty_specialised_result_note,
     require_web_search_fallback,
@@ -87,7 +88,14 @@ from backend.shared.python_utils.learning_mode import (
 )
 from backend.shared.python_utils.tracing.ai_observability import ai_phase_span, observe_ai_stream
 from backend.apps.ai.processing.suggested_followup_stream import SuggestedFollowupStream
+from backend.apps.ai.processing.active_artifact_steering import (
+    ARTIFACT_REVISION_INSTRUCTION, MAX_STEERS_PER_ARTIFACT_CYCLE,
+    ArtifactSnapshot,
+)
 from backend.shared.python_utils.app_memory_policy import is_removed_app_memory_key
+from backend.shared.python_utils.independent_chat_reply import is_independent_reply
+from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
+from backend.shared.python_schemas.llm_usage import normalize_provider_usage
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
@@ -3939,6 +3947,134 @@ async def _command_outcome_references(
     return references
 
 
+
+def _ordered_answer_models(preprocessing: PreprocessingResult) -> list[str]:
+    return list(dict.fromkeys(filter(None, (
+        preprocessing.selected_main_llm_model_id,
+        preprocessing.selected_secondary_model_id,
+        preprocessing.selected_fallback_model_id,
+    ))))
+
+
+def _prefer_instant_voice_reasoning(request: AskSkillRequest, preprocessing: PreprocessingResult, model_id: str) -> bool:
+    return (
+        getattr(request, "_verified_live_voice_dispatch", False) is True
+        and getattr(request, "voice_mode", False) is True
+        and model_id == preprocessing.selected_main_llm_model_id == MERCURY_MODEL
+        and preprocessing.complexity == "low"
+        and getattr(preprocessing, "voice_instant_route_proof", False) is True
+        and getattr(preprocessing, "requested_reasoning_level", None) in (None, "LOW")
+        and not getattr(preprocessing, "user_requested_focus_only", False)
+        and not any(getattr(request, flag, None) for flag in (
+            "is_async_skill_continuation", "is_app_settings_memories_continuation",
+            "is_connected_account_permission_continuation", "is_e2b_upload_consent_continuation",
+            "is_focus_mode_continuation", "is_sub_chat_continuation",
+            "same_turn_checkpoint", "same_turn_batch_id",
+        ))
+    )
+
+
+async def _stream_independent_answer(
+    *,
+    task_id: str,
+    request: AskSkillRequest,
+    preprocessing: PreprocessingResult,
+    base_instructions: Dict[str, Any],
+    cache: Optional[CacheService],
+    directus: DirectusService,
+    encryption: EncryptionService,
+    secrets: Optional[SecretsManager],
+    on_reasoning_dispatch: Optional[Callable[[], Awaitable[None]]],
+) -> AsyncIterator[Any]:
+    """Use the ordinary provider and billing path without tool capabilities."""
+    if not preprocessing.can_proceed or not preprocessing.selected_main_llm_model_id:
+        yield STANDARDIZED_USER_ERROR_MESSAGE
+        return
+
+    system_prompt = "\n\n".join(filter(None, (
+        base_instructions.get("base_ethics_instruction"),
+        base_instructions.get("base_privacy_instruction"),
+        base_instructions.get("base_answer_composition_instruction"),
+        "Answer the latest question briefly in the user's language. Use completed chat context or general knowledge. "
+        "This answer has no access to pending work or tools. Do not claim to inspect, change, or run anything.",
+    )))
+    history = [{"role": item.role, "content": item.content[:1600]} for item in request.message_history[:-1]]
+    history.append({"role": "user", "content": request.current_user_content})
+    usage_tracker = ModelUsageTracker()
+    max_tokens = 512
+    has_output = False
+    last_usage = None
+    from backend.apps.ai.testing.voice_pipeline_fixture import main_stream as voice_fixture_stream
+
+    for index, model_id in enumerate(_ordered_answer_models(preprocessing)):
+        level = (preprocessing.selected_main_llm_thinking_level if index == 0
+                 else automatic_profile_thinking_level(preprocessing.complexity, model_id))
+        thinking_level = automatic_attempt_thinking_level(preprocessing.complexity, model_id, level) or level
+        permitted_servers = None
+        if thinking_level or model_id == MERCURY_MODEL:
+            permitted_servers = automatic_model_allowed_servers(
+                model_id, request.user_preferences, config_manager.get_provider_config(model_id.split("/", 1)[0]),
+            )
+            if not permitted_servers:
+                continue
+
+        async def admit_provider(
+            server_model_id: str, dispatch_limit: Optional[int], *,
+            tariff_snapshot: Optional[Dict[str, Any]] = None, region: Optional[str] = None,
+        ) -> int:
+            return await _fit_personal_chat_output_token_limit(
+                request_data=request, cache_service=cache, directus_service=directus,
+                encryption_service=encryption, model_usage_tracker=usage_tracker, model_id=model_id,
+                system_prompt=system_prompt, message_history=history, tools=None,
+                requested_output_token_limit=dispatch_limit, inference_host=server_model_id.split("/", 1)[0],
+                tariff_snapshot=tariff_snapshot, region=region,
+            )
+
+        stream = voice_fixture_stream(
+            request, message_history=history, tools=None, model_id=model_id,
+            max_tokens=max_tokens, pre_dispatch_admission=admit_provider,
+        )
+        if stream is None:
+            stream = call_main_llm_stream(
+                task_id=task_id, model_id=model_id, system_prompt=system_prompt, message_history=history,
+                temperature=preprocessing.llm_response_temp, secrets_manager=secrets,
+                tools=None, tool_choice="none", max_tokens=max_tokens, private_logging=True,
+                pre_dispatch_admission=admit_provider, recoverable_attempt=True,
+                on_reasoning_dispatch=on_reasoning_dispatch,
+                prefer_instant_voice=_prefer_instant_voice_reasoning(request, preprocessing, model_id),
+                thinking_level=thinking_level, allowed_server_ids=permitted_servers,
+                server_region_preference=(request.user_preferences or {}).get("server_region_preference", "eu"),
+            )
+
+        try:
+            async for chunk in stream:
+                if isinstance(chunk, str):
+                    has_output = has_output or bool(chunk.strip())
+                    yield chunk
+                elif isinstance(chunk, (
+                    MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata,
+                )):
+                    normalized = getattr(chunk, "_normalized_llm_usage", None) or normalize_provider_usage(
+                        chunk, model_id=model_id,
+                    )
+                    usage_tracker.record_reported_usage(model_id=normalized.model_id, normalized_usage=normalized)
+                    last_usage = chunk
+                # This answer deliberately has no tool or structured write consumer.
+        except AllServersFailedError:
+            logger.info("[Task ID: %s] Independent reply provider unavailable", task_id)
+        finally:
+            await stream.aclose()
+        if has_output:
+            usage_tracker.mark_successful_model(model_id)
+            break  # Never start a new answer over an already visible prefix.
+
+    if not has_output:
+        yield STANDARDIZED_USER_ERROR_MESSAGE
+    if last_usage is not None:
+        yield usage_tracker.sentinel(tool_inference_iterations=0)
+        yield last_usage
+
+
 async def handle_main_processing(
     task_id: str,
     request_data: AskSkillRequest,
@@ -3955,6 +4091,8 @@ async def handle_main_processing(
     user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax (for skip-permission logic)
     skill_config_dict: Optional[dict[str, Any]] = None,
     on_reasoning_dispatch: Optional[Callable[[], Awaitable[None]]] = None,
+    read_steerable_artifact: Optional[Callable[..., Awaitable[Optional[ArtifactSnapshot]]]] = None,
+    publish_artifact_revision: Optional[Callable[[ArtifactSnapshot, str], Awaitable[bool]]] = None,
 ) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]]:
     """
     Handles the main processing of an AI skill request after preprocessing.
@@ -3963,6 +4101,25 @@ async def handle_main_processing(
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
     validate_required_answer_instructions(base_instructions)
+
+    # API admission verified these work facts. Stream the read-only answer
+    # through the normal response and speech pipeline, with no tool execution.
+    if ((active_input_reply := getattr(request_data, "active_input_reply", None))
+            and preprocessing_results.can_proceed):
+        from backend.shared.python_utils.active_input_authority import closed_active_input_reply
+
+        if closed_active_input_reply(active_input_reply):
+            yield active_input_reply
+            return
+
+    if is_independent_reply(request_data):
+        async for chunk in _stream_independent_answer(
+            task_id=task_id, request=request_data, preprocessing=preprocessing_results,
+            base_instructions=base_instructions, cache=cache_service, directus=directus_service,
+            encryption=encryption_service, secrets=secrets_manager, on_reasoning_dispatch=on_reasoning_dispatch,
+        ):
+            yield chunk
+        return
 
     # Routing-only Project proposals need consent, not an answer-model prompt.
     # Keep the normal stream lifecycle so the card is persisted and cancellation
@@ -7103,6 +7260,88 @@ async def handle_main_processing(
             announced_reasoning_iteration = iteration
             await on_reasoning_dispatch()
 
+    artifact_revision: Optional[ArtifactSnapshot] = None
+    artifact_fallback = False
+
+    def start_artifact_revision(
+        snapshot: ArtifactSnapshot, corrections: list[AIHistoryMessage],
+    ) -> None:
+        nonlocal artifact_revision, force_no_tools
+        nonlocal native_prior_state, native_state, native_terminal_ready, continue_published_answer
+        artifact_revision = snapshot
+        force_no_tools = True
+        continue_published_answer = False
+        native_prior_state = native_state = None
+        native_terminal_ready = False
+        source = {"role": "assistant", "content": snapshot.source_context()}
+        if not corrections and current_message_history and current_message_history[-1].get("role") == "user":
+            current_message_history.insert(len(current_message_history) - 1, source)
+        else:
+            current_message_history.append(source)
+        for correction in corrections:
+            request_data.message_history.append(correction)
+            request_data.current_user_content = correction.content
+            current_message_history.append(_llm_history_message(correction))
+        current_message_history.append({"role": "user", "content": ARTIFACT_REVISION_INSTRUCTION})
+
+    async def start_queued_artifact_revision(budget_iteration: int) -> bool:
+        """Start one answer-only revision after the working artifact is finished."""
+        if (
+            not read_steerable_artifact or not publish_artifact_revision or not cache_service
+            or budget_iteration + 1 >= max_iterations_with_recovery or answer_recovery.active
+        ):
+            return False
+        from backend.apps.ai.processing.queued_steering import consume_safe_queued_steer
+
+        corrections = []
+        snapshot = None
+        try:
+            producer_id = request_data.continuation_message_id if request_data.same_turn_batch_id else task_id
+            target = (producer_id or task_id, request_data.same_turn_batch_id)
+            if not await cache_service.peek_steer_queued_message(
+                request_data.chat_id, request_data.user_id,
+                active_input_target=target, exclude_ids=steer_excluded_ids,
+            ):
+                return False
+            snapshot = await read_steerable_artifact()
+            if not snapshot or snapshot.producer_task_id != target[0]:
+                return False
+            for _ in range(MAX_STEERS_PER_ARTIFACT_CYCLE):
+                correction = await consume_safe_queued_steer(
+                    task_id=task_id, request=request_data,
+                    current_preprocessing=preprocessing_results,
+                    base_instructions=base_instructions, skill_config_dict=skill_config_dict,
+                    cache=cache_service, directus=directus_service, encryption=encryption_service,
+                    secrets=secrets_manager, discovered_apps=discovered_apps_metadata,
+                    excluded_ids=steer_excluded_ids, active_input_target=target,
+                )
+                if correction is None:
+                    # A revised or incompatible earlier correction keeps its
+                    # place in the normal gated queue, ahead of later ones.
+                    break
+                corrections.append(correction)
+        except Exception:
+            logger.exception("%s Could not claim queued artifact correction", log_prefix)
+        if corrections and snapshot:
+            start_artifact_revision(snapshot, corrections)
+            return True
+        return False
+
+    if (
+        read_steerable_artifact and publish_artifact_revision and not resume_checkpoint
+        and getattr(request_data, "active_input_steer_task_id", None)
+    ):
+        try:
+            completed = await read_steerable_artifact(fallback=True)
+        except Exception:
+            completed = None
+            logger.exception("%s Could not load completed artifact for gated edit", log_prefix)
+        if completed:
+            # This request already passed the normal turn's admission/preflight.
+            # Keep its encrypted message and current billing identity.
+            start_artifact_revision(completed, [])
+            artifact_fallback = True
+
     for iteration in itertools.count(start_iteration):
         budget_iteration = iteration - sandbox_free_iterations
         if budget_iteration >= max_iterations_with_recovery:
@@ -7700,6 +7939,10 @@ async def handle_main_processing(
                         native_cache_context=native_prepared_context,
                         failed_servers_in_turn=failed_servers_in_turn,
                         on_reasoning_dispatch=announce_reasoning if on_reasoning_dispatch is not None else None,
+                        prefer_instant_voice=(
+                            tool_inference_iterations == 0 and not answer_recovery.active
+                            and _prefer_instant_voice_reasoning(request_data, preprocessing_results, current_model_id)
+                        ),
                     )
                 # Stream created successfully - break out of retry loop
                 break
@@ -7741,7 +7984,7 @@ async def handle_main_processing(
                     f"Trying next model..."
                 )
                 if answer_recovery.active:
-                    if schedule_answer_recovery("recovery_preparation_failed"):
+                    if artifact_revision is None and schedule_answer_recovery("recovery_preparation_failed"):
                         continue
                     break
                 current_model_index += 1
@@ -8477,9 +8720,10 @@ async def handle_main_processing(
                         visible_text = suggested_followup_stream.feed(chunk.content)
                         if visible_text:
                             llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
-                            yield visible_text
+                            if artifact_revision is None:
+                                yield visible_text
+                                published_answer_text.append(visible_text)
                             current_turn_text_buffer.append(visible_text)
-                            published_answer_text.append(visible_text)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
@@ -8490,11 +8734,10 @@ async def handle_main_processing(
                     visible_text = suggested_followup_stream.feed(chunk)
                     if visible_text:
                         llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
-                        yield visible_text
-                    # Retain every safe, published chunk. Besides tool history, this
-                    # lets a guarded partial answer continue without replaying it.
+                        if artifact_revision is None:
+                            yield visible_text
+                            published_answer_text.append(visible_text)
                         current_turn_text_buffer.append(visible_text)
-                        published_answer_text.append(visible_text)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
         except (AuthenticatedReservationLimitError, AuthenticatedReservationError) as admission_error:
@@ -8526,7 +8769,7 @@ async def handle_main_processing(
             )
             current_ai_operation_id = None
             if answer_recovery.active or force_no_tools or tool_inference_iterations > 0:
-                if schedule_answer_recovery("provider_exhausted"):
+                if artifact_revision is None and schedule_answer_recovery("provider_exhausted"):
                     continue
                 for billing_event in await terminal_billing_usage_events():
                     yield billing_event
@@ -8556,9 +8799,10 @@ async def handle_main_processing(
         trailing_answer_text = suggested_followup_stream.finish()
         if trailing_answer_text:
             llm_turn_had_content = llm_turn_had_content or _has_visible_text(trailing_answer_text)
-            yield trailing_answer_text
+            if artifact_revision is None:
+                yield trailing_answer_text
+                published_answer_text.append(trailing_answer_text)
             current_turn_text_buffer.append(trailing_answer_text)
-            published_answer_text.append(trailing_answer_text)
 
         if iteration_usage is not None:
             usage = iteration_usage
@@ -8650,6 +8894,20 @@ async def handle_main_processing(
             break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+        if artifact_revision is not None:
+            if (
+                protocol_guard.detected or diagram_context_guard.required_type
+                or forbidden_tool_call_seen or tool_calls_for_this_turn or hallucinated_tool_calls_this_turn
+                or not await publish_artifact_revision(artifact_revision, final_buffered_text_for_turn)
+            ):
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
+                yield main_processing_failure("stream_error")
+                break
+            artifact_revision = None
+            if artifact_fallback:
+                yield "I updated the existing artifact."
+            break
         answer_text_was_published = answer_text_was_published or bool(final_buffered_text_for_turn.strip())
         if diagram_context_guard.required_type and not tool_calls_for_this_turn:
             prose_repair = diagram_context_guard.reason == "unrequested_diagram"
@@ -8935,6 +9193,9 @@ async def handle_main_processing(
                 yield INVALID_TOOL_FALLBACK_MESSAGE
                 force_no_tools = True
                 break
+            if llm_turn_had_content and not protocol_guard.detected:
+                if await start_queued_artifact_revision(budget_iteration):
+                    continue
             if focus_phase_runtimes and await evaluate_active_phases(
                 "assistant", f"{request_data.message_id}:{iteration}:assistant",
                 [*current_message_history, {"role": "assistant", "content": final_buffered_text_for_turn}],

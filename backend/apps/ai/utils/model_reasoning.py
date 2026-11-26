@@ -21,6 +21,8 @@ def resolve_reasoning_parameters(
     model_config: Mapping[str, Any] | None,
     server_id: str,
     requested_level: Any,
+    *,
+    prefer_instant_voice: bool = False,
 ) -> dict[str, str]:
     """Return native dispatch kwargs, clamping unsupported effort to the ceiling.
 
@@ -54,6 +56,8 @@ def resolve_reasoning_parameters(
     if not levels or any(key not in REASONING_LEVELS or not isinstance(value, str)
                          or not value.strip() for key, value in levels.items()):
         return {}
+    if prefer_instant_voice and parameter == "reasoning_effort" and control.get("instant_for_voice") is True:
+        return {parameter: "instant"}
     resolved = level if level in levels else next(
         candidate for candidate in reversed(REASONING_LEVELS) if candidate in levels
     )

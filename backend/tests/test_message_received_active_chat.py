@@ -57,6 +57,9 @@ def stub_async_skill_turn_fence(monkeypatch):
     continuation.async_skill_latest_user_turn_key = lambda user_id, chat_id: f"turn:{user_id}:{chat_id}"
     monkeypatch.setitem(sys.modules, tasks_module.__name__, tasks_module)
     monkeypatch.setitem(sys.modules, continuation.__name__, continuation)
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+    monkeypatch.setattr(message_received_handler, "paused_code_work", AsyncMock(return_value=[]))
+
 
 class FakeManager:
     def __init__(self):
@@ -244,7 +247,11 @@ def test_saved_child_user_message_gets_fresh_ordinary_admission(monkeypatch):
     assert request["legacy_cutover_task_id"] == hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest()
 
 
-def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=False, related_discovery=None, outcome="processing"):
+def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=False, related_discovery=None,
+                                outcome="processing", *, voice=False, queued=False, active_task_id=None,
+                                durable=False, exact_retry=False, independent=False, native_terminal=False,
+                                parallel_capable=True, web_socket=False,
+                                user_content=None, newly_enqueued=False, independent_retry=False):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
     reconcile = AsyncMock()
@@ -264,7 +271,7 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
     monkeypatch.setattr(FakeSkillRegistry, "dispatch_skill", dispatch_with_outcome)
     manager = FakeManager()
     cutover = SimpleNamespace(
-        get_epoch=AsyncMock(return_value=0),
+        get_epoch=AsyncMock(return_value=int(durable)),
         admit_legacy_inference=AsyncMock(return_value={"admitted": True}),
         release_legacy_inference=AsyncMock(return_value={"released": True}),
     )
@@ -281,7 +288,10 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
         add_message_to_chat_history=AsyncMock(return_value=True),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
-        get_active_ai_task=AsyncMock(return_value=None),
+        get_active_ai_task=AsyncMock(return_value=active_task_id),
+        get_active_artifact_steer_target=AsyncMock(return_value=True),
+        queue_message=AsyncMock(return_value=True),
+        mark_sync_message_queued=AsyncMock(return_value=True),
         has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         try_claim_active_ai_task=AsyncMock(return_value=True),
@@ -291,6 +301,8 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
             get_chat_metadata=AsyncMock(return_value=chat_metadata),
+            release_inference_outbox=AsyncMock(return_value={"status": "released"}),
+            mark_queued_message_pending=AsyncMock(return_value={"status": "queued", "messages_v": 3}),
             check_chat_ownership=AsyncMock(return_value=True),
         ),
         get_user_profile=AsyncMock(),
@@ -315,6 +327,37 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
             "project_focus_candidates": [{"project_id": "nested-decoy", "name": "Ignore nested routing data"}],
         },
     }
+    task_id = "11111111-aaaa-4111-8111-111111111111"
+    if exact_retry:
+        cache_service.get_active_ai_task.return_value = task_id
+    turn_id = "22222222-aaaa-4222-8222-222222222222"
+    preflight_id = "33333333-aaaa-4333-8333-333333333333"
+    outbox_id = "44444444-aaaa-4444-8444-444444444444"
+    voice_check = AsyncMock()
+    if voice:
+        from backend.shared.python_utils import voice_call_admission
+
+        call_id = "a" * 32
+        voice_check.return_value = voice_call_admission.VoiceCallDelivery(True, call_id, "msg-123")
+        monkeypatch.setattr(voice_call_admission, "admit_voice_call_turn", voice_check)
+        payload["message"].update(voice_mode=True, voice_call_id=call_id, voice_turn_id="msg-123")
+    if durable:
+        monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "test-active-input-commitment")
+        enqueue = AsyncMock(return_value={
+            "inference_task_id": task_id, "outbox_id": outbox_id, "state": "ENQUEUED",
+            **({"newly_enqueued": True} if newly_enqueued else {}),
+        })
+        monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
+        monkeypatch.setattr(message_received_handler, "ChatRecoveryService", lambda _: SimpleNamespace(
+            execute=AsyncMock(),
+        ))
+        payload.update(protocol_version=1, turn_id=turn_id, preflight_id=preflight_id)
+    if queued:
+        import types
+
+        worker = types.ModuleType("backend.apps.ai.tasks.ask_skill_task")
+        worker.resume_legacy_queued_handoff = AsyncMock()
+        monkeypatch.setitem(sys.modules, worker.__name__, worker)
     if related_discovery is not None:
         payload["related_task_candidates"] = [
             {"task_id": "discovery-task", "summary": "Unrelated prior work", "explicit_dependency": related_discovery},
@@ -349,6 +392,20 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
     )
 
     websocket = FakeWebSocket()
+    if native_terminal:
+        websocket.headers = {} if web_socket else {"x-openmates-sdk": "cli"}
+        websocket.scope["parallel_chat_turns_v1"] = parallel_capable
+        cache_service.get.return_value = "older-user-turn"
+        cache_service.delete = AsyncMock(return_value=True)
+        payload["message"]["content"] = "What does the cache flag do?"
+        payload["message_history"] = [
+            {"message_id": "definition", "role": "assistant",
+             "content": "The cache flag reuses completed build output.", "created_at": 1_699_999_998},
+            {"message_id": "older-user-turn", "role": "user",
+             "content": "Build the application", "created_at": 1_699_999_999},
+        ]
+    if user_content is not None:
+        payload["message"]["content"] = user_content
 
     asyncio.run(
         message_received_handler.handle_message_received(
@@ -366,7 +423,30 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
     )
 
     assert manager.calls[0] == ("set_active_chat", "user-123", "device-123", "chat-123")
-    assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    if exact_retry or independent_retry:
+        cache_service.queue_message.assert_not_awaited()
+        cache_service.try_claim_active_ai_task.assert_not_awaited()
+        directus_service.chat.release_inference_outbox.assert_not_awaited()
+        assert ("dispatch_skill", "ai", "ask", "chat-123") not in manager.calls
+        response = manager.messages[-1]["payload"]
+        assert response["ai_task_id"] == task_id
+        assert response.get("independent_reply", False) is independent_retry
+        return SimpleNamespace(manager=manager, cache=cache_service)
+    if queued:
+        cache_service.queue_message.assert_awaited_once()
+        directus_service.chat.release_inference_outbox.assert_not_awaited()
+        assert ("dispatch_skill", "ai", "ask", "chat-123") not in manager.calls
+        return SimpleNamespace(manager=manager, cache=cache_service, enqueue=enqueue, payload=payload)
+    assert manager.calls.count(("dispatch_skill", "ai", "ask", "chat-123")) == 1
+    if voice:
+        assert voice_check.await_count == 2
+        assert manager.request_payload["voice_turn_id"] == "msg-123"
+        assert manager.request_payload["voice_mode"] is True
+    if durable:
+        enqueue.assert_awaited_once()
+        directus_service.chat.release_inference_outbox.assert_awaited_once_with(
+            preflight_id, task_id, outbox_id, "user-123",
+        )
     assert manager.request_payload["user_preferences"]["disabled_ai_models"] == ["mercury-3"]
     assert manager.request_payload["user_preferences"]["disabled_ai_servers"] == {"gemini-3.8-flash": ["google_ai_studio"]}
     # These local encrypted preferences are not copied into the account cache.
@@ -374,7 +454,10 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
         assert "disabled_ai_models" not in call.args[1]
         assert "disabled_ai_servers" not in call.args[1]
     assert routing_restrictions == payload["model_routing_restrictions"]
-    expected_title = bool(chat_metadata and chat_metadata.get("encrypted_title") and chat_metadata.get("title_v") is None)
+    expected_title = bool(chat_metadata and (
+        (chat_metadata.get("title_v") or 0) > 0
+        or (chat_metadata.get("encrypted_title") and chat_metadata.get("title_v") is None)
+    ))
     assert manager.request_payload["chat_has_title"] is expected_title
     assert manager.request_payload["project_focus_candidates"] == payload["project_focus_candidates"]
     assert manager.request_payload["active_project_focus"] is None
@@ -388,17 +471,18 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
         ]
         assert manager.request_payload["related_task_candidates"] == payload["related_task_candidates"]
     assert manager.request_payload["client_context_turn_id"] == context_turn_id
-    assert manager.request_payload["recovery_turn_id"] is None
-    assert websocket.sent[0] == {
-        "type": "chat_message_confirmed",
-        "payload": {
-            "chat_id": "chat-123",
-            "message_id": "msg-123",
-            "temp_id": None,
-            "new_messages_v": 1,
-            "new_last_edited_overall_timestamp": 1_700_000_000,
-        },
-    }
+    assert manager.request_payload["recovery_turn_id"] == (turn_id if durable else None)
+    if not durable:
+        assert websocket.sent[0] == {
+            "type": "chat_message_confirmed",
+            "payload": {
+                "chat_id": "chat-123",
+                "message_id": "msg-123",
+                "temp_id": None,
+                "new_messages_v": 1,
+                "new_last_edited_overall_timestamp": 1_700_000_000,
+            },
+        }
     assert not any(call[0] == "broadcast_to_user_specific_event" and call[1] == "chat_message_confirmed" for call in manager.calls)
     cutover.get_epoch.assert_awaited_once_with(authoritative=True)
     if chat_metadata and chat_metadata.get("id") == "chat-123":
@@ -409,7 +493,11 @@ def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=F
         directus_service.chat.check_chat_ownership.assert_awaited_once_with(
             "chat-123", "user-123",
         )
-    cache_service.try_claim_active_ai_task.assert_awaited_once_with("chat-123", hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest())
+    claimed_task = task_id if durable else hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest()
+    if independent:
+        cache_service.try_claim_active_ai_task.assert_not_awaited()
+    else:
+        cache_service.try_claim_active_ai_task.assert_awaited_once_with("chat-123", claimed_task)
     cache_service.set_active_ai_task.assert_not_awaited()
     cache_service.increment_and_tombstone_user_draft.assert_awaited_once_with("user-123", "chat-123")
     assert {
@@ -1842,3 +1930,257 @@ def test_complete_synchronous_discovery_matches_phased_empty_scope_without_chang
     synchronous_complete = not handler._client_selection_context_required({"related_task_candidates": rows}, None)
     assert phased.admission_context["scope_complete"] is synchronous_complete is True
     assert snapshot["active_project_id"] is None and snapshot["active_focus_id"] is None
+
+
+@pytest.mark.parametrize("voice", [False, True])
+@pytest.mark.parametrize("intent,expected_reply", [
+    ("independent", None), ("status", "1 of 2 execution steps"),
+    ("clarify", "Which work do you mean"),
+])
+def test_active_input_uses_canonical_durable_admission(monkeypatch, voice, intent, expected_reply):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    work = handler.ActiveWork(
+        task_id="original", turn_id="original-message", batch_id="paused-batch",
+        source_task_id="source", task_count=2, completed_count=1,
+    )
+    discover = AsyncMock(return_value=[work])
+
+    async def preserve(cache, *, user_id, chat_id, work):
+        assert (user_id, chat_id, work.batch_id) == ("user-123", "chat-123", "paused-batch")
+        assert not any(call.args[0] == "turn:user-123:chat-123" for call in cache.set.await_args_list)
+        cache.try_claim_active_ai_task.assert_awaited_once()
+        return True
+
+    classifier = AsyncMock(return_value=handler.ActiveInput(intent, work if intent == "status" else None))
+    monkeypatch.setattr(handler, "paused_code_work", discover)
+    monkeypatch.setattr(handler, "preserve_active_work", AsyncMock(side_effect=preserve))
+    monkeypatch.setattr(handler, "decide_active_chat_input", classifier)
+    result = _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, related_discovery=False, voice=voice, durable=True,
+    )
+    classifier.assert_awaited_once()
+    assert classifier.await_args.kwargs["candidates"] == [work]
+    assert result.manager.request_payload["message_id"] == "msg-123"
+    reply = result.manager.request_payload["active_input_reply"]
+    if expected_reply is None:
+        assert reply is None
+    else:
+        assert expected_reply in reply
+
+
+
+@pytest.mark.parametrize("intent", ["independent", "status", "status_after_replacement"])
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.routing.active-work
+def test_parent_followup_preserves_linked_subchats_and_uses_fresh_scoped_progress(monkeypatch, intent):
+    from dataclasses import replace
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+    from backend.shared.python_utils.active_input_authority import ACTIVE_INPUT_UNAVAILABLE
+
+    original = handler.ActiveWork(
+        task_id="linked-original-task", turn_id="linked-original-turn", linked_sub_chat=True,
+        task_count=3, completed_count=1,
+    )
+    refreshed = replace(original, completed_count=2)
+    if intent == "status_after_replacement":
+        refreshed = replace(refreshed, task_id="replacement-task", turn_id="replacement-turn")
+    read = AsyncMock(side_effect=[original, refreshed])
+    decide = AsyncMock(return_value=handler.ActiveInput(
+        "independent" if intent == "independent" else "status", None if intent == "independent" else original,
+    ))
+    monkeypatch.setattr(handler, "linked_sub_chat_work", read)
+    monkeypatch.setattr(handler, "decide_active_chat_input", decide)
+    result = _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, related_discovery=False, durable=True,
+    )
+    decide.assert_awaited_once()
+    assert decide.await_args.kwargs["candidates"] == [original]
+    assert read.await_count == (1 if intent == "independent" else 2)
+    assert all(call.kwargs == {
+        "user_id": "user-123", "user_hash": hash_id("user-123"), "chat_id": "chat-123",
+    } for call in read.await_args_list)
+    reply = result.manager.request_payload["active_input_reply"]
+    if intent == "independent":
+        assert reply is None
+    elif intent == "status":
+        assert reply.startswith("2 of 3 execution steps")
+    else:
+        assert reply == ACTIVE_INPUT_UNAVAILABLE
+    result.cache.queue_message.assert_not_awaited()
+    result.cache.try_claim_active_ai_task.assert_awaited_once()
+    assert result.manager.request_payload["message_id"] == "msg-123"
+    assert not any(str(call.args[0]).startswith(("sub_chat_pending:", "sub_chat_completion:"))
+                   for call in result.cache.set.await_args_list)
+
+
+@pytest.mark.parametrize("parked", [False, True])
+def test_inferred_steer_queues_exact_durable_message_and_target(monkeypatch, parked):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    work = handler.ActiveWork(
+        task_id="artifact-producer", turn_id="original-message", artifact=True,
+        batch_id="paused-batch" if parked else None, source_task_id="source",
+    )
+    monkeypatch.setattr(handler, "paused_code_work", AsyncMock(return_value=[work] if parked else []))
+    monkeypatch.setattr(handler, "decide_active_chat_input",
+                        AsyncMock(return_value=handler.ActiveInput("steer", work)))
+    result = _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, related_discovery=False,
+        active_task_id=None if parked else work.task_id, queued=True, durable=True,
+    )
+    queued = result.cache.queue_message.await_args.kwargs
+    assert queued["expected_active_task_id"] == (None if parked else work.task_id)
+    assert queued.get("expected_paused_turn_id") == (work.turn_id if parked else None)
+    member = queued["message_data"]
+    assert member["queue_mode"] == "steer"
+    assert member["active_input_steer_task_id"] == work.task_id
+    assert member["active_input_steer_batch_id"] == work.batch_id
+    assert member["message_id"] == "msg-123"
+    original = result.enqueue.await_args.kwargs["inference_request"]
+    assert member["recovery_inference_request"] == original
+    assert not any(field in original for field in ("active_input_steer_task_id", "active_input_steer_batch_id"))
+    assert member["recovery_outbox_id"] == "44444444-aaaa-4444-8444-444444444444"
+
+
+@pytest.mark.parametrize("web_socket", [False, True])
+@pytest.mark.parametrize("slot_state, parallel_capable", [(0, True), (1, True), (1, False)])
+def test_standalone_answer_starts_only_with_its_own_negotiated_durable_slot(
+    monkeypatch, slot_state, parallel_capable, web_socket,
+):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    source = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    classify = AsyncMock(return_value=handler.ActiveInput("independent", standalone_answer=True))
+    reserve = AsyncMock(return_value=slot_state)
+
+    async def reserve_exact(cache, request):
+        assert await cache.get_active_ai_task(request.chat_id) == source
+        assert request.active_input_parallel_source == source
+        assert request.active_input_parallel_source_message == "older-user-turn"
+        assert request.recovery_preflight_id and request.recovery_turn_id
+        assert request.current_user_content == "What does the cache flag do?"
+        return slot_state
+
+    reserve.side_effect = reserve_exact
+    monkeypatch.setattr(handler, "decide_active_chat_input", classify)
+    monkeypatch.setattr(handler, "reserve_independent_reply", reserve)
+    started = bool(slot_state and parallel_capable)
+    result = _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, active_task_id=source, durable=True,
+        independent=started, queued=not started, native_terminal=True, newly_enqueued=True,
+        parallel_capable=parallel_capable, web_socket=web_socket,
+    )
+    classify.assert_awaited_once()
+    assert classify.await_args.kwargs["include_completed_context"] is parallel_capable
+    assert reserve.await_count == int(parallel_capable)
+    assert not any(call.args[0] == "turn:user-123:chat-123" for call in result.cache.set.await_args_list)
+    if started:
+        result.cache.queue_message.assert_not_awaited()
+        assert result.manager.request_payload["active_input_parallel_source"] == source
+        assert result.manager.messages[-1]["payload"]["ai_task_id"] == result.manager.request_payload["recovery_task_id"]
+        assert result.manager.messages[-1]["payload"]["independent_reply"] is True
+    else:
+        envelope = result.cache.queue_message.await_args.kwargs["message_data"]
+        assert envelope["active_input_parallel_source"] is None
+        assert envelope["active_input_parallel_source_message"] is None
+
+
+def test_idle_admission_skips_active_input_decision(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    classifier = AsyncMock()
+    monkeypatch.setattr(handler, "decide_active_chat_input", classifier)
+    _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, related_discovery=False, durable=True,
+    )
+    classifier.assert_not_awaited()
+
+
+
+@pytest.mark.parametrize("durable,newly_enqueued,expected_slot_reads", [
+    (True, True, 0),  # The canonical first-enqueue proof exempts only this exact ID.
+    (True, False, 1),  # Older or replayed transaction results still check the slot.
+    (False, False, 0),  # Legacy dispatch keeps its existing authority and behavior.
+])
+def test_independent_retry_slot_is_skipped_only_for_fresh_durable_admission(
+    monkeypatch, durable, newly_enqueued, expected_slot_reads,
+):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    slot = AsyncMock(return_value=False)
+    monkeypatch.setattr(handler, "independent_reply_is_active", slot)
+    result = _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, related_discovery=False,
+        durable=durable, newly_enqueued=newly_enqueued,
+    )
+    assert slot.await_count == expected_slot_reads
+    if expected_slot_reads:
+        slot.assert_awaited_once_with(
+            result.cache, user_id="user-123", chat_id="chat-123",
+            task_id="11111111-aaaa-4111-8111-111111111111",
+        )
+
+
+def test_exact_durable_independent_retry_reuses_its_active_delivery(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    slot = AsyncMock(return_value=True)
+    classifier = AsyncMock()
+    monkeypatch.setattr(handler, "independent_reply_is_active", slot)
+    monkeypatch.setattr(handler, "decide_active_chat_input", classifier)
+    result = _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1},
+        active_task_id="foreground", durable=True, independent_retry=True, native_terminal=True,
+    )
+    slot.assert_awaited_once_with(
+        result.cache, user_id="user-123", chat_id="chat-123",
+        task_id="11111111-aaaa-4111-8111-111111111111",
+    )
+    classifier.assert_not_awaited()
+
+
+def test_exact_durable_resend_does_not_route_or_queue_its_own_task(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    classifier = AsyncMock()
+    monkeypatch.setattr(handler, "decide_active_chat_input", classifier)
+    _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, related_discovery=False,
+        durable=True, exact_retry=True,
+    )
+    classifier.assert_not_awaited()
+
+
+@pytest.mark.parametrize("parallel_capable", [True, False])
+def test_only_negotiated_terminal_can_resolve_confirmed_stop_before_queue(monkeypatch, parallel_capable):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+    from backend.core.api.app.routes.handlers.websocket_handlers import natural_chat_stop
+    from backend.shared.python_utils.explicit_chat_stop import STOP_RUN_REQUESTED
+
+    classify = AsyncMock(return_value=handler.ActiveInput("independent"))
+    stop = AsyncMock(return_value=natural_chat_stop.StopDecision(STOP_RUN_REQUESTED))
+    monkeypatch.setattr(handler, "decide_active_chat_input", classify)
+    monkeypatch.setattr(natural_chat_stop, "resolve_natural_chat_stop", stop)
+    result = _exercise_ordinary_dispatch(
+        monkeypatch, {"messages_v": 2, "title_v": 1}, active_task_id="assistant-foreground",
+        durable=True, queued=True, native_terminal=True, newly_enqueued=True,
+        user_content="cancel the Safari run", parallel_capable=parallel_capable,
+    )
+
+    queued = result.cache.queue_message.await_args.kwargs["message_data"]
+    if not parallel_capable:
+        stop.assert_not_awaited()
+        classify.assert_awaited_once()
+        assert queued["active_input_reply"] is None
+        return
+
+    stop.assert_awaited_once()
+    arguments = stop.await_args.kwargs
+    assert arguments["newly_enqueued"] is True
+    request = arguments["request"]
+    assert request.current_user_content == "cancel the Safari run"
+    assert request.user_id == "user-123" and request.chat_id == "chat-123"
+    assert request.recovery_task_id and request.recovery_preflight_id
+    classify.assert_not_awaited()
+    assert queued["active_input_reply"] == STOP_RUN_REQUESTED
+    assert "active_input_reply" not in queued["recovery_inference_request"]

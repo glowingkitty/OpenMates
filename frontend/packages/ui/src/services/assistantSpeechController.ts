@@ -72,6 +72,7 @@ interface SpeechAcknowledgementPayload {
   chat_id?: string;
   message_id?: string;
   clip_id?: string;
+  work_cue?: boolean;
   audio_url?: string;
 }
 
@@ -138,6 +139,7 @@ class AssistantSpeechController {
     clipAudioUrl: null as string | null });
   private callOwner: string | null = null;
   private activeCallId: string | null = null;
+  private callerSpeaking = false;
   private canonicalSource: { chatId: string; messageId: string; text: string } | null = null;
   private callSpeechSource: { messageId: string; text: string } | null = null;
   private readonly queue = new AssistantSpeechQueue({
@@ -259,10 +261,14 @@ class AssistantSpeechController {
   }
 
   pause(): void { this.queue.pause(); }
+  setCallerSpeaking(speaking: boolean): void {
+    this.callerSpeaking = speaking;
+  }
   /** A call keeps the one shared player scoped to its ordinary chat. */
   setCallOwner(chatId: string | null, callId?: string | null): void {
     if (this.activeCallId && (!chatId || chatId !== this.callOwner || (callId !== undefined && callId !== this.activeCallId))) {
       this.callSpeechSource = null;
+      this.callerSpeaking = false;
       this.queue.stop();
       this.disposeLiveAudio();
     }
@@ -276,7 +282,7 @@ class AssistantSpeechController {
 
   /** Report only the current call reply's speech prose for microphone echo detection. */
   registerCallSource(chatId: string, messageId: string, markdown: string): void {
-    if (chatId !== this.callOwner || !this.activeCallId) return;
+    if (chatId !== this.callOwner || !this.activeCallId || this.stoppedMessageIds.has(messageId)) return;
     const text = projectAssistantSpeech(markdown)
       .filter(segment => segment.kind === "prose_paragraph")
       .map(segment => segment.speakable_text)
@@ -437,6 +443,16 @@ class AssistantSpeechController {
     }));
     this.queue.markComplete();
     this.publish();
+  }
+
+  /** Silence exactly this call reply, including audio that arrives after barge-in. */
+  interruptCallReply(chatId: string, messageId: string): void {
+    if (this.callOwner !== chatId || !this.activeCallId) return;
+    if (this.stoppedMessageIds.has(messageId)) return;
+    this.rememberStoppedMessage(messageId);
+    if (this.chatId === chatId && this.messageId === messageId) {
+      void this.stop().catch(() => {});
+    }
   }
 
   async stop(): Promise<void> {
@@ -900,6 +916,8 @@ class AssistantSpeechController {
     if (payload.voice_call_id && payload.voice_call_id !== this.activeCallId) return;
     if (this.callOwner && payload.chat_id !== this.callOwner) return;
     if (!payload.chat_id || !payload.message_id || !payload.clip_id || !payload.audio_url) return;
+    // Optional work updates yield the floor to both the caller and audible prose.
+    if (payload.work_cue && (!this.activeCallId || this.callerSpeaking || this.queue.state.status === "playing")) return;
     if (this.stoppedMessageIds.has(payload.message_id)) return;
     if (this.dismissedMessageIds.has(payload.message_id)) return;
     this.supersedeCurrentMessage(payload.message_id);
@@ -1077,7 +1095,7 @@ class AssistantSpeechController {
     // A clip for a new answer plays before that answer's text arrives: report
     // the playing message and its clip, not the previous answer as silent, so
     // a live call can recognise the clip in its microphone (EYHC5).
-    const clipAudioUrl = this.queue.activeAcknowledgementUrl;
+    const clipAudioUrl = this.queue.state.status === "playing" ? this.queue.activeAcknowledgementUrl : null;
     const source = (clipAudioUrl || this.activeCallId) && this.canonicalSource?.messageId !== this.messageId
       ? null : this.canonicalSource;
     const callSource = this.callSpeechSource?.messageId === this.messageId ? this.callSpeechSource : null;

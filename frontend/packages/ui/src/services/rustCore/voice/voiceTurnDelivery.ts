@@ -31,12 +31,14 @@ export class CoreVoiceTurnError extends Error {
 	constructor(readonly code: string) { super(code); }
 }
 
-function snapshotResult(requestId: string, frame: Record<string, unknown>, connection: object): Promise<Record<string, unknown>> {
+function snapshotResult(requestId: string, frame: Record<string, unknown>, connection: object,
+	signal?: AbortSignal): Promise<Record<string, unknown>> {
 	return new Promise((resolve, reject) => {
 		const finish = (error?: Error, payload?: Record<string, unknown>) => {
 			clearTimeout(timer);
 			webSocketService.off('personal_send_context_snapshot_result', handler);
 			webSocketService.removeEventListener('close', closed);
+			signal?.removeEventListener('abort', aborted);
 			if (error) reject(error); else resolve(payload!);
 		};
 		// The core validates success, turn and receipt; only the request id routes here.
@@ -44,9 +46,12 @@ function snapshotResult(requestId: string, frame: Record<string, unknown>, conne
 			if (payload?.request_id === requestId) finish(undefined, payload);
 		};
 		const closed = () => finish(new CoreVoiceTurnError('privacy_connection_changed'));
+		const aborted = () => finish(new CoreVoiceTurnError('scope_changed'));
 		const timer = setTimeout(() => finish(new CoreVoiceTurnError('privacy_snapshot_timeout')), SNAPSHOT_TIMEOUT_MS);
 		webSocketService.on('personal_send_context_snapshot_result', handler);
 		webSocketService.addEventListener('close', closed);
+		if (signal?.aborted) { aborted(); return; }
+		signal?.addEventListener('abort', aborted, { once: true });
 		webSocketService.sendMessage('personal_send_context_snapshot', frame, { expectedConnection: connection })
 			.catch(() => finish(new CoreVoiceTurnError('privacy_snapshot_unsent')));
 	});
@@ -65,19 +70,25 @@ export interface EarlyVoiceTurn {
  * no model and sends no admission; the caller discards an unused result.
  */
 export async function prepareVoiceTurnThroughCore(chatId: string, turnId: string,
-	enter: (phase: string) => void = () => {}): Promise<EarlyVoiceTurn> {
+	enter: (phase: string) => void = () => {}, signal?: AbortSignal): Promise<EarlyVoiceTurn> {
+	if (signal?.aborted) throw new CoreVoiceTurnError('scope_changed');
 	const connection = webSocketService.getConnectionForSend();
 	if (!connection) throw new CoreVoiceTurnError('disconnected');
 	enter('core_beginning');
 	const begun = await beginVoiceTurn(chatId, turnId);
 	try {
 		enter('core_snapshot');
-		const result = await snapshotResult(begun.requestId, begun.frame, connection);
+		const result = await snapshotResult(begun.requestId, begun.frame, connection, signal);
+		if (signal?.aborted) throw new CoreVoiceTurnError('scope_changed');
 		enter('core_preparing');
 		await prepareVoiceTurn(begun.voiceId, result);
+		if (signal?.aborted) throw new CoreVoiceTurnError('scope_changed');
 		return { voiceId: begun.voiceId, connection };
 	} catch (error) {
 		void discardVoiceTurn(begun.voiceId);
+		if (!signal?.aborted && connection !== webSocketService.getConnectionForSend()) {
+			throw new CoreVoiceTurnError('privacy_connection_changed');
+		}
 		throw error;
 	}
 }
@@ -92,29 +103,57 @@ export async function discardEarlyVoiceTurn(early: Promise<EarlyVoiceTurn> | und
 	}
 }
 
+async function prepareForDelivery(turn: CoreVoiceTurn, early: Promise<EarlyVoiceTurn> | undefined,
+	signal: AbortSignal): Promise<EarlyVoiceTurn> {
+	const prepared = await early?.catch(() => undefined);
+	if (prepared) {
+		if (!signal.aborted && turn.isCurrent() && prepared.connection === webSocketService.getConnectionForSend()) {
+			turn.enter('core_early_reused');
+			return prepared;
+		}
+		void discardVoiceTurn(prepared.voiceId);
+	}
+	if (signal.aborted || !turn.isCurrent()) throw new CoreVoiceTurnError('scope_changed');
+	return prepareVoiceTurnThroughCore(turn.chatId, turn.turnId, turn.enter, signal);
+}
+
 /**
- * Send one voice turn through the core. Reuses `early` when it prepared this
- * turn on the still-current socket, else prepares now. Resolves after the
- * exact-turn ACK.
+ * Prepare the privacy snapshot while the shell persists its optimistic row.
+ * Commit and send exactly once, after that persistence and the current scope
+ * and socket have been checked. A replacement socket requires a fresh snapshot.
  */
-export async function deliverVoiceTurnThroughCore(turn: CoreVoiceTurn, early?: Promise<EarlyVoiceTurn>): Promise<void> {
-	let prepared: EarlyVoiceTurn | null = null;
-	if (early) {
+export async function deliverVoiceTurnThroughCore(turn: CoreVoiceTurn, early?: Promise<EarlyVoiceTurn>,
+	persistence?: Promise<boolean>): Promise<boolean> {
+	const controller = new AbortController();
+	let preparation = prepareForDelivery(turn, early, controller.signal);
+	void preparation.catch(() => undefined); // Persistence may finish or fail first.
+	let prepared: EarlyVoiceTurn | undefined;
+	let committed = false;
+	try {
+		if (persistence && !await persistence) return false;
+		if (!turn.isCurrent()) throw new CoreVoiceTurnError('scope_changed');
+
 		try {
-			prepared = await early;
-		} catch {
-			prepared = null;
+			prepared = await preparation;
+		} catch (error) {
+			// A reconnect can retire an in-flight snapshot while the local write
+			// is pending. Other preparation failures keep their original result.
+			if (!(error instanceof CoreVoiceTurnError) || error.code !== 'privacy_connection_changed'
+				|| !turn.isCurrent() || !webSocketService.getConnectionForSend()) throw error;
 		}
 		if (prepared && prepared.connection !== webSocketService.getConnectionForSend()) {
 			void discardVoiceTurn(prepared.voiceId);
-			prepared = null;
+			prepared = undefined;
 		}
-		if (prepared) turn.enter('core_early_reused');
-	}
-	prepared ??= await prepareVoiceTurnThroughCore(turn.chatId, turn.turnId, turn.enter);
-	let committed = false;
-	try {
 		if (!turn.isCurrent()) throw new CoreVoiceTurnError('scope_changed');
+		if (!prepared) {
+			preparation = prepareVoiceTurnThroughCore(turn.chatId, turn.turnId, turn.enter, controller.signal);
+			prepared = await preparation;
+		}
+		if (!turn.isCurrent()) throw new CoreVoiceTurnError('scope_changed');
+		if (prepared.connection !== webSocketService.getConnectionForSend()) {
+			throw new CoreVoiceTurnError('privacy_connection_changed');
+		}
 		turn.enter('core_committing');
 		const boundary = turn.heardBoundary;
 		const out = await commitVoiceTurn({
@@ -135,8 +174,14 @@ export async function deliverVoiceTurnThroughCore(turn: CoreVoiceTurn, early?: P
 		await webSocketService.sendMessage('chat_turn_admit', out.admit, { expectedConnection: prepared.connection });
 		turn.enter('receipt_reading');
 		await ack;
+		return true;
 	} finally {
-		// Commit consumed the prepared turn inside the core; otherwise drop it.
-		if (!committed) void discardVoiceTurn(prepared.voiceId);
+		controller.abort();
+		// Commit consumed the turn. A failed local write may interrupt preparation;
+		// cancel its socket listener, and discard any result that already landed.
+		if (!committed) {
+			if (prepared) void discardVoiceTurn(prepared.voiceId);
+			else void discardEarlyVoiceTurn(preparation);
+		}
 	}
 }

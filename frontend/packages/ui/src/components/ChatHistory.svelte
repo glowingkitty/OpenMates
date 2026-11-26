@@ -1641,6 +1641,8 @@ import { storageArchiveFetch } from "../config/api";
     processingPhase = null,
     pendingAssistantResponse = null,
     activeAssistantTurn = null,
+    independentAssistantTurns = [],
+    onStopIndependentReply = undefined,
     thinkingContentByTask = new Map(),
     // Chat header props: shown at the top of new chats only.
     // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
@@ -1705,6 +1707,8 @@ import { storageArchiveFetch } from "../config/api";
       modelName?: string | null; serverRegion?: string | null;
     } | null;
     activeAssistantTurn?: { taskId: string; userMessageId: string } | null;
+    independentAssistantTurns?: { chatId: string; taskId: string; userMessageId: string }[];
+    onStopIndependentReply?: (chatId: string, taskId: string) => void;
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
 
     /** Decrypted title to show in the permanent header card (new chats only). */
@@ -3644,6 +3648,10 @@ import { storageArchiveFetch } from "../config/api";
                         <EmbedUpdatedEventNotice group={updatedGroup} onOpen={() => openUpdatedEmbed(updatedGroup.embed_id)} />
                       </div>
                     {:else}
+                    {@const independentTurn = msg.role === 'assistant' ? independentAssistantTurns.find((turn) =>
+                      turn.chatId === currentChatId && turn.taskId === msg.id
+                      && turn.userMessageId === msg.original_message?.user_message_id
+                    ) : undefined}
                     {#if msg.role === 'assistant'}
                       {@const createdProject = readProjectCreatedEvent(msg.original_message?.content ?? msg.content)}
                       {#if createdProject}
@@ -3673,8 +3681,11 @@ import { storageArchiveFetch } from "../config/api";
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
                         deferVoiceCallIdentity={!!voiceCallBridge && (msg.status === 'streaming' || msg.status === 'processing')}
+                        onStopIndependentReply={independentTurn && onStopIndependentReply
+                          ? () => onStopIndependentReply(independentTurn.chatId, independentTurn.taskId) : undefined}
                         assistantTurnActive={msg.role === 'assistant' && (
-                          (!!activeAssistantTurn && (msg.id === activeAssistantTurn.taskId
+                          !!independentTurn
+                          || (!!activeAssistantTurn && (msg.id === activeAssistantTurn.taskId
                             || (!!msg.original_message?.user_message_id
                               && msg.original_message.user_message_id === activeAssistantTurn.userMessageId)))
                           || (!!pendingAssistantResponse && (msg.id === pendingAssistantResponse.taskId

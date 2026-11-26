@@ -328,6 +328,41 @@ async fn another_call_completes_while_a_reply_streams() {
 }
 
 #[tokio::test]
+async fn monitor_check_preserves_the_operation_token_of_an_active_reply() {
+    let (actor, sink) = started().await;
+    let mut admit = admitter(&Arc::new(Server::default()));
+    let foreground = CancellationToken::new();
+    let operation = {
+        let mut fixture = lock(&actor).await;
+        fixture.host.core_mut().begin_client_operation(&foreground);
+        fixture.host.core().client().operation_token_for_test()
+    };
+    let reply = tokio::spawn(begin(&actor, &sink, &mut admit, 1, CHAT).await.unwrap().run());
+    streaming(&sink, 1).await;
+
+    // A membership tick can arrive while the reply is still active. The
+    // transport's capacity waiter holds the same operation token.
+    let monitor = CancellationToken::new();
+    {
+        let mut fixture = lock(&actor).await;
+        fixture.host.core_mut().begin_client_operation(&foreground);
+        assert!(!operation.is_cancelled(), "even the same parent must preserve the active child");
+        fixture.host.core_mut().begin_client_operation(&monitor);
+        monitor.cancel();
+        assert!(!operation.is_cancelled(), "monitor cancellation must leave the reply active");
+        assert!(!fixture.host.core().client().operation_token_for_test().is_cancelled());
+    }
+    admit.release.cancel();
+    let receipt = reply.await.unwrap().unwrap();
+    assert!(receipt.status == SendStatus::Completed);
+    assert_eq!(receipt.window.messages[1].content, ANSWER);
+
+    let mut fixture = lock(&actor).await;
+    fixture.host.core_mut().begin_client_operation(&CancellationToken::new());
+    assert!(operation.is_cancelled(), "an idle client can replace its operation token");
+}
+
+#[tokio::test]
 async fn a_second_send_into_the_streaming_chat_comes_back_queued() {
     let (actor, sink) = started().await;
     let server = Arc::new(Server::default());

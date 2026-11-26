@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Union, Literal
 from fastapi import HTTPException
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from fastapi.responses import StreamingResponse
-from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
+from pydantic import AliasChoices, BaseModel, Field, PrivateAttr, field_validator, field_serializer
 import time
 import uuid
 import hashlib
@@ -112,6 +112,13 @@ class AskSkillRequest(BaseModel):
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
     queue_mode: Literal["follow_up", "steer"] = Field(default="follow_up", description="Disposition when this message waits behind an active AI task.")
     queue_revision: int = Field(default=1, ge=1, description="Optimistic revision of a queued user message.")
+    active_input_parallel_source: Optional[str] = Field(default=None, max_length=64, repr=False,
+        description="Server-bound foreground source for an independent read-only reply.")
+    active_input_parallel_source_message: Optional[str] = Field(default=None, max_length=255, repr=False)
+    active_input_steer_task_id: Optional[str] = Field(default=None, max_length=64)
+    active_input_steer_batch_id: Optional[str] = Field(default=None, max_length=96)
+    active_input_reply: Optional[str] = Field(default=None, max_length=512, repr=False,
+        description="Server-authored read-only status or clarification for active chat work.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     current_chat_summary: Optional[str] = Field(default=None, max_length=4000, description="The current decrypted, client-authorized chat summary used only to bound preprocessing context.")
@@ -121,6 +128,9 @@ class AskSkillRequest(BaseModel):
     auto_speak_response: bool = Field(default=False, description="Decrypted chat preference fixed for this assistant turn; never persisted by the AI pipeline.")
     voice_mode: bool = Field(default=False, description="Server-validated call delivery for this ordinary chat turn; does not override model routing.")
     voice_call_id: Optional[str] = Field(default=None, max_length=64)
+    # Set by the worker from the authenticated call registration.
+    _voice_state_cues: bool = PrivateAttr(default=False)
+    _verified_live_voice_dispatch: bool = PrivateAttr(default=False)
     voice_turn_id: Optional[str] = Field(default=None, max_length=64)
     voice_heard_boundary: Optional[VoiceHeardBoundary] = None
     assistant_speech_lazy_dispatch: bool = Field(default=False, description="The owner client can request registered speech chapters as playback advances.")
@@ -460,6 +470,9 @@ class AskSkill(BaseSkill):
         """
         Handle requests in the original internal format (from WebSocket/web app).
         """
+        from backend.shared.python_utils.active_input_authority import remove_untrusted_active_input
+
+        request = remove_untrusted_active_input(request)
         # Prepare task arguments matching the expected signature:
         # process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict)
         request_data_dict = request.model_dump(exclude_none=True)

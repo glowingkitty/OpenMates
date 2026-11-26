@@ -90,6 +90,7 @@ const mocks = vi.hoisted(() => {
     aiTypingStore: {
       clearTypingForTurn: vi.fn(),
       clearTypingForChat: vi.fn(),
+      clearTypingForTurn: vi.fn(),
       clearTyping: vi.fn(),
     },
     aiTypingByChatStore: createReadable({}),
@@ -284,7 +285,10 @@ describe('uncertain queued snapshot during an outbound user send', () => {
       await new Promise<void>(resolve => { finish = resolve; });
     });
     const sending = service.sendNewMessage({ ...message, message_id: messageId }, undefined, {}, undefined, false);
-    await vi.waitFor(() => expect(signal).toBeTypeOf("function"));
+    await vi.waitFor(() => {
+      expect(finish).toBeTypeOf('function');
+      expect(signal).toBeTypeOf('function');
+    });
     return { sending, finish: () => finish(), signal: signal! };
   }
 
@@ -1059,6 +1063,49 @@ describe('cancellation preserves encrypted reply dependencies', () => {
       chatId: first.chatId, userMessageId: first.messageId, status,
     } }));
     await expect(waiting).rejects.toThrow('previous encrypted reply has not been saved');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.routing.active-work
+  it.each(["final", "stop"])("settles only the independent web response on %s", async (outcome) => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    const chat = "same-chat";
+    const foreground = { taskId: "artifact-task", userMessageId: "artifact-user" };
+    service.activeAITasks.set(chat, foreground);
+    const lifecycle = vi.fn();
+    const chunks = vi.fn();
+    service.addEventListener("aiTaskEnded", lifecycle);
+    service.addEventListener("aiMessageChunk", chunks);
+    const initiated = {
+      chat_id: chat, ai_task_id: "question-task", user_message_id: "question-user",
+      status: "processing_started" as const, independent_reply: true,
+    };
+    handlers.handleAITaskInitiatedImpl(service, initiated);
+    expect(service.getIndependentReplyViews(chat)).toEqual([{
+      chatId: chat, taskId: "question-task", userMessageId: "question-user",
+    }]);
+    handlers.handleAITypingEndedImpl(service, { chat_id: "elsewhere", message_id: "question-task" });
+    expect(service.getIndependentReplyViews(chat)).toHaveLength(1);
+    expect(service.activeAITasks.get(chat)).toEqual(foreground);
+
+    const final = {
+      type: "ai_message_chunk" as const, chat_id: chat, task_id: "question-task",
+      message_id: "question-task", user_message_id: "question-user", independent_reply: true,
+      is_final_chunk: true, full_content_so_far: "Cache reuses completed output.", sequence: 2,
+      recovery_job_id: "question-recovery", recovery_protocol_version: 1,
+    };
+    if (outcome === "stop") {
+      await handlers.handleAITaskCancelRequestedImpl(service, { task_id: "question-task", status: "revocation_sent" });
+    }
+    handlers.handleAIMessageUpdateImpl(service, final);
+    handlers.handleAITaskInitiatedImpl(service, initiated); // A delayed ACK cannot reopen the row.
+    expect(service.activeAITasks.get(chat)).toEqual(foreground);
+    expect(service.getIndependentReplyViews(chat)).toEqual([]);
+    expect(chunks).toHaveBeenCalledOnce();
+    expect(lifecycle).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      detail: { chatId: chat, taskId: "question-task", userMessageId: "question-user",
+        status: outcome === "stop" ? "cancellation_requested" : "completed", independentReply: true },
+    }));
   });
 
   // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,video-call.audio.intentional-interruption

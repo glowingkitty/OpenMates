@@ -319,3 +319,44 @@ it("reports a playing clip's own message and asset, not the previous answer as s
   await controller.stop();
   expect(get(controller.activity).clipAudioUrl).toBeNull();
 });
+
+// contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.single-owner
+it('suppresses late speech of a barged-in reply and plays the next reply', async () => {
+  const { assistantSpeechController: controller } = await import('../assistantSpeechController');
+  controller.setCallOwner('call', 'call-id');
+  controller.interruptCallReply('call', 'old');
+  const announce = (messageId: string) => mocks.handlers.get('assistant_speech_acknowledgement')?.({
+    voice_call_id: 'call-id', chat_id: 'call', message_id: messageId,
+    clip_id: 'cue', audio_url: '/audio/assistant-acknowledgements/cue.mp3',
+  });
+  await announce('old');
+  expect(mocks.play).not.toHaveBeenCalled();
+  await mocks.handlers.get('assistant_speech_status')?.({
+    voice_call_id: 'call-id', chat_id: 'call', message_id: 'old', status: 'accepted',
+  });
+  expect(mocks.send).toHaveBeenCalledWith('assistant_speech', {
+    action: 'cancel', chat_id: 'call', assistant_message_id: 'old',
+  });
+  await announce('new');
+  await vi.waitFor(() => expect(mocks.play).toHaveBeenCalledOnce());
+  controller.setCallOwner(null);
+});
+
+// contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.localized-waiting
+it('drops optional voice updates during caller speech and current playback', async () => {
+  const { assistantSpeechController: controller } = await import('../assistantSpeechController');
+  controller.setCallOwner('cue-chat', 'cue-call');
+  const cue = (id: string) => mocks.handlers.get('assistant_speech_acknowledgement')?.({
+    voice_call_id: 'cue-call', chat_id: 'cue-chat', message_id: 'cue-message', work_cue: true,
+    clip_id: id, audio_url: '/audio/assistant-acknowledgements/ace/en-US/still_working-1.mp3',
+  });
+  controller.setCallerSpeaking(true);
+  await cue('during-input');
+  expect(mocks.play).not.toHaveBeenCalled();
+  controller.setCallerSpeaking(false);
+  await cue('quiet');
+  await vi.waitFor(() => expect(mocks.play).toHaveBeenCalledOnce());
+  await cue('during-output');
+  expect(mocks.play).toHaveBeenCalledTimes(1);
+  controller.setCallOwner(null);
+});

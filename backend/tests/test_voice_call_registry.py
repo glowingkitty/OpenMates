@@ -80,3 +80,14 @@ async def test_status_session_lookup_requires_active_owner_chat_binding():
         assert await active_call_session(cache, **{**lookup, **changed}) is None
     await finalize_active_call(cache, **base)
     assert await active_call_session(cache, **lookup) is None
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.provider.boundary
+@pytest.mark.asyncio
+async def test_state_cue_capability_is_bound_to_registered_call():
+    cache = Cache()
+    base = dict(user_id="owner", session_id="session", chat_id="chat", call_id=uuid.uuid4().hex)
+    await register_active_call(cache, **base, state_cues=True)
+    await issue_message_id(cache, **base, message_id="turn", role="user")
+    binding = await require_active_call(cache, **base, message_id="turn", role="user")
+    assert binding.state_cues is True

@@ -773,6 +773,7 @@ export interface StoreEmbedPayload {
 
 // --- AI Task and Stream related event payloads (Server to Client) ---
 export interface AITaskInitiatedPayload {
+  independent_reply?: boolean;
   chat_id: string;
   user_message_id: string;
   ai_task_id: string;
@@ -780,6 +781,7 @@ export interface AITaskInitiatedPayload {
 }
 
 export interface AIMessageUpdatePayload {
+  independent_reply?: boolean;
   type: "ai_message_chunk";
   task_id: string;
   chat_id: string;
@@ -831,6 +833,7 @@ export interface AITaskCancelRequestedPayload {
 }
 
 export interface AIBackgroundResponseCompletedPayload {
+  independent_reply?: boolean;
   chat_id: string;
   message_id: string; // AI's message ID
   user_message_id: string;

@@ -18,6 +18,20 @@ _AI_LOCK_LOST_CANCEL = object()
 class ChatCacheMixin:
     """Mixin for new chat sync architecture caching methods"""
 
+    _PARKED_STEER_LUA = """
+    local function parked_steer_blocked(row, worker)
+      if type(row.active_input_steer_batch_id) ~= 'string' then return false end
+      local prefix = 'same_turn_skill:' .. row.active_input_steer_batch_id .. ':'
+      if redis.call('EXISTS', prefix .. 'batch') == 0 then return false end
+      if not worker or worker == '' then return true end
+      local resume = redis.call('GET', prefix .. 'resume_claim')
+      if resume == worker then return false end
+      local logical = row.active_input_steer_task_id
+      if type(logical) ~= 'string' then return true end
+      return redis.call('GET', 'same_turn_skill:logical_delivery:' .. logical) ~= worker
+    end
+    """
+
     _APPEND_QUEUED_MESSAGE_LUA = """
     if ARGV[3] ~= '' and redis.call('GET', KEYS[4]) ~= ARGV[3] then return -1 end
     local length = redis.call('LLEN', KEYS[1])
@@ -25,6 +39,15 @@ class ChatCacheMixin:
     if bytes > 4194304 then return redis.error_reply('oversized_queued_message') end
     local ok_new, incoming = pcall(cjson.decode, ARGV[1])
     if not ok_new or not incoming.message_id then return redis.error_reply('invalid_queued_message') end
+    if ARGV[4] and ARGV[4] ~= '' then
+      local body = redis.call('GET', KEYS[5])
+      local ok, paused = pcall(cjson.decode, body or '')
+      if not ok or not paused.code_work or paused.user_id ~= incoming.user_id
+        or paused.chat_id ~= incoming.chat_id or paused.turn_id ~= ARGV[4]
+        or paused.logical_task_id ~= incoming.active_input_steer_task_id
+        or redis.call('EXISTS', KEYS[6]) ~= 1
+        or redis.call('EXISTS', KEYS[7], KEYS[8], KEYS[9], KEYS[10]) ~= 0 then return -1 end
+    end
     for i = 0, length - 1 do
       local current = redis.call('LINDEX', KEYS[1], i)
       local ok_old, existing = pcall(cjson.decode, current)
@@ -37,7 +60,9 @@ class ChatCacheMixin:
     end
     if length >= 64 then return redis.error_reply('queued_message_limit') end
     local count = redis.call('RPUSH', KEYS[1], ARGV[1])
-    redis.call('EXPIRE', KEYS[1], ARGV[2])
+    local parked_ttl = (ARGV[4] and ARGV[4] ~= '') and 1800 or 0
+    local queue_ttl = math.max(tonumber(ARGV[2]), parked_ttl, redis.call('TTL', KEYS[1]))
+    redis.call('EXPIRE', KEYS[1], queue_ttl)
     if redis.call('EXISTS', KEYS[2]) == 1 then
       redis.call('EXPIRE', KEYS[2], ARGV[2])
     end
@@ -47,7 +72,7 @@ class ChatCacheMixin:
     return count
     """
 
-    _LEASE_QUEUED_PREFIX_LUA = """
+    _LEASE_QUEUED_PREFIX_LUA = _PARKED_STEER_LUA + """
     local queue_key, lease_key, edit_lock_key, edit_pause_key = KEYS[1], KEYS[2], KEYS[3], KEYS[4]
     if redis.call('EXISTS', edit_pause_key) == 1 then return {'edit_paused'} end
     if redis.call('EXISTS', edit_lock_key) == 1 then return {'edit_busy'} end
@@ -69,13 +94,20 @@ class ChatCacheMixin:
         local item = redis.call('LINDEX', queue_key, i)
         local ok, row = pcall(cjson.decode, item)
         if not ok or type(row) ~= 'table' then return redis.error_reply('invalid_queued_message') end
+        if parked_steer_blocked(row, ARGV[5]) then break end
+        if count > 0 and (type(row.active_input_reply) == 'string'
+          or type(row.active_input_steer_task_id) == 'string') then break end
         local scope = cjson.encode({row.chat_id, row.user_id, row.user_id_hash,
           row.is_incognito, row.is_external, row.is_anonymous,
           row.team_id, row.team_id_hash, row.team_workspace_type, row.team_object_id_hash})
         if first_scope and scope ~= first_scope then break end
         if count > 0 and (first_is_recovery or row.recovery_task_id) then break end
         first_scope = scope
-        if count == 0 then first_is_recovery = row.recovery_task_id ~= nil end
+        if count == 0 then
+          first_is_recovery = type(row.recovery_task_id) == 'string'
+            or type(row.active_input_reply) == 'string'
+            or type(row.active_input_steer_task_id) == 'string'
+        end
         total_bytes = total_bytes + string.len(item)
         if total_bytes > max_bytes then
           if i == 0 then return redis.error_reply('oversized_queued_message') end
@@ -86,7 +118,7 @@ class ChatCacheMixin:
       if count == 0 then return {} end
       token = proposed
       redis.call('SET', lease_key, token .. ':' .. count, 'EX', lease_ttl)
-      redis.call('EXPIRE', queue_key, lease_ttl)
+      redis.call('EXPIRE', queue_key, math.max(lease_ttl, redis.call('TTL', queue_key)))
     end
     if redis.call('LLEN', queue_key) < count then
       return redis.error_reply('queued_prefix_changed')
@@ -127,7 +159,7 @@ class ChatCacheMixin:
     return 1
     """
 
-    _REVISE_QUEUED_MESSAGE_LUA = """
+    _REVISE_QUEUED_MESSAGE_LUA = _PARKED_STEER_LUA + """
     local queue, lease, ai, active, usage, quarantine =
       KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6]
     local expected, replacement, task_id, message_id, vault_content, max_ai =
@@ -136,7 +168,11 @@ class ChatCacheMixin:
     if ARGV[8] ~= '' then
       if redis.call('GET', quarantine) ~= ARGV[8] then return -5 end
     elseif redis.call('EXISTS', quarantine) == 1 then return -5 end
-    if redis.call('GET', active) ~= task_id then return -2 end
+    local active_value = redis.call('GET', active)
+    if task_id == '' then
+      local ok, row = pcall(cjson.decode, expected)
+      if active_value or not ok or not parked_steer_blocked(row, '') then return -2 end
+    elseif active_value ~= task_id then return -2 end
     local queue_len = redis.call('LLEN', queue)
     local queue_index = -1
     local queue_bytes = string.len(replacement) - string.len(expected)
@@ -204,11 +240,24 @@ class ChatCacheMixin:
     return 1
     """
 
-    _COMPLETE_ACTIVE_IF_QUEUE_EMPTY_LUA = """
+    _COMPLETE_ACTIVE_IF_QUEUE_EMPTY_LUA = _PARKED_STEER_LUA + """
     if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 2 end
-    if redis.call('LLEN', KEYS[3]) ~= 0 then return 0 end
+    local head = redis.call('LINDEX', KEYS[3], 0)
+    if head then
+      local ok, row = pcall(cjson.decode, head)
+      if not ok or not parked_steer_blocked(row, ARGV[1]) then return 0 end
+    end
     redis.call('DEL', KEYS[1], KEYS[2])
     return 1
+    """
+
+    _QUEUE_WAITS_FOR_PARKED_STEER_LUA = _PARKED_STEER_LUA + """
+    if redis.call('EXISTS', KEYS[2]) == 1 then return 0 end
+    local head = redis.call('LINDEX', KEYS[1], 0)
+    if not head then return 0 end
+    local ok, row = pcall(cjson.decode, head)
+    if not ok or row.user_id ~= ARGV[1] or row.chat_id ~= ARGV[2] then return 0 end
+    return parked_steer_blocked(row, '') and 1 or 0
     """
 
     _TRANSFER_ACTIVE_TASK_LUA = """
@@ -3080,7 +3129,8 @@ class ChatCacheMixin:
             ))
     
     async def queue_message(self, chat_id: str, message_data: Dict[str, Any], ttl: int = 600,
-                            *, expected_active_task_id: Optional[str] = None) -> bool:
+                            *, expected_active_task_id: Optional[str] = None,
+                            expected_paused_turn_id: Optional[str] = None) -> bool:
         """
         Add a message to the queue for a chat.
         Multiple messages will be combined when processed.
@@ -3105,11 +3155,17 @@ class ChatCacheMixin:
             message_json = json.dumps(message_data, separators=(",", ":"))
             if len(message_json.encode("utf-8")) > 4 * 1024 * 1024:
                 return False
+            keys = [key, f"{key}:lease", self._get_paused_queue_handoff_key(chat_id),
+                    self._get_active_task_key(chat_id)]
+            if expected_paused_turn_id:
+                batch_id = message_data.get("active_input_steer_batch_id")
+                if not isinstance(batch_id, str) or not 1 <= len(batch_id) <= 96:
+                    return False
+                keys.extend(f"same_turn_skill:{batch_id}:{part}"
+                            for part in ("batch", "armed", "sent", "stopped", "stale", "stopping"))
             queue_length = await client.eval(
-                self._APPEND_QUEUED_MESSAGE_LUA, 4, key, f"{key}:lease",
-                self._get_paused_queue_handoff_key(chat_id),
-                self._get_active_task_key(chat_id),
-                message_json, ttl, expected_active_task_id or "",
+                self._APPEND_QUEUED_MESSAGE_LUA, len(keys), *keys,
+                message_json, ttl, expected_active_task_id or "", expected_paused_turn_id or "",
             )
             if int(queue_length) < 0:
                 logger.info("Queued admission lost active task fence for chat %s", chat_id)
@@ -3122,6 +3178,16 @@ class ChatCacheMixin:
     
     async def get_queued_messages(self, chat_id: str) -> List[Dict[str, Any]]:
         raise RuntimeError("Use bounded queue lease and ACK for queued messages")
+
+    async def queue_waits_for_parked_steer(self, chat_id: str, user_id: str) -> bool:
+        """Test whether the head waits for its exact parked predecessor."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        key = self._get_chat_queue_key(chat_id)
+        return bool(await client.eval(
+            self._QUEUE_WAITS_FOR_PARKED_STEER_LUA, 2, key, f"{key}:lease", user_id, chat_id,
+        ))
 
     async def has_queued_messages(self, chat_id: str) -> bool:
         client = await self.client
@@ -3163,8 +3229,65 @@ class ChatCacheMixin:
                 return {"raw": decoded, "member": member}
         return None
 
-    async def peek_steer_queued_message(self, chat_id: str, user_id: str,
-                                        *, exclude_ids: Optional[set[str]] = None) -> Optional[Dict[str, Any]]:
+    async def get_parked_steer_members(
+        self, chat_id: str, user_id: str, batch_id: str,
+    ) -> List[Dict[str, Any]]:
+        """Read the exact owner-scoped queue members tied to one canceled batch."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Parked steer queue state unavailable")
+        result = []
+        for raw in await client.lrange(self._get_chat_queue_key(chat_id), 0, 63):
+            member = json.loads(raw)
+            if (member.get("chat_id") == chat_id and member.get("user_id") == user_id
+                    and member.get("active_input_steer_batch_id") == batch_id):
+                result.append({"raw": raw, "member": member})
+        return result
+
+    async def remove_parked_steer_member(self, chat_id: str, raw: str | bytes) -> bool:
+        """Drop only the exact durably paused revision under the queue edit lock."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Parked steer queue state unavailable")
+        return bool(await client.lrem(self._get_chat_queue_key(chat_id), 1, raw))
+
+    @staticmethod
+    def _active_artifact_steer_key(chat_id: str, task_id: str) -> str:
+        """Keep the target identity available through the queued terminal handoff."""
+        return f"chat:{chat_id}:artifact_steer:{task_id}"
+
+    async def set_active_artifact_steer_target(
+        self, chat_id: str, task_id: str, user_id: str, embed_id: Optional[str],
+    ) -> None:
+        """Record the single visible artifact associated with a server-owned task."""
+        client = await self.client
+        if client is None:
+            return
+        key = self._active_artifact_steer_key(chat_id, task_id)
+        if embed_id is None:
+            await client.delete(key)
+        else:
+            await client.set(key, json.dumps({"user_id": user_id, "embed_id": embed_id}), ex=3600)
+
+    async def read_artifact_steer_target(self, chat_id: str, task_id: str, user_id: str) -> Optional[str]:
+        """Return only the artifact recorded by the authorized producer in this chat."""
+        client = await self.client
+        if client is None:
+            return None
+        raw = await client.get(self._active_artifact_steer_key(chat_id, task_id))
+        if raw is None:
+            return None
+        row = json.loads(raw)
+        return row["embed_id"] if row.get("user_id") == user_id else None
+
+    async def get_active_artifact_steer_target(self, chat_id: str, task_id: str, user_id: str) -> bool:
+        """Return whether the task exposed one artifact for a correction."""
+        return bool(await self.read_artifact_steer_target(chat_id, task_id, user_id))
+
+    async def peek_steer_queued_message(
+        self, chat_id: str, user_id: str, *, exclude_ids: Optional[set[str]] = None,
+        active_input_target: Optional[tuple[str, Optional[str]]] = None,
+    ) -> Optional[Dict[str, Any]]:
         """Find an exact queued steer byte string without leasing normal follow-ups."""
         client = await self.client
         if client is None:
@@ -3173,11 +3296,29 @@ class ChatCacheMixin:
             decoded = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
             member = json.loads(decoded)
             message_id = member.get("message_id")
-            if (member.get("chat_id") == chat_id and member.get("user_id") == user_id
+            bound_task = member.get("active_input_steer_task_id")
+            bound_batch = member.get("active_input_steer_batch_id")
+            target = (bound_task, bound_batch) if bound_task else None
+            matches_target = target == active_input_target or (
+                active_input_target is not None and target == (active_input_target[0], None)
+            )
+            if (matches_target
+                    and member.get("chat_id") == chat_id and member.get("user_id") == user_id
                     and member.get("queue_mode") == "steer"
                     and isinstance(message_id, str) and message_id not in (exclude_ids or set())):
                 return {"raw": decoded, "member": member}
         return None
+
+    async def can_claim_queued_steer(self, chat_id: str, task_id: str) -> bool:
+        """Check the handoff fence under the queue edit lock before a durable write."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        active, lease, quarantine = await client.mget(
+            self._get_active_task_key(chat_id), f"{self._get_chat_queue_key(chat_id)}:lease",
+            self._get_chat_queue_edit_pause_key(chat_id),
+        )
+        return active in (task_id, task_id.encode()) and lease is None and quarantine is None
 
     async def claim_steer_queued_message(self, chat_id: str, message_id: str,
                                          *, expected_raw: str, active_task_id: str,
@@ -3216,7 +3357,7 @@ class ChatCacheMixin:
 
     async def revise_queued_message_member(
         self, chat_id: str, user_id: str, message_id: str, *,
-        expected_raw: str, replacement: Dict[str, Any], active_task_id: str,
+        expected_raw: str, replacement: Dict[str, Any], active_task_id: Optional[str],
         vault_encrypted_content: Optional[str] = None,
         quarantine_token: Optional[str] = None,
     ) -> str:
@@ -3233,7 +3374,7 @@ class ChatCacheMixin:
             self._get_chat_queue_key(chat_id), f"{self._get_chat_queue_key(chat_id)}:lease",
             self._get_ai_messages_key(user_id, chat_id), self._get_active_task_key(chat_id),
             self._get_ai_cache_bytes_key(user_id), self._get_chat_queue_edit_pause_key(chat_id),
-            expected_raw, encoded, active_task_id, message_id,
+            expected_raw, encoded, active_task_id or "", message_id,
             vault_encrypted_content or "", self._ai_cache_limit("AI_CONTEXT_MAX_BYTES", 16 * 1024 * 1024), chat_id,
             quarantine_token or "",
         )
@@ -3251,6 +3392,7 @@ class ChatCacheMixin:
 
     async def lease_queued_message_prefix(
         self, chat_id: str, *, limit: int = 32, lease_ttl: int = 600,
+        worker_task_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Read an exact bounded prefix without removing any queued message."""
         if not 1 <= limit <= 32 or lease_ttl != 600:
@@ -3267,6 +3409,7 @@ class ChatCacheMixin:
                 self._get_chat_queue_edit_lock_key(chat_id),
                 self._get_chat_queue_edit_pause_key(chat_id),
                 limit, lease_ttl, secrets.token_hex(16), 4 * 1024 * 1024,
+                worker_task_id or "",
             )
             if raw and raw[0] in ("edit_busy", b"edit_busy"):
                 if time.monotonic() >= deadline:

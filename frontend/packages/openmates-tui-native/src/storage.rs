@@ -1270,10 +1270,11 @@ pub struct CacheBytes {
     #[cfg(test)]
     io: Arc<IoCounts>,
 }
+use crate::native_chat_open_trace::cache_error as trace;
 impl ByteStore for CacheBytes {
     type Version = FileIdentity;
     fn get(&self, name: &str) -> std::result::Result<Option<Vec<u8>>, ByteStoreError> {
-        let read = self.inner.get(name)?;
+        let read = self.inner.get(name).inspect_err(|error| trace("cache.get", *error))?;
         #[cfg(test)]
         if read.is_some() && name.starts_with("cache-") {
             self.io.cache_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -1281,29 +1282,29 @@ impl ByteStore for CacheBytes {
         Ok(read)
     }
     fn version(&self, name: &str) -> std::result::Result<Option<FileIdentity>, ByteStoreError> {
-        self.inner.version(name)
+        self.inner.version(name).inspect_err(|error| trace("cache.version", *error))
     }
     fn put(&self, name: &str, bytes: &[u8], durability: Durability) -> std::result::Result<(), ByteStoreError> {
         #[cfg(test)]
         if name.starts_with("cache-") {
             self.io.cache_writes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
-        self.inner.put(name, bytes, durability)
+        self.inner.put(name, bytes, durability).inspect_err(|error| trace("cache.put", *error))
     }
     fn delete(&self, name: &str) -> std::result::Result<(), ByteStoreError> {
-        self.inner.delete(name)
+        self.inner.delete(name).inspect_err(|error| trace("cache.delete", *error))
     }
     fn list(&self, prefix: &str) -> std::result::Result<Vec<String>, ByteStoreError> {
-        self.inner.list(prefix)
+        self.inner.list(prefix).inspect_err(|error| trace("cache.list", *error))
     }
     fn barrier(&self) -> std::result::Result<(), ByteStoreError> {
-        self.inner.barrier()
+        self.inner.barrier().inspect_err(|error| trace("cache.barrier", *error))
     }
     fn sync(&self, name: &str) -> std::result::Result<(), ByteStoreError> {
-        self.inner.sync(name)
+        self.inner.sync(name).inspect_err(|error| trace("cache.sync", *error))
     }
     fn lock(&self, scope: &str) -> std::result::Result<LockGuard, ByteStoreError> {
-        self.inner.lock(scope)
+        self.inner.lock(scope).inspect_err(|error| trace("cache.lock", *error))
     }
 }
 fn session_context(session: &Session) -> Result<String> {

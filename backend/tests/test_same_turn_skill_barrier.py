@@ -613,3 +613,74 @@ def test_uploaded_image_view_then_generate_turn_fits_the_pause_checkpoint():
     # Remote image URLs are references, not bytes, and stay untouched.
     remote = {"type": "image_url", "image_url": {"url": "https://example.org/a.png"}}
     assert barrier.compact_inline_images([remote]) == [remote]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.routing.active-work
+async def test_independent_followup_preserves_only_its_owners_parked_command(monkeypatch):
+    from fakeredis.aioredis import FakeRedis as MemoryRedis
+    from unittest.mock import AsyncMock
+    from backend.apps.ai.tasks import async_skill_continuation as continuation
+    from backend.core.api.app.services.cache_base import CacheServiceBase
+    from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
+    from backend.shared.python_utils import recent_work_summary_client
+
+    class MemoryCache(CacheServiceBase):
+        _get_active_task_key = ChatCacheMixin._get_active_task_key
+
+        @property
+        async def client(self):
+            return redis
+
+    async with MemoryRedis() as redis:
+        cache = MemoryCache()
+        owner = {"user_id": "owner", "chat_id": "chat"}
+        latest = continuation.async_skill_latest_user_turn_key(**owner)
+        await cache.set(latest, "original")
+        await register_barrier(
+            cache, batch_id="batch", **owner, turn_id="original", task_ids=["job-a", "job-b"],
+            checkpoint_ref="private-ref", deadline=time.time() + 120,
+            logical_task_id=LOGICAL, source_delivery_task_id="source", code_work=True,
+        )
+        await arm_barrier(cache, "batch")
+        target = {**owner, "batch_id": "batch", "turn_id": "original"}
+        assert await barrier.find_paused_code_work(cache, user_id="other", chat_id="chat") == []
+        assert not await barrier.preserve_paused_code_work(cache, **{**target, "user_id": "other"})
+        await record_terminal(cache, batch_id="batch", task_id="job-a", payload_ref="ref-a", status="finished")
+        work, = await barrier.find_paused_code_work(cache, **owner)
+        assert work["completed_count"] == 1 and "private-ref" not in str(work)
+        assert await barrier.preserve_paused_code_work(cache, **target)
+        await cache.set(latest, "new-question")
+
+        seal = AsyncMock(return_value={"agentic_context_ref": "ref-b"})
+        monkeypatch.setattr(recent_work_summary_client, "seal_private_context_payload", seal)
+        monkeypatch.setattr(continuation, "dispatch_same_turn_barrier", AsyncMock())
+        context = {"request_data": {**owner, "message_id": "original"}, "same_turn_batch_id": "batch"}
+        for task_id in ("job-b", "unexpected"):
+            await cache.set(continuation.async_skill_continuation_key(task_id), context)
+            await continuation.dispatch_async_skill_continuation(
+                cache_service=cache, async_task_id=task_id, completed_results=[], result_status="finished",
+            )
+        seal.assert_awaited_once()
+        ready = await claim_ready(cache, batch_id="batch")
+        assert [slot["payload_ref"] for slot in ready["slots"]] == ["ref-a", "ref-b"]
+        # The idempotency claim precedes foreground reservation. Losing that reservation to
+        # another turn still permits a retry; only the actual delivery takes ownership.
+        assert await barrier.preserve_paused_code_work(cache, **target)
+        assert len(await barrier.find_paused_code_work(cache, **owner)) == 1
+        active = cache._get_active_task_key("chat")
+        await cache.set(active, ready["resume_task_id"])
+        assert not await barrier.preserve_paused_code_work(cache, **target)
+        assert await barrier.find_paused_code_work(cache, **owner) == []
+        await cache.delete(active)
+        await cache.set(barrier._key("batch", "sent"), ready["resume_task_id"])
+        assert await barrier.find_paused_code_work(cache, **owner) == []
+        assert not await barrier.preserve_paused_code_work(cache, **target)
+        monkeypatch.setattr(continuation, "_settle_same_turn_stop", AsyncMock())
+        assert await continuation.cancel_same_turn_source(cache, **owner, source_task_id="source")
+        assert await cache.get(latest) == "new-question"
+        assert await claim_ready(cache, batch_id="batch") is None
+        await continuation.dispatch_async_skill_continuation(
+            cache_service=cache, async_task_id="job-b", completed_results=[], result_status="finished",
+        )
+        seal.assert_awaited_once()

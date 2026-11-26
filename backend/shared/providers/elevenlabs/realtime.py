@@ -20,6 +20,7 @@ from time import monotonic
 from typing import AsyncIterator, TYPE_CHECKING
 
 import aiohttp
+from backend.shared.providers.voice_websocket_proxy import isolated_voice_websocket_proxy
 
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -141,11 +142,12 @@ class ElevenLabsRealtimeSession:
         self._state = "opening"
         self._open_task = asyncio.current_task()
         try:
+            proxy = isolated_voice_websocket_proxy()
             key = await self._credentials()
             self._http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None))
             self._socket = await asyncio.wait_for(self._http.ws_connect(
                 ELEVENLABS_REALTIME_URL, headers={"xi-api-key": key},
-                max_msg_size=MAX_EVENT_BYTES, autoclose=True), self._connect_timeout)
+                max_msg_size=MAX_EVENT_BYTES, autoclose=True, proxy=proxy), self._connect_timeout)
             self._started = monotonic()
             self._state = "open"
             async with self._send_lock:

@@ -25,6 +25,7 @@ const STARTUP_SAMPLES = RATE * 10;
 const RING_SAMPLES = RATE * 0.4;
 // Leave voiced endings time to reach the provider before stopping uploads.
 const QUIET_TAIL_SAMPLES = RATE * 0.64;
+const VERIFIED_QUIET_TAIL_SAMPLES = RATE * 0.32;
 const MAX_PENDING_SAMPLES = RATE * 0.256;
 const RESULT_TIMEOUT_MS = 250;
 // Only digital silence is trusted when the detector is unavailable, allowing one bit of noise.
@@ -57,6 +58,8 @@ export class VoiceCallAudioGate {
   private startupSamples = 0;
   private ring: Chunk[] = [];
   private ringSamples = 0;
+  private fastEndpoint = false;
+  private heardClearSpeech = false;
   private pendingSamples = 0;
   private lastResultAt = 0;
   private silenceSamples = 0;
@@ -74,6 +77,10 @@ export class VoiceCallAudioGate {
     if (this.stopped) return;
     this.started = true;
     this.loadDetector();
+  }
+
+  setVerifiedEndpoint(enabled: boolean): void {
+    this.fastEndpoint = enabled;
   }
 
   setLive(live: boolean): void {
@@ -159,6 +166,7 @@ export class VoiceCallAudioGate {
   private endStream(verifiedSilence: boolean): void {
     if (!this.streamOpen) return;
     this.streamOpen = false;
+    this.heardClearSpeech = false;
     this.options.onAudioEnd(verifiedSilence);
   }
 
@@ -218,6 +226,7 @@ export class VoiceCallAudioGate {
     // Ambiguous frames never count as verified silence. No minimum utterance duration:
     // a single positive 32 ms frame resumes uploads, including very short "yes"/"stop".
     if (probability >= 0.35) {
+      if (probability >= 0.7) this.heardClearSpeech = true;
       this.silenceSamples = 0;
       this.quietSpeakingSamples = 0;
       this.setState(this.idle, true);
@@ -234,7 +243,8 @@ export class VoiceCallAudioGate {
     this.silenceSamples += samples;
     this.quietSpeakingSamples += samples;
     if (this.quietSpeakingSamples >= RATE * 0.16 && this.speaking) this.setState(this.idle, false);
-    if (!this.idle && this.silenceSamples >= QUIET_TAIL_SAMPLES) {
+    const required = this.fastEndpoint && this.heardClearSpeech ? VERIFIED_QUIET_TAIL_SAMPLES : QUIET_TAIL_SAMPLES;
+    if (!this.idle && this.silenceSamples >= required) {
       this.setState(true, false);
       this.endStream(true);
     }
@@ -270,6 +280,7 @@ export class VoiceCallAudioGate {
   }
 
   private resetDetection(): void {
+    this.heardClearSpeech = false;
     this.pendingSamples = 0;
     this.silenceSamples = 0;
     this.quietSpeakingSamples = 0;

@@ -11,8 +11,11 @@ Unsupported languages stay silent instead of silently falling back to English.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
-from collections.abc import Iterable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping
+
+from redis.exceptions import RedisError
 
 from backend.apps.ai.assistant_speech.projection import select_prerecorded_acknowledgement
 from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips, build_chat_start_clip
@@ -185,3 +188,51 @@ def voice_status_segment(metadata: Mapping[str, object], text: str, index: int) 
     identity = f"{metadata['chat_id']}:{metadata['assistant_message_id']}:{metadata.get('voice_call_id') or 'voice'}:status:{index}"
     return {**metadata, "segment_id": hashlib.sha256(identity.encode("utf-8")).hexdigest(),
             "sequence": -2 - index, "kind": "voice_status", "speakable_text": text.strip()}
+
+
+class VoiceWorkCues:
+    """Schedule call-only cues for one confirmed phase of one assistant turn."""
+
+    def __init__(self, publish: Callable[[str, int], Awaitable[None]]) -> None:
+        self.publish = publish
+        self.phase: str | None = None
+        self.timer: asyncio.Task[None] | None = None
+        self.announced: set[str] = set()
+        self.sequence = 0
+
+    def begin(self, phase: str) -> None:
+        if self.phase == phase:
+            return
+        self.clear()
+        self.phase = phase
+        self.timer = asyncio.create_task(self._announce(phase))
+
+    def clear(self) -> None:
+        self.phase = None
+        if self.timer is not None:
+            self.timer.cancel()
+            self.timer = None
+
+    async def close(self) -> None:
+        timer = self.timer
+        self.clear()
+        if timer is not None:
+            await asyncio.gather(timer, return_exceptions=True)
+
+    async def _announce(self, phase: str) -> None:
+        try:
+            if phase != "thinking" and phase not in self.announced:
+                self.announced.add(phase)
+                self.sequence += 1
+                await self.publish(phase, self.sequence)
+            delay = 10
+            while self.phase == phase:
+                await asyncio.sleep(delay)
+                if self.phase != phase:
+                    return
+                self.sequence += 1
+                await self.publish("still_thinking" if phase == "thinking" else "still_working", self.sequence)
+                delay = min(60, delay * 3)
+        except (OSError, RuntimeError, TimeoutError, RedisError):
+            # Optional audio never fails the model stream or starts a retry loop.
+            return

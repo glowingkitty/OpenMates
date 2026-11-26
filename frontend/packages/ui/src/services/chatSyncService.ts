@@ -191,6 +191,12 @@ interface PendingProjectFileCommit {
   timeout: ReturnType<typeof setTimeout>;
 }
 
+export interface IndependentReplyView {
+  chatId: string;
+  taskId: string;
+  userMessageId: string;
+}
+
 export class ChatSynchronizationService extends EventTarget {
   private readonly serverCapabilityGate = new ServerCapabilityGate();
   private lastWorkflowWarmup: { scope: string; at: number } | null = null;
@@ -213,6 +219,9 @@ export class ChatSynchronizationService extends EventTarget {
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
     new ActiveAITaskMap();
+  // View state only. Encrypted send, claim and result recovery keep their own identities.
+  private readonly independentReplyViews = new Map<string, IndependentReplyView>();
+  private readonly closedIndependentReplyTasks = new Set<string>();
   public activeSubChatIds: Set<string> = new Set();
   private activityRevision = 0;
   private activityAncestry = new Map<string, { parent_id?: string | null }>();
@@ -718,6 +727,8 @@ export class ChatSynchronizationService extends EventTarget {
       this.handlersRegistered = false;
       this.completedPersonalPhasedSocket = null;
       this.activeAITasks.clear();
+      this.independentReplyViews.clear();
+      this.closedIndependentReplyTasks.clear();
       this.activeSubChatIds.clear();
       this.activityRequestedIds.clear();
       subChatActivityIds.set(new Set());
@@ -810,6 +821,13 @@ export class ChatSynchronizationService extends EventTarget {
           }
           this.activeAITasks.clear();
         }
+        for (const view of this.independentReplyViews.values()) {
+          this.dispatchEvent(new CustomEvent("aiStreamInterrupted", {
+            detail: { ...view, independentReply: true },
+          }));
+        }
+        this.independentReplyViews.clear();
+        this.closedIndependentReplyTasks.clear();
         void this.refreshChatActivity();
 
         // Stop periodic retry since we're now connected
@@ -2969,6 +2987,38 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   // --- AI Info Getters ---
+  public observeIndependentReply(view: IndependentReplyView): boolean {
+    if (!view.taskId || !view.chatId || !view.userMessageId
+      || this.closedIndependentReplyTasks.has(view.taskId) || this.independentReplyViews.has(view.taskId)) {
+      return false;
+    }
+    this.independentReplyViews.set(view.taskId, view);
+    return true;
+  }
+
+  public getIndependentReplyViews(chatId: string): IndependentReplyView[] {
+    return Array.from(this.independentReplyViews.values()).filter((view) => view.chatId === chatId);
+  }
+
+  public finishIndependentReply(
+    taskId: string, fallback?: IndependentReplyView, expectedChatId?: string,
+  ): IndependentReplyView | undefined {
+    if (this.closedIndependentReplyTasks.has(taskId)) return;
+    const current = this.independentReplyViews.get(taskId);
+    const view = current ?? fallback;
+    if (!view?.chatId || !view.userMessageId || view.taskId !== taskId
+      || (expectedChatId && view.chatId !== expectedChatId)
+      || (current && fallback
+        && (current.chatId !== fallback.chatId || current.userMessageId !== fallback.userMessageId))) return;
+    this.independentReplyViews.delete(taskId);
+    this.closedIndependentReplyTasks.add(taskId);
+    if (this.closedIndependentReplyTasks.size > 64) {
+      const oldestTaskId = this.closedIndependentReplyTasks.values().next().value;
+      if (oldestTaskId) this.closedIndependentReplyTasks.delete(oldestTaskId);
+    }
+    return view;
+  }
+
   public getActiveAITaskIdForChat(chatId: string): string | null {
     return this.activeAITasks.get(chatId)?.taskId || null;
   }

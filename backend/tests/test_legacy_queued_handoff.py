@@ -299,7 +299,7 @@ async def test_two_first_sends_claim_one_active_chat_before_dispatch():
     assert not await cache.try_claim_active_ai_task("chat", "parallel-task")
 
 
-async def _cancel_task(monkeypatch, cache, task_id="stopped-task"):
+async def _cancel_task(monkeypatch, cache, task_id="stopped-task", *, verified=True):
     from backend.core.api.app.routes.handlers.websocket_handlers import cancel_ai_task_handler as handler
     from backend.apps.ai.tasks import async_skill_continuation
     from backend.shared.python_utils import focus_continuation_history
@@ -315,12 +315,26 @@ async def _cancel_task(monkeypatch, cache, task_id="stopped-task"):
     manager = SimpleNamespace(send_personal_message=AsyncMock())
     # An empty chat also fences optional continuations after the owned clear.
     cache.set = AsyncMock(return_value=True)
+    cache.get = AsyncMock(return_value=None)
+    fence = AsyncMock()
+    monkeypatch.setattr(handler, "fence_cancelled_turn_if_idle", fence)
     await handler.handle_cancel_ai_task(
         websocket=None, manager=manager, user_id="owner", device_fingerprint_hash="device",
         payload={"task_id": task_id, "chat_id": "chat"}, cache_service=cache,
+        directus_service=SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value={
+            "id": "chat", "hashed_team_id": None, "chat_visibility": None,
+            "hashed_user_id": hashlib.sha256(b"owner").hexdigest(),
+        }))),
     )
-    revoke.assert_called_once_with(task_id, terminate=True, signal="SIGUSR1")
-    assert manager.send_personal_message.call_args.kwargs["message"]["type"] == "ai_task_cancel_requested"
+    if verified:
+        revoke.assert_called_once_with(task_id, terminate=True, signal="SIGUSR1")
+        assert manager.send_personal_message.call_args.kwargs["message"]["type"] == "ai_task_cancel_requested"
+    else:
+        revoke.assert_not_called()
+        cache.set.assert_not_awaited()
+        fence.assert_not_awaited()
+        assert manager.send_personal_message.call_args.kwargs["message"]["payload"]["code"] == "ai_task_cancel_unavailable"
+    return fence
 
 
 @pytest.mark.asyncio
@@ -352,7 +366,7 @@ async def test_stop_preserves_accepted_follower_for_failure_handoff(monkeypatch)
     assert follower_task and follower_task != "stopped-task"
     resumed.assert_awaited_once()
     # An old cancellation arriving after handoff cannot release the new task.
-    await _cancel_task(monkeypatch, cache)
+    await _cancel_task(monkeypatch, cache, verified=False)
     assert await cache.get_active_ai_task("chat") == follower_task
 
 
@@ -361,13 +375,12 @@ async def test_stop_preserves_accepted_follower_for_failure_handoff(monkeypatch)
 async def test_stop_empty_queue_allows_new_turn_but_late_cancel_cannot_clear_it(monkeypatch):
     cache = _Cache()
     assert await cache.try_claim_active_ai_task("chat", "stopped-task")
-    await _cancel_task(monkeypatch, cache)
+    fence = await _cancel_task(monkeypatch, cache)
     assert await cache.get_active_ai_task("chat") is None
-    assert cache.set.await_count == 2
+    fence.assert_awaited_once()
     assert await cache.try_claim_active_ai_task("chat", "new-task")
-    await _cancel_task(monkeypatch, cache)
+    await _cancel_task(monkeypatch, cache, verified=False)
     assert await cache.get_active_ai_task("chat") == "new-task"
-    cache.set.assert_awaited_once()
 
 
 @pytest.mark.asyncio

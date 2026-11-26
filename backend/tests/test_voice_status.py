@@ -303,3 +303,55 @@ def test_prerecorded_clip_words_resolve_only_from_approved_static_assets():
     for unknown in (f"{root}/hiro/en-US/lookup-9.mp3", f"{root}/hiro/ja-JP/general-1.mp3",
                     f"{root}/../en-US/general-1.mp3", "https://example.org/general-1.mp3", ""):
         assert prerecorded_clip_text(unknown) == ""
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.first-audible-response,video-call.audio.intentional-interruption
+@pytest.mark.asyncio
+async def test_work_cues_follow_actual_phases_and_cancel_pending_reminders(monkeypatch):
+    from backend.apps.ai.assistant_speech import voice_status
+    from types import SimpleNamespace
+    waits, published = asyncio.Queue(), asyncio.Queue()
+
+    async def sleep(delay):
+        pending = asyncio.get_running_loop().create_future()
+        await waits.put((delay, pending))
+        await pending
+
+    async def publish(kind, sequence):
+        await published.put((kind, sequence))
+
+    monkeypatch.setattr(voice_status, "asyncio", SimpleNamespace(
+        sleep=sleep, create_task=asyncio.create_task, gather=asyncio.gather))
+    cues = voice_status.VoiceWorkCues(publish)
+    cues.begin("thinking")
+    delay, pending = await asyncio.wait_for(waits.get(), 1)
+    assert delay == 10 and published.empty()
+    pending.set_result(None)
+    assert await published.get() == ("still_thinking", 1)
+    delay, old = await waits.get()
+    assert delay == 30
+    cues.begin("writing_code")
+    assert await published.get() == ("writing_code", 2)
+    assert old.cancelled()
+    cues.begin("writing_code")
+    delay, pending = await waits.get()
+    assert delay == 10 and published.empty()
+    pending.set_result(None)
+    assert await published.get() == ("still_working", 3)
+    await cues.close()
+    assert published.empty()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+def test_static_work_cues_match_approved_echo_text_in_each_locale():
+    from backend.apps.audio.assistant_speech.acknowledgements import (
+        RECORDED_WORK_CUE_LOCALES, WORK_CUE_TEXTS, build_work_cue, prerecorded_clip_text,
+    )
+    for language, categories in WORK_CUE_TEXTS.items():
+        for kind, lines in categories.items():
+            clip = build_work_cue(voice_profile_id="ace", language=language, category=kind)
+            if language in RECORDED_WORK_CUE_LOCALES:
+                assert prerecorded_clip_text(clip["asset_url"]) == lines[0]
+            else:
+                assert clip is None
+    assert build_work_cue(voice_profile_id="ace", language="ja", category="writing_code") is None

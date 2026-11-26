@@ -351,7 +351,12 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                 );
                 admitted
             }
-            Err(error) => Err(error),
+            Err(error) => {
+                // No admission owns the producer. Close it so the failure
+                // path can drain the relay and report the original error.
+                drop(updates);
+                Err(error)
+            }
         };
         match admitted {
             Ok(step) => Ok(TurnStream {

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import re
 from typing import Any, Mapping
 
-from backend.shared.python_utils.voice_call_registry import require_active_call
+from backend.shared.python_utils.voice_call_registry import VoiceCallBinding, require_active_call
 
 _CALL_ID = re.compile(r"^[a-f0-9]{32}$")
 
@@ -20,6 +20,7 @@ class VoiceCallDelivery:
     voice_mode: bool = False
     voice_call_id: str | None = None
     voice_turn_id: str | None = None
+    state_cues: bool = False
 
 
 def _value(request: Any, key: str, default: Any = None) -> Any:
@@ -51,10 +52,10 @@ async def admit_voice_call_turn(
     )
     if binding.state != "active":
         raise ValueError("Voice call has ended")
-    return VoiceCallDelivery(True, call_id, turn_id)
+    return VoiceCallDelivery(True, call_id, turn_id, binding.state_cues)
 
 
-async def require_active_voice_dispatch(cache: Any, request: Any) -> None:
+async def require_active_voice_dispatch(cache: Any, request: Any) -> VoiceCallBinding | None:
     """Recheck trusted ordinary-request identities immediately before paid work.
 
     WS admission already checked the exact authenticated session. A queued
@@ -82,6 +83,7 @@ async def require_active_voice_dispatch(cache: Any, request: Any) -> None:
     )
     if binding.state != "active":
         raise ValueError("Voice call has ended")
+    return binding
 
 
 def queued_voice_delivery(members: list[dict[str, Any]]) -> dict[str, Any]:

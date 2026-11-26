@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@25
+specification: feature.video-call@26
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -425,6 +425,21 @@ complete_turn:
   given: Maya asks to book a table for two, and local capture confirms the quiet tail after her request.
   when: The service receives the last streamed words and confirms the request is complete before the provider sends a final transcript.
   then: One ordinary chat turn starts from the streamed words, and duplicate endpoint messages cannot start another one.
+- id: verified-drain-during-pause
+  given: The caller pauses after a question and the provider delivers its final words for that quiet window.
+  when: The semantic decision confirms completion while the socket close handshake is still pending.
+  then: The question can enter chat immediately. A final frame from an older window cannot shorten the wait.
+audible_feedback:
+- id: quick-answer-in-a-connected-call
+  given: Maya is already in a call with a fast model and asks what the capital of France is.
+  when: Her final voiced sound ends.
+  then: Measure the time until she hears the answer. A preliminary clip does not satisfy the answer-time target.
+- id: long-recipe-build
+  given: A thinking Mate is creating a recipe app. Maya is listening with the screen off.
+  when: Reasoning begins and the code artifact later starts streaming.
+  then: Maya hears a localized thinking cue and an artifact-start cue. During a long quiet interval she can hear
+    a brief progress update. Her speech takes the floor immediately and the build continues. Chat history
+    shows her messages and the artifact while status audio stays in the call.
 migration_future_recording:
 - id: future-recording
   given: A future separately approved full recording mode captures a call.

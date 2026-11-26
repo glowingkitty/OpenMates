@@ -155,7 +155,7 @@ async def handle_revise_queued_message(
                 await reject("conflict", current_revision=current_revision)
                 return
             active_task_id = await cache_service.get_active_ai_task(chat_id)
-            if not active_task_id:
+            if not active_task_id and not member.get("active_input_steer_batch_id"):
                 await reject("inactive")
                 return
 
@@ -176,6 +176,14 @@ async def handle_revise_queued_message(
             replacement = dict(member)
             replacement["queue_revision"] = expected_revision + 1
             replacement["queue_mode"] = requested_mode or member.get("queue_mode") or "follow_up"
+            if has_content and content != member.get("current_user_content"):
+                replacement.pop("active_input_reply", None)
+                if replacement.pop("active_input_steer_task_id", None):
+                    replacement["queue_mode"] = "follow_up"
+            elif requested_mode is not None:
+                replacement.pop("active_input_reply", None)
+                if requested_mode == "follow_up":
+                    replacement.pop("active_input_steer_task_id", None)
             vault_content = None
             persisted = None
             quarantine_token = None

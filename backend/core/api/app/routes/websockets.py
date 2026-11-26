@@ -32,6 +32,9 @@ from backend.core.api.app.services.personal_privacy_snapshot import (
     privacy_v2_request, read_personal_privacy_snapshot,
 )
 from backend.core.api.app.services.notification_event_service import NotificationEventService
+from backend.shared.python_utils.independent_chat_reply import (
+    PARALLEL_CHAT_TURNS_CAPABILITY, supports_parallel_chat_turns,
+)
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
 from .connection_manager import (
@@ -1619,6 +1622,9 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             if field in speech_payload
                         },
                     }
+                    if (event_type == "assistant_speech_acknowledgement" and speech_payload.get("voice_call_id")
+                            and speech_payload.get("work_cue") is True):
+                        client_payload["work_cue"] = True
                     if event_type == "assistant_speech_status" and speech_payload.get("status") == "sealed":
                         from backend.shared.python_utils.assistant_speech_audio import validate_assistant_speech_sealed_segments
                         try:
@@ -1732,7 +1738,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         continue
 
                     snapshot_key = ai_stream_snapshot_cache_key(chat_id_from_payload)
-                    if redis_payload.get("is_final_chunk", False):
+                    if redis_payload.get("independent_reply") is True:
+                        # Leave the foreground's reconnect snapshot alone. The
+                        # separate durable turn recovers through its sealed job.
+                        pass
+                    elif redis_payload.get("is_final_chunk", False):
                         try:
                             if hasattr(cache_service, "delete"):
                                 await cache_service.delete(snapshot_key)
@@ -1794,6 +1804,18 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     logger.debug(
                                         f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
                                     )
+                                    return
+                                if (redis_payload.get("independent_reply") is True
+                                        and not supports_parallel_chat_turns(websocket_conn)):
+                                    # Single-stream clients discover this separately encrypted turn
+                                    # without changing their live foreground presentation.
+                                    if should_announce_final_recovery_job:
+                                        await _send_available_recovery_jobs_for_final_stream(
+                                            manager=manager, directus_service=directus_service,
+                                            user_id=user_id_uuid, user_id_hash=redis_payload.get("user_id_hash"),
+                                            device_fingerprint_hash=device_hash, websocket=websocket_conn,
+                                            device_ordinal=device_ordinal,
+                                        )
                                     return
                                 active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
 
@@ -1907,6 +1929,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                             "recovery_job_id": redis_payload.get("recovery_job_id"),
                                             "recovery_turn_id": redis_payload.get("recovery_turn_id"),
                                             "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
+                                            **({"independent_reply": True} if redis_payload.get("independent_reply") is True else {}),
                                             "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
                                             "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
                                             "is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False),
@@ -3501,6 +3524,10 @@ async def websocket_endpoint(
     supports_chat_orchestration_jobs = "chat_orchestration_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
+    websocket.scope[PARALLEL_CHAT_TURNS_CAPABILITY] = (
+        supports_typed_recovery_outputs and PARALLEL_CHAT_TURNS_CAPABILITY in connection_capabilities
+        and websocket.headers.get("x-openmates-sdk") in (None, "cli")
+    )
     supports_empty_call_cleanup = websocket.query_params.get("empty_call_cleanup_guard") == "1"
 
     supports_storage_archive = declares_archive_capability(raw_capabilities)
@@ -4836,6 +4863,7 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     cache_service=cache_service,
+                    directus_service=directus_service,
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "cancel_skill":

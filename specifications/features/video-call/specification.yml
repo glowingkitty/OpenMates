@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
-version: 25
-status: approved
+version: 26
+status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -492,12 +492,14 @@ assertions:
   - examples.migration_metadata_recovery
 - id: video-call.audio.intentional-interruption
   type: invariant
-  must: The first recognized words of real user speech over the assistant stop playback and generation immediately,
-    without waiting for the endpoint or a model verdict. Brief listener cues, including stretched or hyphenated variants
+  must: The first recognized words of real user speech over the assistant stop playback immediately.
+    In a call using shared active-work routing, record what the caller heard and leave running work available
+    for the submitted follow-up to address. Speaking over an answer grants no execution cancellation.
+    A pause in playback requires no resume button. Brief listener cues, including stretched or hyphenated variants
     such as hmm, hmmmm, mhm, mhmm, mm-hmm, uh-huh, okay, yeahhh or right, leave speech and generation uninterrupted
     and do not become a new request or unrelated consent; a cue that answers a pending assistant question is an answer.
-    A clear stop or intentional correction yields promptly, cancels further answer/speech work through existing cancellation,
-    and rejects stale packets. An utterance heard during playback that is only a verbatim run of three or more words of
+    Reject stale audio after interruption. Resolve a correction against the active artifact.
+    Stop an execution only after an explicit request identifies its authorized target. An utterance heard during playback that is only a verbatim run of three or more words of
     the assistant's own speech is microphone recapture; it never interrupts and never becomes a message, unless intent
     classification judges it a deliberate quote or answer. Keep listening after an initial acknowledgement so okay but show Berlin instead becomes a
     correction. Use bounded intent classification and preserve substantive finalized requests on classifier failure;
@@ -541,6 +543,21 @@ assertions:
     counts as caller speech when recaptured by the microphone, or uses runtime speech synthesis.
   depends_on:
   - examples.localized_waiting
+- id: video-call.audio.first-audible-response
+  type: behavior
+  must: In a connected call using shared active-work routing, measure the interval from the caller's last
+    voiced sound to the first audible answer. For a straightforward fast-model turn the target is under
+    one second to substantive speech. For reasoning or lengthy work the same target applies to a truthful
+    audible acknowledgement. Report both measurements separately and measure call setup separately.
+    Only caller-visible processing states may trigger spoken progress. A ready answer or the caller
+    speaking takes priority. On upgraded calls a pure request for quiet interrupts playback immediately.
+    The next substantive request enters the ordinary chat independently of the stopped audio.
+    A first quiet reminder may play after ten seconds, followed by increasingly spaced reminders during
+    the same phase. The initial rollout includes work and artifact recordings in English and German.
+    Announce the start of a code, spreadsheet, document or slides embed once for the artifact or related group.
+    Keep cues out of saved history. Listening alone never produces a spoken acknowledgement.
+  depends_on:
+  - examples.audible_feedback
 - id: video-call.audio.waiting-language
   type: behavior
   must: The acknowledgement's language follows the spoken turn, then the previous turn of the same call, then the
@@ -598,9 +615,11 @@ assertions:
   type: invariant
   must: Realtime endpointing separates speech activity from semantic completion and interruption intent. Eager-end preparation
     must be disposable and cannot invoke irreversible tools. A verified local end of speech can start the completeness
-    check while streaming the last words. Collect trailing deltas for the configured grace period; resumed microphone
-    speech cancels the local endpoint until the renewed request is complete. Admit that streamed request without waiting
-    for a provider final transcript. Manual mute only pauses input.
+    check while streaming the last words. Allow trailing deltas through the configured grace period. That timer
+    may end early once the provider has delivered all words through the same microphone frame that ended in
+    verified quiet. Renewed speech revokes this endpoint while the semantic decision is pending. A buffered
+    provider close can finish independently. A missing final transcript uses the ordinary grace period. Manual mute
+    only pauses input.
   depends_on:
   - examples.complete_turn
 - id: video-call.audio.pause-verdict
@@ -638,7 +657,7 @@ assertions:
 - id: video-call.waiting.spoken-intent-and-merge
   type: invariant
   must: The call bar's call controls are mute and end call; it has no hold or pause button. Waiting starts only from the
-    caller's natural-language request in any language (such as "give me a second" or "wait") or from a hard signal
+    caller's explicit request to hold an unfinished turn or from a hard signal
     (typing, the file picker, an upload), and a spoken "I'm back" or the end of the hard signal leaves it. The state shows
     "Waiting for you"; entering plays the ready-made line "Okay, I'm waiting." and leaving "Okay, go on." on web
     when a recording exists for the language. The acknowledgment runs no ordinary chat

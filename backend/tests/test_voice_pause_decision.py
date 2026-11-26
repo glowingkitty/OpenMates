@@ -144,3 +144,16 @@ def test_fixture_hold_string_is_a_wait_decision_without_deadline_and_still_think
     assert (hold.verdict, hold.intent, hold.wait_seconds) == ("wait", "none", None)
     thinking = vpd.as_pause_decision("incomplete")
     assert (thinking.verdict, thinking.wait_seconds) == ("still_thinking", 2.0)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict,video-call.audio.intentional-interruption
+async def test_playback_control_uses_same_bounded_decision_only_when_requested():
+    result = response("finished", "pause_playback")
+    assert vpd.parse_pause_decision(result.answers).intent == "none"
+    with patch(f"{MODULE}.JevDecisionClient") as client:
+        client.return_value.evaluate = AsyncMock(return_value=result)
+        decision = await vpd.classify_voice_pause("give me a second", None, playback_control=True)
+        request = client.return_value.evaluate.call_args.kwargs
+    assert "pause_playback" in request["questions"]["intent"]["criteria"]
+    assert set(request["questions"]) == {"verdict", "intent"}
+    assert decision.intent == "pause_playback"

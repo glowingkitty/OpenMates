@@ -6709,6 +6709,7 @@
             "client.Client.set_interactive",
             "client.Client.set_learning_mode_collaborative",
             "client.Client.set_operation_cancel",
+            "client.Client.set_parallel_chat_turns",
             "client.Client.set_privacy_options",
             "client.Client.set_private_operation_gate",
             "client.Client.set_team",

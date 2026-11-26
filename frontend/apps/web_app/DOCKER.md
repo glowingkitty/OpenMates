@@ -66,9 +66,13 @@ Add the following to your Caddyfile to reverse proxy to the webapp container:
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "SAMEORIGIN"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
 		-Server
 	}
+
+	@chatShell path /
+	@otherPaths not path /
+	header @chatShell Permissions-Policy "geolocation=(), microphone=(self), camera=(), interest-cohort=()"
+	header @otherPaths Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
 
 	# For Docker Compose: use service name 'webapp:5173'
 	# For standalone: use 'localhost:5173' or actual IP:port

@@ -30,6 +30,7 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultCon
 from pydantic import BaseModel, Field # For PreprocessingResult model
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
 from backend.shared.python_utils.provider_health import is_provider_healthy, map_provider_name_to_id
+from backend.shared.python_utils.independent_chat_reply import is_independent_reply
 from backend.shared.app_packages.loader import is_installed_provider
 from backend.shared.app_packages.secrets import installed_provider_ready
 from backend.shared.python_utils.model_availability import is_model_available
@@ -93,7 +94,7 @@ from backend.apps.ai.processing.routing_ledger import (
     build_preprocessing_history_projection,
     load_skill_ledger,
 )
-from backend.apps.ai.utils.utility_model_fallbacks import UTILITY_TRANSLATION_MODEL
+from backend.apps.ai.utils.utility_model_fallbacks import UTILITY_TRANSLATION_MODEL, utility_model_fallbacks
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -112,7 +113,6 @@ logger = logging.getLogger(__name__)
 
 SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 USER_ROLE = "user"
-DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
 
@@ -520,13 +520,6 @@ TOPIC_AREA_TO_MATE_CATEGORY: Dict[str, str] = {
     "education_learning": "general_knowledge",
     "language_translation": "general_knowledge",
 }
-
-
-def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
-    """Keep same-model server recovery first, then add a cross-provider fallback."""
-    return [
-        fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK
-    ] + [DEEPSEEK_V4_FLASH_FALLBACK]
 
 
 def _selected_apps_with_skill_owners(
@@ -1326,8 +1319,8 @@ async def translate_chat_title(
 
     try:
         from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-        translation_fallbacks = _with_deepseek_utility_fallback(
-            resolve_fallback_servers_from_provider_config(model_id)
+        translation_fallbacks = utility_model_fallbacks(
+            model_id, resolve_fallback_servers_from_provider_config(model_id)
         )
 
         llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
@@ -1339,6 +1332,7 @@ async def translate_chat_title(
             user_app_settings_and_memories_metadata=None,
             dynamic_context=None,
             fallback_models=translation_fallbacks,
+            observability_purpose="translation",
         )
 
         if llm_result.error_message:
@@ -1452,8 +1446,8 @@ async def translate_chat_summary(
 
     try:
         from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-        translation_fallbacks = _with_deepseek_utility_fallback(
-            resolve_fallback_servers_from_provider_config(model_id)
+        translation_fallbacks = utility_model_fallbacks(
+            model_id, resolve_fallback_servers_from_provider_config(model_id)
         )
 
         llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
@@ -1465,6 +1459,7 @@ async def translate_chat_summary(
             user_app_settings_and_memories_metadata=None,
             dynamic_context=None,
             fallback_models=translation_fallbacks,
+            observability_purpose="translation",
         )
 
         if llm_result.error_message:
@@ -1514,6 +1509,7 @@ class PreprocessingResult(BaseModel):
     selected_app_ids: Optional[List[str]] = Field(None, exclude=True, description="Transient Jev app shortlist plus deterministic tool owners; None means the legacy fallback did not shortlist apps.")
     context_fast_path: bool = Field(False, exclude=True, description="Complete Stage-one and authoritative empty-context proof for this turn, including contextual follow-ups; main still rechecks the live Project binding.")
     plain_prose_response: bool = Field(False, exclude=True, description="Transient current-turn proof: complete validated public preview=none and general/low routing; absent/legacy snapshots retain full guidance.")
+    voice_instant_route_proof: bool = Field(False, exclude=True, description="Transient voice proof from an affirmative low Stage-one route with complete plain-prose context.")
     early_task_area: Optional[str] = Field(None, exclude=True, description="Validated Stage-one task area for narrow main setup decisions.")
     pending_project_focus_id: Optional[str] = Field(None, exclude=True, description="Routing-only consent proposal; no main inference or Project authority.")
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
@@ -2440,6 +2436,13 @@ def _plain_prose_routing_proof(routing, *, is_first_message, context_fast_path,
     return bool(context_fast_path and task_area == "general" and normalize_request_tier(complexity) == LOW_TIER
                 and previews == [] and _complete_public_decisions(public, is_first_message)
                 and public["preview"] == "none")
+
+
+def _voice_instant_route_proof(request: AskSkillRequest, routing: dict[str, Any] | None, plain_prose: bool) -> bool:
+    """Require an affirmative Stage-one tier before applying a fast voice effort."""
+    decisions = (routing or {}).get("early_decisions")
+    return bool(getattr(request, "voice_mode", False) is True and plain_prose and isinstance(decisions, dict)
+                and decisions.get("complexity") == LOW_TIER)
 
 
 def _stage_one_project_none_candidate(request_data: AskSkillRequest,
@@ -3418,7 +3421,8 @@ async def handle_preprocessing(
     from backend.apps.ai.processing.project_creation_routing import (
         decide_project_creation, project_creation_skip_reason,
     )
-    if early_model_selection is not None and project_creation_skip_reason(request_data, user_overrides) is None:
+    if (not is_independent_reply(request_data) and early_model_selection is not None
+            and project_creation_skip_reason(request_data, user_overrides) is None):
         # Assistant-inferred Project creation (projects.creation.assistant-inferred).
         project_create = await decide_project_creation(
             request_data=request_data, user_overrides=user_overrides, cache_service=cache_service,
@@ -4760,6 +4764,11 @@ async def handle_preprocessing(
         and preselected_related_snapshots == []
     )
     
+    plain_prose_response = _plain_prose_routing_proof(
+        early_routing, is_first_message=is_first_message,
+        context_fast_path=simple_context_fast_path, task_area=task_area_val,
+        complexity=complexity_val, previews=relevant_embedded_previews_val,
+    )
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
     final_result = PreprocessingResult(
@@ -4772,11 +4781,8 @@ async def handle_preprocessing(
         wellbeing_scores=wellbeing_scores_val if isinstance(wellbeing_scores_val, dict) else None,
         selected_app_ids=final_selected_app_ids,
         context_fast_path=simple_context_fast_path,
-        plain_prose_response=_plain_prose_routing_proof(
-            early_routing, is_first_message=is_first_message,
-            context_fast_path=simple_context_fast_path, task_area=task_area_val,
-            complexity=complexity_val, previews=relevant_embedded_previews_val,
-        ),
+        plain_prose_response=plain_prose_response,
+        voice_instant_route_proof=_voice_instant_route_proof(request_data, early_routing, plain_prose_response),
         early_task_area=task_area_val if simple_context_fast_path else None,
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
