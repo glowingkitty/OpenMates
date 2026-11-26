@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- CommonJS test helpers. */
 // contract-test-file: tooling
 /** Read-only, deployed-dev timings. Use the private Personal DevTest workflow. */
-import type { Response, WebSocketRoute } from "@playwright/test";
+import type { Request, Response, WebSocketRoute } from "@playwright/test";
 import { preparePersonalDevtestWebOrigin } from "./helpers/personal-devtest-web-origin";
 
 const { test, expect } = require('@playwright/test');
@@ -11,6 +11,17 @@ const DEV_ORIGIN = 'https://app.dev.openmates.org';
 const DEV_CHAT_STATS = 'https://api.dev.openmates.org/v1/settings/chats';
 const IDLE_OBSERVATION_MS = 15000;
 const ROW_SELECTOR = '[data-testid="activity-history-wrapper"] [data-testid="chat-item-wrapper"][data-chat-id]';
+
+const READ_STAGES = [
+	'read-online-session', 'read-local-session', 'read-no-local-session',
+	'local-session-start', 'local-session-ready', 'cache-read-start', 'cache-read-end',
+	'cache-plan-owned_metadata', 'cache-plan-messages', 'cache-miss-rust',
+	'cache-miss-unsupported', 'cache-miss-unavailable', 'cache-miss-empty',
+	'local-cache-miss', 'cold-retention-request', 'cold-retention-io-start',
+	'cold-retention-io-complete', 'cold-retention-ready',
+	'cold-retention-failed-unavailable', 'cold-retention-failed-session_expired',
+	'cold-retention-io-failed-unavailable', 'server-read-start', 'server-read-end',
+].map(stage => 'openmates:rust:' + stage);
 
 // Keep the private baseline and candidate on the same observable transport.
 test.use({ serviceWorkers: 'block' });
@@ -147,16 +158,51 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	const visibleMessageMS: number[] = [];
 	const selected = new Set<string>();
 	const active = page.getByTestId('active-chat-container');
-	const assertTranscript = async (chatId: string) => {
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	const clickChat = async (chatId: string) => {
+		if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
+		await page.locator(ROW_SELECTOR + '[data-chat-id="' + chatId + '"]').click();
+	};
+	const readEvidence = (chatId: string, startedAt: number) => page.evaluate(async ({ id, start, allowed }: {
+		id: string; start: number; allowed: string[];
+	}) => {
+		// Report aggregate counts from the selected IDB index, never rows or keys.
+		const retainedRows = await new Promise<number | null>(resolve => {
+			const request = indexedDB.open('chats_db');
+			const deadline = window.setTimeout(() => resolve(null), 3000);
+			const finish = (count: number | null) => { window.clearTimeout(deadline); resolve(count); };
+			request.onupgradeneeded = () => { request.transaction?.abort(); finish(null); };
+			request.onblocked = request.onerror = () => finish(null);
+			request.onsuccess = () => {
+				const db = request.result;
+				try {
+					const tx = db.transaction('messages', 'readonly');
+					const count = tx.objectStore('messages').index('chat_id').count(id);
+					tx.oncomplete = () => { db.close(); finish(count.result); };
+					tx.onabort = tx.onerror = () => { db.close(); finish(null); };
+				} catch { db.close(); finish(null); }
+			};
+		});
+		const view = document.querySelector('[data-testid="active-chat-container"]');
+		return {
+			retained_rows: retainedRows,
+			active_message_count: Number(view?.getAttribute('data-current-message-count') ?? 0),
+			navigator_online: navigator.onLine,
+			read_stages: performance.getEntriesByType('mark')
+				.filter(mark => mark.startTime >= start && allowed.includes(mark.name))
+				.map(mark => mark.name).slice(-40),
+		};
+	}, { id: chatId, start: startedAt, allowed: READ_STAGES });
+	const assertTranscript = async (chatId: string, stage = 'online selection') => {
 		await expect(active).toHaveAttribute('data-current-chat-id', chatId);
-		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count'))).toBeGreaterThan(0);
+		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count')),
+			{ message: 'The ' + stage + ' has readable history' }).toBeGreaterThan(0);
 		await expect(page.getByTestId('chat-history-content')).toBeVisible();
 		await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
 	};
 	for (let sample = 0; sample < 3; sample++) {
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		if (new URL(page.url()).origin !== DEV_ORIGIN) throw new Error('Unexpected application origin');
-		const sidebar = page.getByTestId('activity-history-wrapper');
 		if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
 		const rows = page.locator(ROW_SELECTOR);
 		await expect(rows.first()).toBeVisible();
@@ -180,14 +226,13 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		}, { timeout: 15000, message: 'A different existing recent chat becomes selectable' }).toBe(true);
 		const chatId = candidate!;
 		selected.add(chatId);
-		const row = page.locator(ROW_SELECTOR + '[data-chat-id="' + chatId + '"]');
 		const start = await page.evaluate(() => performance.now());
-		await row.click();
+		await clickChat(chatId);
 		await assertTranscript(chatId);
 		visibleMessageMS.push(Math.round(await page.evaluate(() => performance.now()) - start));
 		await testInfo.attach('personal-devtest-web-trial-' + (sample + 1), {
 			body: JSON.stringify({ cached_navigation_to_recent_rows_ms: recentRowsMS[sample],
-				select_to_visible_message_ms: visibleMessageMS[sample] }),
+				select_to_visible_message_ms: visibleMessageMS[sample], ...await readEvidence(chatId, start) }),
 			contentType: 'application/json',
 		});
 	}
@@ -229,9 +274,15 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	const [first, , last] = [...selected];
 	if (!first || !last) throw new Error('Expected three distinct existing conversations');
 	await expect.poll(hasOpenTransport, { timeout: 15000 }).toBe(true);
-	const original = transports.at(-1);
-	if (!original) throw new Error('Expected the real development WebSocket route');
+	if (!transports.at(-1)) throw new Error('Expected the real development WebSocket route');
 	const previousTransportCount = transports.length;
+	const beforeDisconnect = await readEvidence(first, 0);
+	let offlineHistoryRequests = 0;
+	context.on('request', (request: Request) => {
+		const pathname = new URL(request.url()).pathname;
+		if (offline && pathname.startsWith('/v1/chats/' + first + '/messages')) offlineHistoryRequests++;
+	});
+	let offlineSelectionStarted: number | null = null;
 	offline = true;
 	await context.setOffline(true);
 	try {
@@ -240,14 +291,29 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		const close = { code: 3001, reason: 'Read-only development benchmark disconnect' };
 		await Promise.all(transports.flatMap(({ socket, server }) => [socket.close(close), server.close(close)]));
 		await expect.poll(hasOpenTransport, { timeout: 15000 }).toBe(false);
-		await assertTranscript(last);
-		await page.evaluate((id: string) => {
-			window.location.hash = `chat-id=${encodeURIComponent(id)}`;
-		}, first);
-		await assertTranscript(first);
+		await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+		await assertTranscript(last, 'previously visible chat');
+		offlineSelectionStarted = await page.evaluate(() => performance.now());
+		await clickChat(first);
+		await assertTranscript(first, 'offline sidebar selection');
+		expect(beforeDisconnect.retained_rows).toBeGreaterThan(0);
+		expect(offlineHistoryRequests).toBe(0);
 	} finally {
-		offline = false;
-		await context.setOffline(false);
+		try {
+			const duringOffline = offlineSelectionStarted === null ? null : await readEvidence(first, offlineSelectionStarted);
+			await testInfo.attach('personal-devtest-web-offline-read', {
+				body: JSON.stringify({
+					retained_rows_before_disconnect: beforeDisconnect.retained_rows,
+					offline_history_requests: offlineHistoryRequests,
+					open_transport: await hasOpenTransport(),
+					during_offline: duringOffline,
+				}),
+				contentType: 'application/json',
+			});
+		} finally {
+			offline = false;
+			await context.setOffline(false);
+		}
 	}
 	await expect.poll(() => transports.length, { timeout: 30000 }).toBeGreaterThan(previousTransportCount);
 	await expect.poll(hasOpenTransport, { timeout: 30000 }).toBe(true);
