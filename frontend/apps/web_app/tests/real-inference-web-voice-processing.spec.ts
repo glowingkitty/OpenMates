@@ -174,7 +174,7 @@ test('a real signed-in web voice turn plays audible speech and keeps its encrypt
       let timings: ReturnType<typeof qualifiedVoiceTiming> = null;
       await timeline.assert('assistant-audio', async () => {
         await expect.poll(async () => {
-          timings = qualifiedVoiceTiming(await probeSnapshot(page), { callId, chatId, messageId: replyId });
+          timings = qualifiedVoiceTiming(await probeSnapshot(page), { callId, chatId, messageId: replyId, userMessageId: voiceId });
           return timings !== null;
         }, { timeout: budget(), message: 'Only non-silent playback of the owned prose stream qualifies' }).toBe(true);
       });
@@ -213,7 +213,8 @@ test('a real signed-in web voice turn plays audible speech and keeps its encrypt
 
       const artifact = testInfo.outputPath('real-web-voice-timing.json');
       writeFileSync(artifact, JSON.stringify({ sourceCommit: commit, lastVoicedToCueMs: timing.cueMs,
-        lastVoicedToSubstantiveMs: timing.substantiveMs, sampleRate: timing.sampleRate, sameEncryptedChat: true }));
+        lastVoicedToSubstantiveMs: timing.substantiveMs, sampleRate: timing.sampleRate, sameEncryptedChat: true,
+        ...timing.milestones }));
       await testInfo.attach('real-web-voice-timing', { path: artifact, contentType: 'application/json' });
     } finally {
       clearTimeout(forceHangup);

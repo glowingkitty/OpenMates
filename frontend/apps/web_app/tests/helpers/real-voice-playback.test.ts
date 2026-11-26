@@ -5,6 +5,15 @@ import { qualifiedVoiceTiming, type RealVoicePlayback } from './real-voice-playb
 const identity = { callId: 'call', chatId: 'chat', messageId: 'assistant', trackId: 'speech' };
 const cue = '/audio/assistant-acknowledgements/mate/answering.mp3';
 const speech = 'blob:http://localhost:5173/speech';
+const owner = { ...identity, userMessageId: 'utterance' };
+const emptyMilestones = {
+  lastVoicedToFinalTranscriptMs: null,
+  lastVoicedToAdmissionMs: null,
+  lastVoicedToAdmissionAckMs: null,
+  lastVoicedToProseStartMs: null,
+  lastVoicedToMatchingAudioBytesMs: null,
+  lastVoicedToPlaybackMs: 1000,
+};
 
 function recorded(): ReturnType<RealVoicePlayback['snapshot']> {
   return {
@@ -24,7 +33,7 @@ function recorded(): ReturnType<RealVoicePlayback['snapshot']> {
 
 test('uses the last voiced input sample and separates cue and substantive PCM', () => {
   assert.deepEqual(qualifiedVoiceTiming(recorded(), identity),
-    { cueMs: 500, substantiveMs: 1000, sampleRate: 48000 });
+    { cueMs: 500, substantiveMs: 1000, sampleRate: 48000, milestones: emptyMilestones });
 });
 
 // contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission
@@ -34,7 +43,7 @@ test('records no cue when audio is silent, unrelated, or happened before speech 
     const proof = recorded();
     Object.assign(proof.output[0], replace);
     assert.deepEqual(qualifiedVoiceTiming(proof, identity),
-      { cueMs: null, substantiveMs: 1000, sampleRate: 48000 });
+      { cueMs: null, substantiveMs: 1000, sampleRate: 48000, milestones: emptyMilestones });
   }
 });
 
@@ -54,4 +63,43 @@ test('does not certify speech with a disconnected stream, wrong turn, or no PCM'
     discard(proof);
     assert.equal(qualifiedVoiceTiming(proof, identity), null);
   }
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission
+test('attributes every relative milestone to the owned utterance and audible track using the same sample clock', () => {
+  const proof = recorded();
+  const scope = { callId: owner.callId, chatId: owner.chatId, userMessageId: owner.userMessageId };
+  proof.transcriptFrames = [
+    { ...scope, callId: 'foreign-call', frame: 48001 },
+    { ...scope, chatId: 'foreign-chat', frame: 48100 },
+    { ...scope, userMessageId: 'another-utterance', frame: 48200 },
+    { ...scope, frame: 47000 },
+    { ...scope, frame: 52800 },
+  ];
+  proof.admissionFrames = [
+    { ...scope, chatId: 'foreign-chat', sentFrame: 48100, ackFrame: 48200 },
+    { ...scope, userMessageId: 'another-utterance', sentFrame: 48200, ackFrame: 48300 },
+    { ...scope, sentFrame: 57600, ackFrame: 62400 },
+  ];
+  proof.proseSources[0] = { source: speech, identity, startFrame: 72000, bytesFrame: 76800 };
+  proof.proseSources.push({ source: 'silent-other-track', identity: { ...identity, trackId: 'foreign-track' },
+    startFrame: 48400, bytesFrame: 48500 });
+  const timing = qualifiedVoiceTiming(proof, owner);
+  assert.deepEqual(timing?.milestones, {
+    lastVoicedToFinalTranscriptMs: 100, lastVoicedToAdmissionMs: 200,
+    lastVoicedToAdmissionAckMs: 300, lastVoicedToProseStartMs: 500,
+    lastVoicedToMatchingAudioBytesMs: 600, lastVoicedToPlaybackMs: 1000,
+  });
+  assert.ok(Object.values(timing!.milestones).every(value => value === null || typeof value === 'number'));
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission
+test('missing, stale and ambiguous optional milestones leave a qualified browser playback intact', () => {
+  const proof = recorded();
+  proof.admissionFrames = [{ callId: owner.callId, chatId: owner.chatId,
+    userMessageId: owner.userMessageId, sentFrame: 47000, ackFrame: 49000 }];
+  proof.proseSources.push({ source: speech, identity: { ...identity, trackId: 'ambiguous-track' },
+    startFrame: 50200, bytesFrame: 50800 });
+  assert.deepEqual(qualifiedVoiceTiming(proof, owner),
+    { cueMs: 500, substantiveMs: 1000, sampleRate: 48000, milestones: emptyMilestones });
 });
