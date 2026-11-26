@@ -5,6 +5,7 @@ reads, and inspect FastAPI dependencies without requiring a live Directus or
 authenticated user account. The same routes serve independent Apple clients.
 """
 
+import asyncio
 import json
 import hashlib
 from types import SimpleNamespace
@@ -137,7 +138,14 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
                 "id": "chat-owned",
                 "encrypted_title": "cipher-title",
                 "encrypted_chat_summary": "cipher-summary",
+                "encrypted_wellbeing_scores": "cipher-wellbeing-scores",
                 "encrypted_chat_key": "wrapped-chat-key",
+                "title": "private plaintext title",
+                "chat_summary": "private plaintext summary",
+                "wellbeing_scores": {"private": 1},
+                "participant_key_envelopes": None,
+                "chat_key": "private unwrapped key",
+                "user_id": "private owner ID",
                 "created_at": 150,
                 "parent_id": "chat-parent",
                 "is_sub_chat": True,
@@ -178,7 +186,10 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
                 "encrypted_chat_summary": "cipher-summary",
                 "encrypted_active_focus_id": None,
                 "encrypted_focus_phase_state": None,
+                "encrypted_wellbeing_scores": "cipher-wellbeing-scores",
                 "encrypted_chat_key": "wrapped-chat-key",
+                "chat_visibility": None,
+                "participant_user_hashes": None,
                 "chat_key_wrappers": [],
                 "chat_key_wrapper_window": {"has_more_before": False, "start_cursor": None, "oversized_wrapper_id": None},
                 "encrypted_auto_speak_response": None,
@@ -201,8 +212,9 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
         hashlib.sha256("chat-owned".encode()).hexdigest(),
         hashed_user_id=hashlib.sha256("user-1".encode()).hexdigest(),
     )
-    assert "title" not in result["chats"][0]
-    assert "chat_summary" not in result["chats"][0]
+    assert {
+        "title", "chat_summary", "wellbeing_scores", "participant_key_envelopes", "chat_key", "user_id",
+    }.isdisjoint(result["chats"][0])
 
 
 # contract-test: supporting surface=rest_api assertions=apple-watch.offline.recent-cohort,chats.persistence.client-encrypted
@@ -340,7 +352,8 @@ async def test_list_chat_messages_hides_cross_user_chat_existence() -> None:
 
 # contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 @pytest.mark.anyio
-async def test_chat_message_window_requires_ownership_before_bounded_encrypted_read() -> None:
+@pytest.mark.parametrize("count_available", [True, False])
+async def test_chat_message_window_requires_ownership_before_bounded_encrypted_read(count_available: bool) -> None:
     messages = [
         json.dumps({
             "id": f"row-{index}",
@@ -353,22 +366,41 @@ async def test_chat_message_window_requires_ownership_before_bounded_encrypted_r
         })
         for index in range(MESSAGE_WINDOW_LIMIT)
     ]
-    chat_service = SimpleNamespace(
-        check_chat_ownership=AsyncMock(return_value=True),
-        get_chat_metadata=AsyncMock(return_value={"id": "chat-owned", "messages_v": 101}),
-        get_message_count_for_chat=AsyncMock(return_value=101),
-        get_message_window_for_chat=AsyncMock(return_value={
+    count_started = asyncio.Event()
+    window_started = asyncio.Event()
+
+    async def read_count(_chat_id: str) -> int:
+        count_started.set()
+        await asyncio.wait_for(window_started.wait(), timeout=2)
+        if not count_available:
+            raise RuntimeError("Message count unavailable")
+        return 107
+
+    async def read_checkpoints(*args, **kwargs):
+        # The count must already be in flight before the window can proceed.
+        await asyncio.wait_for(count_started.wait(), timeout=2)
+        return [checkpoint]
+
+    async def read_window(**kwargs):
+        window_started.set()
+        return {
             "messages": messages,
             "has_more_before": True,
             "has_more_after": False,
             "start_cursor": {"created_at": 1000, "message_id": "message-0"},
             "end_cursor": {"created_at": 1019, "message_id": "message-19"},
             "anchor_found": True,
-        }),
+        }
+
+    chat_service = SimpleNamespace(
+        check_chat_ownership=AsyncMock(return_value=True),
+        get_chat_metadata=AsyncMock(return_value={"id": "chat-owned", "messages_v": 101}),
+        get_message_count_for_chat=AsyncMock(side_effect=read_count),
+        get_message_window_for_chat=AsyncMock(side_effect=read_window),
         get_all_messages_for_chat=AsyncMock(),
     )
     checkpoint = {"id": "checkpoint-1", "compressed_up_to_timestamp": 900, "created_at": 901}
-    get_items = AsyncMock(return_value=[checkpoint])
+    get_items = AsyncMock(side_effect=read_checkpoints)
 
     result = await get_chat_message_window(
         chat_id="chat-owned",
@@ -390,7 +422,7 @@ async def test_chat_message_window_requires_ownership_before_bounded_encrypted_r
     assert "content" not in result["messages"][0]
     assert result["has_more_before"] is True
     assert result["has_more_after"] is False
-    assert result["server_message_count"] == 101
+    assert result["server_message_count"] == (107 if count_available else 101)
     assert result["compression_boundary_timestamp"] == 900
     assert result["compression_checkpoints"] == [checkpoint]
     chat_service.check_chat_ownership.assert_awaited_once_with("chat-owned", "user-1")
@@ -405,6 +437,7 @@ async def test_chat_message_window_requires_ownership_before_bounded_encrypted_r
         anchor_message_id=None,
         lower_bound_timestamp=900,
     )
+    chat_service.get_message_count_for_chat.assert_awaited_once_with("chat-owned")
     chat_service.get_all_messages_for_chat.assert_not_awaited()
 
 
@@ -413,6 +446,7 @@ async def test_chat_message_window_requires_ownership_before_bounded_encrypted_r
 async def test_chat_message_window_hides_cross_user_chat_existence() -> None:
     chat_service = SimpleNamespace(
         check_chat_ownership=AsyncMock(return_value=False),
+        get_message_count_for_chat=AsyncMock(),
         get_message_window_for_chat=AsyncMock(),
         get_all_messages_for_chat=AsyncMock(),
     )
@@ -436,9 +470,66 @@ async def test_chat_message_window_hides_cross_user_chat_existence() -> None:
 
     assert error.value.status_code == 404
     assert error.value.detail == "Chat not found"
+    chat_service.get_message_count_for_chat.assert_not_awaited()
     chat_service.get_message_window_for_chat.assert_not_awaited()
     chat_service.get_all_messages_for_chat.assert_not_awaited()
     get_items.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("cancel_request", [False, True])
+async def test_chat_message_window_cancels_count_when_selected_read_cannot_complete(cancel_request: bool) -> None:
+    count_started = asyncio.Event()
+    window_started = asyncio.Event()
+    count_cancelled = asyncio.Event()
+
+    async def pending_count(_chat_id: str) -> int:
+        count_started.set()
+        try:
+            await asyncio.Future()
+        finally:
+            count_cancelled.set()
+
+    async def read_window(**kwargs):
+        await asyncio.wait_for(count_started.wait(), timeout=2)
+        window_started.set()
+        if cancel_request:
+            await asyncio.Future()
+        return {"messages": ["invalid message row JSON"]}
+
+    chat_service = SimpleNamespace(
+        check_chat_ownership=AsyncMock(return_value=True),
+        get_chat_metadata=AsyncMock(return_value={"id": "chat-owned", "messages_v": 1}),
+        get_message_count_for_chat=AsyncMock(side_effect=pending_count),
+        get_message_window_for_chat=AsyncMock(side_effect=read_window),
+    )
+    route_task = asyncio.create_task(get_chat_message_window(
+        chat_id="chat-owned",
+        request=_request(chat_service),
+        direction="latest",
+        limit=DEFAULT_MESSAGE_WINDOW_LIMIT,
+        before_timestamp=None,
+        before_message_id=None,
+        after_timestamp=None,
+        after_message_id=None,
+        anchor_message_id=None,
+        respect_compression_boundary=True,
+        team_id=None,
+        current_user=SimpleNamespace(id="user-1"),
+    ))
+    if cancel_request:
+        await asyncio.wait_for(window_started.wait(), timeout=2)
+        route_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await route_task
+    else:
+        with pytest.raises(HTTPException) as error:
+            await route_task
+        assert error.value.status_code == 503
+        assert error.value.detail == "MESSAGE_WINDOW_UNAVAILABLE"
+
+    assert count_cancelled.is_set()
 
 
 # contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent

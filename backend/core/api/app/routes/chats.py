@@ -6,6 +6,7 @@ decrypt content server-side, and return the same 404 for missing or foreign
 chats to avoid existence disclosure.
 """
 
+import asyncio
 import json
 import hashlib
 import os
@@ -473,6 +474,14 @@ async def get_chat_timeline(request: Request, chat_id: str, response: Response,
         raise HTTPException(status_code=503, detail="TIMELINE_UNAVAILABLE") from exc
 
 
+async def _get_optional_chat_message_count(request: Request, chat_id: str) -> int | None:
+    """Treat an unavailable count as optional, while preserving request cancellation."""
+    try:
+        return await request.app.state.directus_service.chat.get_message_count_for_chat(chat_id)
+    except Exception:
+        return None
+
+
 @router.get("/chats/{chat_id}/messages/window")
 async def get_chat_message_window(
     chat_id: str,
@@ -491,50 +500,53 @@ async def get_chat_message_window(
 ) -> dict[str, Any]:
     """First-party authenticated viewing; archives use current owner/Team checks."""
     chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
-    checkpoints = await _get_chat_compression_checkpoints(request, chat_id)
-    compression_boundary_timestamp = _latest_compression_boundary(checkpoints)
-    lower_bound_timestamp = compression_boundary_timestamp if respect_compression_boundary else None
-    window = await request.app.state.directus_service.chat.get_message_window_for_chat(
-        chat_id=chat_id,
-        direction=direction,
-        limit=min(limit, MESSAGE_WINDOW_LIMIT),
-        before_timestamp=before_timestamp,
-        before_message_id=before_message_id,
-        after_timestamp=after_timestamp,
-        after_message_id=after_message_id,
-        anchor_message_id=anchor_message_id,
-        lower_bound_timestamp=lower_bound_timestamp,
-    )
-    if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1" or int((chat or {}).get("archived_message_count") or 0):
-        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
-        from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
-
-        try:
-            window = await ChatMessageArchiveService(
-                directus_service=request.app.state.directus_service,
-                s3_service=request.app.state.s3_service,
-            ).merge_window(
-                chat_id=chat_id, hot=window, direction=direction, limit=min(limit, MESSAGE_WINDOW_LIMIT),
-                before=(before_timestamp, before_message_id or "\uffff") if before_timestamp is not None else None,
-                after=(after_timestamp, after_message_id or "") if after_timestamp is not None else None,
-                anchor_message_id=anchor_message_id, lower_bound_timestamp=lower_bound_timestamp,
-            )
-        except ArchiveIntegrityError as exc:
-            raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
-    wire_messages = [_encrypted_message_payload(message) for message in window.get("messages", [])]
-    if any(message is None for message in wire_messages):
-        raise HTTPException(status_code=503, detail="MESSAGE_WINDOW_UNAVAILABLE")
-    window = bound_encrypted_message_window(
-        {**window, "messages": wire_messages}, direction=direction, anchor_message_id=anchor_message_id,
-    )
-    if response is not None:
-        response.headers["Cache-Control"] = "private, no-store"
-    messages = window.get("messages", [])
-    server_message_count = None
+    # The count and selected window are independent authorized reads.
+    count_task = asyncio.create_task(_get_optional_chat_message_count(request, chat_id))
     try:
-        server_message_count = await request.app.state.directus_service.chat.get_message_count_for_chat(chat_id)
-    except Exception:
-        server_message_count = None
+        checkpoints = await _get_chat_compression_checkpoints(request, chat_id)
+        compression_boundary_timestamp = _latest_compression_boundary(checkpoints)
+        lower_bound_timestamp = compression_boundary_timestamp if respect_compression_boundary else None
+        window = await request.app.state.directus_service.chat.get_message_window_for_chat(
+            chat_id=chat_id,
+            direction=direction,
+            limit=min(limit, MESSAGE_WINDOW_LIMIT),
+            before_timestamp=before_timestamp,
+            before_message_id=before_message_id,
+            after_timestamp=after_timestamp,
+            after_message_id=after_message_id,
+            anchor_message_id=anchor_message_id,
+            lower_bound_timestamp=lower_bound_timestamp,
+        )
+        if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1" or int((chat or {}).get("archived_message_count") or 0):
+            from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+            from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+
+            try:
+                window = await ChatMessageArchiveService(
+                    directus_service=request.app.state.directus_service,
+                    s3_service=request.app.state.s3_service,
+                ).merge_window(
+                    chat_id=chat_id, hot=window, direction=direction, limit=min(limit, MESSAGE_WINDOW_LIMIT),
+                    before=(before_timestamp, before_message_id or "\uffff") if before_timestamp is not None else None,
+                    after=(after_timestamp, after_message_id or "") if after_timestamp is not None else None,
+                    anchor_message_id=anchor_message_id, lower_bound_timestamp=lower_bound_timestamp,
+                )
+            except ArchiveIntegrityError as exc:
+                raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+        wire_messages = [_encrypted_message_payload(message) for message in window.get("messages", [])]
+        if any(message is None for message in wire_messages):
+            raise HTTPException(status_code=503, detail="MESSAGE_WINDOW_UNAVAILABLE")
+        window = bound_encrypted_message_window(
+            {**window, "messages": wire_messages}, direction=direction, anchor_message_id=anchor_message_id,
+        )
+        if response is not None:
+            response.headers["Cache-Control"] = "private, no-store"
+        messages = window.get("messages", [])
+        server_message_count = await count_task
+    finally:
+        if not count_task.done():
+            count_task.cancel()
+            await asyncio.gather(count_task, return_exceptions=True)
     if server_message_count is None and chat:
         server_message_count = chat.get("messages_v")
     return {
