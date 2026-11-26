@@ -23,6 +23,23 @@ from backend.shared.providers.inception import InceptionClient, InceptionRequest
 logger = logging.getLogger(__name__)
 MERCURY_CORRECTION_MODEL = "mercury-3"
 MERCURY_CORRECTION_TIMEOUT_SECONDS = 5.0
+MERCURY_DICTATION_EDIT_GUIDANCE = (
+    "Resolve spoken edits before polishing the text. Read the whole transcript part and "
+    "identify what each later correction replaces. A correction can replace an entire "
+    "earlier proposal across sentence boundaries. When the speaker settles on a different "
+    "way to achieve the same goal, remove the abandoned approach and merge the original goal "
+    "into the final request. Before returning text, check that every detail still in force "
+    "is present, including the purpose, recipients, restrictions, quoted wording, and exact "
+    "identifiers. Preserve independent instructions, genuine alternatives, and uncertainty. "
+    "Remove a correction cue only when it is being used to edit the speaker's words.\n\n"
+    "Example: \"Let's keep a file of approved domains. Wait, I need a way to add domains for "
+    "testing. We could have a file, no actually add a command to the admin CLI to approve "
+    "domains, starting with example.org.\" → \"Add an admin CLI command to approve domains "
+    "for testing, starting with example.org.\"\n"
+    "Example: \"Ask Sam for the report by Tuesday, actually Thursday, and keep the original "
+    "charts. Maybe email it, or post it in the channel.\" → \"Ask Sam for the report by "
+    "Thursday and keep the original charts. Email it or post it in the channel.\"\n\n"
+)
 
 
 def mercury_correction_enabled() -> bool:
@@ -43,6 +60,8 @@ async def correct_transcript_with_mercury(
     if not raw_transcript.strip():
         raise ValueError("Cannot correct an empty transcript")
     prompt = build_transcript_correction_prompt(detected_language, include_title=include_title)
+    if not include_title:
+        prompt = MERCURY_DICTATION_EDIT_GUIDANCE + prompt
     properties = {"title": {"type": "string"}} if include_title else {}
     properties["corrected_transcript"] = {"type": "string"}
     request = InceptionRequest(

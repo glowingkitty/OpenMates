@@ -16,7 +16,10 @@ from backend.shared.providers import transcript_correction as correction
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 @pytest.mark.asyncio
 @pytest.mark.parametrize("finish_reason", ["stop", "tool_calls"])
-async def test_mercury_correction_preserves_forced_function_contract(monkeypatch, finish_reason):
+@pytest.mark.parametrize("include_title", [True, False], ids=["recording", "dictation"])
+async def test_mercury_correction_preserves_forced_function_contract(
+    monkeypatch, finish_reason, include_title
+):
     complete = AsyncMock(return_value=SimpleNamespace(choices=[{
         "finish_reason": finish_reason, "message": {"tool_calls": [{"function": {
             "name": "finalize_transcript", "arguments": json.dumps({
@@ -25,13 +28,23 @@ async def test_mercury_correction_preserves_forced_function_contract(monkeypatch
         }}]},
     }]))
     monkeypatch.setattr(correction, "InceptionClient", lambda *_args, **kwargs: SimpleNamespace(complete=complete))
-    result = await correction.correct_transcript_with_mercury("ähm grüne boxen unter 50 euro", "private-key", "de")
-    assert result == {"title": "Grüne Boxen", "corrected_transcript": "Suche grüne Boxen unter 50 Euro."}
+    result = await correction.correct_transcript_with_mercury(
+        "ähm grüne boxen unter 50 euro", "private-key", "de", include_title=include_title
+    )
+    expected = {"corrected_transcript": "Suche grüne Boxen unter 50 Euro."}
+    if include_title:
+        expected["title"] = "Grüne Boxen"
+    assert result == expected
     request = complete.call_args.args[0]
     assert request.reasoning_effort == "low"
     assert request.temperature == 0.5
     assert request.tool_choice["function"]["name"] == "finalize_transcript"
-    assert request.messages[0]["content"] == gemini_correction.build_transcript_correction_prompt("de")
+    shared_prompt = gemini_correction.build_transcript_correction_prompt("de", include_title=include_title)
+    assert request.messages[0]["content"] == (
+        shared_prompt if include_title else correction.MERCURY_DICTATION_EDIT_GUIDANCE + shared_prompt
+    )
+    required = request.tools[0]["function"]["parameters"]["required"]
+    assert set(required) == expected.keys()
     assert request.messages[1]["content"] == 'Raw Transcript:\n"ähm grüne boxen unter 50 euro"'
 
 

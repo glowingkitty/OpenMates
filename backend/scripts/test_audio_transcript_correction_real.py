@@ -106,6 +106,32 @@ SAMPLES: list[dict[str, Any]] = [
         "forbidden": [r"\bdelet\w*\b", r"\bactually\b", r"\binstead\b"],
     },
     {
+        "id": "en_dictation_replace_earlier_proposal",
+        "language": "en",
+        "include_title": False,
+        "raw": (
+            "Let's track approved beta accounts in a spreadsheet that the server reads. "
+            "Actually, wait, I need to grant access to specific email addresses for beta testing. "
+            "We could have a spreadsheet, no actually add a command to the social app CLI "
+            "to grant access, starting with reviewer@example.org."
+        ),
+        "required": [r"\bsocial app CLI\b", r"\bcommand\b", r"\baccess\b",
+                     r"\bbeta test\w*\b", r"\breviewer@example\.org\b"],
+        "forbidden": [r"\bspreadsheet\b", r"\bserver\b", r"\bactually\b"],
+    },
+    {
+        "id": "en_dictation_keep_unretracted_constraints",
+        "language": "en",
+        "include_title": False,
+        "raw": (
+            "Book the rehearsal for Monday, no, Tuesday, actually Thursday at nine. "
+            "Keep the same room. We can tell Lena by email or text, either is fine."
+        ),
+        "required": [r"\bThursday\b", r"\b(?:9|nine)\b", r"\bsame room\b",
+                     r"\bLena\b", r"\bemail or text\b"],
+        "forbidden": [r"\bMonday\b", r"\bTuesday\b", r"\bactually\b"],
+    },
+    {
         "id": "en_preserve_contrast_and_alternatives",
         "language": "en",
         "raw": (
@@ -192,6 +218,7 @@ async def run_sample(secrets_manager: SecretsManager, sample: dict[str, Any]) ->
             raw_transcript=sample["raw"],
             secrets_manager=secrets_manager,
             detected_language=sample["language"],
+            include_title=sample.get("include_title", True),
         )
         failures = quality_failures(sample, correction["corrected_transcript"])
         return {
@@ -200,7 +227,7 @@ async def run_sample(secrets_manager: SecretsManager, sample: dict[str, Any]) ->
             "status": "fail" if failures else "pass",
             "failures": failures,
             "model": correction["model"],
-            "title": correction["title"],
+            **({"title": correction["title"]} if "title" in correction else {}),
             "before": sample["raw"],
             "after": correction["corrected_transcript"],
         }

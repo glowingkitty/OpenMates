@@ -56099,52 +56099,52 @@ assertions:
       surface: rest_api
     - &id6932
       path: backend/tests/test_transcript_correction.py
-      line: 19
+      line: 20
       name: test_mercury_correction_preserves_forced_function_contract
       surface: rest_api
     - &id6933
       path: backend/tests/test_transcript_correction.py
-      line: 44
+      line: 57
       name: test_incomplete_mercury_finish_is_rejected_even_with_valid_tool
       surface: rest_api
     - &id6934
       path: backend/tests/test_transcript_correction.py
-      line: 62
+      line: 75
       name: test_successful_finish_requires_exactly_one_transcript_function
       surface: rest_api
     - &id6935
       path: backend/tests/test_transcript_correction.py
-      line: 77
+      line: 90
       name: test_invalid_mercury_fields_are_rejected
       surface: rest_api
     - &id6936
       path: backend/tests/test_transcript_correction.py
-      line: 90
+      line: 103
       name: test_mercury_success_avoids_google_and_reports_actual_model
       surface: rest_api
     - &id6937
       path: backend/tests/test_transcript_correction.py
-      line: 103
+      line: 116
       name: test_mercury_failure_falls_back_and_reports_gemini
       surface: rest_api
     - &id6938
       path: backend/tests/test_transcript_correction.py
-      line: 118
+      line: 131
       name: test_mercury_credential_lookup_shares_total_deadline_and_is_cancelled
       surface: rest_api
     - &id6939
       path: backend/tests/test_transcript_correction.py
-      line: 146
+      line: 159
       name: test_mercury_network_failure_uses_actual_gemini38_low_request
       surface: rest_api
     - &id6940
       path: backend/tests/test_transcript_correction.py
-      line: 183
+      line: 196
       name: test_unverified_training_opt_out_keeps_user_text_on_google
       surface: rest_api
     - &id6941
       path: backend/tests/test_transcript_correction.py
-      line: 195
+      line: 208
       name: test_total_correction_failure_raises
       surface: rest_api
     tests:
