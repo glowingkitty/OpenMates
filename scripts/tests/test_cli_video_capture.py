@@ -883,3 +883,38 @@ def test_native_unsupported_erase_fails_closed(erase: str) -> None:
     initial = native_paint(['Tasks'.ljust(30)] + [' ' * 30] * 4)
     update = '\x1b[?2026h' + erase + '\x1b[?2026l'
     assert not module.input_step_ready(initial + update, 'Tasks')
+
+
+def test_recipe_card_and_font_are_read_from_completed_cell_diffs() -> None:
+    module = load_module()
+    initial = native_paint(["- /embed     cdef".ljust(34), "Typeface Lexend Xeca".ljust(34),
+                            "Response streaming".ljust(34)] + [" " * 34] * 2)
+    split = "\x1b[?2026h\x1b[1;10Hab12\x1b[2;17HD\x1b[?2026l"
+    raw = module.ANSI_ESCAPE_RE.sub("", initial + split)
+    assert "/embed ab12cdef" not in raw and "Lexend Deca" not in raw
+    assert module.visible_code_card(initial + split) == "ab12cdef"
+    assert module.input_step_ready(initial + split, "Response streaming", also_marker="Lexend Deca")
+    assert not module.input_step_ready(initial, "Response streaming", also_marker="Lexend Deca")
+    assert module.visible_code_card(initial + split + "\x1b[?2026h\x1b[1;10Hffee") is None
+    another_card = "\x1b[?2026h\x1b[4;1H- /embed 1234abcd\x1b[?2026l"
+    assert module.visible_code_card(initial + split + another_card) is None
+
+
+def test_interactive_progress_reports_input_even_if_its_wait_fails(tmp_path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    module = load_module()
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text("Fixture ready", encoding="utf-8")
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs:
+        SimpleNamespace(returncode=0, stdout="42\n", stderr=""))
+    events = []
+    with pytest.raises(module.CliCaptureError, match="checkpoint"):
+        module.drive_terminal_inputs(
+            steps=[{"name": "ready", "wait_for": "Fixture ready"},
+                   {"name": "send", "key": "Return", "wait_for": "Not rendered", "wait_timeout_ms": 0}],
+            transcript_path=transcript, display=":91", terminal=SimpleNamespace(poll=lambda: None),
+            started_at=module.time.monotonic(), xdotool_binary="xdotool",
+            input_progress=lambda *event: events.append(event),
+        )
+    assert events == [(0, False, None), (0, True, None), (1, False, None)]

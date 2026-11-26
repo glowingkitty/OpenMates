@@ -15,6 +15,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime
 import hashlib
+from itertools import islice
 import math
 import secrets
 import shutil
@@ -282,6 +283,29 @@ CODEX_REAL_INFERENCE_PROVIDERS = {
     "typesafe": ("api_key", "OPENMATES_CODEX_REAL_TYPESAFE_API_KEY"),
 }
 CODEX_WEB_VOICE_SPEC = "real-inference-web-voice-processing.spec.ts"
+SCOPED_PLAYWRIGHT_OUTPUT = Path("frontend/apps/web_app/test-results/ci-0")
+SCOPED_RECIPE_SPEC = "real-inference-tui-artifact-steering.spec.ts"
+SCOPED_RECIPE_PROGRESS = "real-tui-artifact-steering-progress.json"
+SCOPED_RECIPE_PHASES = frozenset({
+    "started", "prerequisites_passed", "build_started", "build_ready",
+    "pairing_started", "pairing_offer_ready", "browser_pin_ready", "pairing_pin_submitted",
+    "pairing_completed", "initial_history_read", "terminal_started", "composer_ready",
+    "original_sent", "original_streaming", "original_card_visible", "red_sent",
+    "red_step_completed", "font_sent", "font_preview_visible", "one_chat", "all_three_user_turns",
+    "mercury_replies", "one_matching_card", "latest_source_read", "latest_header_red",
+    "latest_font_lexend", "latest_source_verified", "previous_source_read", "previous_source_verified",
+    "terminal_exit_verified", "input_plan_verified", "revised_source_visible", "passed",
+})
+SCOPED_PROOF_FILES = {
+    "real-inference-tui-chat-processing.spec.ts": (
+        "rust-terminal-real-chat-processing/raw-terminal.mp4",
+    ),
+    SCOPED_RECIPE_SPEC: (
+        "rust-terminal-artifact-steering/raw-terminal.mp4",
+        "rust-terminal-artifact-revised-source/raw-terminal.mp4",
+    ),
+    CODEX_WEB_VOICE_SPEC: ("signed-in-voice-with-audio.webm", "real-web-voice-timing.json"),
+}
 CODEX_WEB_VOICE_PROVIDERS = {
     "inception_labs": ("api_key", "OPENMATES_CODEX_WEB_VOICE_INCEPTION_LABS_API_KEY"),
     "typesafe": ("api_key", "OPENMATES_CODEX_WEB_VOICE_TYPESAFE_API_KEY"),
@@ -2392,6 +2416,127 @@ def inspect_speech_worker_queues(container: str) -> list[str]:
     return queues
 
 
+def _bounded_scoped_receipt(receipt: Path) -> dict:
+    def unique_object(pairs):
+        result = dict(pairs)
+        if len(result) != len(pairs):
+            raise ValueError("Scoped receipt has duplicate fields")
+        return result
+
+    with receipt.open("rb") as handle:
+        content = handle.read(2049)
+    if len(content) > 2048:
+        raise ValueError("Scoped receipt exceeds its size bound")
+    values = json.loads(content, object_pairs_hook=unique_object)
+    if not isinstance(values, dict):
+        raise ValueError("Scoped receipt has an invalid shape")
+    return values
+
+
+def verify_scoped_timing(receipt: Path, source_commit: str) -> None:
+    """Accept only the speech proof's numeric timing schema and exact source."""
+    required = {
+        "sourceCommit", "lastVoicedToCueMs", "lastVoicedToSubstantiveMs",
+        "sampleRate", "sameEncryptedChat",
+    }
+    milestones = {
+        "lastVoicedToFinalTranscriptMs", "lastVoicedToAdmissionMs",
+        "lastVoicedToAdmissionAckMs", "lastVoicedToProseStartMs",
+        "lastVoicedToMatchingAudioBytesMs", "lastVoicedToPlaybackMs",
+    }
+    values = _bounded_scoped_receipt(receipt)
+    if (
+        not required <= values.keys() <= required | milestones
+        or not re.fullmatch("[a-f0-9]{40}", source_commit)
+        or values["sourceCommit"] != source_commit or values["sameEncryptedChat"] is not True
+        or type(values["sampleRate"]) is not int or not 8000 <= values["sampleRate"] <= 192000
+    ):
+        raise ValueError("Scoped voice timing receipt has an invalid identity or shape")
+
+    def elapsed(value):
+        return type(value) in (int, float) and 0 <= value <= 45000
+
+    substantive = values["lastVoicedToSubstantiveMs"]
+    cue = values["lastVoicedToCueMs"]
+    if (
+        not elapsed(substantive) or (cue is not None and (not elapsed(cue) or cue > substantive))
+        or any(values[field] is not None and not elapsed(values[field])
+               for field in milestones & values.keys())
+        or ("lastVoicedToPlaybackMs" in values and values["lastVoicedToPlaybackMs"] != substantive)
+    ):
+        raise ValueError("Scoped voice timing receipt has invalid measurements")
+
+
+def _scoped_playwright_cases(source: Path, *, allow_missing: bool = False) -> list[Path]:
+    output = source
+    for part in SCOPED_PLAYWRIGHT_OUTPUT.parts:
+        output /= part
+        if allow_missing and not output.exists() and not output.is_symlink():
+            return []
+        if output.is_symlink() or not output.is_dir():
+            raise ValueError("Scoped Playwright output directory was not produced")
+    entries = tuple(islice(output.iterdir(), 65))
+    if len(entries) > 64:
+        raise ValueError("Scoped Playwright output directory exceeds its entry bound")
+    return [entry for entry in entries if not entry.is_symlink() and entry.is_dir()
+            and re.fullmatch("[A-Za-z0-9_-]{1,180}", entry.name)]
+
+
+def _scoped_proof_file(cases: list[Path], name: str, *, allow_missing: bool = False):
+    relative = Path(name)
+    matches = [case for case in cases
+               if (case / relative).exists() or (case / relative).is_symlink()]
+    if not matches and allow_missing:
+        return None, None
+    if len(matches) != 1:
+        raise ValueError("Expected one scoped proof file for each approved name")
+    case = matches[0]
+    path = case
+    for part in relative.parts:
+        path /= part
+        if path.is_symlink():
+            raise ValueError("Scoped proof file must have regular parent paths")
+    if not path.is_file() or not 0 < path.stat().st_size <= 256 * MIB:
+        raise ValueError("Scoped proof file is empty or exceeds its size bound")
+    return case, path
+
+
+def scoped_proof_paths(source: Path, spec: str, source_commit: str) -> list[Path]:
+    """Find the exact approved files in the sole successful Playwright case."""
+    cases = _scoped_playwright_cases(source)
+    paths = []
+    case_dirs = set()
+    for name in SCOPED_PROOF_FILES[spec]:
+        case, path = _scoped_proof_file(cases, name)
+        if path.suffix == ".json":
+            verify_scoped_timing(path, source_commit)
+        paths.append(path.relative_to(source))
+        case_dirs.add(case)
+    if len(case_dirs) != 1:
+        raise ValueError("Scoped proof files must belong to the same Playwright case")
+    return paths
+
+
+def scoped_recipe_progress_path(source: Path, *, required: bool) -> Path | None:
+    """Return only a closed phase receipt, including when its test failed."""
+    cases = _scoped_playwright_cases(source, allow_missing=not required)
+    _, receipt = _scoped_proof_file(cases, SCOPED_RECIPE_PROGRESS, allow_missing=not required)
+    if receipt is None:
+        return None
+    values = _bounded_scoped_receipt(receipt)
+    phases = values.get("phases")
+    if (
+        values.keys() != {"schemaVersion", "phases"}
+        or type(values["schemaVersion"]) is not int or values["schemaVersion"] != 1
+        or not isinstance(phases, dict) or "started" not in phases
+        or not phases.keys() <= SCOPED_RECIPE_PHASES
+        or any(type(ms) is not int or not 0 <= ms <= 3_600_000 for ms in phases.values())
+        or (required and "passed" not in phases)
+    ):
+        raise ValueError("Scoped recipe progress receipt has an invalid phase or timing")
+    return receipt.relative_to(source)
+
+
 def run_action(action: str):
     require_runner()
     if action == "prepare":
@@ -2651,6 +2796,31 @@ def run_action(action: str):
         (Path(SOURCE) / "test-results/ci-environment.json").write_text(
             json.dumps(evidence)
         )
+    elif action == "recipe-progress":
+        selected = json.loads(os.environ["CI_SPECS_JSON"])
+        if (selected != [SCOPED_RECIPE_SPEC] or os.environ.get("CI_CODEX_WEB_VOICE") == "1"
+                or not selects_codex_real_inference(selected, CODEX_REAL_INFERENCE_SPECS, os.environ)):
+            raise RuntimeError("Scoped recipe progress requires the exact terminal recipe spec")
+        progress = scoped_recipe_progress_path(
+            Path(SOURCE), required=os.environ.get("CI_SCOPED_PROOF_PASSED") == "1",
+        )
+        if progress is not None:
+            with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                output.write(f"path=subject/{progress.as_posix()}\n")
+    elif action == "proof":
+        selected = json.loads(os.environ["CI_SPECS_JSON"])
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        terminal = selects_codex_real_inference(selected, real_specs, os.environ)
+        web_voice = selects_codex_web_voice(selected, real_specs, os.environ)
+        if terminal == web_voice:
+            raise RuntimeError("Proof upload requires one exact scoped Codex lane")
+        paths = scoped_proof_paths(Path(SOURCE), selected[0], os.environ["BUILD_COMMIT_SHA"])
+        with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+            output.write("paths<<OPENMATES_SCOPED_PROOF\n")
+            for path in paths:
+                output.write(f"subject/{path.as_posix()}\n")
+            output.write("OPENMATES_SCOPED_PROOF\n")
     elif action in {"seed", "start"}:
         scoped = scoped_codex_run()
         if action == "seed" and not scoped:
@@ -3298,8 +3468,13 @@ def main():
                 os.environ.pop(alias, None)
         run_action(action)
     except Exception:
-        phase = action if action in {"seed", "start", "verify", "logs", "stop"} else "unknown"
-        print(f"Scoped CI {phase} failed; see the structured stack receipts.", file=sys.stderr)
+        if action == "proof":
+            print("Scoped CI proof requires its approved recordings and timing receipt.", file=sys.stderr)
+        elif action == "recipe-progress":
+            print("Scoped CI recipe progress receipt is missing or invalid.", file=sys.stderr)
+        else:
+            phase = action if action in {"seed", "start", "verify", "logs", "stop"} else "unknown"
+            print(f"Scoped CI {phase} failed; see the structured stack receipts.", file=sys.stderr)
         raise SystemExit(1) from None
 
 

@@ -1236,6 +1236,22 @@ jobs:
           else
             python3 ../tooling/scripts/ci_run_tests.py
           fi
+      - name: Verify approved scoped proof files
+        id: scoped_proof
+        if: success() && (env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1')
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        run: >-
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' proof
+      - name: Validate scoped terminal recipe progress
+        id: scoped_recipe_progress
+        if: always() && steps.scoped_tooling.outcome == 'success' && env.CI_CODEX_REAL_INFERENCE == '1' && inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]'
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          CI_SCOPED_PROOF_PASSED: ${{ steps.scoped_proof.outcome == 'success' && '1' || '0' }}
+        run: >-
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' recipe-progress
       - name: Explain failed Rust lane in the job log
         if: >-
           failure() &&
@@ -1346,11 +1362,8 @@ jobs:
             subject/test-results/ci-results.json
             subject/test-results/ci-stack.log
             subject/test-results/ci-cleanup.json
-            ${{ env.CI_CODEX_REAL_INFERENCE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/rust-terminal-real-chat-processing/raw-terminal.mp4' || '' }}
-            ${{ env.CI_CODEX_REAL_INFERENCE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/rust-terminal-artifact-steering/raw-terminal.mp4' || '' }}
-            ${{ env.CI_CODEX_REAL_INFERENCE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/rust-terminal-artifact-revised-source/raw-terminal.mp4' || '' }}
-            ${{ env.CI_CODEX_WEB_VOICE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/real-web-voice-timing.json' || '' }}
-            ${{ env.CI_CODEX_WEB_VOICE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/signed-in-voice-with-audio.webm' || '' }}
+            ${{ steps.scoped_proof.outcome == 'success' && steps.scoped_proof.outputs.paths || '' }}
+            ${{ steps.scoped_recipe_progress.outcome == 'success' && steps.scoped_recipe_progress.outputs.path || '' }}
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
         if: always() && (inputs.mode == 'rust-wasm' || (env.CI_LANE_RUST_BROWSER == 'true'))

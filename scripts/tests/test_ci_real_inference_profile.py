@@ -443,8 +443,26 @@ def test_scoped_workflow_uploads_only_closed_receipts_and_expected_proof_files()
         assert f"env.{flag} != '1'" in ordinary["if"]
     paths = scoped["with"]["path"]
     assert "ci-results.json" in paths and "ci-startup-phases.json" in paths
-    assert "raw-terminal.mp4" in paths and "real-web-voice-timing.json" in paths
-    assert "signed-in-voice-with-audio.webm" in paths
+    assert "steps.scoped_proof.outcome == 'success' && steps.scoped_proof.outputs.paths" in paths
+    assert "frontend/apps/web_app/test-results" not in paths
+    assert "steps.scoped_recipe_progress.outcome == 'success' && steps.scoped_recipe_progress.outputs.path" in paths
+    progress_gate = next(step for step in steps if step.get("id") == "scoped_recipe_progress")
+    assert progress_gate["if"].startswith("always()")
+    assert f'inputs.specs_json == \'["{ci.SCOPED_RECIPE_SPEC}"]\'' in progress_gate["if"]
+    assert progress_gate["run"].strip().endswith(" recipe-progress")
+    proof_gate = next(step for step in steps if step.get("id") == "scoped_proof")
+    assert "success()" in proof_gate["if"] and proof_gate["run"].endswith(" proof")
+    assert scoped["if"].startswith("always()")
+    assert ci.SCOPED_PROOF_FILES == {
+        "real-inference-tui-chat-processing.spec.ts": (
+            "rust-terminal-real-chat-processing/raw-terminal.mp4",
+        ),
+        "real-inference-tui-artifact-steering.spec.ts": (
+            "rust-terminal-artifact-steering/raw-terminal.mp4",
+            "rust-terminal-artifact-revised-source/raw-terminal.mp4",
+        ),
+        CODEX_WEB_VOICE_SPEC: ("signed-in-voice-with-audio.webm", "real-web-voice-timing.json"),
+    }
     for freeform in ("trace.zip", "transcript.txt", "ci-spec-", "ci-web.log", "test-results/\n",
                      "/video.webm", "voice-proof-local", "proof-audio-manifest"):
         assert freeform not in paths
@@ -462,3 +480,150 @@ def test_scoped_seed_rejects_vault_service_overrides(scoped_lane, option):
     selection = json.loads(os.environ["CI_SPECS_JSON"])
     with pytest.raises(RuntimeError, match="dedicated isolated provider profile"):
         ci.validate_real_inference_start(profile, {**os.environ, **credentials}, set(selection))
+
+
+def test_scoped_proof_slot_matches_the_actual_playwright_e2e_executor():
+    root = Path(__file__).resolve().parents[2]
+    runner = (root / "scripts/ci_run_tests.py").read_text()
+    assert "for index, name in enumerate(specs):" in runner  # Python enumerate starts at zero.
+    assert '--output",\n                                    f"test-results/ci-{index}"' in runner
+    assert ci.SCOPED_PLAYWRIGHT_OUTPUT == Path("frontend/apps/web_app/test-results/ci-0")
+
+
+def scoped_proof_fixture(root, spec, *, slot="ci-0"):
+    case = root / ci.SCOPED_PLAYWRIGHT_OUTPUT.parent / slot / "scoped-case-chromium"
+    for name in ci.SCOPED_PROOF_FILES[spec]:
+        output = case / name
+        output.parent.mkdir(parents=True, exist_ok=True)
+        if name.endswith(".json"):
+            output.write_text(json.dumps({
+                "sourceCommit": "a" * 40, "sameEncryptedChat": True, "sampleRate": 48000,
+                "lastVoicedToCueMs": None, "lastVoicedToSubstantiveMs": 625.25,
+                "lastVoicedToFinalTranscriptMs": 192, "lastVoicedToPlaybackMs": 625.25,
+            }))
+        else:
+            output.write_bytes(b"synthetic recording")
+    return case
+
+
+@pytest.mark.parametrize("spec", sorted(ci.SCOPED_PROOF_FILES))
+def test_success_uploads_only_expected_nonempty_proof_from_slot_zero(tmp_path, spec):
+    scoped_proof_fixture(tmp_path, spec, slot="ci-1")
+    with pytest.raises(ValueError, match="output directory"):
+        ci.scoped_proof_paths(tmp_path, spec, "a" * 40)
+    case = scoped_proof_fixture(tmp_path, spec)
+    for extra in ("video.webm", "trace.zip", "transcript.txt", "login-video.mp4"):
+        (case / extra).write_bytes(b"synthetic excluded output")
+    expected = [(case / name).relative_to(tmp_path) for name in ci.SCOPED_PROOF_FILES[spec]]
+    assert ci.scoped_proof_paths(tmp_path, spec, "a" * 40) == expected
+    (tmp_path / expected[0]).write_bytes(b"")
+    with pytest.raises(ValueError, match="empty"):
+        ci.scoped_proof_paths(tmp_path, spec, "a" * 40)
+
+
+def test_scoped_proof_refuses_symlinks_and_duplicate_recordings(tmp_path):
+    spec = "real-inference-tui-chat-processing.spec.ts"
+    case = scoped_proof_fixture(tmp_path, spec)
+    expected = case / ci.SCOPED_PROOF_FILES[spec][0]
+    target = case / "login-video.mp4"
+    target.write_bytes(b"synthetic login media")
+    expected.unlink()
+    expected.symlink_to(target)
+    with pytest.raises(ValueError, match="regular parent paths"):
+        ci.scoped_proof_paths(tmp_path, spec, "a" * 40)
+    expected.unlink()
+    expected.write_bytes(b"synthetic recording")
+    duplicate = case.parent / "second-case" / expected.relative_to(case)
+    duplicate.parent.mkdir(parents=True)
+    duplicate.write_bytes(b"duplicate")
+    with pytest.raises(ValueError, match="one scoped proof file"):
+        ci.scoped_proof_paths(tmp_path, spec, "a" * 40)
+
+
+@pytest.mark.parametrize("changes", [
+    {"lastVoicedToSubstantiveMs": float("nan")},
+    {"lastVoicedToSubstantiveMs": "synthetic unapproved data"},
+    {"lastVoicedToCueMs": 9999},
+    {"sampleRate": True},
+    {"sourceCommit": "b" * 40},
+    {"sameEncryptedChat": False},
+    {"debug": "synthetic unapproved data"},
+])
+def test_scoped_voice_timing_rejects_open_or_invalid_values(tmp_path, changes):
+    case = scoped_proof_fixture(tmp_path, CODEX_WEB_VOICE_SPEC)
+    receipt = case / "real-web-voice-timing.json"
+    receipt.write_text(json.dumps({**json.loads(receipt.read_text()), **changes}))
+    with pytest.raises(ValueError, match="invalid"):
+        ci.scoped_proof_paths(tmp_path, CODEX_WEB_VOICE_SPEC, "a" * 40)
+
+
+def test_scoped_proof_step_fails_closed_before_writing_any_upload_path(scoped_lane, tmp_path, monkeypatch, capsys):
+    spec = json.loads(os.environ["CI_SPECS_JSON"])[0]
+    case = scoped_proof_fixture(tmp_path, spec)
+    gate_output = tmp_path / "github-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gate_output))
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "a" * 40)
+    monkeypatch.setattr(sys, "argv", ["ci_environment.py", "proof"])
+    required = case / ci.SCOPED_PROOF_FILES[spec][-1]
+    original = required.read_bytes()
+    required.unlink()
+    with pytest.raises(SystemExit, match="1"):
+        ci.main()
+    assert not gate_output.exists()
+    assert "Scoped CI proof requires" in capsys.readouterr().err
+    required.write_bytes(original)
+    ci.main()
+    assert len(gate_output.read_text().splitlines()) == len(ci.SCOPED_PROOF_FILES[spec]) + 2
+    assert gate_output.read_text().count("subject/frontend/apps/web_app/test-results/ci-0/") == len(ci.SCOPED_PROOF_FILES[spec])
+
+
+def test_failed_recipe_keeps_only_the_bounded_progress_receipt(tmp_path, monkeypatch):
+    monkeypatch.setenv("CI_TEST_MODE", "e2e")
+    monkeypatch.setenv("CI_CODEX_REAL_INFERENCE", "1")
+    monkeypatch.delenv("CI_CODEX_WEB_VOICE", raising=False)
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps([ci.SCOPED_RECIPE_SPEC]))
+    monkeypatch.setenv("CI_SCOPED_PROOF_PASSED", "0")
+    output = tmp_path / "github-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    monkeypatch.setattr(ci, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(ci, "require_runner", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["ci_environment.py", "recipe-progress"])
+
+    # No receipt is available if the browser test never starts.
+    ci.main()
+    assert not output.exists()
+
+    case = tmp_path / ci.SCOPED_PLAYWRIGHT_OUTPUT / "scoped-case-chromium"
+    case.mkdir(parents=True)
+    path = case / ci.SCOPED_RECIPE_PROGRESS
+    path.write_text('{"schemaVersion":1,"phases":{"started":0,"original_sent":624}}')
+    (case / "trace.zip").write_bytes(b"synthetic excluded output")
+    ci.main()
+    assert output.read_text() == f"path=subject/{path.relative_to(tmp_path).as_posix()}\n"
+
+    # A successful recipe needs its terminal marker, and the chat lane cannot
+    # publish a recipe checkpoint even if the file happens to be present.
+    monkeypatch.setenv("CI_SCOPED_PROOF_PASSED", "1")
+    with pytest.raises(SystemExit, match="1"):
+        ci.main()
+    path.write_text('{"schemaVersion":1,"phases":{"started":0,"passed":1000}}')
+    assert ci.scoped_recipe_progress_path(tmp_path, required=True) == path.relative_to(tmp_path)
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps(["real-inference-tui-chat-processing.spec.ts"]))
+    with pytest.raises(SystemExit, match="1"):
+        ci.main()
+
+
+@pytest.mark.parametrize("payload", [
+    '{"schemaVersion":1,"phases":{"started":0,"synthetic-secret":100}}',
+    '{"schemaVersion":1,"phases":{"started":0,"original_sent":"synthetic-secret"}}',
+    '{"schemaVersion":1,"phases":{"started":0,"original_sent":3600001}}',
+    '{"schemaVersion":1,"phases":{"started":"synthetic-secret","started":0}}',
+    '{"schemaVersion":1,"phases":{"started":0},"detail":"synthetic-secret"}',
+])
+def test_scoped_recipe_progress_rejects_unknown_or_unbounded_data(payload, tmp_path):
+    case = tmp_path / ci.SCOPED_PLAYWRIGHT_OUTPUT / "scoped-case-chromium"
+    case.mkdir(parents=True)
+    (case / ci.SCOPED_RECIPE_PROGRESS).write_text(payload)
+    with pytest.raises(ValueError) as refused:
+        ci.scoped_recipe_progress_path(tmp_path, required=False)
+    assert "synthetic-secret" not in str(refused.value)
