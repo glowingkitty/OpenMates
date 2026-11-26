@@ -35,7 +35,7 @@ export function parseInputProgress(line: string, steps: TerminalStep[]): InputPr
 	const [index, completed, card] = value;
 	if (!Number.isInteger(index) || index < 0 || index >= steps.length || typeof completed !== 'boolean') return;
 	const expectsCard = completed && steps[index].capture_code_card === true;
-	if (expectsCard ? typeof card !== 'string' || !/^[a-f0-9]{8}$/.test(card) : card !== null) return;
+	if (expectsCard ? typeof card !== 'string' || !/^emb-v-[1-9][0-9]{0,5}$/.test(card) : card !== null) return;
 	return { index, completed, ...(expectsCard ? { card } : {}) };
 }
 

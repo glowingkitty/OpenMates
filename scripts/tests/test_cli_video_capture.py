@@ -887,17 +887,30 @@ def test_native_unsupported_erase_fails_closed(erase: str) -> None:
 
 def test_recipe_card_and_font_are_read_from_completed_cell_diffs() -> None:
     module = load_module()
-    initial = native_paint(["- /embed     cdef".ljust(34), "Typeface Lexend Xeca".ljust(34),
-                            "Response streaming".ljust(34)] + [" " * 34] * 2)
-    split = "\x1b[?2026h\x1b[1;10Hab12\x1b[2;17HD\x1b[?2026l"
+    initial = native_paint(["│ Embed · Code                  │", "│ /embed emb-v-X                 │",
+                            "Typeface Lexend Xeca".ljust(34), "Response streaming".ljust(34), " " * 34])
+    split = "\x1b[?2026h\x1b[2;16H1\x1b[3;17HD\x1b[?2026l"
     raw = module.ANSI_ESCAPE_RE.sub("", initial + split)
-    assert "/embed ab12cdef" not in raw and "Lexend Deca" not in raw
-    assert module.visible_code_card(initial + split) == "ab12cdef"
+    assert "/embed emb-v-1" not in raw and "Lexend Deca" not in raw
+    assert module.visible_code_card(initial + split) == "emb-v-1"
     assert module.input_step_ready(initial + split, "Response streaming", also_marker="Lexend Deca")
     assert not module.input_step_ready(initial, "Response streaming", also_marker="Lexend Deca")
-    assert module.visible_code_card(initial + split + "\x1b[?2026h\x1b[1;10Hffee") is None
-    another_card = "\x1b[?2026h\x1b[4;1H- /embed 1234abcd\x1b[?2026l"
+    assert module.visible_code_card(initial + split + "\x1b[?2026h\x1b[2;16H2") is None
+    another_card = "\x1b[?2026h\x1b[3;1H│ Embed · Code                  │\x1b[4;1H│ /embed emb-v-2                 │\x1b[?2026l"
     assert module.visible_code_card(initial + split + another_card) is None
+
+
+def test_recipe_checkpoint_rejects_bare_or_non_code_alias() -> None:
+    module = load_module()
+    for heading, alias in [
+        ("Embed · Code", "/embed ab12cdef"),
+        ("Web · Search", "/embed emb-v-1"),
+        ("Embed · Code", " /embed emb-v-1"),
+    ]:
+        rows = [f"│ {heading:30} │", f"│ {alias:30} │", " " * 34, " " * 34, " " * 34]
+        if alias.startswith(" "):
+            rows[1] = alias.ljust(34)
+        assert module.visible_code_card(native_paint(rows)) is None
 
 
 def test_interactive_progress_reports_input_even_if_its_wait_fails(tmp_path, monkeypatch) -> None:

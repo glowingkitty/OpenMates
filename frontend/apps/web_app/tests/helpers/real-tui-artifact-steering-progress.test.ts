@@ -30,10 +30,10 @@ test('the receipt exists initially and retains only first elapsed times for revi
 
 test('the private recorder pipe accepts only indexed checkpoints and an exact requested card', () => {
 	const steps = [{ name: 'plain' }, { name: 'original-card', capture_code_card: true }];
-	assert.deepEqual(parseInputProgress('[1,true,"ab12cdef"]', steps), { index: 1, completed: true, card: 'ab12cdef' });
+	assert.deepEqual(parseInputProgress('[1,true,"emb-v-1"]', steps), { index: 1, completed: true, card: 'emb-v-1' });
 	assert.deepEqual(parseInputProgress('[0,false,null]', steps), { index: 0, completed: false });
-	for (const data of ['[0,true,"ab12cdef"]', '[1,false,"ab12cdef"]', '[1,true,"PRIVATE"]',
-		'[2,true,null]', '[1,0,null]', '[1,true,"ab12cdef","EXTRA"]', '{"index":1}', 'non-JSON']) {
+	for (const data of ['[0,true,"emb-v-1"]', '[1,false,"emb-v-1"]', '[1,true,"PRIVATE"]', '[1,true,"ab12cdef"]',
+		'[1,true,"emb-v-01"]', '[2,true,null]', '[1,0,null]', '[1,true,"emb-v-1","EXTRA"]', '{"index":1}', 'non-JSON']) {
 		assert.equal(parseInputProgress(data, steps), undefined);
 	}
 });

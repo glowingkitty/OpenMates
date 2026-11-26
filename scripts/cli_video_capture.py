@@ -375,14 +375,24 @@ def _latest_screen(output: str) -> tuple[list[str], int, int]:
 
 
 def visible_code_card(output: str) -> str | None:
-    """An exact short code-card ID from the completed screen, for a live assertion."""
+    """Read the unique native Code card alias from the completed screen."""
     if output.rfind("\x1b[?2026l") <= output.rfind("\x1b[?2026h"):
         return None
     try:
         rows, _, _ = _latest_screen(output)
     except CliCaptureError:
         return None
-    cards = set(re.findall(r"/embed[ \t]+([a-f0-9]{8})\b", "\n".join(rows)))
+    cards = set()
+    for headings, shortcuts in zip(rows, rows[1:]):
+        columns = {
+            _cell_width(headings[:heading.start()])
+            for heading in re.finditer(r"│ +Embed · Code +│", headings)
+        }
+        cards.update(
+            shortcut[1]
+            for shortcut in re.finditer(r"│ +/embed +(emb-v-[1-9][0-9]{0,5}) +│", shortcuts)
+            if _cell_width(shortcuts[:shortcut.start()]) in columns
+        )
     return next(iter(cards)) if len(cards) == 1 else None
 
 

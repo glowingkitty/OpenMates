@@ -120,7 +120,8 @@ test('applies two corrections to the same recipe app from the terminal while its
 		phase('terminal_started');
 		try {
 			const { card } = await terminal.waitForInputCheckpoint(originalCardStep, 90_000);
-			expect(card).toMatch(/^[a-f0-9]{8}$/);
+			// The original direct Code reference gets the first native alias in this new chat.
+			expect(card).toBe('emb-v-1');
 			await terminal.waitForInputCheckpoint(fontStep, STEP_TIMEOUT);
 			const browser = page.context().browser();
 			if (!browser) throw new Error('The offline recipe style check requires Chromium');
@@ -140,14 +141,19 @@ test('applies two corrections to the same recipe app from the terminal while its
 				if (!answers.length) return 'waiting for the original assistant reply';
 				expect(answers.every(({ modelName }) => modelName === MODEL)).toBe(true);
 				phase('mercury_replies');
-				const refs = codeReferences(messages);
-				if (!refs.length) return 'waiting for the saved card reference';
-				expect(refs.map((id) => id.slice(0, 8))).toEqual([card]);
+				const originalRefs = codeReferences([answers[0]]);
+				if (!originalRefs.length) return 'waiting for the original saved Code reference';
+				expect(originalRefs).toEqual([
+					expect.stringMatching(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/),
+				]);
+				expect(codeReferences(messages)).toEqual(originalRefs);
 				phase('one_matching_card');
-				artifactId = refs[0];
+				[artifactId] = originalRefs;
 				const readArtifact = await runRust(binary, env, ['embeds', 'show', artifactId, '--json']);
 				if (readArtifact.code !== 0) return 'waiting for the finished artifact';
-				const code = JSON.parse(readArtifact.stdout).fields?.content?.code || '';
+				const artifact = JSON.parse(readArtifact.stdout);
+				expect(artifact.id).toBe(artifactId);
+				const code = artifact.fields?.content?.code || '';
 				phase('latest_source_read');
 				const { red, lexend } = await inspectOfflineRecipeHeader(browser, code);
 				if (red) phase('latest_header_red');
@@ -160,13 +166,24 @@ test('applies two corrections to the same recipe app from the terminal while its
 				'embeds', 'versions', 'show', artifactId, '--version', '1', '--json',
 			]);
 			expect(original.code, 'the last working source has a saved version').toBe(0);
-			const originalSource = JSON.parse(original.stdout).content;
+			const originalVersion = JSON.parse(original.stdout);
+			expect(originalVersion.embed_id).toBe(artifactId);
+			expect(originalVersion.version_number).toBe(1);
+			const originalSource = originalVersion.content;
 			phase('previous_source_read');
 			const previousStyle = await inspectOfflineRecipeHeader(browser, originalSource);
 			expect(previousStyle.blue, 'version one header is blue').toBe(true);
 			expect(previousStyle.red, 'version one header has no red correction').toBe(false);
 			expect(previousStyle.hasLexend, 'version one header has no Lexend Deca correction').toBe(false);
 			phase('previous_source_verified');
+
+			// Resolve the durable UUID in this same terminal. The detail label comes
+			// from the chat's existing alias registry, so a replaced card cannot pass.
+			terminal.typeText(`/embed ${artifactId}`);
+			terminal.key('Return');
+			await terminal.waitForOutput(/Code · Code {2}· {2}emb-v-1\b/, STEP_TIMEOUT).catch(() => {
+				throw new Error('The durable Code artifact did not open with the original terminal alias');
+			});
 
 			terminal.typeText('/exit');
 			terminal.key('Return');
