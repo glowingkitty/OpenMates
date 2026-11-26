@@ -4,8 +4,8 @@
 import type { Request, Response, WebSocketRoute } from "@playwright/test";
 import { preparePersonalDevtestWebOrigin } from "./helpers/personal-devtest-web-origin";
 import {
-	armSelectedFrameProbe, browserNavigationTimings, clearSelectedFrameProbe, inspectColdChatRows,
-	selectedFrameClickEpoch, takeSelectedFrameProbe,
+	armSelectedFrameProbe, browserNavigationTimings, clearSelectedFrameProbe, countSelectedDurableMessages,
+	inspectColdChatRows, personalOpenedOfferEvidence, readPersonalOpenedOffer, selectedFrameClickEpoch, takeSelectedFrameProbe,
 } from "./helpers/personal-devtest-web-timing";
 
 const { test, expect } = require('@playwright/test');
@@ -33,12 +33,14 @@ type SyncTransport = {
 	socket: WebSocketRoute;
 	server: WebSocketRoute;
 	requestEpoch: number | null;
+	requestPersonal: boolean;
 	wireCompleteEpoch: number | null;
 	requestAt: number | null;
 	wireCompleteAt: number | null;
 	phase2Received: boolean;
 	phase1bReceived: boolean;
 	phase1bApplied: boolean;
+	openedOffer: ReturnType<typeof readPersonalOpenedOffer>;
 };
 const ROW_SELECTOR = '[data-testid="activity-history-wrapper"] [data-testid="chat-item-wrapper"][data-chat-id]';
 
@@ -51,6 +53,7 @@ const READ_STAGES = [
 	'admission-bootstrap-wait-start', 'admission-bootstrap-wait-end',
 	'admission-platform-ready', 'admission-profile-capture-start', 'admission-worker-acquired',
 	'admission-restore-start', 'admission-restore-response', 'admission-profile-verified',
+	'auth-first-session-response', 'auth-first-session-adopted',
 	'platform-ready', 'worker-ready', 'local-platform-ready',
 	'local-cache-miss', 'local-cache-empty-latest', 'local-cache-failed-unavailable',
 	'local-cache-failed-invalidated_snapshot', 'local-cache-failed-cancelled', 'local-cache-failed-session_expired',
@@ -86,7 +89,7 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		const bytes = typeof data === 'string' ? Buffer.byteLength(data) : data.length;
 		totals.frames++;
 		totals.bytes += bytes;
-		let envelope: { type?: unknown; payload?: { context_epoch?: unknown; chats?: unknown } } | null = null;
+		let envelope: { type?: unknown; payload?: { context_epoch?: unknown; chats?: unknown; team_id?: unknown; chat_id?: unknown; offline_chat_ids?: unknown } } | null = null;
 		if (typeof data === 'string') {
 			try { envelope = JSON.parse(data); } catch { /* Non-protocol frames are counted as other. */ }
 		}
@@ -98,9 +101,16 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		}
 		const epoch = envelope?.payload?.context_epoch;
 		return { type, epoch: typeof epoch === 'number' && Number.isSafeInteger(epoch) ? epoch : null,
-			hasChats: Array.isArray(envelope?.payload?.chats) };
+			hasChats: Array.isArray(envelope?.payload?.chats),
+			personal: envelope?.payload != null && envelope.payload.team_id == null,
+			openedOffer: type === 'chat_startup_opened_ready' ? readPersonalOpenedOffer(envelope?.payload, Date.now()) : null };
 	};
 	const latestSyncTransport = () => transports.slice(lastLaunchTransportOffset).findLast(transport => transport.requestEpoch !== null);
+	const offerAtClick = (chatId: string, clickEpoch: number | null) => {
+		const transport = clickEpoch === null ? undefined : transports.slice(lastLaunchTransportOffset)
+			.findLast(candidate => candidate.requestAt !== null && candidate.requestAt <= clickEpoch);
+		return personalOpenedOfferEvidence(transport?.openedOffer ?? null, chatId, clickEpoch);
+	};
 
 	const olderHeaderRequests: Record<string, number> = { sync_metadata_chats: 0, load_more_chats: 0 };
 	await preparePersonalDevtestWebOrigin(context);
@@ -113,27 +123,31 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		}
 		const server = socket.connectToServer();
 		const transport: SyncTransport = {
-			socket, server, requestEpoch: null, wireCompleteEpoch: null, requestAt: null, wireCompleteAt: null,
-			phase2Received: false, phase1bReceived: false, phase1bApplied: false,
+			socket, server, requestEpoch: null, requestPersonal: false,
+			wireCompleteEpoch: null, requestAt: null, wireCompleteAt: null,
+			phase2Received: false, phase1bReceived: false, phase1bApplied: false, openedOffer: null,
 		};
 		transports.push(transport);
 		socket.onMessage(data => {
-			const { type, epoch } = inspectFrame(data, sent, idleTraffic?.outbound, OUTBOUND_KINDS);
+			const { type, epoch, personal } = inspectFrame(data, sent, idleTraffic?.outbound, OUTBOUND_KINDS);
 			if (type === 'sync_metadata_chats' || type === 'load_more_chats') olderHeaderRequests[type]++;
 			if (type === 'phased_sync_request') {
 				transport.requestEpoch = epoch;
+				transport.requestPersonal = personal;
 				transport.requestAt = Date.now();
 				transport.wireCompleteEpoch = null;
 				transport.wireCompleteAt = null;
 				transport.phase2Received = false;
 				transport.phase1bReceived = false;
 				transport.phase1bApplied = false;
+				transport.openedOffer = null;
 			}
 			server.send(data);
 		});
 		server.onMessage(data => {
-			const { type, epoch, hasChats } = inspectFrame(data, received, idleTraffic?.inbound, INBOUND_KINDS);
+			const { type, epoch, hasChats, openedOffer } = inspectFrame(data, received, idleTraffic?.inbound, INBOUND_KINDS);
 			if (transport.requestEpoch !== null && transport.requestEpoch === epoch) {
+				if (openedOffer && transport.requestPersonal && transport.openedOffer === null) transport.openedOffer = openedOffer;
 				if (type === 'phased_sync_complete') {
 					transport.wireCompleteEpoch = epoch;
 					transport.wireCompleteAt = Date.now();
@@ -253,49 +267,35 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
 		await page.locator(ROW_SELECTOR + '[data-chat-id="' + chatId + '"]').click();
 	};
-	const readEvidence = (chatId: string, startedAt: number) => page.evaluate(async ({ id, start, allowed }: {
-		id: string; start: number; allowed: string[];
-	}) => {
-		// Report aggregate counts from the selected IDB index, never rows or keys.
-		const retainedRows = await new Promise<number | null>(resolve => {
-			const request = indexedDB.open('chats_db');
-			const deadline = window.setTimeout(() => resolve(null), 3000);
-			const finish = (count: number | null) => { window.clearTimeout(deadline); resolve(count); };
-			request.onupgradeneeded = () => { request.transaction?.abort(); finish(null); };
-			request.onblocked = request.onerror = () => finish(null);
-			request.onsuccess = () => {
-				const db = request.result;
-				try {
-					const tx = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readonly');
-					const count = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').index('chat_id').count(id);
-					tx.oncomplete = () => { db.close(); finish(count.result); };
-					tx.onabort = tx.onerror = () => { db.close(); finish(null); };
-				} catch { db.close(); finish(null); }
+	const readEvidence = async (chatId: string, startedAt: number) => {
+		const retainedRows = await page.evaluate(countSelectedDurableMessages, chatId) as number | null;
+		const evidence = await page.evaluate(({ start, allowed }: { start: number; allowed: string[] }) => {
+			const view = document.querySelector('[data-testid="active-chat-container"]');
+			const historySource = document.documentElement.dataset.rustCoreHistorySource;
+			const observedMarks = performance.getEntriesByType('mark').filter(mark => allowed.includes(mark.name));
+			const marks = observedMarks.filter(mark => mark.startTime >= start).slice(-56);
+			// An admission can start while the sidebar is painting, before the selected click.
+			// These are the selected-session spine's fixed events, without chat identity.
+			const previousAdmission = observedMarks.filter(mark => mark.startTime < start &&
+				(mark.name.startsWith('openmates:rust:admission-') ||
+					mark.name === 'openmates:rust:session-start' || mark.name === 'openmates:rust:session-ready')).slice(-12);
+			return {
+				active_message_count: Number(view?.getAttribute('data-current-message-count') ?? 0),
+				history_source: historySource === 'cache' || historySource === 'server' ? historySource : null,
+				navigator_online: navigator.onLine,
+				read_stages: marks.map(mark => mark.name),
+				read_stage_timing_ms: marks.map(mark => ({
+					stage: mark.name,
+					elapsed_ms: Math.round(mark.startTime - start),
+				})),
+				preclick_admission_timing_ms: previousAdmission.map(mark => ({
+					stage: mark.name,
+					elapsed_ms: Math.round(mark.startTime - start),
+				})),
 			};
-		});
-		const view = document.querySelector('[data-testid="active-chat-container"]');
-		const observedMarks = performance.getEntriesByType('mark').filter(mark => allowed.includes(mark.name));
-		const marks = observedMarks.filter(mark => mark.startTime >= start).slice(-56);
-		// An admission can start while the sidebar is painting, before the selected click.
-		// These are the selected-session spine's fixed events, without chat identity.
-		const previousAdmission = observedMarks.filter(mark => mark.startTime < start &&
-			(mark.name.startsWith('openmates:rust:admission-') ||
-				mark.name === 'openmates:rust:session-start' || mark.name === 'openmates:rust:session-ready')).slice(-12);
-		return {
-			retained_rows: retainedRows,
-			active_message_count: Number(view?.getAttribute('data-current-message-count') ?? 0),
-			navigator_online: navigator.onLine,
-			read_stages: marks.map(mark => mark.name),
-			read_stage_timing_ms: marks.map(mark => ({
-				stage: mark.name,
-				elapsed_ms: Math.round(mark.startTime - start),
-			})),
-			preclick_admission_timing_ms: previousAdmission.map(mark => ({
-				stage: mark.name,
-				elapsed_ms: Math.round(mark.startTime - start),
-			})),
-		};
-	}, { id: chatId, start: startedAt, allowed: READ_STAGES });
+		}, { start: startedAt, allowed: READ_STAGES });
+		return { retained_rows: retainedRows, ...evidence };
+	};
 	const assertTranscript = async (chatId: string, stage = 'online selection') => {
 		await expect(active).toHaveAttribute('data-current-chat-id', chatId);
 		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count')),
@@ -331,6 +331,8 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		}, { timeout: 15000, message: 'A different existing recent chat becomes selectable' }).toBe(true);
 		const chatId = candidate!;
 		selected.add(chatId);
+		const durableRowsBeforeClick = await page.evaluate(countSelectedDurableMessages, chatId) as number | null;
+		let openedOffer = offerAtClick(chatId, null);
 		await page.evaluate(armSelectedFrameProbe, { rowSelector: ROW_SELECTOR, chatId, timeoutMs: READABLE_FRAME_TIMEOUT_MS });
 		const start = await page.evaluate(() => performance.now());
 		let firstFrame: Awaited<ReturnType<typeof takeSelectedFrameProbe>>;
@@ -341,6 +343,7 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			visibleMessageMS.push(Math.round(await page.evaluate(() => performance.now()) - start));
 			selectedRead = await readEvidence(chatId, start);
 			firstFrame = await page.evaluate(takeSelectedFrameProbe);
+			openedOffer = offerAtClick(chatId, await page.evaluate(selectedFrameClickEpoch));
 			readableSelections.push(chatId);
 		} catch {
 			failedOnlineSelections++;
@@ -352,7 +355,10 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			const body = tail?.ok() ? await tail.json().catch(() => null) : null;
 			const serverRows = Array.isArray(body?.messages) ? body.messages.length : null;
 			await testInfo.attach('personal-devtest-web-failed-selection-' + (sample + 1), {
-				body: JSON.stringify({ ...snapshot, server_status: tail?.status() ?? null, server_tail_rows: serverRows }),
+				body: JSON.stringify({ ...snapshot,
+					durable_rows_before_click: durableRowsBeforeClick,
+					...offerAtClick(chatId, await page.evaluate(selectedFrameClickEpoch)),
+					server_status: tail?.status() ?? null, server_tail_rows: serverRows }),
 				contentType: 'application/json',
 			});
 			continue;
@@ -364,6 +370,7 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		await testInfo.attach('personal-devtest-web-trial-' + (sample + 1), {
 			body: JSON.stringify({ cached_navigation_to_recent_rows_ms: recentRowsMS[sample],
 				select_to_visible_message_ms: visibleMessageMS[sample], selected_viewport: firstFrame,
+				durable_rows_before_click: durableRowsBeforeClick, ...openedOffer,
 				navigation, app_load: {
 					http_cache_mode: httpCacheMode, service_workers: 'blocked',
 					document_sizes: assets.navigation, resource_buckets: assets.buckets,
@@ -534,6 +541,69 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	expect(failedOnlineSelections, 'All three online selections must render').toBe(0);
 	expect(readableSelections).toHaveLength(3);
 
+	// An exact retained chat offered again after a full reload distinguishes
+	// cohort durability from an arbitrary click on a metadata-only recent row.
+	const repeat = {
+		outcome: 'no_previously_readable_offer_member',
+		prior_durable_rows: null as number | null,
+		durable_rows_after_reload: null as number | null,
+		same_chat_in_new_personal_offer: null as boolean | null,
+		same_chat_is_new_offer_head: null as boolean | null,
+		already_active_after_reload: null as boolean | null,
+		navigation_to_selected_transcript_ready_ms: null as number | null,
+		selected_viewport: null as Awaited<ReturnType<typeof takeSelectedFrameProbe>> | null,
+		selected_read: null as Awaited<ReturnType<typeof readEvidence>> | null,
+	};
+	try {
+		const previousOffer = latestSyncTransport()?.openedOffer;
+		// Prefer a secondary offer member so the normal deliberate sidebar
+		// click still produces a viewport measurement when the head resumes.
+		const chatId = previousOffer?.ids.find(id => id !== previousOffer.head && readableSelections.includes(id))
+			?? previousOffer?.ids.find(id => readableSelections.includes(id));
+		if (chatId) {
+			repeat.prior_durable_rows = await page.evaluate(countSelectedDurableMessages, chatId);
+			if (!repeat.prior_durable_rows) repeat.outcome = 'prior_rows_unproven';
+			else {
+				repeat.outcome = 'new_personal_offer_unobserved';
+				lastLaunchTransportOffset = transports.length;
+				lastLaunchStartedAt = Date.now();
+				await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 8000 });
+				if (new URL(page.url()).origin !== DEV_ORIGIN) throw new Error('Unexpected application origin after cohort reload');
+				repeat.durable_rows_after_reload = await page.evaluate(countSelectedDurableMessages, chatId);
+				await expect.poll(() => Boolean(latestSyncTransport()?.openedOffer), { timeout: 6000 }).toBe(true);
+				const offered = latestSyncTransport()?.openedOffer;
+				repeat.same_chat_in_new_personal_offer = offered?.ids.includes(chatId) ?? null;
+				repeat.same_chat_is_new_offer_head = offered ? offered.head === chatId : null;
+				if (!repeat.same_chat_in_new_personal_offer) repeat.outcome = 'same_chat_not_offered_again';
+				else {
+					repeat.outcome = 'cohort_transcript_unproven';
+					repeat.already_active_after_reload = await active.getAttribute('data-current-chat-id', { timeout: 5000 }) === chatId;
+					const startedAt = await page.evaluate(() => performance.now());
+					if (!repeat.already_active_after_reload) {
+						await page.evaluate(armSelectedFrameProbe, { rowSelector: ROW_SELECTOR, chatId, timeoutMs: READABLE_FRAME_TIMEOUT_MS });
+						if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click({ timeout: 4000 });
+						await page.locator(ROW_SELECTOR + '[data-chat-id="' + chatId + '"]').click({ timeout: 4000 });
+					}
+					await assertTranscript(chatId, 'durable startup cohort repeat');
+					repeat.navigation_to_selected_transcript_ready_ms = await page.evaluate(() => Math.round(performance.now()));
+					if (!repeat.already_active_after_reload) repeat.selected_viewport = await page.evaluate(takeSelectedFrameProbe);
+					repeat.selected_read = await readEvidence(chatId, startedAt);
+					if (!repeat.durable_rows_after_reload) repeat.outcome = 'cohort_readable_without_preclick_rows';
+					else repeat.outcome = repeat.selected_read?.history_source === 'cache'
+						? 'retained_cohort_cache_readable' : 'retained_cohort_readable_source_unproven';
+				}
+			}
+		}
+	} catch {
+		// Optional observation. Record the last proven stage and continue with
+		// the separate cold request and its stricter HTTP/viewport correlation.
+	} finally {
+		await page.evaluate(clearSelectedFrameProbe).catch(() => undefined);
+		await testInfo.attach('personal-devtest-web-retained-cohort-repeat', {
+			body: JSON.stringify(repeat), contentType: 'application/json',
+		});
+	}
+
 	// Keep the cold trial after all retained, bounded, and reconnect assertions.
 	// A user may explicitly show more rows here, but the timed click starts only
 	// once the same authenticated sidebar exposes a genuine cold candidate.
@@ -553,6 +623,7 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		first_selected_window_request_ms: null as number | null,
 		selected_window_http_status: null as number | null,
 		selected_window_complete_before_readable: false,
+		offer: personalOpenedOfferEvidence(null, '', null),
 	};
 	const readUnseenRows = ({ selector, prior }: { selector: string; prior: string[] }) => {
 		const seen = new Set(prior);
@@ -640,6 +711,7 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			cold.stage = 'selected_readable_frame';
 			cold.selected_viewport = await page.evaluate(takeSelectedFrameProbe);
 			const clickEpoch = await page.evaluate(selectedFrameClickEpoch);
+			cold.offer = offerAtClick(chatId, clickEpoch);
 			cold.stage = 'correlate_selected_network';
 			cold.selected_read = await readEvidence(chatId, startedAt);
 			if (clickEpoch !== null) {

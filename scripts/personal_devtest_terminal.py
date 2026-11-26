@@ -11,7 +11,9 @@ import os
 from pathlib import Path
 import pty
 import re
+import secrets
 import select
+import socket
 import struct
 import subprocess
 import tempfile
@@ -88,13 +90,18 @@ class TerminalWaitError(RuntimeError):
 
 
 class Terminal:
-    def __init__(self, process, master, diagnostics_fd=None):
+    def __init__(self, process, master, diagnostics_fd=None, identity_socket=None):
         self.process = process
         self.master = master
         self.diagnostics_fd = diagnostics_fd
         self.authenticated_frame_seen = False
         self.output = bytearray()
         self.rows = []
+        self.identity_socket = identity_socket
+        self.frame_sequence = 0
+        self.frames_seen = 0
+        self.frame_identities = {}
+        self.clicked_identity = None
 
     def send(self, text):
         os.write(self.master, text.encode())
@@ -110,6 +117,33 @@ class Terminal:
         # observe the trace without seeking or interfering with its writes.
         raw = os.pread(self.diagnostics_fd, 128 * 1024, position)
         return startup_diagnostic_rows(raw[:raw.rfind(b"\n") + 1])
+
+    def drain_identity(self):
+        if self.identity_socket is None:
+            return
+        for _ in range(128):
+            try:
+                packet = self.identity_socket.recv(41)
+            except BlockingIOError:
+                break
+            if len(packet) != 40:
+                continue
+            ordinal = struct.unpack_from("!Q", packet)[0]
+            tag = packet[8:]
+            if ordinal == 0:
+                self.clicked_identity = tag
+            else:
+                self.frame_identities[ordinal] = tag
+                if len(self.frame_identities) > 128:
+                    del self.frame_identities[min(self.frame_identities)]
+
+    def reset_clicked_identity(self):
+        self.drain_identity()
+        self.clicked_identity = None
+
+    def frame_identity(self):
+        self.drain_identity()
+        return self.frame_identities.get(self.frame_sequence)
 
     def auth_state(self, rows):
         screen = terminal_auth_state(rows)
@@ -134,8 +168,14 @@ class Terminal:
         if self.rows and self.process.poll() is None and accept(self.rows):
             return time.monotonic()
         pty_closed = False
+        sources = [self.master]
+        if self.identity_socket is not None:
+            sources.append(self.identity_socket)
         while time.monotonic() < deadline and self.process.poll() is None:
-            if not select.select([self.master], [], [], 0.1)[0]:
+            readable = select.select(sources, [], [], 0.1)[0]
+            if self.identity_socket is not None and self.identity_socket in readable:
+                self.drain_identity()
+            if self.master not in readable:
                 if observe_idle and accept(self.rows):
                     return time.monotonic()
                 continue
@@ -152,13 +192,16 @@ class Terminal:
             self.output.extend(incoming)
             if len(self.output) > MAX_FRAME_BYTES:
                 raise RuntimeError("Native terminal output exceeded the benchmark limit")
-            if self.output.find(FRAME_END, boundary) < 0:
+            completed_frames = self.output.count(FRAME_END, boundary)
+            if not completed_frames:
                 continue
+            self.frames_seen += completed_frames
             try:
                 rows, _, _ = _latest_screen(self.output.decode(errors="replace"))
             except CliCaptureError:
                 continue
             self.rows = rows
+            self.frame_sequence = self.frames_seen
             if accept(rows):
                 return time.monotonic()
         sidebar_visible, chat_cells = recent_chat_cells(self.rows)
@@ -212,23 +255,30 @@ def startup_diagnostic_rows(raw):
 
 
 @contextmanager
-def open_tui(binary, state, diagnostics):
+def open_tui(binary, state, diagnostics, identity_key):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 44, 140, 0, 0))
     try:
-        with tempfile.TemporaryFile(dir=state) as diagnostics_stream:
+        with tempfile.TemporaryFile(dir=state) as diagnostics_stream, socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as identity:
+            socket_name = "openmates-private-tui-" + secrets.token_hex(16)
+            # Linux abstract addresses have no filesystem entry. The receiver
+            # and fresh key are scoped to this private benchmark invocation.
+            identity.bind("\0" + socket_name)
+            identity.setblocking(False)
             try:
                 with subprocess.Popen(
                     [str(binary), "--api-url", API_ORIGIN, "--state-dir", str(state),
                      "--encrypted-vault", "tui"],
                     stdin=slave, stdout=slave, stderr=diagnostics_stream, start_new_session=True,
                     env={**os.environ, "TERM": "xterm-256color",
-                         "OPENMATES_TEST_STARTUP_PHASE_DIAGNOSTIC": "1"},
+                         "OPENMATES_TEST_STARTUP_PHASE_DIAGNOSTIC": "1",
+                         "OPENMATES_TEST_TUI_IDENTITY_SOCKET": socket_name,
+                         "OPENMATES_TEST_TUI_IDENTITY_KEY": base64.b64encode(identity_key).decode("ascii")},
                 ) as process:
                     os.close(slave)
                     slave = None
                     try:
-                        yield Terminal(process, master, diagnostics_stream.fileno())
+                        yield Terminal(process, master, diagnostics_stream.fileno(), identity)
                     finally:
                         if process.poll() is None:
                             process.terminate()
@@ -353,7 +403,7 @@ class AuthEvidence:
             state = terminal.auth_state(rows) if startup is not None else None
             self.observe(rows, state)
             if startup is not None:
-                startup.observe(rows, state)
+                startup.observe(rows, state, terminal.frame_identity())
             return accept(rows)
 
         try:
@@ -458,12 +508,21 @@ def same_startup_title(expected, actual):
     return expected == actual or len(shorter) >= 40 and len(longer) - len(shorter) <= 1 and longer.startswith(shorter)
 
 
+class ExpectedStartupChat:
+    # Neither field is part of the diagnostic report.
+    __slots__ = ("identity", "caption")
+
+    def __init__(self, identity, caption):
+        self.identity = identity
+        self.caption = caption
+
+
 class StartupEvidence:
     """Independent startup milestones drawn from actual synchronized PTY paints."""
 
     def __init__(self, samples, attempt, expected):
         self.started = None
-        self.expected = expected  # Screen identity exists only in memory.
+        self.expected = expected  # Keyed identity and settled caption remain in RAM.
         self.sample = {
             "attempt": attempt,
             "mode": "login" if attempt == 0 else "vault_relaunch",
@@ -475,6 +534,10 @@ class StartupEvidence:
             "sidebar_visible_at_ms": None,
             "max_distinct_chat_rows": 0,
             "target_seeded": expected is not None,
+            "startup_header_seen": False,
+            "startup_readable_body_seen": False,
+            "expected_caption_seen": False,
+            "expected_identity_seen": False,
             "native_stages": [],
             "ten_distinct_chat_rows_result": "not_observed",
             "last_open_result": "unseeded" if expected is None else "not_observed",
@@ -484,7 +547,7 @@ class StartupEvidence:
     def elapsed(self):
         return round((time.monotonic() - self.started) * 1000)
 
-    def observe(self, rows, state=None):
+    def observe(self, rows, state=None, identity=None):
         state = state if state is not None else terminal_auth_state(rows)
         if self.started is None or state != "authenticated":
             return
@@ -508,15 +571,23 @@ class StartupEvidence:
             self.sample["selectable_prefix_at_ms"] = elapsed
         if distinct >= 10 and self.sample["ten_distinct_chat_rows_at_ms"] is None:
             self.sample["ten_distinct_chat_rows_at_ms"] = elapsed
-        if (self.sample["last_open_first_readable_at_ms"] is None
-                and same_startup_title(self.expected, transcript_title(rows)) and readable_startup_transcript(rows)):
+        if self.expected is None:
+            return
+        caption = transcript_title(rows)
+        readable = readable_startup_transcript(rows)
+        identity_matches = identity == self.expected.identity
+        self.sample["startup_header_seen"] |= caption is not None
+        self.sample["startup_readable_body_seen"] |= readable
+        self.sample["expected_caption_seen"] |= same_startup_title(self.expected.caption, caption)
+        self.sample["expected_identity_seen"] |= identity_matches
+        if self.sample["last_open_first_readable_at_ms"] is None and identity_matches and readable:
             self.sample["last_open_first_readable_at_ms"] = elapsed
 
     def await_extended(self, terminal, auth):
         def observe(rows):
             state = terminal.auth_state(rows)
             auth.observe(rows, state)
-            self.observe(rows, state)
+            self.observe(rows, state, terminal.frame_identity())
             return self.sample["ten_distinct_chat_rows_at_ms"] is not None and (
                 self.expected is None or self.sample["last_open_first_readable_at_ms"] is not None
             )
@@ -524,7 +595,7 @@ class StartupEvidence:
         remaining = max(0, STARTUP_SECONDS - (time.monotonic() - self.started))
         began = time.monotonic()
         try:
-            terminal.wait("extended startup evidence", observe, seconds=remaining)
+            terminal.wait("extended startup evidence", observe, seconds=remaining, observe_idle=True)
         except TerminalWaitError as error:
             self.sample["wait_outcome"] = error.outcome
             if error.outcome != "timeout":
@@ -652,6 +723,23 @@ def wait_for_recorded_open(terminal, position, diagnostics, *, require_completio
     return outcome
 
 
+def acknowledged_startup_chat(terminal, position, diagnostics):
+    recorded = wait_for_recorded_open(terminal, position, diagnostics)
+    terminal.drain_identity()
+    identity = terminal.clicked_identity if recorded == "recorded" else None
+    diagnostics["recorded_identity_available"] = identity is not None
+    if identity is None:
+        return None
+    # The title is diagnostic only. Accept it from the same selected window
+    # after the durable acknowledgment, never the earlier read-only paint.
+    caption = None
+    if (terminal.frame_identity() == identity
+            and terminal_status(terminal.rows) in {"chat_refreshed", "cache_settled"}):
+        caption = transcript_title(terminal.rows)
+    diagnostics["settled_caption_available"] = caption is not None
+    return ExpectedStartupChat(identity, caption)
+
+
 def seed_last_open(terminal, diagnostics):
     _, entries = recent_chat_entries(terminal.rows)
     current = transcript_title(terminal.rows)
@@ -662,30 +750,15 @@ def seed_last_open(terminal, diagnostics):
             continue
         if sum(entry[2].casefold() == label.casefold() for entry in entries) != 1:
             continue
+        terminal.reset_clicked_identity()
         position = terminal.diagnostic_position()
         terminal.click(row, column)
-        break
-    else:
-        diagnostics["result"] = "no_distinct_candidate"
-        return None
-    def selected(rows):
-        title = transcript_title(rows)
-        return bool(title and title.startswith(label) and (
-            readable_startup_transcript(rows) or terminal_status(rows) == "empty_chat"
-        ))
-
-    try:
-        terminal.wait("deliberate startup seed", selected)
-    except TerminalWaitError as error:
-        diagnostics["result"] = error.outcome
-        if error.outcome != "timeout":
-            raise
-        return None
-    title = transcript_title(terminal.rows)
-    readable = readable_startup_transcript(terminal.rows)
-    diagnostics["result"] = "readable" if readable else "empty_chat"
-    recorded = wait_for_recorded_open(terminal, position, diagnostics)
-    return title if readable and recorded == "recorded" else None
+        target = acknowledged_startup_chat(terminal, position, diagnostics)
+        recorded = diagnostics["recorded_open_outcome"]
+        diagnostics["result"] = "recorded_without_identity" if recorded == "recorded" and target is None else recorded
+        return target
+    diagnostics["result"] = "no_distinct_candidate"
+    return None
 
 
 def measure(binary, private_output):
@@ -699,10 +772,11 @@ def measure(binary, private_output):
     }
     try:
         email, password, key = credentials()
+        identity_key = secrets.token_bytes(32)
         with tempfile.TemporaryDirectory(prefix="native-state-", dir=private_output) as state:
             evidence = AuthEvidence(metrics["auth_attempts"], 0)
             startup = StartupEvidence(metrics["startup_samples"], 0, None)
-            with open_tui(binary, Path(state), startup.sample["native_stages"]) as terminal:
+            with open_tui(binary, Path(state), startup.sample["native_stages"], identity_key) as terminal:
                 enter_authenticated(terminal, evidence, startup, "login_prompt",
                                     lambda: email + "\t" + password + "\t" + totp(key) + "\t\r")
                 evidence.sample["stage"] = "seed_last_open"
@@ -713,7 +787,7 @@ def measure(binary, private_output):
             for attempt in range(1, 4):
                 auth = AuthEvidence(metrics["auth_attempts"], attempt)
                 startup = StartupEvidence(metrics["startup_samples"], attempt, expected)
-                with open_tui(binary, Path(state), startup.sample["native_stages"]) as terminal:
+                with open_tui(binary, Path(state), startup.sample["native_stages"], identity_key) as terminal:
                     elapsed = enter_authenticated(terminal, auth, startup, "vault_prompt", lambda: password + "\t\r")
                     metrics["vault_unlock_to_recent_rows_ms"].append(elapsed)
 
@@ -729,6 +803,7 @@ def measure(binary, private_output):
                         else:
                             raise RuntimeError("Ran out of distinct already-read conversations for three timing samples")
                         candidates_seen.add(label)
+                        terminal.reset_clicked_identity()
                         position = terminal.diagnostic_position()
                         evidence = OpenEvidence(metrics["open_samples"], candidate_index, terminal.rows, label)
                         terminal.click(row, column)
@@ -738,9 +813,7 @@ def measure(binary, private_output):
                             evidence.finish(terminal)
                         if evidence.sample["result"] == "readable":
                             metrics["select_to_visible_message_ms"].append(evidence.sample["first_readable_message_ms"])
-                            title = transcript_title(terminal.rows)
-                            recorded = wait_for_recorded_open(terminal, position, evidence.sample)
-                            expected = title if recorded == "recorded" else None
+                            expected = acknowledged_startup_chat(terminal, position, evidence.sample)
                             break
                         # Do not attribute an empty candidate's delayed receipt
                         # to a later click in the same process.

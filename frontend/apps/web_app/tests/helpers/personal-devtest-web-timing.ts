@@ -218,3 +218,60 @@ export function inspectColdChatRows(chatIds: string[]): Promise<ColdChatScan | n
 		};
 	});
 }
+
+
+/** Only an exact, bounded authenticated Personal startup offer can classify a selection. */
+export function readPersonalOpenedOffer(payload: unknown, receivedAt: number) {
+	if (typeof payload !== 'object' || payload === null || !Number.isFinite(receivedAt)) return null;
+	const { team_id, chat_id, offline_chat_ids } = payload as Record<string, unknown>;
+	const validId = (id: unknown): id is string => typeof id === 'string'
+		&& /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id);
+	if (team_id !== null || !Array.isArray(offline_chat_ids) || offline_chat_ids.length > 11
+		|| !offline_chat_ids.every(validId) || new Set(offline_chat_ids).size !== offline_chat_ids.length
+		|| chat_id !== (offline_chat_ids[0] ?? null)) return null;
+	return { ids: offline_chat_ids as string[], head: chat_id as string | null, receivedAt };
+}
+
+/** Only numeric and boolean evidence leaves the in-memory offer comparison. */
+export function personalOpenedOfferEvidence(
+	offer: ReturnType<typeof readPersonalOpenedOffer>, chatId: string, observedAt: number | null,
+) {
+	const seen = offer !== null && observedAt !== null && offer.receivedAt <= observedAt;
+	return {
+		personal_offer_observed_before_click: seen,
+		selected_in_personal_offer: seen ? offer.ids.includes(chatId) : null,
+		selected_is_offered_head: seen ? offer.head === chatId : null,
+		offer_received_before_click_ms: seen ? Math.round(observedAt - offer.receivedAt) : null,
+	};
+}
+
+/** The current physical store only, queried by the selected chat's exact index. */
+export function countSelectedDurableMessages(chatId: string): Promise<number | null> {
+	return new Promise(resolve => {
+		let db: IDBDatabase | null = null;
+		let settled = false;
+		const finish = (count: number | null) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(deadline);
+			db?.close();
+			resolve(count);
+		};
+		const deadline = window.setTimeout(() => finish(null), 1500);
+		const request = indexedDB.open('chats_db');
+		request.onupgradeneeded = () => { request.transaction?.abort(); finish(null); };
+		request.onblocked = request.onerror = () => finish(null);
+		request.onsuccess = () => {
+			db = request.result;
+			if (settled) { db.close(); return; }
+			db.onversionchange = () => finish(null);
+			try {
+				const store = db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages';
+				const tx = db.transaction(store, 'readonly');
+				const count = tx.objectStore(store).index('chat_id').count(chatId);
+				tx.oncomplete = () => finish(count.result);
+				tx.onabort = tx.onerror = () => finish(null);
+			} catch { finish(null); }
+		};
+	});
+}

@@ -5,6 +5,8 @@
 import os
 import pty
 import select
+import socket
+import struct
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -112,6 +114,7 @@ def test_wait_reconstructs_a_synchronized_marker_split_across_reads(monkeypatch)
 
     terminal.wait("authenticated", lambda rows: benchmark.terminal_auth_state(rows) == "authenticated")
     assert terminal.rows == rows
+    assert terminal.frame_sequence == 1
 
 
 def test_clean_quit_sends_native_ctrl_q_and_drains_the_pty():
@@ -163,17 +166,20 @@ def test_startup_distinguishes_ten_actual_chat_rows_from_the_old_prefix(monkeypa
     assert "Synthetic" not in repr(samples)
 
 
-def test_startup_requires_matching_title_and_message_body(monkeypatch):
+def test_startup_requires_exact_selected_identity_and_message_body(monkeypatch):
     elapsed = iter([1.050, 1.100, 1.300, 1.301])
     monkeypatch.setattr(benchmark.time, "monotonic", lambda: next(elapsed))
     auth = SimpleNamespace(sample={})
-    startup = benchmark.StartupEvidence([], 1, "Target synthetic title")
+    identity = b"X" * 32
+    target = benchmark.ExpectedStartupChat(identity, "Target synthetic title")
+    startup = benchmark.StartupEvidence([], 1, target)
     startup.started = 1.0
     labels = [f"Synthetic topic {i}" for i in range(10)]
-    startup.observe(startup_screen(labels, "Other synthetic title", "Some text"))
-    startup.observe(startup_screen(labels, "Target synthetic title", "Thinking…"))
+    startup.observe(startup_screen(labels, "Target synthetic title", "Some text"), identity=b"Y" * 32)
     assert startup.sample["last_open_first_readable_at_ms"] is None
-    startup.observe(startup_screen(labels, "Target synthetic title", "Visible message"))
+    startup.observe(startup_screen(labels, "Target synthetic title", "Thinking…"), identity=identity)
+    assert startup.sample["last_open_first_readable_at_ms"] is None
+    startup.observe(startup_screen(labels, "Renamed synthetic title", "Visible message"), identity=identity)
     startup.finish(auth)
     assert startup.sample["ten_distinct_chat_rows_at_ms"] == 50
     assert startup.sample["last_open_first_readable_at_ms"] == 300
@@ -181,9 +187,54 @@ def test_startup_requires_matching_title_and_message_body(monkeypatch):
     assert "Target" not in repr(startup.sample)
 
 
+def test_live_identity_requires_a_durable_ack_and_the_same_terminal_frame(monkeypatch):
+    prior = b"X" * 32
+    selected = b"Y" * 32
+    receiver, sender = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
+    with receiver, sender:
+        receiver.setblocking(False)
+        terminal = Terminal(SimpleNamespace(), None, identity_socket=receiver)
+        sender.send(struct.pack("!Q", 0) + prior)
+        terminal.reset_clicked_identity()
+        assert terminal.clicked_identity is None
+
+        terminal.frame_sequence = 1
+        terminal.rows = startup_screen([], "Settled title", "Readable", status="Chat refreshed")
+        sender.send(struct.pack("!Q", 0) + selected)
+        sender.send(struct.pack("!Q", 2) + selected)
+        assert terminal.frame_identity() is None
+
+        outcome = "timeout"
+
+        def wait_for_ack(_terminal, _position, diagnostics):
+            diagnostics["recorded_open_outcome"] = outcome
+            return outcome
+
+        monkeypatch.setattr(benchmark, "wait_for_recorded_open", wait_for_ack)
+        report = {}
+        assert benchmark.acknowledged_startup_chat(terminal, 0, report) is None
+        assert report["recorded_identity_available"] is False
+
+        outcome = "recorded"
+        target = benchmark.acknowledged_startup_chat(terminal, 0, report)
+        assert target.identity == selected
+        assert target.caption is None
+        assert report["settled_caption_available"] is False
+
+        terminal.frame_sequence = 2
+        target = benchmark.acknowledged_startup_chat(terminal, 0, report)
+        assert target.caption == "Settled title"
+        assert report == {
+            "recorded_open_outcome": "recorded",
+            "recorded_identity_available": True,
+            "settled_caption_available": True,
+        }
+
+
 def test_startup_reports_typed_timeout_after_an_authenticated_empty_list():
     auth = AuthEvidence([], 2)
-    startup = benchmark.StartupEvidence([], 2, "Target synthetic title")
+    target = benchmark.ExpectedStartupChat(b"X" * 32, "Target synthetic title")
+    startup = benchmark.StartupEvidence([], 2, target)
     startup.started = benchmark.time.monotonic()
     rows = startup_screen([], status="The server returned an invalid or unsupported response")
     auth.observe(rows)

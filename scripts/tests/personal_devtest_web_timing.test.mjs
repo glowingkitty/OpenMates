@@ -90,3 +90,25 @@ test("deadline after click cancels the pending animation frame", async () => {
   assert.deepEqual(probe.active(), [0, 0, 0]);
   probe.clear();
 });
+
+
+test('startup offer comparison exports only in-scope membership and timing', () => {
+  const { readPersonalOpenedOffer, personalOpenedOfferEvidence } = runInNewContext(browserCode +
+    '\n({ readPersonalOpenedOffer, personalOpenedOfferEvidence });');
+  const first = '11111111-1111-1111-1111-111111111111';
+  const second = '22222222-2222-2222-2222-222222222222';
+  const other = '33333333-3333-3333-3333-333333333333';
+  const payload = { team_id: null, chat_id: first, offline_chat_ids: [first, second] };
+  const offer = readPersonalOpenedOffer(payload, 100);
+  const after = personalOpenedOfferEvidence(offer, second, 123);
+  assert.equal(JSON.stringify(after), '{"personal_offer_observed_before_click":true,"selected_in_personal_offer":true,"selected_is_offered_head":false,"offer_received_before_click_ms":23}');
+  assert.equal(personalOpenedOfferEvidence(offer, first, 100).selected_is_offered_head, true);
+  assert.equal(personalOpenedOfferEvidence(offer, other, 123).selected_in_personal_offer, false);
+  assert.equal(personalOpenedOfferEvidence(offer, first, 99).selected_in_personal_offer, null);
+  assert.equal(personalOpenedOfferEvidence(offer, first, null).selected_in_personal_offer, null);
+  assert.equal(readPersonalOpenedOffer({ ...payload, team_id: other }, 100), null);
+  assert.equal(readPersonalOpenedOffer({ ...payload, chat_id: second }, 100), null);
+  assert.equal(readPersonalOpenedOffer({ ...payload, offline_chat_ids: [first, first] }, 100), null);
+  const oversized = Array.from({ length: 12 }, (_, i) => '11111111-1111-1111-1111-' + String(i).padStart(12, '0'));
+  assert.equal(readPersonalOpenedOffer({ ...payload, chat_id: oversized[0], offline_chat_ids: oversized }, 100), null);
+});
