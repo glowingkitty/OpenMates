@@ -23,7 +23,9 @@ version the release Mac builds with), never on the shared dev host.
                generated inputs and build step, then exactly those XCUITests in the
                iOS simulator, serially. The app under test is the Debug build, so tests
                that talk to a server reach the dev backend; the lane passes no secrets,
-               so real-account tests skip themselves. A focused run (at most
+               so real-account tests skip themselves. The private startup evidence profile
+               also admits the exact two read-only selectors in OpenMatesMacUITests.
+               A focused run (at most
                MAX_RECORDED_UI_SPECS targets) runs from a patched copy of the built
                .xctestrun that keeps the screen recording of every test,
                passing ones too, so a UI change has its result video; larger runs keep
@@ -60,6 +62,10 @@ STARTUP_BENCHMARK_SPECS = {
     "OpenMatesUITests/ChatFlowRealAccountUITests/testPersonalAccountColdLaunchFirstFrame",
     "OpenMatesUITests/ChatFlowRealAccountUITests/testPersonalAccountColdLaunchToInteractive",
 }
+MAC_STARTUP_BENCHMARK_SPECS = {
+    spec.replace("OpenMatesUITests/", "OpenMatesMacUITests/", 1)
+    for spec in STARTUP_BENCHMARK_SPECS
+}
 PERSONAL_CREDENTIAL_KEYS = tuple(
     f"OPENMATES_PERSONAL_TEST_ACOUNT_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")
 )
@@ -85,6 +91,19 @@ RUST_TEST_FLAGS = ["--locked", "--no-fail-fast", "--lib", "--bins", "--tests"]
 Step = tuple[str, list[str], dict, str]
 
 
+def startup_benchmark_platform(specs: list[str]) -> str | None:
+    """Recognize one platform's exact pair of private read-only selectors."""
+    if len(specs) != len(STARTUP_BENCHMARK_SPECS) or not all(
+        isinstance(spec, str) for spec in specs
+    ):
+        return None
+    if set(specs) == STARTUP_BENCHMARK_SPECS:
+        return "iOS"
+    if set(specs) == MAC_STARTUP_BENCHMARK_SPECS:
+        return "macOS"
+    return None
+
+
 def validate_specs(mode: str, specs: list[str]) -> list[str]:
     """Return the admitted selectors for the Apple mode or refuse the request."""
     if mode == "apple-core":
@@ -107,6 +126,8 @@ def validate_specs(mode: str, specs: list[str]) -> list[str]:
             raise ValueError("apple-unit target 'all' cannot be combined with others")
         return list(specs)
     if mode == "apple-ui":
+        if startup_benchmark_platform(specs) == "macOS":
+            return list(specs)
         if (
             not specs
             or len(specs) > MAX_UI_SPECS
@@ -178,10 +199,13 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
     """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests."""
     build_only = mode == "apple-build"
     only = [] if build_only else [UNIT_TARGET] if specs == [ALL] else specs
+    mac_startup = benchmark and startup_benchmark_platform(specs) == "macOS"
+    scheme = "OpenMates_macOS" if mac_startup else "OpenMates_iOS"
+    destination = "platform=macOS" if mac_startup else f"platform=iOS Simulator,name={SIMULATOR}"
     shared = [
         "-project", "apple/OpenMates.xcodeproj",
-        "-scheme", "OpenMates_iOS",
-        "-destination", f"platform=iOS Simulator,name={SIMULATOR}",
+        "-scheme", scheme,
+        "-destination", destination,
         "-derivedDataPath", str(results / "DerivedData"),
         "-clonedSourcePackagesDirPath", str(results / "SourcePackages"),
         "-skipPackagePluginValidation", "-skipMacroValidation",
@@ -246,7 +270,7 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
         # A recorded run tests from the patched copy of the built .xctestrun; `-scheme`
         # would run Xcode's own unpatched one.
         source = (
-            ["-xctestrun", str(products / RECORDED_XCTESTRUN), "-destination", f"platform=iOS Simulator,name={SIMULATOR}"]
+            ["-xctestrun", str(products / RECORDED_XCTESTRUN), "-destination", destination]
             if recorded else shared
         )
         test = [
@@ -345,15 +369,19 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
 
 
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
-    import ci_rust_checks as checks
-
     specs = validate_specs(mode, specs)
     benchmark = os.environ.get("CI_APPLE_PRIVATE_STARTUP") == "1"
     credentials = {key: os.environ.pop(key, "") for key in PERSONAL_CREDENTIAL_KEYS}
-    if benchmark and (mode != "apple-ui" or set(specs) != STARTUP_BENCHMARK_SPECS or len(specs) != 2):
-        raise ValueError("Private Apple startup runs require both exact benchmark selectors")
+    benchmark_platform = startup_benchmark_platform(specs)
+    if benchmark and (mode != "apple-ui" or benchmark_platform is None):
+        raise ValueError("Private Apple startup runs require both exact benchmark selectors for one platform")
+    if benchmark_platform == "macOS" and not benchmark:
+        raise ValueError("The macOS startup benchmark requires private evidence")
     if benchmark and not all(credentials.values()):
         raise ValueError("The private Apple startup lane requires repository test credentials")
+
+    import ci_rust_checks as checks
+
     out = root / "test-results" / mode
     out.mkdir(parents=True, exist_ok=True)
     os.environ["RUST_CI_RESULTS"] = str(out / "rows")

@@ -9,6 +9,8 @@ never blindly repeated. See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 from datetime import datetime, timedelta, timezone
 import fcntl
 import hashlib
@@ -100,6 +102,47 @@ def runner_class(job: dict) -> str:
         "selfhosted"
         if "storage-capacity-target.spec.ts" in json.loads(job["specs"])
         else "hosted"
+    )
+
+
+APPLE_STARTUP_PROFILE_PREFIX = "apple-startup:"
+APPLE_STARTUP_CERTIFICATE = re.compile(
+    rb"-----BEGIN CERTIFICATE-----\r?\n[A-Za-z0-9+/=\r\n]+-----END CERTIFICATE-----\r?\n?"
+)
+
+
+def apple_startup_profile(recipient: Path) -> str:
+    """Encode only a public PEM certificate, never a private evidence key."""
+    with recipient.open("rb") as source:
+        certificate = source.read(8193)
+    if len(certificate) > 8192 or not APPLE_STARTUP_CERTIFICATE.fullmatch(certificate):
+        raise ValueError("Apple startup evidence requires a single public PEM certificate")
+    valid = subprocess.run(
+        ["openssl", "x509", "-checkend", "0", "-noout"],
+        input=certificate,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if valid.returncode != 0:
+        raise ValueError("Apple startup evidence recipient is invalid or expired")
+    return APPLE_STARTUP_PROFILE_PREFIX + base64.b64encode(certificate).decode("ascii")
+
+
+def valid_apple_startup_profile(profile: str, mode: str, specs: list[str]) -> bool:
+    if mode != "apple-ui" or len(profile) > 11000:
+        return False
+    try:
+        certificate = base64.b64decode(profile.removeprefix(APPLE_STARTUP_PROFILE_PREFIX), validate=True)
+    except (binascii.Error, ValueError):
+        return False
+    try:
+        from scripts.ci_apple import startup_benchmark_platform
+    except ModuleNotFoundError:
+        from ci_apple import startup_benchmark_platform
+    return (
+        APPLE_STARTUP_CERTIFICATE.fullmatch(certificate) is not None
+        and startup_benchmark_platform(specs) is not None
     )
 
 
@@ -709,7 +752,10 @@ class Queue:
             "apple-ui",
         ):
             raise ValueError("Unknown CI mode")
-        if proof_profile not in ("", "web-phone", "web-laptop") or (
+        if proof_profile.startswith(APPLE_STARTUP_PROFILE_PREFIX):
+            if not valid_apple_startup_profile(proof_profile, mode, specs):
+                raise ValueError("Private Apple startup requires the exact tests and a public evidence certificate")
+        elif proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("component", "e2e", "artifact")
         ):
             raise ValueError("Invalid proof video profile")
@@ -2143,8 +2189,14 @@ def main():
         default=True,
         help="Reuse exact private prepared builds (default); use --no-prepared-builds to build current-source web/CLI output",
     )
-    submit.add_argument(
+    evidence_profile = submit.add_mutually_exclusive_group()
+    evidence_profile.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
+    )
+    evidence_profile.add_argument(
+        "--apple-startup-evidence-recipient",
+        type=Path,
+        help="Public PEM certificate for the private Personal DevTest startup benchmark",
     )
     submit.add_argument(
         "--web-rust-core",
@@ -2294,6 +2346,9 @@ def main():
                 duration_seconds=args.capacity_duration_seconds,
                 timeout_seconds=args.capacity_timeout_seconds,
             )
+        proof_profile = args.proof_video_profile
+        if args.apple_startup_evidence_recipient is not None:
+            proof_profile = apple_startup_profile(args.apple_startup_evidence_recipient)
         receipts = enqueue_submission(
             queue,
             args.session,
@@ -2301,7 +2356,7 @@ def main():
             args.spec,
             args.mode,
             args.attempt,
-            args.proof_video_profile,
+            proof_profile,
             candidate,
             source_root=root,
             supersede=not args.keep_queued_generations,

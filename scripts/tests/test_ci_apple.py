@@ -169,6 +169,30 @@ def test_test_lanes_build_once_then_test_on_those_products(mode, specs):
     assert sum(1 for _, command, *_ in plan if command[:2] == ["xcodebuild", "build-for-testing"]) == 1
 
 
+def test_private_mac_startup_uses_hosted_macos_and_preserves_recordings():
+    specs = sorted(ci_apple.MAC_STARTUP_BENCHMARK_SPECS)
+    assert ci_apple.validate_specs("apple-ui", specs) == specs
+    plan = ci_apple.xcode_plan("apple-ui", Path("/out"), specs, benchmark=True)
+    build = next(command for name, command, *_ in plan if name == ci_apple.BUILD_STEP)
+    assert build[build.index("-scheme") + 1] == "OpenMates_macOS"
+    assert build[build.index("-destination") + 1] == "platform=macOS"
+    assert "CODE_SIGNING_ALLOWED=YES" in build
+    assert any(name == ci_apple.KEEP_RECORDINGS_STEP for name, *_ in plan)
+    test = plan[-1][1]
+    assert test[test.index("-destination") + 1] == "platform=macOS"
+    assert {test[index + 1] for index, field in enumerate(test) if field == "-only-testing"} == set(specs)
+
+
+def test_mac_startup_rejects_unencrypted_execution_and_mixed_platforms(monkeypatch, tmp_path):
+    monkeypatch.delenv("CI_APPLE_PRIVATE_STARTUP", raising=False)
+    specs = sorted(ci_apple.MAC_STARTUP_BENCHMARK_SPECS)
+    with pytest.raises(ValueError, match="requires private evidence"):
+        ci_apple.run(tmp_path, [], "apple-ui", specs)
+    for refused in (specs[:1], [specs[0], sorted(ci_apple.STARTUP_BENCHMARK_SPECS)[1]]):
+        with pytest.raises(ValueError, match="apple-ui targets"):
+            ci_apple.validate_specs("apple-ui", refused)
+
+
 def test_swift_errors_are_unique_relative_and_complete():
     log = [
         "/w/subject/apple/A.swift:3:5: error: cannot find 'x' in scope",
