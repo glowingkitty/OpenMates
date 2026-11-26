@@ -207,6 +207,7 @@
 
 <style>
   .resume-chat-large-card {
+    --start-card-radius: 30px;
     position: relative;
     flex-shrink: 0;
     width: 300px;
@@ -215,7 +216,7 @@
     height: 200px;
     min-height: 200px;
     max-height: 200px;
-    border-radius: 30px;
+    border-radius: var(--start-card-radius);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -448,8 +449,8 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    overflow: hidden;
-    border-radius: 30px;
+    /* Clip the composited blur to the same curve as the card. */
+    clip-path: inset(0 round var(--start-card-radius));
   }
 
   .resume-orb {

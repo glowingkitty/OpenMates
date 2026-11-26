@@ -132416,7 +132416,7 @@ assertions:
     direct_tests:
     - &id16833
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 87
+      line: 91
       name: shows the upcoming event as one compact entry below the row
       surface: gui.web
     supporting_tests: []
@@ -133877,12 +133877,12 @@ assertions:
       surface: gui.web
     - &id17019
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 104
+      line: 108
       name: phone keeps the next card peeking and a new user sees only inspirations
       surface: gui.web
     - &id17020
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 122
+      line: 126
       name: full row shows at most ten cards, inspirations included, then the actions
       surface: gui.web
     - &id17021
@@ -133985,17 +133985,17 @@ assertions:
       surface: gui.web
     - &id17034
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 104
+      line: 108
       name: phone keeps the next card peeking and a new user sees only inspirations
       surface: gui.web
     - &id17035
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 122
+      line: 126
       name: full row shows at most ten cards, inspirations included, then the actions
       surface: gui.web
     - &id17036
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 135
+      line: 139
       name: a draft card shows up to three lines of the draft text
       surface: gui.web
     - &id17037
@@ -134065,7 +134065,7 @@ assertions:
     direct_tests:
     - &id17041
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 160
+      line: 164
       name: browse actions end the row and suggestions sit below it at ${viewport.name}
       surface: gui.web
     - &id17042
@@ -134129,7 +134129,7 @@ assertions:
       surface: gui.apple
     - &id17048
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 160
+      line: 164
       name: browse actions end the row and suggestions sit below it at ${viewport.name}
       surface: gui.web
     - &id17049
@@ -134236,7 +134236,7 @@ assertions:
       surface: gui.web
     - &id17057
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
-      line: 216
+      line: 220
       name: running chats come first with an Active label; a chat that becomes active
         fades in at the front
       surface: gui.web
