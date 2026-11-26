@@ -10,6 +10,30 @@ const { loginToTestAccount, waitForChatReady, dismissSecurityReminderIfPresent }
 const DEV_ORIGIN = 'https://app.dev.openmates.org';
 const DEV_CHAT_STATS = 'https://api.dev.openmates.org/v1/settings/chats';
 const IDLE_OBSERVATION_MS = 15000;
+const SETTLED_READINESS_TIMEOUT_MS = 15000;
+const INBOUND_KINDS = new Set([
+	'phase_1_last_chat_ready', 'phase_1b_chat_content_ready', 'phase_2_last_20_chats_ready',
+	'phase_3_chunk_ready', 'phase_3_last_100_chats_ready', 'background_message_sync',
+	'phased_sync_complete', 'phased_sync_retryable_error', 'chat_startup_opened_ready',
+	'sync_metadata_chats_response', 'load_more_chats_response', 'recovery_outputs_discovery_complete',
+	'cache_primed', 'cache_status_response', 'sync_status_response', 'active_chat_set_ack', 'pong',
+]);
+const OUTBOUND_KINDS = new Set([
+	'phased_sync_request', 'sync_status_request', 'cache_status_request', 'sync_metadata_chats',
+	'load_more_chats', 'native_client_lifecycle', 'set_active_chat', 'ping',
+]);
+type FrameCounts = Record<string, { frames: number; bytes: number }>;
+type SyncTransport = {
+	socket: WebSocketRoute;
+	server: WebSocketRoute;
+	requestEpoch: number | null;
+	wireCompleteEpoch: number | null;
+	requestAt: number | null;
+	wireCompleteAt: number | null;
+	phase2Received: boolean;
+	phase1bReceived: boolean;
+	phase1bApplied: boolean;
+};
 const ROW_SELECTOR = '[data-testid="activity-history-wrapper"] [data-testid="chat-item-wrapper"][data-chat-id]';
 
 const READ_STAGES = [
@@ -39,24 +63,31 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		throw new Error('Personal DevTest repository secrets are required');
 	}
 	let offline = false;
-	const transports: Array<{ socket: WebSocketRoute; server: WebSocketRoute }> = [];
-	let receivedFrames = 0;
-	let receivedBytes = 0;
-	const measuredKinds = new Set([
-		'phase_1_last_chat_ready', 'phase_1b_chat_content_ready', 'phase_2_last_20_chats_ready',
-		'phase_3_chunk_ready', 'phased_sync_complete', 'sync_metadata_chats_response',
-		'load_more_chats_response', 'recovery_outputs_discovery_complete', 'pong',
-	]);
-	let idleTraffic: Record<string, { frames: number; bytes: number }> | undefined;
-	const frameKind = (data: string | Buffer): string => {
-		if (typeof data !== 'string') return 'other';
-		try {
-			const type = JSON.parse(data)?.type;
-			return typeof type === 'string' ? type : 'other';
-		} catch {
-			return 'other';
+	const transports: SyncTransport[] = [];
+	let lastLaunchTransportOffset = 0;
+	let lastLaunchStartedAt = 0;
+	const received = { frames: 0, bytes: 0 };
+	const sent = { frames: 0, bytes: 0 };
+	let idleTraffic: { inbound: FrameCounts; outbound: FrameCounts } | undefined;
+	const inspectFrame = (data: string | Buffer, totals: typeof received, counts: FrameCounts | undefined, allowed: Set<string>) => {
+		const bytes = typeof data === 'string' ? Buffer.byteLength(data) : data.length;
+		totals.frames++;
+		totals.bytes += bytes;
+		let envelope: { type?: unknown; payload?: { context_epoch?: unknown; chats?: unknown } } | null = null;
+		if (typeof data === 'string') {
+			try { envelope = JSON.parse(data); } catch { /* Non-protocol frames are counted as other. */ }
 		}
+		const type = typeof envelope?.type === 'string' && allowed.has(envelope.type) ? envelope.type : 'other';
+		if (counts) {
+			const bucket = counts[type] ??= { frames: 0, bytes: 0 };
+			bucket.frames++;
+			bucket.bytes += bytes;
+		}
+		const epoch = envelope?.payload?.context_epoch;
+		return { type, epoch: typeof epoch === 'number' && Number.isSafeInteger(epoch) ? epoch : null,
+			hasChats: Array.isArray(envelope?.payload?.chats) };
 	};
+	const latestSyncTransport = () => transports.slice(lastLaunchTransportOffset).findLast(transport => transport.requestEpoch !== null);
 
 	const olderHeaderRequests: Record<string, number> = { sync_metadata_chats: 0, load_more_chats: 0 };
 	await preparePersonalDevtestWebOrigin(context);
@@ -66,30 +97,62 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			return;
 		}
 		const server = socket.connectToServer();
-		transports.push({ socket, server });
+		const transport: SyncTransport = {
+			socket, server, requestEpoch: null, wireCompleteEpoch: null, requestAt: null, wireCompleteAt: null,
+			phase2Received: false, phase1bReceived: false, phase1bApplied: false,
+		};
+		transports.push(transport);
 		socket.onMessage(data => {
-			if (typeof data === 'string') {
-				const type = frameKind(data);
-				if (type === 'sync_metadata_chats' || type === 'load_more_chats') olderHeaderRequests[type]++;
+			const { type, epoch } = inspectFrame(data, sent, idleTraffic?.outbound, OUTBOUND_KINDS);
+			if (type === 'sync_metadata_chats' || type === 'load_more_chats') olderHeaderRequests[type]++;
+			if (type === 'phased_sync_request') {
+				transport.requestEpoch = epoch;
+				transport.requestAt = Date.now();
+				transport.wireCompleteEpoch = null;
+				transport.wireCompleteAt = null;
+				transport.phase2Received = false;
+				transport.phase1bReceived = false;
+				transport.phase1bApplied = false;
 			}
 			server.send(data);
 		});
-		server.onMessage((data) => {
-			receivedFrames++;
-			const bytes = typeof data === 'string' ? Buffer.byteLength(data) : data.length;
-			receivedBytes += bytes;
-			if (idleTraffic) {
-				const type = frameKind(data);
-				const name = measuredKinds.has(type) ? type : 'other';
-				const bucket = idleTraffic[name] ??= { frames: 0, bytes: 0 };
-				bucket.frames++;
-				bucket.bytes += bytes;
+		server.onMessage(data => {
+			const { type, epoch, hasChats } = inspectFrame(data, received, idleTraffic?.inbound, INBOUND_KINDS);
+			if (transport.requestEpoch !== null && transport.requestEpoch === epoch) {
+				if (type === 'phased_sync_complete') {
+					transport.wireCompleteEpoch = epoch;
+					transport.wireCompleteAt = Date.now();
+				}
+				if (type === 'phase_2_last_20_chats_ready' && hasChats) transport.phase2Received = true;
+				if (type === 'phase_1b_chat_content_ready') transport.phase1bReceived = true;
 			}
 			socket.send(data);
 		});
 	});
+	page.on('console', (message: { text(): string }) => {
+		if (message.text() !== '[ChatSyncService:CoreSync] ✅ Phase 1b complete') return;
+		const transport = latestSyncTransport();
+		if (transport?.phase1bReceived) transport.phase1bApplied = true;
+	});
 	await page.addInitScript(() => {
 		const BaseSocket = window.WebSocket;
+		const applied = { phase2: false, completeEpoch: null as number | null, completeAt: null as number | null };
+		Object.defineProperty(window, '__devTestAppliedSync', { value: applied });
+		// These are the application's own EventTarget events after Phase 2 storage
+		// and the full completion handler. Observe only flags and the scope epoch.
+		const nativeDispatch = EventTarget.prototype.dispatchEvent;
+		EventTarget.prototype.dispatchEvent = function(event: Event): boolean {
+			const dispatched = nativeDispatch.call(this, event);
+			if (event.type === 'phase_2_last_20_chats_ready') applied.phase2 = true;
+			if (event.type === 'phasedSyncComplete' && event instanceof CustomEvent && event.detail?.synthetic !== true) {
+				const epoch = event.detail?.context_epoch;
+				if (typeof epoch === 'number' && Number.isSafeInteger(epoch)) {
+					applied.completeEpoch = epoch;
+					applied.completeAt = Date.now();
+				}
+			}
+			return dispatched;
+		};
 		const chatSockets: WebSocket[] = [];
 		(window as typeof window & { __devTestChatSockets?: WebSocket[] }).__devTestChatSockets = chatSockets;
 		window.WebSocket = class extends BaseSocket {
@@ -201,6 +264,8 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
 	};
 	for (let sample = 0; sample < 3; sample++) {
+		lastLaunchTransportOffset = transports.length;
+		lastLaunchStartedAt = Date.now();
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		if (new URL(page.url()).origin !== DEV_ORIGIN) throw new Error('Unexpected application origin');
 		if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
@@ -244,19 +309,25 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	// Capture idle work in the same known browser process tree. Store only
 	// resource totals and process aggregates in encrypted CI evidence.
 	const measureIdle = async (attachment: string) => {
-		const processMeter = await createBrowserProcessEvidence(page);
+		const processMeter = await createBrowserProcessEvidence(page, { collectRendererMetrics: true });
 		try {
 			const begin = await processMeter.begin();
-			const start = { frames: receivedFrames, bytes: receivedBytes };
-			idleTraffic = {};
+			const receivedAtStart = { ...received };
+			const sentAtStart = { ...sent };
+			const transportCountAtStart = transports.length;
+			idleTraffic = { inbound: {}, outbound: {} };
 			await new Promise(resolve => setTimeout(resolve, IDLE_OBSERVATION_MS));
 			const end = await processMeter.end();
 			await testInfo.attach(attachment, {
 				body: JSON.stringify({ observation_ms: IDLE_OBSERVATION_MS, begin, end,
 					older_header_requests_through_idle: olderHeaderRequests,
-					received_frame_kinds: idleTraffic,
-					received_websocket_frames: receivedFrames - start.frames,
-					received_websocket_bytes: receivedBytes - start.bytes }),
+					received_frame_kinds: idleTraffic.inbound,
+					received_websocket_frames: received.frames - receivedAtStart.frames,
+					received_websocket_bytes: received.bytes - receivedAtStart.bytes,
+					sent_frame_kinds: idleTraffic.outbound,
+					sent_websocket_frames: sent.frames - sentAtStart.frames,
+					sent_websocket_bytes: sent.bytes - sentAtStart.bytes,
+					new_connection_count: transports.length - transportCountAtStart }),
 				contentType: 'application/json',
 			});
 			expect(begin.available && end.available, 'Verified CPU collection').toBe(true);
@@ -266,6 +337,57 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		}
 	};
 	await measureIdle('personal-devtest-web-idle');
+
+	// The launch observation intentionally includes work after first paint.
+	// Measure a separate settled window only after this connection completed
+	// sync and the page confirmed application of its startup data.
+	const settledWaitStart = Date.now();
+	let readiness = {
+		requested: false, wire_complete: false, app_complete: false, phase2_applied: false,
+		phase1b_pending: false, selected_chat_ready: false,
+		navigation_to_sync_request_ms: null as number | null,
+		navigation_to_wire_complete_ms: null as number | null,
+		navigation_to_app_complete_ms: null as number | null,
+	};
+	const checkSettled = async () => {
+		const transport = latestSyncTransport();
+		const app = await page.evaluate(() => {
+			const applied = (window as Window & { __devTestAppliedSync?: { phase2: boolean; completeEpoch: number | null; completeAt: number | null } }).__devTestAppliedSync;
+			const selected = document.querySelector('[data-testid="active-chat-container"]');
+			return { ...applied, selectedReady: selected?.getAttribute('data-chat-load-state') === 'ready' &&
+				Number(selected.getAttribute('data-current-message-count')) > 0 };
+		});
+		const appComplete = transport?.requestEpoch != null && app.completeEpoch === transport.requestEpoch;
+		const msSinceLaunch = (at: number | null | undefined) =>
+			at != null && at >= lastLaunchStartedAt ? at - lastLaunchStartedAt : null;
+		readiness = {
+			requested: !!transport,
+			wire_complete: transport?.wireCompleteEpoch != null,
+			app_complete: appComplete,
+			phase2_applied: transport?.phase2Received === true && app.phase2 === true,
+			phase1b_pending: transport?.phase1bReceived === true && !transport.phase1bApplied,
+			selected_chat_ready: app.selectedReady,
+			navigation_to_sync_request_ms: msSinceLaunch(transport?.requestAt),
+			navigation_to_wire_complete_ms: msSinceLaunch(transport?.wireCompleteAt),
+			navigation_to_app_complete_ms: appComplete ? msSinceLaunch(app.completeAt) : null,
+		};
+		return readiness.wire_complete && readiness.app_complete && readiness.phase2_applied &&
+			!readiness.phase1b_pending && readiness.selected_chat_ready && await hasOpenTransport();
+	};
+	let settled = false;
+	try {
+		await expect.poll(checkSettled, { timeout: SETTLED_READINESS_TIMEOUT_MS }).toBe(true);
+		settled = true;
+	} catch {
+		// The launch measurement remains usable. Record which readiness stages
+		// timed out and continue to the independent offline/reconnect assertions.
+	} finally {
+		await testInfo.attach('personal-devtest-web-settled-readiness', {
+			body: JSON.stringify({ settled, readiness_wait_ms: Date.now() - settledWaitStart, ...readiness }),
+			contentType: 'application/json',
+		});
+	}
+	if (settled) await measureIdle('personal-devtest-web-settled-idle');
 	// Check the badge after capturing idle work on both old and updated builds.
 	await assertAccountCount();
 

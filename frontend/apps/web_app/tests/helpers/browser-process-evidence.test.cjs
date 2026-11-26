@@ -18,10 +18,15 @@ test('ownership ancestry is bounded and rejects loops and unrelated processes', 
   assert.equal(descendsFrom(30,10,(pid) => rows.get(pid)),false);
 });
 test('CPU differences use matching births; output has no process identifiers or raw data', () => {
-  const before = { startedMs: 10, finishedMs: 12, rows: [{ ...identity(20,10), cpuTime: 1 },{ ...identity(21,20), cpuTime: 2 }] };
-  const after = { startedMs: 30, finishedMs: 33, rows: [{ ...identity(20,10), cpuTime: 1.125 },{ ...identity(21,20,'43'), cpuTime: 9 }] };
+  const before = { startedMs: 10, finishedMs: 12, rows: [{ ...identity(20,10), cpuTime: 1, type: 'GPU' },{ ...identity(21,20), cpuTime: 2 }] };
+  const after = { startedMs: 30, finishedMs: 33, rows: [{ ...identity(20,10), cpuTime: 1.125, type: 'gpu' },{ ...identity(21,20,'43'), cpuTime: 9 }] };
   const output = sanitizeWindow(before,after);
   assert.equal(output.stableReportedProcessCpuMs,125); assert.equal(output.stableProcessCount,1);
+  assert.deepEqual(output.stableProcessCpuByType, { gpu: { processCount: 1, cpuMs: 125, invalidCpuPairs: 0 } });
+  after.rows[0].type = '__private_process_type__';
+  const unknown = sanitizeWindow(before, after);
+  assert.deepEqual(unknown.stableProcessCpuByType, { other: { processCount: 1, cpuMs: 125, invalidCpuPairs: 0 } });
+  assert.equal(JSON.stringify(unknown).includes('__private_process_type__'), false);
   assert.equal(output.newlyReportedOrReplacedProcessCount,1); assert.equal(output.noLongerReportedOrReplacedProcessCount,1);
   assert.equal(output.after.summedReportedProcessRssBytes,2048);
   assert.equal(Object.hasOwn(output,'rows'),false); assert.equal(JSON.stringify(output).includes('"pid"'),false);
@@ -30,7 +35,7 @@ test('CPU differences use matching births; output has no process identifiers or 
 });
 function harness({ unrelated = false, duplicate = false, multipleContexts = false } = {}) {
   const commands = [], rows = new Map([[10,identity(10,5)],[20,identity(20,unrelated ? 5 : 10)],[21,identity(21,20)]]);
-  let cpuTime = 1, failCdp = false, failProc = false;
+  let cpuTime = 1, failCdp = false, failProc = false, rendererTime = 1;
   const browserSession = { async send(command) {
     if (failCdp) throw new Error('synthetic_cdp_unavailable');
     commands.push(command);
@@ -38,11 +43,22 @@ function harness({ unrelated = false, duplicate = false, multipleContexts = fals
     if (duplicate) info.push(info[0]);
     return { processInfo: info };
   }, async detach() {} };
-  const pageSession = { async send(command,args) { commands.push([command,args]); }, async detach() {} };
+  const pageSession = {
+    async send(command,args) {
+      commands.push([command,args]);
+      if (command === 'Performance.getMetrics') return { metrics: [
+        { name: 'TaskDuration', value: rendererTime },
+        { name: 'ScriptDuration', value: rendererTime / 2 },
+        { name: 'LayoutCount', value: rendererTime * 4 },
+        { name: '__private_metric__', value: 42 },
+      ] };
+    },
+    async detach() {},
+  };
   const context = { browser: () => browser, pages: () => [page], newCDPSession: async () => pageSession };
   const browser = { contexts: () => multipleContexts ? [context,{}] : [context], newBrowserCDPSession: async () => browserSession };
-  const page = { context: () => context };
-  return { page, commands, options: { ownerPid:10, readIdentity: (pid) => { if (failProc) throw new Error('synthetic_proc_unavailable'); return rows.get(pid); } }, bump: () => { cpuTime += 0.1; }, failCdp: () => { failCdp = true; }, failProc: () => { failProc = true; } };
+  const page = { context: () => context, evaluate: async () => rendererTime * 4 };
+  return { page, commands, options: { ownerPid:10, readIdentity: (pid) => { if (failProc) throw new Error('synthetic_proc_unavailable'); return rows.get(pid); } }, bump: () => { cpuTime += 0.1; rendererTime += 0.25; }, failCdp: () => { failCdp = true; }, failProc: () => { failProc = true; } };
 }
 test('verified sole browser controls only HTTP cache and SW bypass, samples process CPU/RSS', async () => {
   const h = harness(), meter = await createBrowserProcessEvidence(h.page,h.options);
@@ -54,6 +70,24 @@ test('verified sole browser controls only HTTP cache and SW bypass, samples proc
   assert.equal(JSON.stringify(h.commands).includes('Cookie'),false);
   await meter.close();
 });
+test('renderer sample reports only allowlisted deltas and animation counts', async () => {
+  const h = harness();
+  const meter = await createBrowserProcessEvidence(h.page, { ...h.options, collectRendererMetrics: true });
+  try {
+    await meter.begin();
+    h.bump();
+    const result = await meter.end();
+    assert.deepEqual(result.renderer, {
+      available: true, running_animations_at_start: 4, running_animations_at_end: 5,
+      deltas: { task_ms: 250, script_ms: 125, layout_ms: null, layout_count: 1, style_ms: null, style_count: null },
+    });
+    assert.equal(JSON.stringify(result).includes('__private_metric__'), false);
+  } finally {
+    await meter.close();
+  }
+  assert.ok(h.commands.some(entry => Array.isArray(entry) && entry[0] === 'Performance.disable'));
+});
+
 test('unowned, ambiguous process lists or shared contexts never clear caches', async () => {
   for (const config of [{ unrelated:true },{ duplicate:true },{ multipleContexts:true }]) {
     const h = harness(config), meter = await createBrowserProcessEvidence(h.page,h.options);

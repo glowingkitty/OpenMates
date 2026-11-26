@@ -26,6 +26,13 @@ else:
 
 API_ORIGIN = "https://api.dev.openmates.org"
 MAX_FRAME_BYTES = 4 * 1024 * 1024
+FRAME_END = b"\x1b[?2026l"
+COMPOSER_PANEL = re.compile(
+    r"╭ (?:Message · Enter send · Alt\+Enter newline"
+    r"|Cached chat · (?:offline|refreshing) · draft preserved) ─+╮"
+)
+AUTH_FORM = re.compile(r"^\s*╭ (Sign in to OpenMates|Unlock local vault) ─+╮")
+AUTH_COMPOSER = {"Ask anything, or /help", "Ask a follow-up, use @file, or type /help"}
 
 
 def credentials():
@@ -49,6 +56,12 @@ def totp(key):
     return f"{(int.from_bytes(digest[offset:offset + 4], 'big') & 0x7fffffff) % 1000000:06d}"
 
 
+class TerminalWaitError(RuntimeError):
+    def __init__(self, outcome, message):
+        super().__init__(message)
+        self.outcome = outcome
+
+
 class Terminal:
     def __init__(self, process, master):
         self.process = process
@@ -64,6 +77,9 @@ class Terminal:
 
     def wait(self, label, accept, seconds=45):
         deadline = time.monotonic() + seconds
+        if self.rows and self.process.poll() is None and accept(self.rows):
+            return time.monotonic()
+        pty_closed = False
         while time.monotonic() < deadline and self.process.poll() is None:
             if not select.select([self.master], [], [], 0.1)[0]:
                 continue
@@ -72,11 +88,15 @@ class Terminal:
             except OSError as exc:
                 if exc.errno != errno.EIO:
                     raise
+                incoming = b""
+            if not incoming:
+                pty_closed = True
                 break
+            boundary = max(0, len(self.output) - len(FRAME_END) + 1)
             self.output.extend(incoming)
             if len(self.output) > MAX_FRAME_BYTES:
                 raise RuntimeError("Native terminal output exceeded the benchmark limit")
-            if b"\x1b[?2026l" not in incoming and not self.output.endswith(b"\x1b[?2026l"):
+            if self.output.find(FRAME_END, boundary) < 0:
                 continue
             try:
                 rows, _, _ = _latest_screen(self.output.decode(errors="replace"))
@@ -86,11 +106,39 @@ class Terminal:
             if accept(rows):
                 return time.monotonic()
         sidebar_visible, chat_cells = recent_chat_cells(self.rows)
-        raise RuntimeError(
-            f"Native terminal did not reach {label} "
+        outcome = "timeout"
+        if self.process.poll() is not None:
+            outcome = "process_exited"
+        elif pty_closed:
+            outcome = "pty_closed"
+        raise TerminalWaitError(
+            outcome, f"Native terminal did not reach {label} "
             f"(sidebar_visible={sidebar_visible}, visible_chat_rows={len(chat_cells)}, "
-            f"status={terminal_status(self.rows)})"
+            f"auth={terminal_auth_state(self.rows)}, status={terminal_status(self.rows)})"
         )
+
+    def quit(self):
+        """Use the native quit command and drain output until the process exits."""
+        if self.process.poll() is not None:
+            raise RuntimeError("Native terminal exited before clean quit")
+        self.send("\x11")  # Ctrl+Q is unconditional, including during a read.
+        deadline = time.monotonic() + 8
+        while self.process.poll() is None and time.monotonic() < deadline:
+            if not select.select([self.master], [], [], 0.1)[0]:
+                continue
+            try:
+                if not os.read(self.master, 65536):
+                    break
+            except OSError as exc:
+                if exc.errno != errno.EIO:
+                    raise
+                break
+        try:
+            exit_code = self.process.wait(timeout=max(0, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Native terminal did not finish clean quit") from None
+        if exit_code != 0:
+            raise RuntimeError(f"Native terminal clean quit failed (exit_code={exit_code})")
 
 
 @contextmanager
@@ -126,6 +174,12 @@ def terminal_status(rows):
     status = rows[-1].strip().lower() if rows else ""
     for prefix, label in (
         ("signed in", "signed_in"),
+        ("signed out", "signed_out"),
+        ("submitting", "submitting"),
+        ("sign-in failed", "authentication_failed"),
+        ("unlock the existing credential store", "vault_locked"),
+        ("enter your two-factor authentication code", "two_factor_required"),
+        ("verify this device or sign in again", "verification_required"),
         ("opening saved chat", "opening"),
         ("this saved chat has no messages", "empty_chat"),
         ("chat refreshed", "chat_refreshed"),
@@ -145,6 +199,74 @@ def terminal_status(rows):
         if status.startswith(prefix):
             return label
     return "other"
+
+
+def terminal_auth_state(rows):
+    for row in rows:
+        if match := AUTH_FORM.match(row):
+            return "vault_prompt" if match[1] == "Unlock local vault" else "login_prompt"
+
+    # Only the authenticated Chats composer renders either placeholder.
+    # The greeting, cached sidebar and sticky footer can all precede admission.
+    for index in range(max(0, len(rows) - 11), len(rows) - 2):
+        if COMPOSER_PANEL.search(rows[index]):
+            cells = rows[index + 1].rsplit("│", 2)
+            if len(cells) == 3 and cells[1].strip() in AUTH_COMPOSER:
+                return "authenticated"
+    return "unconfirmed"
+
+
+class AuthEvidence:
+    """Track launch stages without serializing terminal text or credentials."""
+
+    def __init__(self, samples, attempt):
+        self.started = time.monotonic()
+        self.sample = {
+            "attempt": attempt,
+            "mode": "login" if attempt == 0 else "vault_relaunch",
+            "stage": "launch",
+            "milestones_ms": {},
+            "screen_transitions": [],
+            "result": "failed",
+        }
+        samples.append(self.sample)
+
+    def observe(self, rows):
+        state, status = terminal_auth_state(rows), terminal_status(rows)
+        transitions = self.sample["screen_transitions"]
+        if len(transitions) < 20 and (
+            not transitions or (transitions[-1]["state"], transitions[-1]["status"]) != (state, status)
+        ):
+            transitions.append({
+                "state": state, "status": status,
+                "at_ms": self.elapsed(),
+            })
+        self.sample["last_state"] = state
+        self.sample["last_status"] = status
+
+    def elapsed(self):
+        return round((time.monotonic() - self.started) * 1000)
+
+    def wait(self, terminal, stage, accept):
+        self.sample["stage"] = stage
+
+        def observe(rows):
+            self.observe(rows)
+            return accept(rows)
+
+        try:
+            reached = terminal.wait(stage, observe)
+        except TerminalWaitError as error:
+            self.sample["wait_outcome"] = error.outcome
+            raise
+        self.sample["milestones_ms"][stage] = round((reached - self.started) * 1000)
+        return reached
+
+    def quit(self, terminal):
+        self.sample["stage"] = "clean_exit"
+        terminal.quit()
+        self.sample["milestones_ms"]["clean_exit"] = self.elapsed()
+        self.sample["result"] = "passed"
 
 
 def recent_chat_cells(rows):
@@ -188,12 +310,21 @@ def readable_chat(rows):
 
 
 class OpenEvidence:
-    """Capture first-paint milestones without retaining any account text."""
+    """Capture first-paint milestones without exporting any account text."""
 
-    def __init__(self, samples, candidate_index):
+    def __init__(self, samples, candidate_index, rows=()):
         self.started = time.monotonic()
+        self.preexisting_header = self.header_text(rows)
         self.sample = {"candidate_index": candidate_index, "status_transitions": []}
         samples.append(self.sample)
+
+    @staticmethod
+    def header_text(rows):
+        header = transcript_header(rows)
+        if header is None:
+            return None
+        index, column = header
+        return rows[index][column:].rstrip()
 
     def observe(self, rows):
         elapsed = round((time.monotonic() - self.started) * 1000)
@@ -203,13 +334,18 @@ class OpenEvidence:
             transitions.append({"status": status, "at_ms": elapsed})
         if status == "opening":
             self.sample.setdefault("selection_received_ms", elapsed)
-        if transcript_header(rows) is not None:
-            self.sample.setdefault("chat_header_ms", elapsed)
+        header = self.header_text(rows)
+        if header is None:
+            self.preexisting_header = None
+            return False
+        if header == self.preexisting_header:
+            return False
+        self.sample.setdefault("chat_header_ms", elapsed)
         if readable_chat(rows):
             self.sample["first_readable_message_ms"] = elapsed
             self.sample["result"] = "readable"
             return True
-        if status == "empty_chat" and transcript_header(rows) is not None:
+        if status == "empty_chat":
             self.sample["result"] = "empty_chat"
             return True
         return False
@@ -220,39 +356,50 @@ class OpenEvidence:
         self.sample["visible_chat_rows"] = len(recent_chat_cells(terminal.rows)[1])
 
 
+def enter_authenticated(terminal, evidence, form, input_text):
+    evidence.wait(terminal, form, lambda rows: terminal_auth_state(rows) == form)
+    evidence.sample["stage"] = "submit_credentials"
+    started = time.monotonic()
+    terminal.send(input_text())
+    evidence.sample["milestones_ms"]["submit_credentials"] = evidence.elapsed()
+    evidence.wait(terminal, "authenticated", lambda rows: terminal_auth_state(rows) == "authenticated")
+    evidence.sample["stage"] = "recent_rows"
+    if not recent_chat_cells(terminal.rows)[0]:
+        terminal.send("\x02")
+    shown = evidence.wait(terminal, "recent_rows", recent)
+    return round((shown - started) * 1000)
+
+
 def measure(binary, private_output):
-    email, password, key = credentials()
     metrics = {
+        "auth_attempts": [],
         "vault_unlock_to_recent_rows_ms": [],
         "select_to_visible_message_ms": [],
         "open_samples": [],
     }
     try:
+        email, password, key = credentials()
         with tempfile.TemporaryDirectory(prefix="native-state-", dir=private_output) as state:
+            evidence = AuthEvidence(metrics["auth_attempts"], 0)
             with open_tui(binary, Path(state)) as terminal:
-                terminal.wait("sign-in form", lambda rows: any("Sign in to OpenMates" in row for row in rows))
-                terminal.send(email + "\t" + password + "\t" + totp(key) + "\t\r")
-                terminal.wait("authenticated session", lambda rows: any("Signed in" in row for row in rows))
-                terminal.send("\x02")
-                terminal.wait("recent chats", recent)
+                enter_authenticated(terminal, evidence, "login_prompt",
+                                    lambda: email + "\t" + password + "\t" + totp(key) + "\t\r")
+                evidence.quit(terminal)
 
             candidate_index = 0
-            for _ in range(3):
+            for attempt in range(1, 4):
+                auth = AuthEvidence(metrics["auth_attempts"], attempt)
                 with open_tui(binary, Path(state)) as terminal:
-                    terminal.wait("vault unlock", lambda rows: any("Unlock local vault" in row for row in rows))
-                    start = time.monotonic()
-                    terminal.send(password + "\t\r")
-                    terminal.wait("restored session", lambda rows: any("Signed in" in row for row in rows))
-                    terminal.send("\x02")
-                    shown = terminal.wait("restored recent chats", recent)
-                    metrics["vault_unlock_to_recent_rows_ms"].append(round((shown - start) * 1000))
+                    elapsed = enter_authenticated(terminal, auth, "vault_prompt", lambda: password + "\t\r")
+                    metrics["vault_unlock_to_recent_rows_ms"].append(elapsed)
 
+                    auth.sample["stage"] = "open_chat"
                     while True:
                         _, visible_cells = recent_chat_cells(terminal.rows)
                         if candidate_index >= len(visible_cells):
                             raise RuntimeError("Ran out of visible saved conversations for three timing samples")
                         selection = visible_cells[candidate_index]
-                        evidence = OpenEvidence(metrics["open_samples"], candidate_index)
+                        evidence = OpenEvidence(metrics["open_samples"], candidate_index, terminal.rows)
                         candidate_index += 1
                         terminal.click(*selection)
                         try:
@@ -262,6 +409,7 @@ def measure(binary, private_output):
                         if evidence.sample["result"] == "readable":
                             metrics["select_to_visible_message_ms"].append(evidence.sample["first_readable_message_ms"])
                             break
+                    auth.quit(terminal)
     finally:
         (private_output / "terminal-timings.json").write_text(json.dumps(metrics) + "\n")
 
