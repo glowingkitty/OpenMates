@@ -1900,6 +1900,35 @@ async def test_phase2_skips_current_chats_from_directus_versions_when_redis_is_c
     assert payload["total_chat_count"] == 3
 
 
+# contract-test: supporting surface=gui.web assertions=sync.startup.recent-metadata-cap,sync.deletion.partial-window-not-authoritative
+@pytest.mark.anyio
+async def test_phase2_client_only_durable_deletion_preserves_authoritative_total(monkeypatch) -> None:
+    client_only_id = "172419a1-35dc-4d58-a0e7-806231ebe338"
+    counted_id = "c2175bf9-dd93-471a-93ac-ab9aeaf0481a"
+    feed = SimpleNamespace(recent_modified=AsyncMock(return_value=(
+        [{"id": counted_id, "encrypted_title": "opaque-title"}], 125,
+    )))
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    lookup = AsyncMock(return_value={client_only_id})
+    monkeypatch.setattr(phased_sync_handler, "_get_tombstoned_chat_ids", AsyncMock(return_value=set()))
+    monkeypatch.setattr(phased_sync_handler, "_lookup_durable_deleted_chat_ids", lookup)
+    monkeypatch.setattr(phased_sync_handler, "_apply_phase2_authoritative_drafts", AsyncMock())
+    monkeypatch.setattr(phased_sync_handler, "stale_draft_probe_fields", AsyncMock(return_value={}))
+
+    await phased_sync_handler._handle_phase2_sync(
+        manager=manager, cache_service=SimpleNamespace(), directus_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1", client_chat_versions={},
+        client_chat_ids=[client_only_id], sent_embed_ids=set(), startup_feed=feed,
+    )
+
+    payload = manager.send_personal_message.await_args.args[0]["payload"]
+    assert payload["total_chat_count"] == 125
+    assert payload["explicit_deleted_chat_ids"] == [client_only_id]
+    assert payload["authoritative"] is False
+    assert [row["chat_details"]["id"] for row in payload["chats"]] == [counted_id]
+    assert lookup.await_args.args[2] == [client_only_id, counted_id]
+
+
 # ─── Phase 1b bounded concurrent per-chat reads ───────────────────────────────
 
 

@@ -1851,19 +1851,24 @@ async def _handle_phase2_sync(
             ],
         )
         if durable_fenced_chat_ids:
-            all_recent_chats = [
-                wrapper for wrapper in all_recent_chats
-                if str(wrapper.get("chat_details", {}).get("id")) not in durable_fenced_chat_ids
-            ]
-            tombstoned_chat_ids.update(durable_fenced_chat_ids)
-        all_tombstoned_chat_ids = tombstoned_chat_ids | client_tombstoned_chat_ids
+            remaining_recent_chats = []
+            for wrapper in all_recent_chats:
+                chat_id = str(wrapper.get("chat_details", {}).get("id"))
+                if chat_id in durable_fenced_chat_ids:
+                    tombstoned_chat_ids.add(chat_id)
+                else:
+                    remaining_recent_chats.append(wrapper)
+            all_recent_chats = remaining_recent_chats
+        # A durable fence for a client-only chat is deletion evidence. The
+        # authoritative server count already omits it.
+        all_tombstoned_chat_ids = tombstoned_chat_ids | client_tombstoned_chat_ids | durable_fenced_chat_ids
         if tombstoned_chat_ids:
             total_chat_count = max(0, total_chat_count - len(tombstoned_chat_ids))
             logger.info(
                 "Phase 2: Suppressed %d tombstoned chats from stale Directus metadata",
                 len(tombstoned_chat_ids),
             )
-        explicit_client_tombstones = client_tombstoned_chat_ids - tombstoned_chat_ids
+        explicit_client_tombstones = all_tombstoned_chat_ids - tombstoned_chat_ids
         if explicit_client_tombstones:
             logger.info(
                 "Phase 2: Emitting %d explicit client tombstone deletions",

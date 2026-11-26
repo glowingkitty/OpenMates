@@ -170,7 +170,10 @@ from backend.core.api.app.routes.handlers.websocket_handlers.notification_read_r
 from .handlers.websocket_handlers.email_notification_settings_handler import (
     handle_email_notification_settings, handle_email_notification_settings_get,
 )
-from backend.core.api.app.services.chat_sync_feed_service import socket_uses_opened_startup
+from backend.core.api.app.services.chat_sync_feed_service import (
+    STARTUP_OPENED_CAPABILITY,
+    socket_uses_opened_startup,
+)
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
 from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync_metadata_chats # Handler for syncing metadata-only chats 101–1000
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
@@ -214,8 +217,13 @@ logger = logging.getLogger(__name__)
 _workflow_metadata_warmup_tasks: set[asyncio.Task] = set()
 
 
-async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager,
-                                            inventory_request_id: str | None = None) -> bool:
+async def _send_initial_server_capabilities(
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    inventory_request_id: str | None = None,
+    *,
+    supports_opened_startup: bool = False,
+) -> bool:
     """Send the startup frame, releasing registration if startup cannot continue."""
     sent = False
     reason = "Initial capability send failed"
@@ -226,6 +234,8 @@ async def _send_initial_server_capabilities(websocket: WebSocket, manager: Conne
             "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1", "personal_send_context_snapshot_v2",
             "personal_project_routing_directory_v1",
         ]}
+        if supports_opened_startup and socket_uses_opened_startup(websocket, None):
+            payload["capabilities"].append(STARTUP_OPENED_CAPABILITY)
         if inventory_request_id is not None:
             payload["inventory_request_id"] = inventory_request_id
         await websocket.send_json({"type": "server_capabilities", "payload": payload})
@@ -3564,7 +3574,12 @@ async def websocket_endpoint(
     recovery_inventory_manager = _bound_recovery_inventory_manager(
         manager, user_id, device_fingerprint_hash, inventory_request_id, websocket,
     )
-    if not await _send_initial_server_capabilities(websocket, manager, inventory_request_id):
+    if not await _send_initial_server_capabilities(
+        websocket,
+        manager,
+        inventory_request_id,
+        supports_opened_startup=getattr(websocket.app.state, "chat_sync_feed", None) is not None,
+    ):
         return
 
     # A live socket must close at its absolute session deadline even if idle.
