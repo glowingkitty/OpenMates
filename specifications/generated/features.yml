@@ -39,10 +39,10 @@ summary:
     tui:
       live: 2
       failing: 13
-      not_run: 1
+      not_run: 3
       implemented: 57
-      in_progress: 10
-      not_planned: 49
+      in_progress: 9
+      not_planned: 48
     rest_api:
       live: 5
       tested: 2
@@ -2568,18 +2568,19 @@ features:
       - frontend/packages/openmates-cli/tests/client.test.ts
       unit_test_files: 1
     tui:
-      status: in_progress
-      source: intent
+      status: not_run
+      source: tests
       intent: in_progress
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
+        not_run: 1
         missing: 0
-        counted: 0
+        counted: 1
       key_tests: []
       evidence: frontend/packages/openmates-tui-native/src/ui.rs cancel/queued delivery fences; /stop, /pending, /retry
-      e2e_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/real-inference-tui-artifact-steering.spec.ts
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
@@ -25117,17 +25118,20 @@ features:
       - backend/tests/test_import_live_mock_cache.py
       unit_test_files: 5
     tui:
-      status: not_planned
-      source: intent
+      status: not_run
+      source: tests
       intent: not_planned
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
+        not_run: 1
         missing: 0
-        counted: 0
+        counted: 1
+      conflict: marked not_planned, but tests on tui exist
       key_tests: []
-      e2e_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/real-inference-tui-artifact-steering.spec.ts
+      - frontend/apps/web_app/tests/real-inference-tui-chat-processing.spec.ts
       key_unit_tests: []
       unit_test_files: 0
     rest_api:

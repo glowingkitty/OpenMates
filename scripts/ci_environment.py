@@ -269,10 +269,72 @@ REAL_INFERENCE_PROVIDERS = {
     # Jev decides routing and the fail-closed answer-safety check of every reply.
     "typesafe": ("api_key", "OPENMATES_REAL_TYPESAFE_API_KEY"),
 }
+CODEX_REAL_INFERENCE_SPECS = frozenset({
+    "real-inference-tui-chat-processing.spec.ts",
+    "real-inference-tui-artifact-steering.spec.ts",
+})
+CODEX_REAL_INFERENCE_PROVIDERS = {
+    "inception_labs": ("api_key", "OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY"),
+    "typesafe": ("api_key", "OPENMATES_CODEX_REAL_TYPESAFE_API_KEY"),
+}
 REAL_INFERENCE_SPEC_PREFIX = "real-inference-"
 REAL_INFERENCE_AI_QUEUES = "app_ai,app_ai_routing"
 REAL_INFERENCE_IMAGE_QUEUES = "app_images"
 STACK_START_RETRY_DELAYS = (5, 15)
+
+
+def selects_codex_real_inference(selected: list[str], real_specs: set[str], environ) -> bool:
+    """Admit exactly one reviewed terminal spec in its dedicated workflow lane."""
+    enabled = environ.get("CI_CODEX_REAL_INFERENCE") == "1"
+    if not enabled and not CODEX_REAL_INFERENCE_SPECS.intersection(selected):
+        return False
+    if (
+        not enabled or environ.get("CI_TEST_MODE") != "e2e"
+        or len(selected) != 1 or selected[0] not in CODEX_REAL_INFERENCE_SPECS
+        or selected[0] not in real_specs
+    ):
+        raise RuntimeError("Codex real inference requires one exact trusted terminal spec")
+    return True
+
+
+def validate_real_inference_start(profile: dict, environ, real_specs: set[str]) -> None:
+    """Fail before Compose can load credentials for a missing or mismatched lane."""
+    selected = json.loads(environ.get("CI_SPECS_JSON", "[]"))
+    codex = selects_codex_real_inference(selected, real_specs, environ)
+    services = profile["services"]
+    proxy = services.get("runner-gateway", {}).get("environment", {})
+    vault = services.get("vault-init", {}).get("environment", {})
+    real = services["api"]["environment"].get("OPENMATES_CI_REAL_INFERENCE") == "1"
+    if codex:
+        expected_map = {
+            provider: list(binding)
+            for provider, binding in CODEX_REAL_INFERENCE_PROVIDERS.items()
+        }
+        inherited_names = {name for _field, name in REAL_INFERENCE_PROVIDERS.values()}
+        if (
+            not real or profile.get("name") != "openmates-ci"
+            or proxy.get("OPENMATES_CI_REAL_INFERENCE_PROXY") != "codex"
+            or proxy.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1"
+            or profile["networks"]["default"]["internal"] is not True
+            or any(service.get("network_mode") or set(service.get("networks", ["default"])) != {"default"}
+                   for name, service in services.items() if name != "runner-gateway")
+            or vault.get("CI_REAL_INFERENCE") != "1"
+            or json.loads(vault.get("CI_REAL_INFERENCE_PROVIDERS", "{}")) != expected_map
+            or any(name in vault for name in inherited_names)
+            or any(name not in vault or vault[name] is not None
+                   for _field, name in CODEX_REAL_INFERENCE_PROVIDERS.values())
+        ):
+            raise RuntimeError("Codex real inference requires the dedicated isolated provider profile")
+    elif proxy.get("OPENMATES_CI_REAL_INFERENCE_PROXY") == "codex":
+        raise RuntimeError("Codex real inference profile cannot run outside its exact lane")
+
+    if real:
+        providers = CODEX_REAL_INFERENCE_PROVIDERS if codex else REAL_INFERENCE_PROVIDERS
+        missing = [name for _field, name in providers.values() if not environ.get(name, "").strip()]
+        if missing:
+            protected = "codex-real-inference" if codex else "real-inference"
+            raise RuntimeError(f"Real-inference keys absent (protected {protected} environment): " + ", ".join(missing))
+
 TRANSIENT_REGISTRY_FAILURE = re.compile(
     r"connection reset by peer|tls handshake timeout|i/o timeout|"
     r"timeout awaiting response headers|unexpected eof|temporary failure|"
@@ -379,7 +441,9 @@ try:
     stage='namespace'
     keys=response.json().get('data',{}).get('keys',[])
     assert isinstance(keys,list) and all(isinstance(key,str) for key in keys), 'Invalid provider namespace'
-    expected=['core_server','hetzner','vapid']
+    expected=['core_server']
+    if os.environ.get('CI_STORAGE_ACCESS_KEY'):
+        expected.extend(['hetzner','vapid'])
     if os.environ.get('CI_REAL_INFERENCE') == '1':
         expected=sorted(expected+list(json.loads(os.environ['CI_REAL_INFERENCE_PROVIDERS'])))
     missing=len(set(expected)-set(keys)); unexpected=sum(key not in expected for key in keys)
@@ -1013,8 +1077,11 @@ def compose_profile(
     web_read_fixture: bool = False,
     rust_owned_send_gate: bool = False,
     real_inference: bool = False,
+    codex_real_inference: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    if codex_real_inference and not real_inference:
+        raise ValueError("Codex real inference requires an isolated real-inference profile")
     # Real inference may run the internal Workflow runtime (no outside egress),
     # never the credential-free weather workflows, whose egress is open.
     if real_inference and (
@@ -1657,29 +1724,32 @@ def compose_profile(
         ]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
-        # Image skills (images.generate draws SVGs with the Gemini vector author)
-        # run on their own queue. The AI worker waits for same-turn skill results
-        # on its single slot, so it cannot consume app_images itself.
-        images_worker = deepcopy(ai_worker)
-        images_worker["environment"]["CELERY_QUEUES"] = REAL_INFERENCE_IMAGE_QUEUES
-        images_worker["command"] = [
-            part.replace(
-                f"--queues={REAL_INFERENCE_AI_QUEUES}",
-                f"--queues={REAL_INFERENCE_IMAGE_QUEUES}",
-            )
-            for part in ai_worker["command"]
-        ]
-        services["images-worker"] = images_worker
-        services["runner-gateway"]["environment"][
-            "OPENMATES_CI_REAL_INFERENCE_PROXY"
-        ] = "1"
-        for service in (api, worker, ai_worker, images_worker):
+        provider_services = [api, worker, ai_worker]
+        if not codex_real_inference:
+            # Image skills run on a separate queue so the AI worker can wait
+            # for their same-turn outcome. Terminal text tests do not use it.
+            images_worker = deepcopy(ai_worker)
+            images_worker["environment"]["CELERY_QUEUES"] = REAL_INFERENCE_IMAGE_QUEUES
+            images_worker["command"] = [
+                part.replace(
+                    f"--queues={REAL_INFERENCE_AI_QUEUES}",
+                    f"--queues={REAL_INFERENCE_IMAGE_QUEUES}",
+                )
+                for part in ai_worker["command"]
+            ]
+            services["images-worker"] = images_worker
+            provider_services.append(images_worker)
+        services["runner-gateway"]["environment"]["OPENMATES_CI_REAL_INFERENCE_PROXY"] = (
+            "codex" if codex_real_inference else "1"
+        )
+        for service in provider_services:
             service["environment"]["HTTPS_PROXY"] = "http://runner-gateway:3128"
             service["environment"]["OPENMATES_CI_REAL_INFERENCE"] = "1"
+        providers = CODEX_REAL_INFERENCE_PROVIDERS if codex_real_inference else REAL_INFERENCE_PROVIDERS
         vault_init = services["vault-init"]["environment"]
         vault_init["CI_REAL_INFERENCE"] = "1"
-        vault_init["CI_REAL_INFERENCE_PROVIDERS"] = json.dumps(REAL_INFERENCE_PROVIDERS)
-        for _field, name in REAL_INFERENCE_PROVIDERS.values():
+        vault_init["CI_REAL_INFERENCE_PROVIDERS"] = json.dumps(providers)
+        for _field, name in providers.values():
             # None: compose takes the value from the start step's environment,
             # so the key never lands in the profile file or its artifacts.
             vault_init[name] = None
@@ -2019,7 +2089,7 @@ def redact_real_inference_logs(output: str, profile: dict, environ) -> str:
     collection runs without them, so real-inference runs also drop outgoing
     request lines and key-shaped tokens and query parameters.
     """
-    for _field, name in REAL_INFERENCE_PROVIDERS.values():
+    for _field, name in (*REAL_INFERENCE_PROVIDERS.values(), *CODEX_REAL_INFERENCE_PROVIDERS.values()):
         value = environ.get(name, "")
         if len(value) > 8:
             output = output.replace(value, "<REDACTED>")
@@ -2070,6 +2140,19 @@ def validate_ai_worker_queues(
             "Voice camera fixture worker lacks required AI and video queues"
         )
     return sorted(actual)
+
+
+def verify_codex_provider_egress() -> None:
+    """Confirm the running narrow gateway rejects broader provider authorities."""
+    compose(
+        "exec", "-T", "api", "python", "-c",
+        "import socket\n"
+        "for host in ('generativelanguage.googleapis.com', 'api.mistral.ai', 'api.search.brave.com', 'api.openai.com'):\n"
+        "    with socket.create_connection(('runner-gateway', 3128), timeout=3) as conn:\n"
+        "        conn.sendall(f'CONNECT {host}:443 HTTP/1.1\\r\\n\\r\\n'.encode())\n"
+        "        assert b'403 Forbidden' in conn.recv(256), 'Unexpected provider authority'\n",
+        capture=True, timeout=15,
+    )
 
 
 def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]:
@@ -2241,6 +2324,7 @@ def main():
         needs_public_provider = bool(public_specs.intersection(selected))
         # Trusted harness list only: a candidate cannot add itself to the keyed group.
         real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        codex_real_inference = selects_codex_real_inference(selected, real_specs, os.environ)
         needs_real_inference = bool(real_specs.intersection(selected))
         if needs_real_inference and not (
             set(selected).issubset(real_specs)
@@ -2289,6 +2373,7 @@ def main():
             uploads=needs_uploads,
             public_provider=needs_public_provider,
             real_inference=needs_real_inference,
+            codex_real_inference=codex_real_inference,
             workflows=needs_workflows,
             workflow_runtime=needs_workflow_core,
             account_emails=account_emails,
@@ -2363,14 +2448,9 @@ def main():
         )
     elif action == "start":
         profile = json.loads(COMPOSE_PATH.read_text())
-        if profile["services"]["api"]["environment"].get("OPENMATES_CI_REAL_INFERENCE") == "1":
-            missing = [name for _field, name in REAL_INFERENCE_PROVIDERS.values()
-                       if not os.environ.get(name, "").strip()]
-            if missing:
-                raise RuntimeError(
-                    "Real-inference keys absent (protected real-inference environment): "
-                    + ", ".join(missing)
-                )
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        validate_real_inference_start(profile, os.environ, real_specs)
         # Compose's wait limit may not bound one-shot dependency startup.
         start_with_evidence()
     elif action == "verify":
@@ -2519,7 +2599,14 @@ def main():
                 # Names only: which dev-only keys this run's Vault holds and the
                 # only hosts its gateway lets through.
                 evidence["provider_egress"] = "real-inference-allowlist"
-                evidence["real_inference_providers"] = sorted(REAL_INFERENCE_PROVIDERS)
+                gateway = profile["services"]["runner-gateway"]["environment"]
+                codex = gateway.get("OPENMATES_CI_REAL_INFERENCE_PROXY") == "codex"
+                providers = CODEX_REAL_INFERENCE_PROVIDERS if codex else REAL_INFERENCE_PROVIDERS
+                evidence["real_inference_providers"] = sorted(providers)
+                if codex:
+                    verify_isolated_vault_provider_namespace()
+                    verify_codex_provider_egress()
+                    evidence["real_inference_profile"] = "codex-real-inference"
         if (
             profile["services"]["api"]["environment"].get(
                 "OPENMATES_STORAGE_CAPACITY_FIXTURES"

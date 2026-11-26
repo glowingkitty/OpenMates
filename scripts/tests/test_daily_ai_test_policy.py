@@ -121,6 +121,18 @@ def test_daily_plan_omits_absent_canaries_and_rejects_scheduled_record_mode():
         policy.daily_plan([], date(2026, 8, 30), scheduled=True, record_mode=True, manifest=manifest)
 
 
+def test_daily_plan_refuses_explicit_real_inference_spec():
+    policy = load_module("daily_ai_policy_manual_only", POLICY_PATH)
+    manual = "real-inference-tui-chat-processing.spec.ts"
+    manifest = {"daily_canaries": {"fixed": ["fixed.spec.ts"], "rotating": [manual]}}
+
+    with pytest.raises(ValueError, match="Explicit real-inference specs cannot be daily canaries"):
+        policy.daily_plan(
+            ["fixed.spec.ts", manual], date(2026, 8, 30),
+            scheduled=True, record_mode=False, manifest=manifest,
+        )
+
+
 # contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.validation.conditional-real-gate
 def test_runner_daily_discovery_uses_policy_and_rejects_record_mode(monkeypatch, tmp_path):
     run_tests = load_module("daily_ai_runner", RUN_TESTS_PATH)
@@ -129,6 +141,7 @@ def test_runner_daily_discovery_uses_policy_and_rejects_record_mode(monkeypatch,
     for name in (
         "ordinary-non-ai.spec.ts",
         "deep-research-real-inference.spec.ts",
+        "real-inference-tui-chat-processing.spec.ts",
         "daily-ai-fixed-canary.spec.ts",
         "daily-ai-rotating-canary.spec.ts",
     ):
@@ -148,6 +161,12 @@ def test_runner_daily_discovery_uses_policy_and_rejects_record_mode(monkeypatch,
         "daily-ai-fixed-canary.spec.ts",
         "daily-ai-rotating-canary.spec.ts",
     ]
+    monkeypatch.setattr(run_tests.ResultAggregator, "load_failed_specs", lambda: [
+        "real-inference-tui-chat-processing.spec.ts", "ordinary-non-ai.spec.ts",
+    ])
+    orchestrator.only_failed = True
+    assert orchestrator._discover_specs() == ["ordinary-non-ai.spec.ts"]
+    orchestrator.only_failed = False
     orchestrator.record_live_fixtures = True
     with pytest.raises(ValueError, match="Scheduled daily AI runs cannot use record mode"):
         orchestrator._discover_specs()

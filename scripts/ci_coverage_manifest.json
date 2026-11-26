@@ -1393,6 +1393,8 @@
       "specs": [
         "real-inference-chat-notice-headline.spec.ts",
         "real-inference-cli-workflows-ai-chat.spec.ts",
+        "real-inference-tui-artifact-steering.spec.ts",
+        "real-inference-tui-chat-processing.spec.ts",
         "real-inference-design-editor.spec.ts",
         "real-inference-dictation-gate.spec.ts",
         "real-inference-focus-mode-video.spec.ts",

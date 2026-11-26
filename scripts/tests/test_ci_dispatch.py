@@ -301,6 +301,22 @@ def test_cold_daily_discovers_actual_inventory_without_legacy_accounts(monkeypat
     assert "daily-ai-rotating-canary.spec.ts" in held
 
 
+def test_paid_real_inference_is_discovered_only_by_explicit_dispatch():
+    from pathlib import Path
+    from scripts import ci_dispatch
+
+    root = Path(ci_dispatch.__file__).resolve().parents[1]
+    manual = "real-inference-gemini-chat.spec.ts"
+    for daily in (False, True):
+        selection = ci_dispatch.select_snapshot_specs(
+            root, SimpleNamespace(spec=[], daily=daily), held={}
+        )
+        assert not any(Path(spec).name.startswith("real-inference-") for spec in selection)
+    assert ci_dispatch.select_snapshot_specs(
+        root, SimpleNamespace(spec=[manual], daily=False)
+    ) == [manual]
+
+
 def test_daily_unclassified_ai_spec_is_held_and_the_run_still_queues(tmp_path, monkeypatch):
     import json
     from scripts import ci_dispatch

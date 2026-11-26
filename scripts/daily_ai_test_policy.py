@@ -3,8 +3,8 @@
 Canonical daily AI test policy loader.
 
 Keeps expensive manual specs out of automatic discovery and selects the small
-reviewed real-inference canary set without coupling ordinary E2E discovery to
-AI-specific filenames. Architecture: contracts/architecture/daily-ai-test-inference/.
+reviewed, bounded canary set. Protected isolated real-inference specs are
+explicit-only. Architecture: contracts/architecture/daily-ai-test-inference/.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ DEFAULT_SPEC_DIR = Path(__file__).resolve().parents[1] / "frontend" / "apps" / "
 MANUAL_EXPENSIVE = "manual_expensive"
 BACKFILL_PENDING = "backfill_pending"
 REPLAY = "replay"
+REAL_INFERENCE_SPEC_PREFIX = "real-inference-"
 _AI_ACTION_MARKERS = ("sendMessage(", "'chats', 'new'", "custom-send-message")
 _REPLAY_MARKERS = ("withMockMarker", "withLiveMockMarker", "testMockMarker")
 _COMMENTS = re.compile(r"/\*.*?\*/|(?<![:'\"])//[^\n]*", re.DOTALL)
@@ -89,6 +90,11 @@ def excluded_specs(manifest: dict | None = None) -> frozenset[str]:
     return frozenset([*manual_specs, *canaries["fixed"], *canaries["rotating"]])
 
 
+def is_explicit_real_inference_spec(spec_name: str) -> bool:
+    """Identify specs for the protected, manually requested CI profile."""
+    return Path(spec_name).name.startswith(REAL_INFERENCE_SPEC_PREFIX)
+
+
 def discover_specs(
     spec_names: Iterable[str],
     manifest: dict | None = None,
@@ -96,7 +102,7 @@ def discover_specs(
     *,
     held: dict[str, str] | None = None,
 ) -> list[str]:
-    """Keep non-AI and explicit replay specs; reject unmarked AI from schedules.
+    """Keep non-AI and replay specs in automatic discovery.
 
     Strict callers (audits) get a RuntimeError for an unclassified AI spec. The
     nightly scheduler passes `held` instead: the spec is recorded there with a
@@ -105,7 +111,7 @@ def discover_specs(
     excluded = excluded_specs(manifest)
     discovered: list[str] = []
     for spec_name in spec_names:
-        if spec_name in excluded:
+        if spec_name in excluded or is_explicit_real_inference_spec(spec_name):
             continue
         source_path = spec_dir / spec_name
         try:
@@ -141,6 +147,11 @@ def daily_plan(
     manifest = manifest or load_manifest()
     available = set(available_specs)
     canaries = manifest["daily_canaries"]
+    if any(
+        is_explicit_real_inference_spec(spec)
+        for spec in [*canaries["fixed"], *canaries["rotating"]]
+    ):
+        raise ValueError("Explicit real-inference specs cannot be daily canaries")
     if len(canaries["fixed"]) != 1:
         raise ValueError("Daily AI policy requires exactly one fixed canary")
     if not canaries["rotating"]:

@@ -119,10 +119,12 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch' && inputs.personal_devtest_surface == '' && !startsWith(inputs.mode, 'apple-')
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.runner_label != '' && fromJSON(format('["openmates-e2b","{0}"]', inputs.runner_label)) || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
-    # Real-inference specs (one per job, real-inference-* names; TASK-5616) run in
-    # the protected environment whose dev-only provider keys exist only for the
-    # dev branch. Every other job runs without an environment and gets no keys.
-    environment: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["real-inference-') && 'real-inference' || '' }}
+    # Two exact terminal selections use a separate protected, dev-only key set.
+    # Every other real-inference job retains the existing protected environment.
+    environment: >-
+      ${{ inputs.mode == 'e2e' &&
+          ((inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') && 'codex-real-inference' ||
+           startsWith(inputs.specs_json, '["real-inference-') && 'real-inference') || '' }}
     timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || startsWith(inputs.specs_json, '["real-inference-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
@@ -139,6 +141,7 @@ jobs:
       CI_CAPACITY_CONFIGURATION: ${{ inputs.capacity_configuration }}
       CI_SPECS_JSON: ${{ inputs.specs_json }}
       CI_CASE_TITLE: ${{ inputs.case_title }}
+      CI_CODEX_REAL_INFERENCE: ${{ inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') && '1' || '' }}
       PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
       PLAYWRIGHT_BROWSER_NAME: ${{ contains(inputs.specs_json, 'example-chat-ipad-multitab.spec.ts') && 'webkit' || 'chromium' }}
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
@@ -247,6 +250,13 @@ jobs:
             .github/workflows
             .github/requirements
           persist-credentials: false
+      - name: Require the dev workflow's own harness for terminal real inference
+        if: env.CI_CODEX_REAL_INFERENCE == '1'
+        working-directory: tooling
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/dev'
+          test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - name: Require private preparation transport ticket
         if: >-
           inputs.mode == 'prepare' ||
@@ -868,10 +878,14 @@ jobs:
           python3 ../tooling/scripts/ci_preparation_transport.py upload
           --directory test-results/ci-preparation
       - name: Start isolated backend
-        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: >-
+          (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
+          !(inputs.mode == 'e2e' &&
+            (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' ||
+             inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]'))
         env:
-          # Only this step and the diagnostics step see the dev-only keys; they
-          # pass by name into the run's throwaway Vault (empty outside real-inference).
+          # The existing dev-only key set still passes by name into its
+          # disposable Vault. Ordinary jobs resolve these to empty values.
           OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY: ${{ secrets.OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY }}
           OPENMATES_REAL_MISTRAL_AI_API_KEY: ${{ secrets.OPENMATES_REAL_MISTRAL_AI_API_KEY }}
           OPENMATES_REAL_BRAVE_API_KEY: ${{ secrets.OPENMATES_REAL_BRAVE_API_KEY }}
@@ -879,6 +893,20 @@ jobs:
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify
+      - name: Start isolated terminal real-inference backend
+        if: inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]')
+        working-directory: tooling
+        env:
+          CI_TEST_MODE: e2e
+          CI_SPECS_JSON: ${{ inputs.specs_json }}
+          CI_CODEX_REAL_INFERENCE: '1'
+          OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY }}
+          OPENMATES_CODEX_REAL_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_TYPESAFE_API_KEY }}
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/dev'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          /usr/bin/python3 -E scripts/ci_environment.py start
+          /usr/bin/python3 -E scripts/ci_environment.py verify
       - name: Start and verify backend diagnostic stack
         if: inputs.mode == 'backend-probe'
         timeout-minutes: 4

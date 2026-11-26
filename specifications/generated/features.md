@@ -22,7 +22,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Apple | 0 | 14 | 36 | 5 | 0 | 39 | 7 | 8 | 0 | 23 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 33 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 49 |
+| TUI | 2 | 0 | 0 | 13 | 3 | 57 | 9 | 0 | 0 | 48 |
 | REST API | 5 | 2 | 34 | 16 | 30 | 15 | 0 | 1 | 0 | 29 |
 | npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 59 |
 | PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 60 |
@@ -91,7 +91,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [PII Placeholder Protection](#pii-protection) | **FAIL** 9/13 | partial 4/13 |  | partial 2/13 | **live** 1/1 | not run 0/1 | not run 0/1 | not run 0/1 | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Public Example Chats](#public-example-chats) | **FAIL** 4/9 | tested 1/1 |  | not run 0/1 | — | not run 0/2 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | [Public News, Blog, Press, and Social Publications](#public-publications) | **FAIL** 1/9 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
-| [Queued Chat Follow-ups and Steering](#chat-queued-followups) | **FAIL** 3/5 | **FAIL** 3/5 |  | partial 1/5 | wip | partial 4/5 | — | — | on (no flag) | on (no flag) | untagged-main |
+| [Queued Chat Follow-ups and Steering](#chat-queued-followups) | **FAIL** 3/5 | **FAIL** 3/5 |  | partial 1/5 | not run 0/1 | partial 4/5 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | partial 1/22 | planned |  | — | — | partial 14/22 | — | — | on (no flag) | on (no flag) | unverified |
 | [Settings UI](#settings-ui) | **FAIL** 1/10 | partial 6/10 | not run 0/2 | — | impl | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | &nbsp;&nbsp;↳ Settings shell and routing | **FAIL** 0/1 | tested 1/1 | ? | — | ? | ? | — | — | | | |
@@ -250,7 +250,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [AI Request Observability](#ai-request-observability) | not run 0/2 | — |  | not run 0/10 | — | partial 2/7 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [AI Test User Reports And Debug Chats](#ai-test-users) | — | — |  | not run 0/5 | — | not run 0/5 | — | — | on (no flag) | on (no flag) | unverified |
 | [Automated Security Monitoring and Guarded Remediation](#security-monitoring) | — | — |  | impl | — | — | — | — | on (no flag) | on (no flag) | unverified |
-| [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/2 | — |  | partial 3/10 | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
+| [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/2 | — |  | partial 3/10 | not run 0/1 | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Daily Test Orchestration And Recovery](#test-orchestration) | — | — |  | not run 0/8 | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [External Status Monitoring And Public Status Page](#external-status-monitoring) | — | — |  | — | — | partial 2/11 | — | — | on (no flag) | on (no flag) | unverified |
 | [Operational Monitoring And Operator Alerts](#operational-monitoring) | **live** 1/1 | — |  | not run 0/17 | — | **FAIL** 2/17 | — | — | on (no flag) | on (no flag) | untagged-main |
@@ -1308,6 +1308,7 @@ Daily full-pipeline tests without paid calls, plus capped real-inference canarie
 
 - Specifications: [architecture.daily-ai-test-inference](../../specifications/architecture/daily-ai-test-inference/specification.yml) (draft) · 10 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.19.0
+- Check intent: TUI: marked not_planned, but tests on tui exist
 
 <details><summary>Tests per surface</summary>
 
@@ -1316,7 +1317,7 @@ Daily full-pipeline tests without paid calls, plus capped real-inference canarie
 | Web | not run 0/2 | 0 pass · 0 fail · 2 not run · 0 no test | [real-inference-focus-mode-video.spec.ts](../../frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts)<br>[real-inference-gemini-chat.spec.ts](../../frontend/apps/web_app/tests/real-inference-gemini-chat.spec.ts)<br>1 unit test file(s), e.g. [test_message_received_test_markers.py](../../backend/tests/test_message_received_test_markers.py) |
 | Apple | — | — | — |
 | CLI | partial 3/10 | 3 pass · 0 fail · 6 not run · 1 no test | [daily-ai-fixed-canary.spec.ts](../../frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts)<br>[daily-ai-rotating-canary.spec.ts](../../frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts)<br>5 unit test file(s), e.g. [test_daily_ai_test_budget.py](../../backend/tests/test_daily_ai_test_budget.py), [test_caching_llm_wrapper.py](../../backend/tests/test_caching_llm_wrapper.py) |
-| TUI | — | — | — |
+| TUI | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | [real-inference-tui-artifact-steering.spec.ts](../../frontend/apps/web_app/tests/real-inference-tui-artifact-steering.spec.ts)<br>[real-inference-tui-chat-processing.spec.ts](../../frontend/apps/web_app/tests/real-inference-tui-chat-processing.spec.ts) |
 | REST API | — | — | — |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
@@ -2581,7 +2582,7 @@ Send follow-ups while the assistant is working, edit them across devices, steer 
 | Web | **FAIL** 3/5 | 3 pass · 1 fail · 1 not run · 0 no test | [chat-interrupted-followup.spec.ts](../../frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts)<br>[chat-queued-followups-same-tab.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups-same-tab.spec.ts)<br>[chat-queued-followups.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups.spec.ts)<br>[queued-followup-controls.spec.ts](../../frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts)<br>[focus-mode-ui-after-activation.spec.ts](../../frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts)<br>11 unit test file(s), e.g. [chatSyncServiceHandlersAI.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts), [chatSyncServiceHandlersPhasedSync.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts)<br>❌ [focus-mode-ui-after-activation.spec.ts › focus mode UI elements work correctly after activation](../../frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts › focus mode UI elements work correctly after activation) |
 | Apple | **FAIL** 3/5 | 3 pass · 2 fail · 0 not run · 0 no test | [QueuedFollowupUITests.swift](../../apple/OpenMatesUITests/QueuedFollowupUITests.swift)<br>3 unit test file(s), e.g. [ChatSendPipelineParityTests.swift](../../apple/OpenMatesTests/ChatSendPipelineParityTests.swift), [ChatStreamingLifecycleParityTests.swift](../../apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift)<br>❌ [ChatStreamingLifecycleParityTests.swift › testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus](../../apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift › testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus) |
 | CLI | partial 1/5 | 1 pass · 0 fail · 1 not run · 3 no test | [chat-queued-followups-protocol.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts)<br>[cli-recovery-discovery.spec.ts](../../frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts)<br>1 unit test file(s), e.g. [client.test.ts](../../frontend/packages/openmates-cli/tests/client.test.ts) |
-| TUI | wip | — | — |
+| TUI | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | [real-inference-tui-artifact-steering.spec.ts](../../frontend/apps/web_app/tests/real-inference-tui-artifact-steering.spec.ts) |
 | REST API | partial 4/5 | 4 pass · 0 fail · 0 not run · 1 no test | 11 unit test file(s), e.g. [test_queued_steering.py](../../backend/tests/test_queued_steering.py), [operations.test.js](../../backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |

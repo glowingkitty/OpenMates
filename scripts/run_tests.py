@@ -9149,8 +9149,11 @@ class TestOrchestrator:
         if self.only_failed:
             failed = ResultAggregator.load_failed_specs()
             self.only_failed_synthetic_files = tuple(f for f in failed if not f.endswith(".spec.ts"))
-            # Filter to only .spec.ts files
-            specs = [f for f in failed if f.endswith(".spec.ts")]
+            specs = [
+                f for f in failed
+                if f.endswith(".spec.ts")
+                and not daily_ai_test_policy.is_explicit_real_inference_spec(f)
+            ]
             if specs:
                 _log(f"Found {len(specs)} previously failed spec(s)")
             return specs
