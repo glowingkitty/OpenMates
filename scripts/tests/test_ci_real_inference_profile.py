@@ -660,6 +660,8 @@ def test_failed_web_voice_keeps_only_the_bounded_progress_receipt(tmp_path, monk
     for payload in [
         '{"schemaVersion":1,"phases":{"started":0,"unknown":1}}',
         '{"schemaVersion":1,"phases":{"started":0,"signed_in":"synthetic-secret"}}',
+        '{"schemaVersion":1,"phases":{"started":0,"pcm_owned_prose_error":"synthetic-secret"}}',
+        '{"schemaVersion":1,"phases":{"started":0,"pcm_unknown_audio_detail":1}}',
         '{"schemaVersion":1,"phases":{"started":0,"signed_in":true}}',
         '{"schemaVersion":1,"phases":{"started":0,"signed_in":1.25}}',
         '{"schemaVersion":1,"phases":{"started":0,"signed_in":-1}}',
@@ -674,7 +676,8 @@ def test_failed_web_voice_keeps_only_the_bounded_progress_receipt(tmp_path, monk
         assert "synthetic-secret" not in capsys.readouterr().err
         assert not output.exists()
 
-    phase.write_text('{"schemaVersion":1,"phases":{"started":0,"signed_in":16}}')
+    phase.write_text('{"schemaVersion":1,"phases":{"started":0,"pcm_owned_prose_error":16}}')
+    assert ci.scoped_web_voice_progress_path(tmp_path, required=False) == phase.relative_to(tmp_path)
     monkeypatch.setenv("CI_SCOPED_PROOF_PASSED", "1")
     with pytest.raises(SystemExit, match="1"):
         ci.main()

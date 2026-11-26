@@ -306,6 +306,8 @@ SCOPED_WEB_VOICE_PHASES = frozenset({
     "microphone_adapter_ready", "chat_ready", "model_saved", "call_start_clicked",
     "privacy_prompt_seen", "privacy_prompt_accepted", "listening", "mic_injection_started",
     "mic_injection_complete", "final_transcript_visible", "reply_visible", "reply_identity_verified",
+    "pcm_input_measured", "pcm_owned_prose_start", "pcm_owned_prose_chunk",
+    "pcm_owned_media_append", "pcm_owned_non_silent_playback", "pcm_observer_error", "pcm_owned_prose_error",
     "pcm_verified", "call_ended", "typed_sent", "typed_reply_visible",
     "encrypted_rows_verified", "reloaded_chat_verified", "timing_written", "mux_started",
     "mux_finished", "passed",

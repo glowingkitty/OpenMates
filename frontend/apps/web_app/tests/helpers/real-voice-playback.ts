@@ -5,6 +5,19 @@ type Signal = { first: number; last: number; samples: number };
 type OutputSignal = Signal & { source: string; since: number; currentTime: number };
 type VoiceTurnOwner = { callId: string; chatId: string; userMessageId: string };
 type AdmissionMark = VoiceTurnOwner & { sentFrame: number; ackFrame?: number };
+type ProseWireObservation = {
+  identity: VoiceSpeechIdentity;
+  started?: true;
+  chunked?: true;
+  failed?: true;
+};
+
+export const VOICE_PCM_PHASES = [
+  'pcm_input_measured', 'pcm_owned_prose_start', 'pcm_owned_prose_chunk',
+  'pcm_owned_media_append', 'pcm_owned_non_silent_playback', 'pcm_observer_error', 'pcm_owned_prose_error',
+] as const;
+type VoicePcmPhase = (typeof VOICE_PCM_PHASES)[number];
+
 type VoiceMilestones = {
   lastVoicedToFinalTranscriptMs: number | null;
   lastVoicedToAdmissionMs: number | null;
@@ -21,6 +34,7 @@ export interface RealVoicePlayback {
     turns: { callId: string; messageId: string }[];
     cueSources: { callId: string; source: string }[];
     proseSources: { source: string; identity: VoiceSpeechIdentity; startFrame?: number; bytesFrame?: number }[];
+    proseWire?: ProseWireObservation[];
     transcriptFrames?: (VoiceTurnOwner & { frame: number })[];
     admissionFrames?: AdmissionMark[];
     stt: { callId: string; provider: string; model: string }[];
@@ -73,6 +87,12 @@ export async function installRealVoicePlayback(page: Page, capitalFlac: Buffer):
     const clockFrame = () => Math.round(audio.currentTime * audio.sampleRate);
     const isId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
     const appendHashes = new Map<string, Set<string>>();
+    const proseWire = new Map<string, ProseWireObservation>();
+    function observeProse(key: string, identity: VoiceSpeechIdentity, field: 'started' | 'chunked' | 'failed') {
+      const prior = proseWire.get(key);
+      if (prior) prior[field] = true;
+      else if (proseWire.size < 32) proseWire.set(key, { identity, [field]: true });
+    }
     let microphone: MediaStreamAudioDestinationNode | null = null;
     let played = false;
 
@@ -237,14 +257,23 @@ export async function installRealVoicePlayback(page: Page, capitalFlac: Buffer):
             const source = safePath(event.payload.audio_url);
             if (source) cueSources.push({ callId: event.payload.voice_call_id, source });
           }
-          if (event.type !== 'assistant_speech_audio') return;
           const frame = event.payload;
-          if (frame?.kind !== 'voice_prose_turn') return;
+          const statusError = event.type === 'assistant_speech_status' && frame?.status === 'error';
+          if ((!statusError && event.type !== 'assistant_speech_audio') || frame?.kind !== 'voice_prose_turn') return;
           const identity = { callId: frame.voice_call_id, chatId: frame.chat_id,
             messageId: frame.message_id, trackId: frame.segment_id };
           if (!Object.values(identity).every(id => typeof id === 'string' && id.length > 0 && id.length <= 128)) return;
           const key = JSON.stringify(identity);
-          if (frame.phase === 'start' && !starts.has(key)) starts.set(key, clockFrame());
+          if (statusError || frame.phase === 'error') observeProse(key, identity, 'failed');
+          if (statusError) return;
+          if (frame.phase === 'start') {
+            observeProse(key, identity, 'started');
+            if (!starts.has(key)) starts.set(key, clockFrame());
+          }
+          if (frame.phase === 'chunk' && typeof frame.audio_data === 'string' && frame.audio_data.length > 0) {
+            // The exact session's server relay validates each non-empty audio frame.
+            observeProse(key, identity, 'chunked');
+          }
           if (frame.phase === 'chunk' && starts.has(key) && typeof frame.audio_data === 'string') {
             const bytes = decode(frame.audio_data);
             if (!bytes.byteLength) return;
@@ -316,11 +345,32 @@ export async function installRealVoicePlayback(page: Page, capitalFlac: Buffer):
           }
         }
         return { sampleRate: audio.sampleRate, input, output: [...output.values()], turns, cueSources,
-          proseSources, transcriptFrames, admissionFrames, stt, observerErrorCount };
+          proseSources, proseWire: [...proseWire.values()], transcriptFrames, admissionFrames, stt, observerErrorCount };
       },
     };
     Object.assign(window, { __omRealVoicePlayback: probe });
   }, { encodedFixture: capitalFlac.toString('base64'), meterSource: METER_SOURCE });
+}
+
+/** Fixed receipt labels only. This diagnosis does not certify or alter playback proof. */
+export function voicePcmProgress(
+  proof: ReturnType<RealVoicePlayback['snapshot']>,
+  owner: Pick<VoiceSpeechIdentity, 'callId' | 'chatId' | 'messageId'>,
+): VoicePcmPhase[] {
+  const owns = (identity: VoiceSpeechIdentity) =>
+    identity.callId === owner.callId && identity.chatId === owner.chatId && identity.messageId === owner.messageId;
+  const wire = proof.proseWire?.filter(item => owns(item.identity)) ?? [];
+  const sources = new Set(proof.proseSources.filter(item => owns(item.identity)).map(item => item.source));
+  const phases: VoicePcmPhase[] = [];
+  if (proof.input && proof.input.samples >= proof.sampleRate * 0.12) phases.push('pcm_input_measured');
+  if (wire.some(item => item.started)) phases.push('pcm_owned_prose_start');
+  if (wire.some(item => item.chunked)) phases.push('pcm_owned_prose_chunk');
+  if (sources.size) phases.push('pcm_owned_media_append');
+  if (proof.output.some(span => sources.has(span.source)
+    && span.samples >= proof.sampleRate * 0.018 && span.currentTime > 0)) phases.push('pcm_owned_non_silent_playback');
+  if (proof.observerErrorCount > 0) phases.push('pcm_observer_error');
+  if (wire.some(item => item.failed)) phases.push('pcm_owned_prose_error');
+  return phases;
 }
 
 export function qualifiedVoiceTiming(

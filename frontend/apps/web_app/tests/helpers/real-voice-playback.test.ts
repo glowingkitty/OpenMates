@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { qualifiedVoiceTiming, type RealVoicePlayback } from './real-voice-playback';
+import { qualifiedVoiceTiming, voicePcmProgress, type RealVoicePlayback } from './real-voice-playback';
 
 const identity = { callId: 'call', chatId: 'chat', messageId: 'assistant', trackId: 'speech' };
 const cue = '/audio/assistant-acknowledgements/mate/answering.mp3';
@@ -102,4 +102,36 @@ test('missing, stale and ambiguous optional milestones leave a qualified browser
     startFrame: 50200, bytesFrame: 50800 });
   assert.deepEqual(qualifiedVoiceTiming(proof, owner),
     { cueMs: 500, substantiveMs: 1000, sampleRate: 48000, milestones: emptyMilestones });
+});
+
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response
+test('the finite PCM progress follows only the owned reply and exact MediaSource attribution', () => {
+  const proof = recorded();
+  proof.proseWire = [
+    { identity, started: true, chunked: true },
+    { identity: { ...identity, callId: 'foreign-call' }, failed: true },
+    { identity: { ...identity, chatId: 'foreign-chat' }, failed: true },
+    { identity: { ...identity, messageId: 'foreign-reply' }, failed: true },
+  ];
+  assert.deepEqual(voicePcmProgress(proof, owner), [
+    'pcm_input_measured', 'pcm_owned_prose_start', 'pcm_owned_prose_chunk',
+    'pcm_owned_media_append', 'pcm_owned_non_silent_playback',
+  ]);
+  proof.proseSources[0].identity = { ...identity, messageId: 'foreign-reply' };
+  assert.deepEqual(voicePcmProgress(proof, owner), [
+    'pcm_input_measured', 'pcm_owned_prose_start', 'pcm_owned_prose_chunk',
+  ]);
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response
+test('owned speech and observer errors remain separate from missing or silent output', () => {
+  const proof = recorded();
+  proof.proseWire = [{ identity, failed: true }];
+  proof.observerErrorCount = 1;
+  proof.output[1].samples = 0;
+  assert.deepEqual(voicePcmProgress(proof, owner), [
+    'pcm_input_measured', 'pcm_owned_media_append', 'pcm_observer_error', 'pcm_owned_prose_error',
+  ]);
+  assert.equal(qualifiedVoiceTiming(proof, owner), null);
 });

@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
-import { installRealVoicePlayback, qualifiedVoiceTiming, type RealVoicePlayback } from './helpers/real-voice-playback';
+import {
+  installRealVoicePlayback, qualifiedVoiceTiming, VOICE_PCM_PHASES, voicePcmProgress, type RealVoicePlayback,
+} from './helpers/real-voice-playback';
 import { installProofAudio, proofAudioLaunchArgs } from './helpers/proof-audio';
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -26,6 +28,7 @@ const VOICE_PHASES = [
   'microphone_adapter_ready', 'chat_ready', 'model_saved', 'call_start_clicked',
   'privacy_prompt_seen', 'privacy_prompt_accepted', 'listening', 'mic_injection_started',
   'mic_injection_complete', 'final_transcript_visible', 'reply_visible', 'reply_identity_verified',
+  ...VOICE_PCM_PHASES,
   'pcm_verified', 'call_ended', 'typed_sent', 'typed_reply_visible',
   'encrypted_rows_verified', 'reloaded_chat_verified', 'timing_written', 'mux_started',
   'mux_finished', 'passed',
@@ -228,7 +231,10 @@ test('a real signed-in web voice turn plays audible speech and keeps its encrypt
       let timings: ReturnType<typeof qualifiedVoiceTiming> = null;
       await timeline.assert('assistant-audio', async () => {
         await expect.poll(async () => {
-          timings = qualifiedVoiceTiming(await probeSnapshot(page), { callId, chatId, messageId: replyId, userMessageId: voiceId });
+          const snapshot = await probeSnapshot(page);
+          const owner = { callId, chatId, messageId: replyId, userMessageId: voiceId };
+          for (const observation of voicePcmProgress(snapshot, owner)) phase(observation);
+          timings = qualifiedVoiceTiming(snapshot, owner);
           return timings !== null;
         }, { timeout: budget(), message: 'Only non-silent playback of the owned prose stream qualifies' }).toBe(true);
       });
