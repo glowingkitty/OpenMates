@@ -37,10 +37,14 @@ def test_provider_credentials_need_all_four_separate_names_and_live_speech_worke
     profile = ci.compose_profile("a" * 40, real_inference=True, codex_web_voice=True)
     services = profile["services"]
     vault = services["vault-init"]["environment"]
-    assert set(json.loads(vault["CI_REAL_INFERENCE_PROVIDERS"])) == {
+    assert vault["CI_CODEX_VAULT_PRESEEDED"] == "1"
+    assert "CI_REAL_INFERENCE_PROVIDERS" not in vault
+    assert (KEY_NAMES | NARROW_KEYS | LEGACY_KEYS).isdisjoint(
+        name for service in services.values() for name in service.get("environment", {})
+    )
+    assert set(ci.CODEX_WEB_VOICE_PROVIDERS) == {
         "inception_labs", "typesafe", "mistral_ai", "elevenlabs",
     }
-    assert KEY_NAMES <= set(vault) and all(vault[name] is None for name in KEY_NAMES)
     assert not (LEGACY_KEYS | NARROW_KEYS) & set(vault)
     assert services["speech-worker"]["environment"]["CELERY_QUEUES"] == "app_music"
     assert ci.verify_web_voice_services(services)

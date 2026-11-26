@@ -269,6 +269,17 @@ jobs:
           test "$GITHUB_REF" = 'refs/heads/dev'
           test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
           test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Authorize scoped real-inference source
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
+        working-directory: tooling
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          SCOPED_SUBJECT: ${{ inputs.source_commit }}
+          SCOPED_APPROVED_SOURCES: ${{ vars.SCOPED_INFERENCE_REVIEWED_SOURCES }}
+        run: |
+          set -o pipefail
+          /usr/bin/git --no-replace-objects cat-file blob "$GITHUB_SHA:scripts/ci_scoped_inference_guard.py" |
+            /usr/bin/python3 -I -S -B - authorize
       - name: Require private preparation transport ticket
         if: >-
           inputs.mode == 'prepare' ||
@@ -908,9 +919,22 @@ jobs:
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify
+      - name: Recreate trusted scoped tooling
+        id: scoped_tooling
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
+        working-directory: tooling
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          SCOPED_SUBJECT: ${{ inputs.source_commit }}
+          SCOPED_APPROVED_SOURCES: ${{ vars.SCOPED_INFERENCE_REVIEWED_SOURCES }}
+        run: |
+          set -o pipefail
+          /usr/bin/git --no-replace-objects cat-file blob "$GITHUB_SHA:scripts/ci_scoped_inference_guard.py" |
+            /usr/bin/python3 -I -S -B - materialize
       - name: Start isolated terminal real-inference backend
         if: inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]')
-        working-directory: tooling
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
         env:
           CI_TEST_MODE: e2e
           CI_SPECS_JSON: ${{ inputs.specs_json }}
@@ -919,12 +943,12 @@ jobs:
           OPENMATES_CODEX_REAL_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_TYPESAFE_API_KEY }}
         run: |
           test "$GITHUB_REF" = 'refs/heads/dev'
-          test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"
-          /usr/bin/python3 -E scripts/ci_environment.py start
-          /usr/bin/python3 -E scripts/ci_environment.py verify
+          test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
+          exec /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' seed
       - name: Start isolated signed-in web voice backend
         if: inputs.mode == 'e2e' && inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]'
-        working-directory: tooling
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
         env:
           CI_TEST_MODE: e2e
           CI_SPECS_JSON: ${{ inputs.specs_json }}
@@ -935,9 +959,15 @@ jobs:
           OPENMATES_CODEX_WEB_VOICE_ELEVENLABS_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_ELEVENLABS_API_KEY }}
         run: |
           test "$GITHUB_REF" = 'refs/heads/dev'
-          test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"
-          /usr/bin/python3 -E scripts/ci_environment.py start
-          /usr/bin/python3 -E scripts/ci_environment.py verify
+          test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
+          exec /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' seed
+      - name: Start and verify scoped Codex backend without provider environment
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        run: |
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' start
+          exec /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' verify
       - name: Start and verify backend diagnostic stack
         if: inputs.mode == 'backend-probe'
         timeout-minutes: 4
@@ -1217,11 +1247,20 @@ jobs:
         if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts'))))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
+        if: always() && env.CI_CODEX_REAL_INFERENCE != '1' && env.CI_CODEX_WEB_VOICE != '1' && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py logs
       - name: Remove disposable containers and databases
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
+        if: always() && env.CI_CODEX_REAL_INFERENCE != '1' && env.CI_CODEX_WEB_VOICE != '1' && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py stop
+      - name: Collect scoped status and remove disposable scoped runtime
+        if: always() && steps.scoped_tooling.outcome == 'success' && (env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1')
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        run: |
+          outcome=0
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' logs || outcome=1
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' stop || outcome=1
+          exit "$outcome"
       - name: Remove attested runner Node only when identities still match
         if: always() && env.OPENMATES_CI_NODE_STATE != ''
         run: env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs cleanup
@@ -1234,7 +1273,7 @@ jobs:
           --candidate-tree "$CI_CANDIDATE_TREE"
           --harness-commit "$CI_HARNESS_COMMIT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+        if: always() && env.CI_CODEX_REAL_INFERENCE != '1' && env.CI_CODEX_WEB_VOICE != '1'
         with:
           name: isolated-test-results
           retention-days: 7
@@ -1293,6 +1332,25 @@ jobs:
             subject/test-results/ci-visual-smoke/
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
+          if-no-files-found: error
+      - name: Upload bounded scoped Codex receipts and proof media
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && (env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1')
+        with:
+          name: isolated-test-results
+          retention-days: 7
+          path: |
+            subject/test-results/ci-environment.json
+            subject/test-results/ci-vault-seed.json
+            subject/test-results/ci-startup-phases.json
+            subject/test-results/ci-results.json
+            subject/test-results/ci-stack.log
+            subject/test-results/ci-cleanup.json
+            ${{ env.CI_CODEX_REAL_INFERENCE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/rust-terminal-real-chat-processing/raw-terminal.mp4' || '' }}
+            ${{ env.CI_CODEX_REAL_INFERENCE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/rust-terminal-artifact-steering/raw-terminal.mp4' || '' }}
+            ${{ env.CI_CODEX_REAL_INFERENCE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/rust-terminal-artifact-revised-source/raw-terminal.mp4' || '' }}
+            ${{ env.CI_CODEX_WEB_VOICE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/real-web-voice-timing.json' || '' }}
+            ${{ env.CI_CODEX_WEB_VOICE == '1' && 'subject/frontend/apps/web_app/test-results/ci-1/**/signed-in-voice-with-audio.webm' || '' }}
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
         if: always() && (inputs.mode == 'rust-wasm' || (env.CI_LANE_RUST_BROWSER == 'true'))

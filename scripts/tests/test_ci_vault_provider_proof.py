@@ -12,14 +12,13 @@ import pytest
 from scripts import ci_environment as environment
 
 
-@pytest.mark.parametrize("profile", ["storage", "terminal"])
-@pytest.mark.parametrize("fault", [None, "limited-token", "denied-list", "extra-provider", "missing-provider", "missing-vapid"])
+@pytest.mark.parametrize("profile", ["storage", "generic"])
+@pytest.mark.parametrize("fault", [None, "limited-token", "denied-list", "extra-provider", "missing-provider", "missing-base-provider"])
 def test_disposable_provider_probe_uses_initializer_root_and_exact_namespace(monkeypatch, profile, fault):
     vault = environment.compose_profile(
         "a" * 40,
         object_storage=profile == "storage",
-        real_inference=profile == "terminal",
-        codex_real_inference=profile == "terminal",
+        real_inference=profile == "generic",
     )["services"]["vault-init"]["environment"]
     for name in ("CI_STORAGE_ACCESS_KEY", "CI_REAL_INFERENCE", "CI_REAL_INFERENCE_PROVIDERS", "CI_VAULT_SEED_VAPID"):
         monkeypatch.delenv(name, raising=False)
@@ -33,16 +32,17 @@ def test_disposable_provider_probe_uses_initializer_root_and_exact_namespace(mon
         status = 403 if fault == "denied-list" and stage == "list" else 200
         policies = ["api-service"] if fault == "limited-token" else ["root"]
         keys = ["core_server", "vapid"]
-        provider = "hetzner" if profile == "storage" else "inception_labs"
-        keys.append(provider)
-        if profile == "terminal":
-            keys.append("typesafe")
+        provider = "hetzner" if profile == "storage" else "typesafe"
+        keys.extend([provider] if profile == "storage" else environment.REAL_INFERENCE_PROVIDERS)
+        if profile == "generic":
+            # The legacy profile only expects VAPID on its opted-in stacks.
+            keys.remove("vapid")
         if fault == "extra-provider":
             keys.append("provider-name-must-not-be-printed")
         if fault == "missing-provider":
             keys.remove(provider)
-        if fault == "missing-vapid":
-            keys.remove("vapid")
+        if fault == "missing-base-provider":
+            keys.remove("vapid" if profile == "storage" else "core_server")
         def raise_for_status():
             if status != 200:
                 raise HTTPError("secret-response-value-must-not-be-printed")
@@ -77,7 +77,7 @@ def test_disposable_provider_probe_uses_initializer_root_and_exact_namespace(mon
             assert details["http_status"] == 403 and details["stage"] == "list"
         if fault == "extra-provider":
             assert details["unexpected_count"] == 1
-        if fault in {"missing-provider", "missing-vapid"}:
+        if fault in {"missing-provider", "missing-base-provider"}:
             assert details["missing_count"] == 1
     else:
         assert not text
@@ -136,7 +136,9 @@ def test_vault_bootstrap_generates_disposable_vapid_pair(monkeypatch, profile):
     bootstrap = environment.VAULT_INITIALIZE.split("class Client:", 1)[0]
     bootstrap = bootstrap[bootstrap.index("url="):]
     exec(bootstrap, {"json": json, "os": os, "requests": SimpleNamespace(post=post)})
-    expected = {"hetzner"} if profile == "storage" else {"inception_labs", "typesafe"}
+    # Starting pinned Vault writes the dedicated terminal provider paths
+    # separately. The candidate initializer gets only local synthetic values.
+    expected = {"hetzner"} if profile == "storage" else set()
     assert set(writes) == {"core_server", "vapid"} | expected
     vapid = writes["vapid"]
     private = int.from_bytes(base64.urlsafe_b64decode(vapid["private_key"] + "=" * (-len(vapid["private_key"]) % 4)), "big")

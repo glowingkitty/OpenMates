@@ -8,15 +8,22 @@ are redacted. Synthetic values only; no provider, Docker or network is used.
 """
 
 import json
+import os
+import subprocess
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 import yaml
 
+from scripts import ci_environment as ci
 from scripts import ci_tcp_gateway as gateway
 from scripts.ci_environment import (
     CODEX_REAL_INFERENCE_PROVIDERS,
     CODEX_REAL_INFERENCE_SPECS,
+    CODEX_WEB_VOICE_PROVIDERS,
+    CODEX_WEB_VOICE_SPEC,
     ISOLATED_VAULT_PROVIDER_CHECK,
     REAL_INFERENCE_PROVIDERS,
     VAULT_INITIALIZE,
@@ -150,9 +157,10 @@ def test_codex_profile_uses_inception_and_typesafe_by_dedicated_vault_names_only
     profile = compose_profile("a" * 40, real_inference=True, codex_real_inference=True)
     services = profile["services"]
     vault = services["vault-init"]["environment"]
-    assert set(json.loads(vault["CI_REAL_INFERENCE_PROVIDERS"])) == {"inception_labs", "typesafe"}
+    assert vault["CI_CODEX_VAULT_PRESEEDED"] == "1"
+    assert "CI_REAL_INFERENCE_PROVIDERS" not in vault
     assert {name for _field, name in CODEX_REAL_INFERENCE_PROVIDERS.values()} == CODEX_KEYS
-    assert all(vault[name] is None for name in CODEX_KEYS)
+    assert not any(name in json.dumps(profile) for name in CODEX_KEYS)
     assert not set(KEY_NAMES).intersection(vault)
     assert not any(name in json.dumps(profile) for name in KEY_NAMES)
     assert services["runner-gateway"]["environment"]["OPENMATES_CI_REAL_INFERENCE_PROXY"] == "codex"
@@ -249,3 +257,208 @@ def test_codex_provider_keys_are_redacted_from_diagnostics():
     value = "synthetic-inception-credential-redacted"
     name = "OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY"
     assert redact_real_inference_logs(f"startup {value}", profile, {name: value}) == "startup <REDACTED>"
+
+
+@pytest.fixture(params=["terminal", "voice"])
+def scoped_lane(request, tmp_path, monkeypatch):
+    web_voice = request.param == "voice"
+    spec = CODEX_WEB_VOICE_SPEC if web_voice else min(CODEX_REAL_INFERENCE_SPECS)
+    profile = compose_profile("a" * 40, real_inference=True,
+                              codex_real_inference=not web_voice, codex_web_voice=web_voice)
+    providers = CODEX_WEB_VOICE_PROVIDERS if web_voice else CODEX_REAL_INFERENCE_PROVIDERS
+    results = tmp_path / "test-results"
+    private = results / "ci-private"
+    private.mkdir(parents=True)
+    compose_path = private / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    monkeypatch.setattr(ci, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(ci, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(ci, "require_runner", lambda: None)
+    for name in (*ci.PROVIDER_KEY_ALIASES, "CI_CODEX_REAL_INFERENCE", "CI_CODEX_WEB_VOICE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("CI_CODEX_WEB_VOICE" if web_voice else "CI_CODEX_REAL_INFERENCE", "1")
+    monkeypatch.setenv("CI_TEST_MODE", "e2e")
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps([spec]))
+    return results, providers
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_scoped_vault_stdin_seed_never_reaches_console_or_saved_artifacts(
+    scoped_lane, monkeypatch, capsys, failed,
+):
+    results, providers = scoped_lane
+    secrets = {name: f"SYNTHETIC_{provider.upper()}_BULK_DIAGNOSTIC_SENTINEL"
+               for provider, (_field, name) in providers.items()}
+    for name, value in secrets.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv(KEY_NAMES[0], "SYNTHETIC_LEGACY_NOT_FOR_SCOPED")
+    container = "a" * 64
+    image = "sha256:" + "b" * 64
+    calls = []
+    raw = " xi-api-key: " + " ".join(secrets.values())
+    def docker(args, **kwargs):
+        assert ci.PROVIDER_KEY_ALIASES.isdisjoint(os.environ)
+        assert all(name not in str(args) for name in secrets)
+        assert all(value not in str(args) for value in secrets.values())
+        assert args[:3] == ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock"]
+        calls.append((args, kwargs))
+        if "up" in args:
+            assert args[-1] == "vault"
+            return SimpleNamespace(stdout=raw, stderr=raw)
+        if "ps" in args:
+            return SimpleNamespace(stdout=container, stderr=raw)
+        assert args[3:7] == ["exec", "-i", container, "vault"]
+        if failed and "kv/data/providers/inception_labs" in args:
+            raise subprocess.CalledProcessError(7, args, output=raw, stderr=raw)
+        return SimpleNamespace(stdout=raw, stderr=raw)
+    def inspect(args, **kwargs):
+        assert kwargs["stderr"] is subprocess.PIPE
+        assert ci.PROVIDER_KEY_ALIASES.isdisjoint(os.environ)
+        return image if "image" in args else f"{image} {ci.SCOPED_CODEX_VAULT_IMAGE} true"
+    monkeypatch.setattr(ci.subprocess, "run", docker)
+    monkeypatch.setattr(ci.subprocess, "check_output", inspect)
+    monkeypatch.setattr(sys, "argv", ["ci_environment.py", "seed"])
+    if failed:
+        with pytest.raises(SystemExit, match="1"):
+            ci.main()
+    else:
+        ci.main()
+    output = capsys.readouterr()
+    assert not any(secret in output.out + output.err for secret in secrets.values())
+    report = results / "ci-vault-seed.json"
+    assert json.loads(report.read_text()) == {"outcome": "failed" if failed else "ready"}
+    for file in results.rglob("*.json"):
+        assert all(value not in file.read_text() for value in secrets.values())
+    assert calls[2][0][-2:] == ["sys/mounts/kv", "-"]
+    assert json.loads(calls[2][1]["input"]) == {"type": "kv", "options": {"version": "2"}}
+    if not failed:
+        payloads = {args[-2]: json.loads(options["input"])
+                    for args, options in calls[3:]}
+        assert payloads == {
+            f"kv/data/providers/{provider}": {"data": {field: secrets[name]}}
+            for provider, (field, name) in providers.items()
+        }
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_scoped_start_and_logs_keep_closed_receipts_when_subprocess_outputs_contain_credentials(
+    scoped_lane, monkeypatch, capsys, failed,
+):
+    results, providers = scoped_lane
+    raw = "SYNTHETIC_PROVIDER_SECRET_IN_BOOTSTRAP_STDERR"
+    calls = []
+    def compose(*args, **kwargs):
+        calls.append(args)
+        if args[0] == "up":
+            if failed:
+                raise subprocess.CalledProcessError(7, args, output=raw, stderr=raw)
+            return SimpleNamespace(stdout=raw, stderr=raw)
+        assert args == ("ps", "-aq")
+        return SimpleNamespace(stdout="a" * 64, stderr=raw)
+    def inspect(args, **kwargs):
+        assert ".State.Health" in args[-2]
+        assert args[-2] != "{{json .State}}"
+        return json.dumps({"service": "vault", "status": "running", "exit_code": 0,
+                           "health": "healthy", "started": "2026-11-26T13:06:00Z",
+                           "finished": "2026-11-26T13:06:00Z", "unparsed": raw})
+    def verify_seed(actual, *, seeded_only):
+        assert actual == providers and seeded_only
+    monkeypatch.setattr(ci, "compose", compose)
+    monkeypatch.setattr(ci, "docker_output", inspect)
+    monkeypatch.setattr(ci, "verify_scoped_vault_provider_namespace", verify_seed)
+    monkeypatch.setattr(sys, "argv", ["ci_environment.py", "start"])
+    if failed:
+        with pytest.raises(SystemExit, match="1"):
+            ci.main()
+    else:
+        ci.main()
+    startup = (results / "ci-startup-phases.json").read_text()
+    assert raw not in startup
+    assert json.loads(startup)["outcome"] == ("failed" if failed else "ready")
+    monkeypatch.setattr(sys, "argv", ["ci_environment.py", "logs"])
+    for label in ("", "spec-1"):
+        monkeypatch.setenv("CI_DIAGNOSTIC_LABEL", label)
+        ci.main()
+        report = results / (f"ci-stack-{label}.log" if label else "ci-stack.log")
+        assert raw not in report.read_text()
+        assert json.loads(report.read_text())["services"][0]["health"] == "healthy"
+    output = capsys.readouterr()
+    assert raw not in output.out + output.err
+    assert not any(call[0] == "logs" for call in calls)
+
+
+def test_scoped_namespace_checks_exact_paths_before_and_after_candidate_bootstrap(scoped_lane, monkeypatch):
+    _, providers = scoped_lane
+    names = sorted(providers)
+    monkeypatch.setattr(ci, "scoped_vault_container", lambda: "verified-vault")
+    def list_names(container, *args):
+        assert container == "verified-vault"
+        assert args == ("list", "-format=json", "kv/metadata/providers")
+        return json.dumps(names)
+    monkeypatch.setattr(ci, "scoped_vault_command", list_names)
+    ci.verify_scoped_vault_provider_namespace(providers, seeded_only=True)
+    names.extend(["core_server", "vapid"])
+    ci.verify_scoped_vault_provider_namespace(providers)
+    names.append("unexpected")
+    with pytest.raises(RuntimeError, match="does not match"):
+        ci.verify_scoped_vault_provider_namespace(providers)
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_scoped_teardown_never_prints_failure_diagnostic_details(scoped_lane, monkeypatch, capsys, failed):
+    results, _ = scoped_lane
+    raw = "SYNTHETIC_PROVIDER_KEY_IN_CLEANUP_DIAGNOSTIC"
+    monkeypatch.setenv("GITHUB_RUN_ID", "1")
+    def cleanup(args, **kwargs):
+        assert kwargs["capture_output"] is True and "down" in args
+        if failed:
+            raise subprocess.CalledProcessError(3, args, output=raw, stderr=raw)
+        return SimpleNamespace(stdout=raw, stderr=raw)
+    def inspect(args, **kwargs):
+        assert kwargs["stderr"] is subprocess.PIPE
+        return ""
+    monkeypatch.setattr(ci.subprocess, "run", cleanup)
+    monkeypatch.setattr(ci.subprocess, "check_output", inspect)
+    monkeypatch.setattr(sys, "argv", ["ci_environment.py", "stop"])
+    if failed:
+        with pytest.raises(SystemExit, match="1"):
+            ci.main()
+        assert not (results / "ci-cleanup.json").exists()
+    else:
+        ci.main()
+        receipt = (results / "ci-cleanup.json").read_text()
+        assert raw not in receipt
+        assert json.loads(receipt)["containers_remaining"] == 0
+    output = capsys.readouterr()
+    assert raw not in output.out + output.err
+
+
+def test_scoped_workflow_uploads_only_closed_receipts_and_expected_proof_files():
+    path = Path(__file__).resolve().parents[2] / ".github/workflows/isolated-tests.yml"
+    steps = yaml.safe_load(path.read_text())["jobs"]["test"]["steps"]
+    scoped = next(step for step in steps if step.get("name") == "Upload bounded scoped Codex receipts and proof media")
+    ordinary = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results"
+                    and step is not scoped)
+    for flag in ("CI_CODEX_REAL_INFERENCE", "CI_CODEX_WEB_VOICE"):
+        assert f"env.{flag} != '1'" in ordinary["if"]
+    paths = scoped["with"]["path"]
+    assert "ci-results.json" in paths and "ci-startup-phases.json" in paths
+    assert "raw-terminal.mp4" in paths and "real-web-voice-timing.json" in paths
+    assert "signed-in-voice-with-audio.webm" in paths
+    for freeform in ("trace.zip", "transcript.txt", "ci-spec-", "ci-web.log", "test-results/\n",
+                     "/video.webm", "voice-proof-local", "proof-audio-manifest"):
+        assert freeform not in paths
+    unkeyed = next(step for step in steps if step.get("name") ==
+                   "Start and verify scoped Codex backend without provider environment")
+    assert "env" not in unkeyed and " start\n" in unkeyed["run"] and " verify\n" in unkeyed["run"]
+
+
+@pytest.mark.parametrize("option", ["configs", "secrets", "post_start", "env_file"])
+def test_scoped_seed_rejects_vault_service_overrides(scoped_lane, option):
+    _, providers = scoped_lane
+    profile = json.loads(ci.COMPOSE_PATH.read_text())
+    profile["services"]["vault"][option] = ["candidate-config"]
+    credentials = {alias: "synthetic-secret" for _, alias in providers.values()}
+    selection = json.loads(os.environ["CI_SPECS_JSON"])
+    with pytest.raises(RuntimeError, match="dedicated isolated provider profile"):
+        ci.validate_real_inference_start(profile, {**os.environ, **credentials}, set(selection))

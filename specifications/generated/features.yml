@@ -25117,7 +25117,7 @@ features:
       - scripts/tests/test_daily_ai_test_policy.py
       - backend/tests/test_e2e_user_detection.py
       - backend/tests/test_import_live_mock_cache.py
-      unit_test_files: 5
+      unit_test_files: 6
     tui:
       status: not_run
       source: tests

@@ -3,6 +3,10 @@
 The GitHub VM supplies isolation. Images use cached dependencies and the exact
 checkout supplies source; no dev-server environment or database is loaded.
 Credentials are generated per environment and never returned in status output.
+The scoped Codex lanes seed dev-only provider values through pinned Vault.
+Reviewed backend code reads these values at runtime through its Vault policy.
+Source approval is required because the runner and its builds share Docker
+authority. The disposable network and restricted gateway bound later egress.
 See docs/plans/isolated-github-tests/plan.yml.
 """
 
@@ -286,6 +290,15 @@ CODEX_WEB_VOICE_PROVIDERS = {
 }
 CODEX_WEB_VOICE_POLICY = "codex-web-voice"
 CODEX_WEB_VOICE_PROFILE = "codex-real-web-voice"
+SCOPED_CODEX_VAULT_IMAGE = (
+    "mirror.gcr.io/hashicorp/vault:1.19@sha256:"
+    "c4298db7f9b2ea8cab452cbff5877749087913aa035fcae62026cf16132929f5"
+)
+PROVIDER_KEY_ALIASES = frozenset(
+    alias for providers in (
+        REAL_INFERENCE_PROVIDERS, CODEX_REAL_INFERENCE_PROVIDERS, CODEX_WEB_VOICE_PROVIDERS
+    ) for _field, alias in providers.values()
+)
 REAL_INFERENCE_SPEC_PREFIX = "real-inference-"
 REAL_INFERENCE_AI_QUEUES = "app_ai,app_ai_routing"
 REAL_INFERENCE_IMAGE_QUEUES = "app_images"
@@ -335,7 +348,13 @@ def verify_web_voice_services(services: dict) -> bool:
     ) and services["speech-worker"]["environment"].get("CELERY_QUEUES") == "app_music"
 
 
-def validate_real_inference_start(profile: dict, environ, real_specs: set[str]) -> None:
+def scoped_codex_run() -> bool:
+    return os.environ.get("CI_CODEX_REAL_INFERENCE") == "1" or os.environ.get("CI_CODEX_WEB_VOICE") == "1"
+
+
+def validate_real_inference_start(
+    profile: dict, environ, real_specs: set[str], *, check_credentials: bool = True,
+) -> None:
     """Fail before Compose can load credentials for a missing or mismatched lane."""
     selected = json.loads(environ.get("CI_SPECS_JSON", "[]"))
     codex = selects_codex_real_inference(selected, real_specs, environ)
@@ -348,30 +367,50 @@ def validate_real_inference_start(profile: dict, environ, real_specs: set[str]) 
                  CODEX_REAL_INFERENCE_PROVIDERS if codex else REAL_INFERENCE_PROVIDERS)
     if codex or web_voice:
         policy = CODEX_WEB_VOICE_POLICY if web_voice else "codex"
-        expected_map = {provider: list(binding) for provider, binding in providers.items()}
-        expected_names = {name for _field, name in providers.values()}
-        other_names = {name for _field, name in (
-            *REAL_INFERENCE_PROVIDERS.values(), *CODEX_REAL_INFERENCE_PROVIDERS.values(),
-            *CODEX_WEB_VOICE_PROVIDERS.values(),
-        )} - expected_names
+        vault_service = services.get("vault", {})
+        vault_env = vault_service.get("environment", {})
+        vault_token = vault_env.get("VAULT_DEV_ROOT_TOKEN_ID", "")
         if (
             not real or profile.get("name") != "openmates-ci"
+            or set(profile) != {"name", "networks", "services", "volumes"}
             or proxy.get("OPENMATES_CI_REAL_INFERENCE_PROXY") != policy
             or (web_voice and not verify_web_voice_services(services))
             or proxy.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1"
-            or profile["networks"]["default"]["internal"] is not True
+            or profile["networks"] != {"default": {"internal": True}, "ingress": {}}
             or any(service.get("network_mode") or set(service.get("networks", ["default"])) != {"default"}
                    for name, service in services.items() if name != "runner-gateway")
-            or vault.get("CI_REAL_INFERENCE") != "1"
-            or json.loads(vault.get("CI_REAL_INFERENCE_PROVIDERS", "{}")) != expected_map
-            or any(name in vault for name in other_names)
-            or any(name not in vault or vault[name] is not None for name in expected_names)
+            or vault.get("CI_CODEX_VAULT_PRESEEDED") != "1"
+            or "CI_REAL_INFERENCE" in vault or "CI_REAL_INFERENCE_PROVIDERS" in vault
+            or any(PROVIDER_KEY_ALIASES.intersection(service.get("environment", {}))
+                   for service in services.values())
+            or not isinstance(vault_token, str) or not re.fullmatch("[a-f0-9]{48}", vault_token)
+            or vault_token != vault.get("VAULT_TOKEN")
+            or vault_env != {
+                "VAULT_DEV_ROOT_TOKEN_ID": vault_token,
+                "GOMEMLIMIT": "384MiB",
+                "VAULT_DEV_LISTEN_ADDRESS": "0.0.0.0:8200",
+                "VAULT_ADDR": "http://127.0.0.1:8200",
+                "VAULT_TOKEN": vault_token,
+            }
+            # Reject environment files, mounted configs/secrets, lifecycle hooks
+            # and any other service-level option that could affect Vault startup.
+            or set(vault_service) != {
+                "image", "mem_limit", "environment", "command", "cap_add",
+                "healthcheck", "labels", "extra_hosts", "restart", "pids_limit", "logging",
+            }
+            or vault_service.get("healthcheck") != {
+                "test": ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8200/v1/sys/health"],
+                "interval": "3s", "timeout": "3s", "retries": 30,
+            }
+            or vault_service.get("cap_add") != ["IPC_LOCK"]
+            or vault_service.get("image") != SCOPED_CODEX_VAULT_IMAGE
+            or vault_service.get("command") != ["server", "-dev", "-log-level=warn"]
         ):
             raise RuntimeError("Codex real inference requires the dedicated isolated provider profile")
     elif proxy.get("OPENMATES_CI_REAL_INFERENCE_PROXY") in {"codex", CODEX_WEB_VOICE_POLICY}:
         raise RuntimeError("Codex real inference profile cannot run outside its exact lane")
 
-    if real:
+    if real and check_credentials:
         missing = [name for _field, name in providers.values() if not environ.get(name, "").strip()]
         if missing:
             protected = (CODEX_WEB_VOICE_POLICY if web_voice else
@@ -401,7 +440,10 @@ from backend.core.api.app.utils.vault_token_check import validate_token_file
 url='http://vault:8200/v1/'
 token=os.environ['VAULT_TOKEN']
 headers={'X-Vault-Token':token}
-for mount,body in [('kv',{'type':'kv','options':{'version':'2'}}),('transit',{'type':'transit'})]:
+mounts=[('transit',{'type':'transit'})]
+if os.environ.get('CI_CODEX_VAULT_PRESEEDED') != '1':
+    mounts.insert(0,('kv',{'type':'kv','options':{'version':'2'}}))
+for mount,body in mounts:
     response=requests.post(url+'sys/mounts/'+mount,headers=headers,json=body,timeout=15)
     if response.status_code != 204: response.raise_for_status()
 data={'admin_log_api_key':os.environ['INTERNAL_API_SHARED_TOKEN']}
@@ -1055,7 +1097,7 @@ def require_target_admission(source_commit: str) -> dict:
             "Full capacity target lacks a verified zero-provider four-slot calibration pilot"
         )
     try:
-        docker_root = subprocess.check_output(
+        docker_root = docker_output(
             ["docker", "info", "--format", "{{.DockerRootDir}}"],
             text=True,
             timeout=10,
@@ -1521,7 +1563,7 @@ def compose_profile(
             "depends_on": {"cms": {"condition": "service_started"}},
         },
         "vault": {
-            "image": "mirror.gcr.io/hashicorp/vault:1.19@sha256:c4298db7f9b2ea8cab452cbff5877749087913aa035fcae62026cf16132929f5",
+            "image": SCOPED_CODEX_VAULT_IMAGE,
             "mem_limit": 512 * MIB,
             "environment": {
                 "VAULT_DEV_ROOT_TOKEN_ID": credentials["vault"],
@@ -1811,15 +1853,19 @@ def compose_profile(
         for service in provider_services:
             service["environment"]["HTTPS_PROXY"] = "http://runner-gateway:3128"
             service["environment"]["OPENMATES_CI_REAL_INFERENCE"] = "1"
-        providers = (CODEX_WEB_VOICE_PROVIDERS if codex_web_voice else
-                     CODEX_REAL_INFERENCE_PROVIDERS if codex_real_inference else REAL_INFERENCE_PROVIDERS)
         vault_init = services["vault-init"]["environment"]
-        vault_init["CI_REAL_INFERENCE"] = "1"
-        vault_init["CI_REAL_INFERENCE_PROVIDERS"] = json.dumps(providers)
-        for _field, name in providers.values():
-            # None: compose takes the value from the start step's environment,
-            # so the key never lands in the profile file or its artifacts.
-            vault_init[name] = None
+        if codex_real_inference or codex_web_voice:
+            vault_init["CI_CODEX_VAULT_PRESEEDED"] = "1"
+            services["vault"]["environment"].update(
+                VAULT_ADDR="http://127.0.0.1:8200",
+                VAULT_TOKEN=credentials["vault"],
+            )
+        else:
+            vault_init["CI_REAL_INFERENCE"] = "1"
+            vault_init["CI_REAL_INFERENCE_PROVIDERS"] = json.dumps(REAL_INFERENCE_PROVIDERS)
+            for _field, name in REAL_INFERENCE_PROVIDERS.values():
+                # The frozen generic lane loads its provider environment by name.
+                vault_init[name] = None
 
     if workflows or workflow_runtime:
         workflow_queues = QUEUES + ",workflow"
@@ -1986,17 +2032,89 @@ def require_runner():
 
 def compose(*args, capture=False, timeout=90):
     require_runner()
+    scoped = scoped_codex_run()
+    command = ["docker", "compose"]
+    if scoped:
+        command = [
+            "/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "compose",
+            "--env-file", "/dev/null", "--project-name", "openmates-ci",
+        ]
     return subprocess.run(
-        ["docker", "compose", "-f", str(COMPOSE_PATH), *args],
-        cwd=SOURCE,
+        [*command, "-f", str(COMPOSE_PATH), *args],
+        cwd=COMPOSE_PATH.parent if scoped else SOURCE,
         check=True,
         text=True,
-        capture_output=capture,
+        capture_output=capture or scoped,
         timeout=timeout,
     )
 
 
-def start_stack(*, compose_runner=None, sleep=time.sleep):
+def docker_output(args, **kwargs):
+    if scoped_codex_run():
+        args = ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock", *args[1:]]
+        kwargs["stderr"] = subprocess.PIPE
+    return subprocess.check_output(args, **kwargs)
+
+
+def scoped_vault_container() -> str:
+    container = compose("ps", "-q", "vault", capture=True, timeout=20).stdout.strip()
+    if not re.fullmatch("[a-f0-9]{12,64}", container):
+        raise RuntimeError("Pinned disposable Vault container is absent")
+    reported = docker_output(
+        ["docker", "inspect", "--format",
+         "{{.Image}} {{.Config.Image}} {{.State.Running}}", container],
+        text=True, timeout=20,
+    ).strip()
+    image_id = docker_output(
+        ["docker", "image", "inspect", "--format", "{{.Id}}", SCOPED_CODEX_VAULT_IMAGE],
+        text=True, timeout=20,
+    ).strip()
+    if not re.fullmatch("sha256:[a-f0-9]{64}", image_id) or reported != (
+        f"{image_id} {SCOPED_CODEX_VAULT_IMAGE} true"
+    ):
+        raise RuntimeError("Disposable Vault is not running the pinned image")
+    return container
+
+
+def scoped_vault_command(container: str, *args: str, payload: dict | None = None) -> str:
+    # Only the digest-pinned Vault CLI receives provider data. Its stdin is
+    # transient; Docker arguments, inspection metadata and Compose are keyless.
+    command = ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "exec"]
+    if payload is not None:
+        command.append("-i")
+    result = subprocess.run(
+        [*command, container, "vault", *args],
+        input=json.dumps(payload) if payload is not None else None,
+        stdin=subprocess.DEVNULL if payload is None else None,
+        capture_output=True, text=True, check=True, timeout=25,
+    )
+    return result.stdout
+
+
+def seed_scoped_vault(provider_values: dict[str, dict[str, str]]) -> None:
+    compose("up", "-d", "--no-build", "--wait", "--wait-timeout", "120", "vault", timeout=180)
+    container = scoped_vault_container()
+    scoped_vault_command(container, "write", "sys/mounts/kv", "-", payload={
+        "type": "kv", "options": {"version": "2"},
+    })
+    for provider, fields in provider_values.items():
+        scoped_vault_command(container, "write", f"kv/data/providers/{provider}", "-",
+                             payload={"data": fields})
+
+
+def verify_scoped_vault_provider_namespace(providers: dict, *, seeded_only: bool = False) -> None:
+    container = scoped_vault_container()
+    names = json.loads(scoped_vault_command(container, "list", "-format=json", "kv/metadata/providers"))
+    expected = set(providers)
+    if not seeded_only:
+        expected.update(("core_server", "vapid"))
+    if not isinstance(names, list) or any(not isinstance(item, str) for item in names):
+        raise RuntimeError("Disposable Vault provider inventory is invalid")
+    if sorted(names) != sorted(expected):
+        raise RuntimeError("Disposable Vault provider inventory does not match the scoped profile")
+
+
+def start_stack(*, compose_runner=None, sleep=time.sleep, retain_output=True):
     """Start once, retrying only bounded registry/network pull failures."""
     compose_runner = compose if compose_runner is None else compose_runner
     attempts = len(STACK_START_RETRY_DELAYS) + 1
@@ -2015,9 +2133,9 @@ def start_stack(*, compose_runner=None, sleep=time.sleep):
         except subprocess.CalledProcessError as exc:
             stdout = exc.stdout or exc.output or ""
             stderr = exc.stderr or ""
-            if stdout:
+            if retain_output and stdout:
                 sys.stdout.write(stdout)
-            if stderr:
+            if retain_output and stderr:
                 sys.stderr.write(stderr)
             combined = stdout + "\n" + stderr
             if attempt >= len(
@@ -2032,9 +2150,9 @@ def start_stack(*, compose_runner=None, sleep=time.sleep):
             )
             sleep(delay)
             continue
-        if result.stdout:
+        if retain_output and result.stdout:
             sys.stdout.write(result.stdout)
-        if result.stderr:
+        if retain_output and result.stderr:
             sys.stderr.write(result.stderr)
         return result
     raise AssertionError("unreachable")
@@ -2094,7 +2212,7 @@ def startup_service_timings(started_at: float) -> list[dict]:
         '"status":{{json .State.Status}},"exit_code":{{json .State.ExitCode}},'
         '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}null{{end}}}'
     )
-    output = subprocess.check_output(
+    output = docker_output(
         ["docker", "inspect", "--format", template, *containers], text=True, timeout=20
     )
     allowed = set(json.loads(COMPOSE_PATH.read_text())["services"])
@@ -2104,6 +2222,12 @@ def startup_service_timings(started_at: float) -> list[dict]:
         if state["service"] not in allowed:
             raise RuntimeError("Unexpected service in isolated container inventory")
         item = {key: state[key] for key in ("service", "status", "exit_code", "health")}
+        if scoped_codex_run() and (
+            item["status"] not in {"created", "running", "paused", "restarting", "removing", "exited", "dead"}
+            or item["health"] not in {None, "starting", "healthy", "unhealthy"}
+            or type(item["exit_code"]) is not int or not 0 <= item["exit_code"] <= 255
+        ):
+            raise ValueError("Unexpected isolated container status")
         timestamps = {}
         for field in ("started", "finished"):
             value = datetime.fromisoformat(
@@ -2120,7 +2244,7 @@ def startup_service_timings(started_at: float) -> list[dict]:
     return sorted(result, key=lambda item: item["service"])
 
 
-def start_with_evidence():
+def start_with_evidence(scoped_providers=None):
     """Retain useful phase timings even when a disposable bootstrap fails."""
     begin = time.time()
     selected = select_runtime_profile()
@@ -2134,7 +2258,13 @@ def start_with_evidence():
         "outcome": "failed",
     }
     try:
-        result = start_stack()
+        if scoped_providers is None:
+            result = start_stack()
+        else:
+            report["phase"] = "vault"
+            verify_scoped_vault_provider_namespace(scoped_providers, seeded_only=True)
+            report["phase"] = "services"
+            result = start_stack(retain_output=False)
         report["outcome"] = "ready"
         return result
     finally:
@@ -2235,7 +2365,7 @@ def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]
         "{{json .Config.Cmd}}\n{{range .Config.Env}}"
         '{{if eq (index (split . "=") 0) "CELERY_QUEUES"}}{{println .}}{{end}}{{end}}'
     )
-    raw = subprocess.check_output(
+    raw = docker_output(
         ["docker", "inspect", "--format", template, container],
         text=True,
         timeout=10,
@@ -2262,9 +2392,8 @@ def inspect_speech_worker_queues(container: str) -> list[str]:
     return queues
 
 
-def main():
+def run_action(action: str):
     require_runner()
-    action = sys.argv[1]
     if action == "prepare":
         source = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
@@ -2522,13 +2651,35 @@ def main():
         (Path(SOURCE) / "test-results/ci-environment.json").write_text(
             json.dumps(evidence)
         )
-    elif action == "start":
+    elif action in {"seed", "start"}:
+        scoped = scoped_codex_run()
+        if action == "seed" and not scoped:
+            raise RuntimeError("Protected Vault seeding requires a scoped Codex lane")
         profile = json.loads(COMPOSE_PATH.read_text())
         manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
         real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
-        validate_real_inference_start(profile, os.environ, real_specs)
-        # Compose's wait limit may not bound one-shot dependency startup.
-        start_with_evidence()
+        validate_real_inference_start(profile, os.environ, real_specs, check_credentials=not scoped or action == "seed")
+        if scoped:
+            providers = (CODEX_WEB_VOICE_PROVIDERS if os.environ.get("CI_CODEX_WEB_VOICE") == "1"
+                         else CODEX_REAL_INFERENCE_PROVIDERS)
+            if action == "seed":
+                values = {provider: {field: os.environ[alias]} for provider, (field, alias) in providers.items()}
+                for alias in PROVIDER_KEY_ALIASES:
+                    os.environ.pop(alias, None)
+                report = {"outcome": "failed"}
+                try:
+                    seed_scoped_vault(values)
+                    report["outcome"] = "ready"
+                finally:
+                    values.clear()
+                    (Path(SOURCE) / "test-results/ci-vault-seed.json").write_text(json.dumps(report))
+            else:
+                if PROVIDER_KEY_ALIASES.intersection(os.environ):
+                    raise RuntimeError("Provider aliases are forbidden during candidate startup")
+                start_with_evidence(providers)
+        else:
+            # Compose's wait limit may not bound one-shot dependency startup.
+            start_with_evidence()
     elif action == "verify":
         import socket
         import urllib.request
@@ -2587,7 +2738,7 @@ def main():
                     "Formula worker lost its isolated secret-free runtime"
                 )
             network = json.loads(
-                subprocess.check_output(
+                docker_output(
                     [
                         "docker",
                         "network",
@@ -2623,7 +2774,7 @@ def main():
         if "mailpit" in profile["services"]:
             required.append("mailpit")
             network = json.loads(
-                subprocess.check_output(
+                docker_output(
                     ["docker", "network", "inspect", "openmates-ci_default"], text=True
                 )
             )[0]
@@ -2662,7 +2813,7 @@ def main():
                 )
             )
             network = json.loads(
-                subprocess.check_output(
+                docker_output(
                     ["docker", "network", "inspect", "openmates-ci_default"], text=True
                 )
             )[0]
@@ -2685,7 +2836,7 @@ def main():
                 if codex or web_voice:
                     if web_voice and not verify_web_voice_services(profile["services"]):
                         raise RuntimeError("The real web voice speech services are unverified")
-                    verify_isolated_vault_provider_namespace()
+                    verify_scoped_vault_provider_namespace(providers)
                     verify_codex_provider_egress(web_voice=web_voice)
                     evidence["real_inference_profile"] = CODEX_WEB_VOICE_PROFILE if web_voice else "codex-real-inference"
         if (
@@ -2749,7 +2900,7 @@ def main():
             container = compose("ps", "-q", service, capture=True).stdout.strip()
             if not container:
                 raise RuntimeError("Required private service is missing: " + service)
-            raw = subprocess.check_output(["docker", "inspect", container], text=True)
+            raw = docker_output(["docker", "inspect", container], text=True)
             info = json.loads(raw)[0]
             if evidence.get("storage_capacity") and (
                 service in {"api", "core-worker"} or service.startswith("ai-worker")
@@ -2828,7 +2979,7 @@ def main():
                     raise RuntimeError(
                         "Target worker command differs from admitted four-slot profile"
                     )
-                children = subprocess.check_output(
+                children = docker_output(
                     [
                         "docker",
                         "exec",
@@ -3041,7 +3192,7 @@ def main():
                 ("containers", ["docker", "ps", "-aq"]),
                 ("volumes", ["docker", "volume", "ls", "-q"]),
             ):
-                remaining = subprocess.check_output(
+                remaining = docker_output(
                     [
                         *command,
                         "--filter",
@@ -3078,7 +3229,22 @@ def main():
                 )
             )
     elif action == "logs":
-        if COMPOSE_PATH.exists():
+        if not COMPOSE_PATH.exists():
+            return
+        label = os.environ.get("CI_DIAGNOSTIC_LABEL", "")
+        if label and not re.fullmatch(r"spec-[0-9]{1,3}", label):
+            raise ValueError("Invalid bounded diagnostic label")
+        filename = f"ci-stack-{label}.log" if label else "ci-stack.log"
+        destination = Path(SOURCE) / "test-results" / filename
+        if scoped_codex_run():
+            # Later diagnostic steps intentionally have no protected keys to
+            # redact. Never collect free-form logs or Docker health output.
+            try:
+                receipt = {"services": startup_service_timings(time.time())}
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+                receipt = {"error": "stack_status_unavailable"}
+            destination.write_text(json.dumps(receipt))
+        else:
             result = compose("logs", "--no-color", "--tail", "150", capture=True)
             # Generated secrets are replaced before logs become uploaded artifacts.
             profile = json.loads(COMPOSE_PATH.read_text())
@@ -3097,7 +3263,7 @@ def main():
                     output += f"\n==== {service} (last 6000 lines, httpx omitted) ====\n" + "\n".join(kept)
             containers = compose("ps", "-aq", capture=True).stdout.split()
             for container in containers:
-                state = subprocess.check_output(
+                state = docker_output(
                     ["docker", "inspect", "--format", "{{json .State}}", container],
                     text=True,
                     timeout=20,
@@ -3114,13 +3280,27 @@ def main():
                     ):
                         output = output.replace(str(value), "<REDACTED>")
             output = redact_real_inference_logs(output, profile, os.environ)
-            label = os.environ.get("CI_DIAGNOSTIC_LABEL", "")
-            if label and not re.fullmatch(r"spec-[0-9]{1,3}", label):
-                raise ValueError("Invalid bounded diagnostic label")
-            filename = f"ci-stack-{label}.log" if label else "ci-stack.log"
-            (Path(SOURCE) / "test-results" / filename).write_text(output)
+            destination.write_text(output)
     else:
         raise ValueError("Unknown CI environment action")
+
+
+def main():
+    action = sys.argv[1]
+    if not scoped_codex_run() or action == "prepare":
+        run_action(action)
+        return
+    # Keep provider errors, subprocess output and exception chains out of the
+    # Actions console. The startup and status receipts retain bounded facts.
+    try:
+        if action != "seed":
+            for alias in PROVIDER_KEY_ALIASES:
+                os.environ.pop(alias, None)
+        run_action(action)
+    except Exception:
+        phase = action if action in {"seed", "start", "verify", "logs", "stop"} else "unknown"
+        print(f"Scoped CI {phase} failed; see the structured stack receipts.", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

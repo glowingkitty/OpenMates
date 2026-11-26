@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Repository Playwright helpers use CommonJS. */
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
 import { installRealVoicePlayback, qualifiedVoiceTiming, type RealVoicePlayback } from './helpers/real-voice-playback';
-import { proofAudioLaunchArgs, withProofAudio } from './helpers/proof-audio';
+import { installProofAudio, proofAudioLaunchArgs } from './helpers/proof-audio';
 
-const { test: auditedTest, expect } = require('./helpers/cookie-audit');
+const { test, expect } = require('./helpers/cookie-audit');
 const { loginToTestAccount, sendMessage, waitForAssistantMessage, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { requireRealInference } = require('./helpers/real-inference-guard');
-const test = withProofAudio(auditedTest);
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const ROOT = path.resolve(__dirname, '../../../..');
 const FIXTURE_HASH = '450d3653febb63b6e3cc6516afc7d000eb631e1426dc3fd821c16265f25dbe90';
@@ -19,6 +19,23 @@ const MODEL_ID = 'inception/mercury-3';
 const MODEL_NAME = 'Mercury 3';
 const FOLLOW_UP = 'And Spain?';
 const PAID_CALL_LIMIT_MS = 45_000;
+
+const voiceProof = defineVideoProof({
+  id: 'real-signed-in-web-voice',
+  title: 'A spoken question and typed follow-up stay in the same chat',
+  surface: 'web',
+  domain: 'localhost',
+  devices: ['web-laptop'],
+  transcript: [
+    { id: 'audible-answer', text: 'Ask about France and hear the assistant answer.', checkpoint: 'audible-answer', devices: ['web-laptop'] },
+    { id: 'saved-turns', text: 'Type a follow-up about Spain. Both turns reappear in the same chat after reload.', checkpoint: 'saved-turns', devices: ['web-laptop'] },
+  ],
+  assertions: [
+    { id: 'assistant-audio', checkpoint: 'audible-answer', visual: 'The spoken question and the Mercury 3 answer about Paris appear with audible speech.', devices: ['web-laptop'] },
+    { id: 'same-chat', checkpoint: 'saved-turns', visual: 'The conversation shows the original France voice turn and the typed Spain follow-up after reload.', devices: ['web-laptop'] },
+  ],
+  tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 },
+});
 
 function exactVoiceProofRuntime() {
   const app = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173');
@@ -74,7 +91,7 @@ test.use({
 
 // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission
 test('a real signed-in web voice turn plays audible speech and keeps its encrypted chat for the typed follow-up',
-  async ({ page }: { page: Page }, testInfo: TestInfo) => {
+  async ({ page: loginPage }: { page: Page }, testInfo: TestInfo) => {
     test.setTimeout(150_000);
     const { app, api, commit } = exactVoiceProofRuntime();
     if (!getTestAccount().email) throw new Error('The isolated browser test account is required');
@@ -82,13 +99,21 @@ test('a real signed-in web voice turn plays audible speech and keeps its encrypt
     if (createHash('sha256').update(fixture).digest('hex') !== FIXTURE_HASH) {
       throw new Error('The approved synthetic microphone fixture changed');
     }
-    const version = await page.request.get(app + '/_app/version.json');
+    const version = await loginPage.request.get(app + '/_app/version.json');
     expect(version.ok()).toBe(true);
     expect((await version.json()).version).toBe(commit);
 
+    await loginToTestAccount(loginPage);
+    // Sign-in cookies and the persisted client key remain in this browser
+    // context. Only the new tab is allowed to produce published proof.
+    const page = await loginPage.context().newPage();
+    const recording = await installProofAudio(page, testInfo.outputPath('voice-proof-local'));
+    const timeline = createVideoProofRuntime(voiceProof, {
+      device: 'web-laptop', attach: testInfo.attach.bind(testInfo),
+    });
     await installRealVoicePlayback(page, fixture);
     await page.goto(app + '/', { waitUntil: 'domcontentloaded' });
-    await loginToTestAccount(page);
+    await waitForChatReady(page);
     const modelSaved = await page.evaluate(async ({ api, model }) => {
       const response = await fetch(api + '/v1/settings/ai-model-defaults', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
@@ -147,13 +172,16 @@ test('a real signed-in web voice turn plays audible speech and keeps its encrypt
       expect(first.turns).toEqual([{ callId, messageId: voiceId }]);
 
       let timings: ReturnType<typeof qualifiedVoiceTiming> = null;
-      await expect.poll(async () => {
-        timings = qualifiedVoiceTiming(await probeSnapshot(page), { callId, chatId, messageId: replyId });
-        return timings !== null;
-      }, { timeout: budget(), message: 'Only non-silent playback of the owned prose stream qualifies' }).toBe(true);
+      await timeline.assert('assistant-audio', async () => {
+        await expect.poll(async () => {
+          timings = qualifiedVoiceTiming(await probeSnapshot(page), { callId, chatId, messageId: replyId });
+          return timings !== null;
+        }, { timeout: budget(), message: 'Only non-silent playback of the owned prose stream qualifies' }).toBe(true);
+      });
       const timing = timings as ReturnType<typeof qualifiedVoiceTiming>;
       if (!timing) throw new Error('Owned non-silent speech was not measured');
       if (timing.cueMs !== null) expect(timing.cueMs).toBeLessThanOrEqual(timing.substantiveMs);
+      await timeline.checkpoint('audible-answer');
       budget();
       await hangup();
       callOpen = false;
@@ -171,14 +199,17 @@ test('a real signed-in web voice turn plays audible speech and keeps its encrypt
       if (!typedId || !typedReplyId) throw new Error('The typed follow-up did not establish canonical message identity');
       const identities = [voiceId, replyId, typedId, typedReplyId];
       expect(new Set(identities).size).toBe(4);
-      await expect.poll(() => verifyEncryptedRows(page, api, chatId, identities), { timeout: 20_000 }).toBe(true);
-      await page.reload();
-      await waitForChatReady(page);
-      for (const id of identities) await expect(page.locator('[data-message-id="' + id + '"]')).toHaveCount(1);
-      await expect(heard).toContainText(/capital of France/i);
-      await expect(reply).toContainText(/Paris/i);
-      await expect(typed).toContainText(FOLLOW_UP);
-      await expect(page.locator('[data-message-id="' + typedReplyId + '"]')).toContainText(/Madrid/i);
+      await timeline.assert('same-chat', async () => {
+        await expect.poll(() => verifyEncryptedRows(page, api, chatId, identities), { timeout: 20_000 }).toBe(true);
+        await page.reload();
+        await waitForChatReady(page);
+        for (const id of identities) await expect(page.locator('[data-message-id="' + id + '"]')).toHaveCount(1);
+        await expect(heard).toContainText(/capital of France/i);
+        await expect(reply).toContainText(/Paris/i);
+        await expect(typed).toContainText(FOLLOW_UP);
+        await expect(page.locator('[data-message-id="' + typedReplyId + '"]')).toContainText(/Madrid/i);
+      });
+      await timeline.checkpoint('saved-turns');
 
       const artifact = testInfo.outputPath('real-web-voice-timing.json');
       writeFileSync(artifact, JSON.stringify({ sourceCommit: commit, lastVoicedToCueMs: timing.cueMs,
@@ -188,4 +219,11 @@ test('a real signed-in web voice turn plays audible speech and keeps its encrypt
       clearTimeout(forceHangup);
       if (callOpen) await hangup().catch(() => {});
     }
+
+    await timeline.attach();
+    const videos = await recording.finish();
+    expect(videos).toEqual([path.join(recording.dir, 'video-0-with-audio.webm')]);
+    const proof = testInfo.outputPath('signed-in-voice-with-audio.webm');
+    renameSync(videos[0], proof);
+    await testInfo.attach('signed-in-voice-with-audio', { path: proof, contentType: 'video/webm' });
   });
