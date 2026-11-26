@@ -16,6 +16,8 @@ pub(super) const SNAPSHOT_FIELD: &str = "chat_sync_feed_v1";
 /// WebSocket `client_capabilities` entry that opts this socket into the feed.
 pub const CAPABILITY: &str = "chat_sync_feed_v1";
 const PAGE_LIMIT: u32 = 200;
+const STARTUP_RECENT_LIMIT: usize = 10;
+const STARTUP_RECENT_TIMEOUT: Duration = Duration::from_secs(4);
 const MAX_PAGES: usize = 50;
 const PAGE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_CURSOR_LENGTH: usize = 160;
@@ -470,6 +472,82 @@ impl Client {
             last_opened_chat_id: state.last_opened_chat_id.clone(),
             due_soon_generated_at_ms: state.due_soon_generated_at,
         }
+    }
+
+    /// First metadata batch for a native Personal session with no local chat
+    /// index. It never grants an inventory receipt or advances the feed cursor.
+    pub(crate) async fn cold_start_recent_chats(&mut self) -> Result<Option<Vec<Item>>> {
+        self.require_canonical_read_profile()?;
+        if !self.chats.is_empty() || self.team()?.is_some() || self.browser_cookies() {
+            return Ok(None);
+        }
+        let path = format!("/v1/chats?limit={STARTUP_RECENT_LIMIT}");
+        let cancel = self.operation_cancel.clone();
+        let response = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(Error::Cancelled),
+            result = crate::platform::time::timeout(
+                STARTUP_RECENT_TIMEOUT,
+                self.request(Method::GET, &path, None),
+            ) => match result {
+                Ok(Ok(response)) => response,
+                // The normal sync can still use its own authorized transport.
+                Ok(Err(Error::Offline)) | Err(_) => return Ok(None),
+                Ok(Err(error)) => return Err(error),
+            },
+        };
+        self.require_canonical_read_profile()?;
+        let (rows, wrappers) = self.decode_recent_chat_rows(&response)?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        self.chat_arrival_order = Some(Vec::with_capacity(rows.len()));
+        for (id, row) in rows {
+            self.upsert_cached_row(&id, row);
+        }
+        self.wrappers.extend(wrappers);
+        self.render_chat_inventory_with_capability().await.map(Some)
+    }
+
+    fn decode_recent_chat_rows(&self, response: &Value) -> Result<(Vec<(String, Value)>, Vec<Value>)> {
+        let chats = response["chats"].as_array().ok_or(Error::Protocol)?;
+        if chats.len() > STARTUP_RECENT_LIMIT {
+            return Err(Error::Protocol);
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        let mut rows = Vec::with_capacity(chats.len());
+        let mut wrappers = Vec::new();
+        for chat in chats {
+            let id = required(chat, "id")?;
+            if !uuid::Uuid::parse_str(id).is_ok_and(|value| value.to_string() == id)
+                || !seen.insert(id)
+            {
+                return Err(Error::Protocol);
+            }
+            if self.is_deleted_chat(id) {
+                continue;
+            }
+            let hash = hashed(id);
+            let chat_wrappers = chat["chat_key_wrappers"].as_array().ok_or(Error::Protocol)?;
+            for wrapper in chat_wrappers {
+                if wrapper["hashed_chat_id"].as_str() != Some(hash.as_str()) {
+                    return Err(Error::Protocol);
+                }
+                wrappers.push(wrapper.clone());
+            }
+            let mut row = chat.as_object().ok_or(Error::Protocol)?.clone();
+            row.remove("chat_key_wrappers");
+            // The REST consumer shape sends Unix timestamps as strings. The
+            // shared list and cache use the same integers as the sync stream.
+            for field in ["created_at", "updated_at", "last_edited_overall_timestamp"] {
+                if let Some(Value::String(seconds)) = row.get_mut(field) {
+                    let timestamp = seconds.parse::<i64>().map_err(|_| Error::Protocol)?;
+                    row.insert(field.into(), json!(timestamp));
+                }
+            }
+            rows.push((id.to_owned(), Value::Object(row)));
+        }
+        Ok((rows, wrappers))
     }
 
     /// `chats list` warm path: one feed catch-up over the cached index, then

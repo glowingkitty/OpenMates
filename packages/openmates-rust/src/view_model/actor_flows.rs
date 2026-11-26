@@ -129,10 +129,10 @@ pub fn start<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     })
 }
 
-/// The slow half of `Start`: global recovery (which may yield a complete
-/// inventory), then the chat list, persisted before it is emitted. Shells run
-/// it only while idle and cancel `cancel` to let a chat open or send go first;
-/// a cancelled sync publishes nothing and can simply run again.
+/// After admission, publish a bounded recent list on an empty cache before
+/// global recovery. The complete inventory is reconciled afterward. Shells
+/// run this while idle and cancel it to let a selected chat open or send go
+/// first. Cancellation fences later events and preserves an already visible list.
 ///
 /// # Errors
 /// Recovery, sync and persistence errors; `Cancelled` when superseded.
@@ -147,6 +147,15 @@ pub fn boot_sync<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         }
         let generation = host.core().shell().ops().guard();
         let drafts = DraftSnapshot::capture(host.core().client())?;
+        if !cancel.is_cancelled() {
+            host.core_mut().begin_client_operation(cancel);
+            if let Some(items) = host.core_mut().client_mut().cold_start_recent_chats().await? {
+                superseded(host, cancel, &generation)?;
+                host.core_mut().persist().await?;
+                superseded(host, cancel, &generation)?;
+                sink.emit(list_event(host, items)?).await?;
+            }
+        }
         // Reuse only the same-batch complete inventory returned after actual
         // recovery admission and its durable save; no cache is promoted.
         let proof = host
@@ -185,6 +194,11 @@ pub fn refresh_chats<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     cancel: &'a CancellationToken,
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
+        if host.core().client().session().is_none() {
+            return Err(Error::Authentication);
+        }
+        let generation = host.core().shell().ops().guard();
+        superseded(host, cancel, &generation)?;
         // Before any read: a draft another device saved or cleared is told
         // apart from this client's own (already cached) save.
         let drafts = DraftSnapshot::capture(host.core().client())?;
@@ -194,15 +208,21 @@ pub fn refresh_chats<'a, S: ByteStore + 'static, H: ViewHost<S>>(
             host.core_mut().begin_client_operation(cancel);
             let client = host.core_mut().client_mut();
             if let Some(items) = client.chat_list_from_feed().await? {
+                superseded(host, cancel, &generation)?;
                 host.core_mut().persist().await?;
+                superseded(host, cancel, &generation)?;
                 sink.emit(list_event(host, items)?).await?;
                 return publish_draft_changes(host.core().client(), drafts, sink).await;
             }
         }
         host.recover_before_list(sink, ListRecovery::Refresh)
             .await?;
+        superseded(host, cancel, &generation)?;
+        host.core_mut().begin_client_operation(cancel);
         let items = host.core_mut().client_mut().list(Workspace::Chats).await?;
+        superseded(host, cancel, &generation)?;
         host.core_mut().persist().await?;
+        superseded(host, cancel, &generation)?;
         sink.emit(list_event(host, items)?).await?;
         publish_draft_changes(host.core().client(), drafts, sink).await
     })
