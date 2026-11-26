@@ -214,7 +214,7 @@ Client-side Phase 1a handling must use the shared chat metadata merge policy (`m
 - WebSocket event: `phase_2_last_20_chats_ready` until the event name is renamed.
 - Sends metadata only for the recent 100-chat window.
 - Does not send messages, embeds, embed keys, Code Run outputs, or compression checkpoints.
-- Triggers metadata-only expansion for chats 101-1000 when needed.
+- Reports the full account count. Older headers are read in explicit pages or by exact chat ID.
 
 ### On-Demand Hydration
 

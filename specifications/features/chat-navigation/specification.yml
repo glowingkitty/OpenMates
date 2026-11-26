@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chat-navigation
-version: 3
+version: 4
 status: approved
 title: Chat Navigation
 summary: First-party chat navigation follows sidebar order, keeps running parent chats
@@ -11,14 +11,15 @@ scope:
   - ChatHeader previous/next controls and equivalent touch-swipe navigation.
   - Sidebar chat ordering as the canonical navigation order for the active chat list.
   - Draft-only chats that have saved draft content but no persisted messages or title.
-  - Coherent local-first chat opening while optional remote completeness repair continues.
+  - The initial Chats workspace and coherent local-first saved chat opening across first-party clients.
+  - Default example chats on a signed-out graphical launch.
   - Globally running parent chats, active-descendant folders and a landing-page activity
     link.
   - Flat nested Project sidebar navigation in web, Apple and terminal clients.
   - Explicit chat add/move and AI-named grouping actions.
   - Chat action menus (context menu and open-chat More menu) and their usage ranking.
   excludes:
-  - Public shared-chat browsing and unauthenticated intro/example chat navigation.
+  - Public shared-chat browsing and navigation within individual example chats.
   - Message send, AI response generation, or title/summary generation semantics.
   - Server-side sync pagination, deletion authority, or encrypted draft ciphertext
     reconciliation.
@@ -167,12 +168,25 @@ assertions:
   depends_on:
   - models.ChatNavigationList
   - examples.empty_shells
+- id: chat-navigation.startup.useful-content
+  type: behavior
+  must: >-
+    On launch, an authorized returning account can see and select its local recent
+    chats without waiting for account-wide sync. With no usable local list, show
+    the workspace and reveal real chats as the first authorized metadata arrives.
+    A confirmed signed-out web or Apple launch displays the bundled default example
+    chats. A full-screen loading view does not replace the workspace, and private
+    rows remain hidden until their account and workspace access is established.
+  depends_on:
+  - examples.startup_useful_content
 - id: chat-navigation.open.local-first-coherent
   type: behavior
   must: Selecting a saved chat atomically replaces the welcome or previous-chat surface
     with a target-specific chat shell; locally available decrypted header metadata
     and the bounded encrypted local message window render as soon as their client-held
-    keys are ready, while optional remote completeness repair runs without blocking
+    keys are ready. The shared Rust loading path used by web, Apple and the
+    terminal UI starts from the selection. Presentation transitions, account-wide
+    sync, and optional remote completeness repair run without blocking
     that shell or valid local content and may merge only into the current selection
     without duplicates or ordering regressions. Missing local data, unavailable keys,
     repair failure, or decryption failure remain target-specific loading or visible
@@ -181,6 +195,17 @@ assertions:
   depends_on:
   - models.ChatOpenTransition
   - examples.local_first_chat_open
+- id: chat-navigation.open.visible-embed-previews
+  type: behavior
+  must: >-
+    On web and Apple, show authorized cached previews for embeds in the initial
+    viewport as they become ready. Keep the card's place when its preview needs
+    to load so the adjacent messages stay readable and the visible conversation
+    stays stable. Offscreen previews and full-size media do not hold up the first
+    readable transcript. The shared Rust path keeps the selected chat and its access
+    scope current throughout loading.
+  depends_on:
+  - examples.visible_embed_previews
 - id: chat-navigation.projects.nested-readable
   type: behavior
   must: Project folders support arbitrary nesting. Each sidebar view shows immediate
@@ -242,8 +267,9 @@ applies_to:
       order under this contract.
   cli:
     required: true
-    role: Terminal equivalents expose readable Project paths, running-first entries
-      and organization actions.
+    role: The interactive terminal uses the shared recent-chat and saved transcript
+      loading paths, and exposes readable Project paths, running-first entries and
+      organization actions. Apple and web own visual embed cards.
   sdks:
     required: false
     role: SDKs expose data operations only; GUI navigation controls are first-party
@@ -267,7 +293,9 @@ examples:
   - sidebar_header_order
   - draft_only_targets
   - empty_shells
+  - startup_useful_content
   - local_first_chat_open
+  - visible_embed_previews
   - nested_projects
   - sidebar_projects_with_chats
   - running_chats

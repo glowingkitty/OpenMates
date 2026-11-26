@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chat-navigation@3
+specification: feature.chat-navigation@4
 sidebar_header_order:
 - id: selected-chat-navigates-older-and-newer
   given:
@@ -80,7 +80,21 @@ empty_shells:
     persisted_chat_id: present
     sidebar_row: present
     header_navigation_target: true
+startup_useful_content:
+- id: returning-account-has-usable-local-chats
+  given: A returning account has an authorized cached chat list and the network is slow.
+  when: The user launches the web, Apple or terminal app.
+  then: The recent chats are visible and selectable before account sync finishes.
+- id: first-visit-uses-bundled-examples
+  given: The web or Apple app opens for a visitor who is signed out.
+  when: The workspace first appears.
+  then: The default example chats are already available in the workspace.
 local_first_chat_open:
+- id: begin-opening-at-selection
+  assertion_ids: [chat-navigation.open.local-first-coherent]
+  given: The selected chat has an authorized local message window and the account sync is still running.
+  when: The user selects the chat on web, Apple or the terminal.
+  then: The selection starts loading immediately and the first readable messages appear independently of account sync or a navigation transition.
 - id: warm-short-chat-repairs-after-local-paint
   given:
     target_chat_id: chat-b
@@ -126,6 +140,11 @@ local_first_chat_open:
     welcome_surface_visible: false
     ciphertext_visible: false
     previous_chat_plaintext_visible: false
+visible_embed_previews:
+- id: rich-chat-first-viewport-stays-readable
+  given: A saved chat has an authorized cached preview, another visible preview that is slow to load, and a large attachment farther down the history.
+  when: The user opens the chat on web or Apple.
+  then: The first messages and cached preview appear promptly. The second card keeps its place while it loads, and the offscreen attachment does not delay that view.
 nested_projects:
 - id: deep-path
   assertion_ids:

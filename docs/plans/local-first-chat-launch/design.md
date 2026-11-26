@@ -1,0 +1,72 @@
+# Local-first launch and chat opening
+
+The approved implementation for TASK-6047 uses shared Rust loading and decryption across terminal, web and Apple. The source review compared OpenMates at `413bc475b0` with the local native reference app. Timing budgets below are targets. The interactive terminal already delegates startup and chat opening to the shared Rust view model.
+
+## What the existing apps teach us
+
+The reference native app decodes bundled fixtures and a local state file. Opening a conversation uses an in-memory record, and switching sections changes the route. Its speed comes from having data ready for the next screen. OpenMates can adopt that property for authorized cached conversations while preserving end-to-end encryption and real synchronization.
+
+OpenMates already has the key primitives. Rust can restore the encrypted index and emit cached list rows before online admission. It also has a per-chat cache read that bypasses queued writes, a bounded selected-chat first page, and a cursor feed for warm sync. Those paths do not consistently set the timing of the actual app's first screen.
+
+- Apple starts a SwiftData restore on the main actor that reads embed keys, chat metadata and message and embed windows for up to five chats. The shell also combines Rust and Swift chat data. On first selection, Swift defers the transcript task until the 300 ms transition is removed. In the Rust Apple binding, a shared actor lock spans async startup and signed-in commands, so a local read can wait upstream even when its storage path bypasses queued writes.
+- Web can use IndexedDB immediately during a returning launch and keep the UI responsive during reconnect. Some authenticated deep links still wait on phased sync or a fallback, and a regular chat open awaits compression-checkpoint loading before asking for its local history window. The SharedWorker already prewarms WebAssembly and supports a locally admitted saved-chat read.
+- The installed Mac build recorded an 18.67-second hang in SwiftUI layout. Its sampled stack ends in framework code. The auth screen also has a reproducible layout problem before sign-in. Historical Apple benchmarks also attributed much of one large-chat path to building render documents. Those samples guide investigation and do not quantify the current authenticated Mac build.
+
+## Proposed user experience
+
+| Situation | First useful screen | Work after the first frame |
+| --- | --- | --- |
+| Confirmed signed-out or first launch | Real chat workspace with bundled default example chats and usable controls | Public catalog refresh and optional guest setup |
+| Returning, locally authorized account | Recent chats for the active account and Team from the encrypted index, with any explicitly requested or legitimately restored route taking precedence | Credential revalidation, cursor catch-up and list updates |
+| Fresh sign-in, missing cache, or locked credentials | Interactive workspace or the existing unlock flow. After admission, show real rows as their first metadata batch arrives | Broader sync and prefetch. An actually empty account gets its empty state once known |
+| Cached chat selected | The selected chat frame appears on the input event. The first readable messages appear as soon as an authorized local page is available | Live repair, additional history and expensive embeds |
+| Uncached chat or deep link selected | The selected chat frame with its existing controls and a transcript-local status when needed | Fetch the authorized selected header, applicable key wrappers and bounded message window. A retry stays inside that transcript |
+
+Use the same workspace across startup states. While identity is unresolved, mount its neutral controls and keep cached private rows hidden until locally eligible. A returning user should not see a guest example flash during an ordinary authorized restore, and losing access must remove affected private rows immediately. Same-scope revisits of Tasks and Projects can retain a bounded, already-renderable projection while refreshing independently.
+
+## Implementation design
+
+1. **One readiness model in the Rust core.** Keep access, local-content readiness and online freshness as distinct states. Build the first recent-chat list from the existing encrypted index as a bounded projection. Keep established resume ordering and prioritize an explicit selected or restored chat. Load only the fields the first screen draws. Full inventory and settings run separately. If profiling shows that decoding the existing index grows with the entire account, subdivide the existing encrypted cache by read purpose behind its existing byte adapters with revision-stamped, replaceable sections.
+2. **Give the selected chat a direct read path.** Set selection and begin the bounded read on the input event. The transition animates the shell and never controls when reading begins. Take an immutable read handle to the latest committed eligible cache revision. Extend the core's existing generation and revocation fences so this read can run independently of the mutable actor doing server admission, remote repair or persistence. Keep one authority for writes, cursor reconciliation and permissions. Cancel superseded work, coalesce equivalent reads, and check account, server, Team, credential revision, selection generation and known denials immediately before publication. An online validation rejection wins over an in-flight local result. Read the authorized saved anchor when present, otherwise the newest useful bounded window.
+3. **Use the smallest authorized network operation on a miss.** Request only the selected chat's first viewport and the metadata and keys necessary to decrypt it. Reuse existing scoped routes and first-page durability receipts. A cold account can publish a page of up to ten authorized chat headers before recovery and the background recent-window refresh. Preserve the feed clock, tombstones, archive ordering and distinction between a visible partial window and a complete history receipt. Consider bundling existing requests only if the measured miss path still spends most of its time on sequential network round trips.
+4. **Keep the two shells focused on rendering.** On Apple, remove replaced startup reads and private-chat projection work from the main actor after preserving drafts, pending sends, recovery checkpoints and anchors. On web, keep the Worker and remove the startup and deep-link duplicate gates as their replacement takes over. Publish scoped list and transcript updates through UniFFI or the Worker. Prioritize the existing privacy-filtered text and necessary Markdown and embed layout for the initial viewport. Defer offscreen rows, heavy previews, widgets and indexing to separate budgets. Keep decrypted projections bounded and transient. Use existing platform credential storage and ciphertext persistence.
+5. **Finish by capability.** Implement and prove the shared behavior in the terminal UI first, including its existing independent cached view and revocation tests. Wire web to the proven core through the SharedWorker and verify the browser’s fast paths. Then adopt the same path in macOS and iOS. Each shell renders its own views and leaves cache reads, decryption, scope checks and reconciliation in Rust. Delete replaced Swift and TypeScript data paths once each capability is complete. Keep the auth layout fix independent so a layout defect cannot be mistaken for sync regression.
+
+The browser fixture now proves that the Rust selected-chat request starts while checkpoint retrieval is held. The older on-demand hydration test reproduces an IndexedDB retention gap on both the baseline and the candidate. The production canonical Rust browser read returns a memory-only display window. Retain the ciphertext from that same authorized response using the core's existing compare-and-patch and readback operations. Keep the live page's paging boundaries separate from retained-cache coverage. Preserve account, workspace and selection guards through the final readback, and keep the existing offline reopen assertion.
+
+When a connection drops, keep the admitted list and the selected cached messages visible. An online replacement refreshes the list from the Rust cursor. A disconnected web session can reacquire its existing local-only read lease, and an older queued repair cannot start after a newer selection. The Apple window that owns the shared socket requests catch-up after reconnect and cancels that request when the transport or Team changes. Apple re-admission keeps the existing Rust window and cursor when the protected credential record and the fresh server principal both match. A change of principal follows the normal expired-session cleanup.
+
+## Startup and background sync
+
+The current server sends encrypted recent headings first, full content for at most 20 recent parent chats, then metadata for the most recent 100 chats. Clients can request additional older metadata separately. Older parent and sub-chat transcripts are fetched only on demand. Settings, memories and optional Apple offline prefetch have separate work.
+
+For an unlocked returning account the recent index and the selected cached transcript set the first readable screen. For an admitted account with an empty index the shared core can publish a small partial list before full recovery. Ask for only the selected missing viewport and its keys. Refresh metadata up to the recent 100 separately and show the full account count. Older headers stay outside automatic fetching, indexing and cache growth. Explicit older-chat navigation can read the requested record. Keep broad transcript prefetch off the path to the first frame. Reconnect continues from the durable feed position while preserving the selected chat.
+
+## Web key loading on existing installations
+
+The owner approved moving older key unwraps to first use. Resolve a key within the currently admitted account and workspace and discard results when either changes. Background message and embed handlers use the same lookup. Preserve persisted key comparison before writes, including writes in caller-owned transactions. Exercise a cache containing earlier releases' data and time the recent sidebar independently of older key use. Keep tombstone reconciliation available for previously retained IDs.
+
+## Proposed performance budgets and proof
+
+These are starting engineering budgets, not measured improvements. The suggested cached target tightens the current sync specification's 300 ms p95 target. The proposed cold test preserves its under-1-second p95 target. Use paired release builds on the same hardware, dataset, build profile and network conditions. Publish separately for macOS, iPhone and desktop web, including Safari. Use terminal regression evidence for the common cache, selection and cancellation behavior. Separate a new process with retained encrypted data from app resume and from a truly cold account or browser asset cache. Measure elapsed time to actually visible, readable content rather than a shell label or ready callback.
+
+| Metric | Initial p95 budget |
+| --- | --- |
+| Launch or warm-asset web reload to usable recent rows for an eligible returning account | 700 ms |
+| Tap to first readable cached chat message in a running app | 150 ms |
+| Switch back to a previously opened workspace in the same scope | 150 ms |
+| First selected chat page after admission, with no local history and controlled 80 ms RTT | Under 1 s |
+
+Record selection, local auth and key readiness, storage wait, network start and first byte, decode and render scheduling, first meaningful frame, and sync settlement. Count request and decode work, report p50/p95, and keep telemetry free of chat content and identifiers. Exercise an ordinary encrypted fixture, 600 chat rows, a long rich chat, a read-only personal DevTest session, and guest startup. Pin baseline and candidate to the same runner or device. Distinguish a true cold online case from an app restart with a warm local cache.
+
+Extend `startup-sync-contract.spec.ts`, `AppleInteractionBudgetUITests`, `ChatFlowRealAccountUITests` and core cache/first-page tests. Hold the sync and repair responses and prove that eligible local content still paints. Check A-to-B selection under load, logout during decrypt, account and Team switches, denied offline access, expired and corrupt cache, drafts, archived history, and missing selected keys. A signed build must prove the Mac path. The earlier simulator result supports the auth layout patch and does not establish these timings.
+
+Use the existing GitHub repository secrets and encrypted result bundles for read-only Personal DevTest checks on terminal, web, and Apple. The web and terminal benchmarks are dispatched through the registered Isolated application tests workflow on `dev` with `personal_devtest_surface` and the public evidence certificate. The web benchmark targets the deployed development app. The native terminal benchmark builds its exact branch revision and drives the normal vault and chat controls. Authenticate normally, time cached relaunch to readable recent chat rows independently of full sync, and open several existing conversations with no new inference. Check the personal-account tests ran and passed. Ordinary Debug simulator budgets detect regressions on their runner. Record release-mode latency separately, and reserve the release Mac for TestFlight.
+
+## Source locations
+
+- Terminal: `frontend/packages/openmates-tui-native/src/runtime.rs:1607` and `:1979`.
+- Apple: `apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift:263`, `apple/OpenMates/Sources/App/MainAppView.swift:4115`, and `packages/openmates-apple-bindings/src/view_core.rs:323`.
+- Web: `frontend/apps/web_app/src/routes/+page.svelte:1462` and `frontend/packages/ui/src/components/ActiveChat.svelte:10497`.
+- Shared core: `packages/openmates-rust/src/view_model/actor_flows.rs:95`, `packages/openmates-rust/src/local_cache/cache_store.rs:311`, and `packages/openmates-rust/src/view_model/window.rs:132`.
+- Prior measurement context: `docs/plans/apple-client-core-migration/results.md`, `docs/plans/web-workspace-navigation-cache/plan.yml`, and `docs/plans/tui-startup-performance/report.md`.

@@ -2168,7 +2168,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 13
+  assertions: 15
   surfaces:
     web:
       status: failing
@@ -2178,8 +2178,8 @@ features:
         passing: 5
         failing: 4
         not_run: 4
-        missing: 0
-        counted: 13
+        missing: 2
+        counted: 15
       failing_tests:
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts › groups saved chats, navigates deep folders and reveals
         running descendants globally
@@ -2216,8 +2216,8 @@ features:
         passing: 7
         failing: 0
         not_run: 0
-        missing: 6
-        counted: 13
+        missing: 8
+        counted: 15
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
@@ -2248,8 +2248,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 7
-        counted: 13
+        missing: 9
+        counted: 15
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -24760,7 +24760,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 18
+  assertions: 19
   surfaces:
     web:
       status: failing
@@ -24770,8 +24770,8 @@ features:
         passing: 3
         failing: 2
         not_run: 2
-        missing: 11
-        counted: 18
+        missing: 12
+        counted: 19
       failing_tests:
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on
         demand
@@ -24797,8 +24797,8 @@ features:
         passing: 3
         failing: 1
         not_run: 1
-        missing: 13
-        counted: 18
+        missing: 14
+        counted: 19
       failing_tests:
       - apple/OpenMatesTests/KeychainSharingTests.swift › testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper
       key_tests: []
@@ -24842,8 +24842,8 @@ features:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 12
-        counted: 18
+        missing: 13
+        counted: 19
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts
@@ -24873,8 +24873,8 @@ features:
         passing: 0
         failing: 0
         not_run: 13
-        missing: 5
-        counted: 18
+        missing: 6
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:

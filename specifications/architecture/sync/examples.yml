@@ -78,6 +78,18 @@ startup_payloads:
     when: phased_sync_complete arrives with sync_cursor and the client then pulls the feed.
     then: The cursor was read before the snapshot, so the rename is replayed by the first feed pull even if the snapshot already contained it; applying it twice changes nothing.
 
+recent_metadata_cap:
+  - id: large-account-keeps-total-without-expanding-startup
+    assertion_ids: [sync.startup.recent-metadata-cap]
+    given: The account has 1284 chats and the device starts with an empty recent index.
+    when: Startup publishes the recent 100 and the server reports the full account total.
+    then: The workspace shows the total of 1284. Startup does not fetch or cache metadata for the other 1184, including on reconnect.
+  - id: old-cached-key-needed-for-one-update
+    assertion_ids: [sync.startup.recent-metadata-cap]
+    given: A previously used browser holds encrypted chat headers from before the recent-window limit.
+    when: The account signs in and an incoming update references one older chat.
+    then: Startup unwraps only recent keys. The older update resolves its exact key in the current workspace, preserves conflict checks and stops if the user signs out or switches scope.
+
 deletion_authority:
   - id: partial-window-retains-local-chats
     given:

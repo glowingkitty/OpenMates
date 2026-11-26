@@ -1,0 +1,52 @@
+schema_version: 2
+profile: concise
+id: local-first-chat-launch
+title: Local-first startup and chat opening across OpenMates clients
+status: implementing
+task: TASK-6047
+parent: docs/plans/client-core-one-core-three-shells/plan.yml
+design: docs/plans/local-first-chat-launch/design.md
+
+goal: >-
+  Immediately show the most recent user chats to signed-in users and the default
+  example chats to first-time visitors. Avoid a full-screen loading screen.
+  Drastically speed up opening existing chats on web and especially on Apple.
+
+scope:
+  in:
+    - Guest and authorized returning-account startup on web, macOS and iOS.
+    - First readable transcript for cached, uncached and deep-linked saved chats.
+    - Returning to recently visited workspaces in the same authorized scope.
+    - Shared Rust ownership of startup readiness and selected chat loading for web, Apple and the terminal UI.
+  out:
+    - New authentication rules, weaker offline access rules or plaintext persistence.
+    - Changes to server retention, archive, feed-cursor or full-history completeness contracts.
+
+contracts:
+  - specifications/features/chat-navigation/specification.yml
+  - specifications/features/daily-inspiration/specification.yml
+  - specifications/features/teams/specification.yml
+  - specifications/architecture/sync/specification.yml
+  - specifications/architecture/client-core/specification.yml
+
+acceptance:
+  - With the network held, an eligible returning account paints and can select recent chats from the admitted local cache.
+  - A confirmed signed-out cold launch paints bundled examples.
+  - Automatic startup and reconnect sync only the most recent 100 personal chat headers. The sidebar shows the full account count, and older chats remain available on explicit request.
+  - Private measurements capture idle CPU and network work on the populated account after the first readable view. Ordinary idle and reconnect do not restart older-header or transcript downloads.
+  - A capable device with a warm render bundle opens a cached chat before sync or animation completes.
+  - On a cache miss the selected chat frame remains stable while its scoped first window loads or reports inline failure.
+  - Switches within one authorized workspace scope reuse its last presentation and refresh independently.
+  - A transport drop preserves authorized rows and allows another cached selection. The replacement transport catches up from its durable cursor without changing that selection.
+  - Logout, authorization denial and scope changes clear invalid projections and reject deferred disk, bridge and network results.
+  - Release-mode web, terminal, Mac and iPhone measurements cover their shared startup and chat behavior.
+  - Private GitHub CI uses the populated Personal DevTest account to open existing chats on terminal, web, and Apple and report first-content timings.
+  - Web key loading is bounded to the recent window. Test an older background message, an older embed update, a conflicting wrapped key and an account switch during lookup.
+  - A rich chat test checks visible previews, stable card positions and deferred offscreen media on web and Apple.
+
+sequence:
+  - Establish paired release-mode timing and bounded-work baselines on the same datasets and devices.
+  - Implement the common startup, selected chat and decryption path in Rust. Prove its cache-first behavior and security fences in the terminal UI before changing other shells.
+  - Wire the web app to the verified path through the existing SharedWorker. Prove cached startup, deep links, cache misses and first-viewport previews in the browser.
+  - After web verification, connect macOS and iOS to the same path and verify release-mode Apple behavior.
+  - Remove replaced shell paths per capability once exact-source validation and publish gates pass.

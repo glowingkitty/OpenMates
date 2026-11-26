@@ -322,8 +322,12 @@ assertions:
     depends_on: [models.SyncStatusResponse, examples.startup_readiness]
   - id: sync.startup.bounded-phases
     type: invariant
-    must: A cold start (no valid feed cursor) uses phase=all startup sync limited to Phase 1a shell metadata, Phase 1b content for at most 20 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories, and ends with a feed cursor whose clock was read before its snapshot reads. A warm start with a valid cursor uses the feed instead and transfers no transcript content. Sub-chat navigation metadata may accompany the parents; sub-chat messages load on demand.
+    must: A cold start (no valid feed cursor) uses phase=all startup sync limited to Phase 1a shell metadata, Phase 1b content for at most 20 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories, and ends with a feed cursor whose clock was read before its snapshot reads. A warm start with a valid cursor uses the feed instead and transfers no transcript content. Sub-chat navigation metadata may accompany the parents; sub-chat messages load on demand. An admitted native client with an empty cache may publish a small authorized metadata-only page before recovery and the normal phased sync.
     depends_on: [models.StartupLimits, models.SyncFeedCursor]
+  - id: sync.startup.recent-metadata-cap
+    type: invariant
+    must: Startup and reconnect do not request or index an older-history metadata expansion after the recent 100-chat window. The chat workspace shows the total account count even when more than 100 chats exist. Older history is kept on the server and can be opened explicitly without expanding the automatic cache. Web startup unwraps keys only for the recent window. An authorized older chat or incoming background update resolves its key on demand. Logout and workspace switches invalidate outstanding key loads, and incoming writes preserve existing wrapped-key conflict checks.
+    depends_on: [models.StartupLimits.phase2_metadata_chat_limit, models.SyncStatusResponse, examples.recent_metadata_cap]
   - id: sync.phase2.metadata-only
     type: privacy
     must: Phase 2 sends encrypted metadata and encrypted draft metadata only; messages, embeds, embed keys, chat key wrappers, Code Run outputs, and compression checkpoints are absent.

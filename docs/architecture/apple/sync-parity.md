@@ -48,7 +48,7 @@ Apple sync must preserve the same user-visible chat state as the web app after l
 - `WebSocketManager` routes these sync event names to `.wsSyncEvent`: `initial_sync_response`, `initial_sync_error`, `phase_1_last_chat_ready`, `phase_1b_chat_content_ready`, `phase_2_last_20_chats_ready`, `phase_3_last_100_chats_ready`, `background_message_sync`, `cache_primed`, `cache_status_response`, `load_more_chats_response`, `sync_metadata_chats_response`, `phased_sync_complete`, `sync_status_response`, `offline_sync_complete`, and `chat_content_batch_response`.
 - `SyncManager` models phase 1, phase 1 content, phase 2, phase 3, metadata sync, and completion.
 - `ChatStore.makeSyncClientState` includes chat versions, local chat IDs, suggestions count, and embed IDs.
-- `OfflineSyncBridge.loadFromDisk` loads persisted chats and eagerly loads messages/embeds for the first 5 chats before network sync.
+- `OfflineSyncBridge.loadFromDisk` loads persisted chat metadata and primes the resumed chat's message window and embeds. Other chat content loads on selection.
 - `OfflineSyncBridge` has an Apple-native offline prefetch path via `/v1/sync/offline-prefetch`, starting at cursor 10 in chunks of 3, gated by network cost, low power mode, thermal state, and a persisted-message cap.
 - `OfflineStore` persists chats, messages, embeds, embed keys, and pending offline actions.
 

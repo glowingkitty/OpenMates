@@ -76,7 +76,7 @@ Phase 1b must not fetch or send sub-chat messages, sub-chat embeds, sub-chat emb
 
 Phase 2 is metadata-only for the recent 100-chat window. It must not include messages, embeds, embed keys, Code Run outputs, or compression checkpoints.
 
-If the user has more than 100 chats, the frontend triggers `sync_metadata_chats` after Phase 2 because Phase 3 no longer runs during web startup.
+The response retains the full chat count for the sidebar. Clients do not automatically request older metadata after Phase 2. The sidebar can request an older page when the user chooses to browse it.
 
 ## Offline Prefetch Contract
 

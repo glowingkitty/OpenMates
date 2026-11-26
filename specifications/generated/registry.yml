@@ -137,7 +137,7 @@ specifications:
     version: 2
     status: draft
     path: architecture/sync
-    fingerprint: d8f00ad73cd063def3efab1b34854ba07e7fa0f99060252bb8b6f66989290c79
+    fingerprint: 8dd98e3adb4253ec0016d8a340e6734e4d0fb53540a5643a78d980ef74f62043
     required_applies_to:
     - rest_api
     - cli
@@ -676,10 +676,10 @@ specifications:
     required_applies_to:
     - gui.web
   feature.chat-navigation:
-    version: 3
+    version: 4
     status: approved
     path: features/chat-navigation
-    fingerprint: ca63da308c72c9ac3e472c571be22d758f06c2245e9897d4e963fdb0dcc9d246
+    fingerprint: 8e8d6c3bd8313ee465bc88db094bdd33ab478f9608700fd23a6b860d3bb3f456
     required_applies_to:
     - cli
     - gui.web
@@ -3067,7 +3067,18 @@ assertions:
     specification: architecture.sync@2
     specification_id: architecture.sync
     type: invariant
-    fingerprint: 1f1c90cbd85635977a29512550cad1c608b8e6a0431d6ab78d2ac06d11f4e3ba
+    fingerprint: 0da7f58eeea01a1b6d380f4aa8b0815970e199c8fba8f1c7f43046b1656514e5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+    - gui.apple
+  sync.startup.recent-metadata-cap:
+    specification: architecture.sync@2
+    specification_id: architecture.sync
+    type: invariant
+    fingerprint: dff584f14900424fe5ddfa836556a23813073eba45b05dde5928c63dcf3c5f8b
     required_applies_to:
     - rest_api
     - cli
@@ -9527,7 +9538,7 @@ assertions:
     required_applies_to:
     - gui.web
   chat-navigation.order.sidebar-header-match:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 304d60ef7ef67fda3489baaf82ca7febf87610c959e35f520fa2f0bbfabb3aa0
@@ -9536,7 +9547,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.sidebar.overlay-motion:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: a440cfebca8b0347dc84231da7dca608bc91d69d0c578cb09f98ce7bd4201afc
@@ -9545,16 +9556,16 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.sidebar.close-at-menu-position:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
-    fingerprint: 29b6a357c20c1db323f4fc13a1f8415456e5fb4506884039446417ff884af727
+    fingerprint: bae596b80bcc2661c1ac1ef6ed4582ee448a46d1282451645c39054a7158a97e
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chat-navigation.sidebar.width-transition:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: f6dde06fe2263dd0a810426142a9b2f0bd1081d1e82d2f1078d194205695137f
@@ -9563,7 +9574,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.sidebar.keyboard-focus:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 9ae4dc8d287f2069477dc89528cafd1f7f972257185d3193dbb699c4710a89ba
@@ -9572,7 +9583,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.draft-only.addressable:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: c1f4f444e4ce87760cdb2ddf3c0e1709c5079f73fd9337956498945639ff7bcf
@@ -9581,7 +9592,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.empty-new-chat.excluded:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: invariant
     fingerprint: 899bddb5043598c562b92646db3ef7f840955360d9746f00cd0a5e4d47185c24
@@ -9589,17 +9600,35 @@ assertions:
     - cli
     - gui.web
     - gui.apple
-  chat-navigation.open.local-first-coherent:
-    specification: feature.chat-navigation@3
+  chat-navigation.startup.useful-content:
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
-    fingerprint: 0763e7a8be5ce87efcedaa810fbf0cad40cfa637307eadf3a35dbde0c7a956fb
+    fingerprint: f23c0fdccfb189a7505a3b7ce454fd9ecad7016d0cc89acdba7f134366fe4465
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chat-navigation.open.local-first-coherent:
+    specification: feature.chat-navigation@4
+    specification_id: feature.chat-navigation
+    type: behavior
+    fingerprint: f3dd7052e12da2b9cffffd5f546483ebdcde012bae419bd4c0e7b7331bc757f6
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chat-navigation.open.visible-embed-previews:
+    specification: feature.chat-navigation@4
+    specification_id: feature.chat-navigation
+    type: behavior
+    fingerprint: 611d01463641019eeb44ca41f4c3cc2381cb9620aac16fdac77df3cd0260ba12
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chat-navigation.projects.nested-readable:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 0eacedb712902bc183c65f60b87f01fd1ed1d389fcff8786cbefc3e252dc8a20
@@ -9608,7 +9637,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.projects.only-with-chats:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 023b43690d9f595b06d05de9378b5ab8f1f305b41244fc1ddf16044eab892d45
@@ -9617,7 +9646,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.activity.global-running:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: dda1d964798eb9196ebcab37cdfe79034e31e1a4897e2f5c57f6e22fc9897f6d
@@ -9626,7 +9655,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.projects.organize:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 9adf659eb6a652b7b46f95952e842fa51df92fe79bfc5457b5a18711903a8f34
@@ -9635,7 +9664,7 @@ assertions:
     - gui.web
     - gui.apple
   chat-navigation.menu.parity-ranked:
-    specification: feature.chat-navigation@3
+    specification: feature.chat-navigation@4
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 63e72e4f8d333bcbff3ee268c23a874cd837e35051fb6c40d718b7caf628158c
