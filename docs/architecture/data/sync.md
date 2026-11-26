@@ -130,7 +130,7 @@ remains unverified until the Mac build and interaction checks can run.
 
 - User enters email → `/lookup` triggers predictive cache warming (async, non-blocking)
 - User types password + 2FA (~10-30s) — warming runs concurrently
-- Login succeeds → cache already warm → instant WebSocket startup sync
+- After login, startup sync can reuse encrypted rows already warmed for the admitted account.
 - All data stays encrypted during transit — decryption only in client memory
 
 ```mermaid
@@ -159,8 +159,14 @@ sequenceDiagram
     C->>S: WebSocket connect
     S->>R: Read warm cache
     S-->>C: Startup shell — suggestions + recent metadata
-    S-->>C: Recent full — last 20 parent chats content
-    S-->>C: Recent metadata — last 100 chats metadata only
+    alt Recently opened startup capability
+        S-->>C: Ordered recently opened IDs and message versions
+        C->>S: Refresh the selected authenticated chat window
+        C->>S: Fill gaps in the next ten cached histories as resources allow
+    else Legacy startup
+        S-->>C: Full content for up to 20 recent parent chats
+    end
+    S-->>C: Metadata for up to 100 recent chats and the account total
     S-->>C: App memories
 ```
 
@@ -172,13 +178,14 @@ Directus (encrypted) → Redis cache → WebSocket (encrypted) → IndexedDB (en
 
 ## Startup Contract
 
-Startup/login sync has a hard payload boundary:
+First-party clients using the recently opened startup capability separate transcript reads from sidebar metadata.
 
-- The 20 most recent parent chats are fully synced.
-- The 100 most recent chats are metadata-only beyond that full-content budget.
-- Sub-chat messages and sub-chat embeds are always on-demand.
-- Parent full-content sync may include embeds referenced by parent chat messages.
-- Web startup never runs the 100-chat background message/embed sync path.
+- Present the last deliberately opened chat from its authorized encrypted cache and prioritize refreshing its newest messages. On a cold cache, request its exact first window after scope validation.
+- Use the ordered selector for the next ten distinct recently opened chats. Reuse confirmed offline coverage and fill missing or changed histories with bounded background reads.
+- Sync metadata for up to 100 recently modified chats and report the full account count. An explicit Show more requests the next 20 headers. Selecting any authorized older chat requests its own transcript.
+- Load sub-chat messages and embeds on demand. Prioritize visible embed previews within the selected window.
+
+Legacy clients can still receive a bounded full-content phase for up to 20 parent chats. The capability names and authorization are defined in the [sync specification](../../../specifications/architecture/sync/specification.yml).
 
 Full content means encrypted messages, referenced embeds, embed keys, Code Run output sidecars, and compression checkpoints.
 
@@ -187,7 +194,7 @@ Full content means encrypted messages, referenced embeds, embed keys, Code Run o
 - WebSocket event: `phase_1_last_chat_ready`
 - Sends last-opened metadata, recent parent chat metadata, direct sub-chat preview metadata, new chat suggestions, and daily inspirations.
 - Sends no messages, embeds, embed keys, Code Run outputs, or compression checkpoints.
-- **Only startup event that can trigger auto-navigation** — later events update cached data/sidebar only.
+- Legacy clients use this event for startup navigation. Clients using the recently opened capability use the ordered selector and preserve a newer deliberate navigation.
 
 #### Startup Metadata Invariant
 
@@ -202,7 +209,13 @@ Required invariant for every Phase 1a chat payload:
 
 Client-side Phase 1a handling must use the shared chat metadata merge policy (`mergeServerChatWithLocal`) rather than writing server payloads directly over IndexedDB. This prevents null/incomplete sync payloads from erasing locally valid encrypted metadata and keeps key-mismatch handling consistent with Phase 2/3.
 
-### Recent Full Content: Last 20 Parent Chats
+### Recently Opened Chat Selector
+
+- Capable WebSocket sessions receive `chat_startup_opened_ready` with ordered IDs and message versions. Native and terminal clients can use the authenticated `GET /v1/chats/startup-opened` selector for their active scope.
+- The first selected chat gets the first bounded transcript read. Background requests use confirmed per-chat encrypted coverage and yield when foreground navigation changes.
+- Reconnect preserves the current authorized selection and reconciles in the background.
+
+### Legacy Recent Full Content: Up To 20 Parent Chats
 
 - WebSocket event: `phase_1b_chat_content_ready`
 - Sends full content for at most `STARTUP_FULL_PARENT_CHAT_LIMIT = 20` parent chats.
@@ -237,7 +250,7 @@ Discovery reports an unexpired lease as owner-scoped `pending_jobs` metadata; it
 
 ### Native Offline Prefetch
 
-Native/desktop offline sync for parent chats 21-100 is a separate capability-gated path, not part of web startup.
+The legacy native offline-prefetch endpoint serves clients using the compatibility startup path. Current recently opened clients prepare their bounded transcript cohort through the shared Rust policy.
 
 - REST endpoint: `POST /v1/sync/offline-prefetch`
 - Request: `cursor`, `limit` (max 5), and `include_embeds`.

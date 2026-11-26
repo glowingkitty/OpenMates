@@ -54,6 +54,8 @@ const READ_STAGES = [
 	'admission-platform-ready', 'admission-profile-capture-start', 'admission-worker-acquired',
 	'admission-restore-start', 'admission-restore-response', 'admission-profile-verified',
 	'auth-first-session-response', 'auth-first-session-adopted',
+	'session-failed-unavailable', 'session-failed-session_expired', 'session-failed-cancelled',
+	'session-failed-invalidated_snapshot', 'session-failed-deadline',
 	'platform-ready', 'worker-ready', 'local-platform-ready',
 	'local-cache-miss', 'local-cache-empty-latest', 'local-cache-failed-unavailable',
 	'local-cache-failed-invalidated_snapshot', 'local-cache-failed-cancelled', 'local-cache-failed-session_expired',
@@ -277,8 +279,10 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			// An admission can start while the sidebar is painting, before the selected click.
 			// These are the selected-session spine's fixed events, without chat identity.
 			const previousAdmission = observedMarks.filter(mark => mark.startTime < start &&
-				(mark.name.startsWith('openmates:rust:admission-') ||
-					mark.name === 'openmates:rust:session-start' || mark.name === 'openmates:rust:session-ready')).slice(-12);
+				(mark.name.startsWith('openmates:rust:admission-') || mark.name.startsWith('openmates:rust:auth-first-session-') ||
+					mark.name.startsWith('openmates:rust:session-failed-') ||
+					mark.name === 'openmates:rust:session-start' || mark.name === 'openmates:rust:session-ready'));
+			const beforeClick = (stage: string) => previousAdmission.some(mark => mark.name === 'openmates:rust:' + stage);
 			return {
 				active_message_count: Number(view?.getAttribute('data-current-message-count') ?? 0),
 				history_source: historySource === 'cache' || historySource === 'server' ? historySource : null,
@@ -288,7 +292,12 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 					stage: mark.name,
 					elapsed_ms: Math.round(mark.startTime - start),
 				})),
-				preclick_admission_timing_ms: previousAdmission.map(mark => ({
+				preclick_original_session: {
+					response_observed: beforeClick('auth-first-session-response'),
+					adoption_observed: beforeClick('auth-first-session-adopted'),
+					selected_session_failure_observed: previousAdmission.some(mark => mark.name.startsWith('openmates:rust:session-failed-')),
+				},
+				preclick_admission_timing_ms: previousAdmission.slice(-16).map(mark => ({
 					stage: mark.name,
 					elapsed_ms: Math.round(mark.startTime - start),
 				})),
@@ -623,6 +632,14 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		first_selected_window_request_ms: null as number | null,
 		selected_window_http_status: null as number | null,
 		selected_window_complete_before_readable: false,
+		selected_window_failed_without_status: 0,
+		selected_metadata_requests_after_click: 0,
+		first_selected_metadata_request_ms: null as number | null,
+		selected_metadata_http_status: null as number | null,
+		selected_metadata_failed_without_status: 0,
+		selected_network_observation: 'click_not_observed',
+		selected_request_timing_unknown: 0,
+		selected_request_observation_truncated: false,
 		offer: personalOpenedOfferEvidence(null, '', null),
 	};
 	const readUnseenRows = ({ selector, prior }: { selector: string; prior: string[] }) => {
@@ -690,19 +707,35 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		cold.durable_rows_before_click = 0;
 
 		const windowPath = '/v1/chats/' + encodeURIComponent(chatId) + '/messages/window';
-		const windows = new Map<Request, number | null>();
+		const selectedRequests = new Map<Request, { kind: 'metadata' | 'window'; status: number | null; failed: boolean }>();
 		const onRequest = (request: Request) => {
 			const url = new URL(request.url());
-			if (url.origin === 'https://api.dev.openmates.org' && url.pathname === windowPath && request.method() === 'GET') {
-				windows.set(request, null);
-			}
+			if (url.origin !== 'https://api.dev.openmates.org' || url.searchParams.has('team_id')) return;
+			let kind: 'metadata' | 'window';
+			if (url.pathname === windowPath && request.method() === 'GET') kind = 'window';
+			else if (url.pathname === '/v1/chats/metadata/batch' && request.method() === 'POST') {
+				// Match the exact Personal selected URL/body in memory. The
+				// payload and identifier never become part of the evidence.
+				try {
+					const ids: unknown = request.postDataJSON()?.chat_ids;
+					if (!Array.isArray(ids) || ids.length !== 1 || ids[0] !== chatId) return;
+				} catch { return; }
+				kind = 'metadata';
+			} else return;
+			if (selectedRequests.size < 24) selectedRequests.set(request, { kind, status: null, failed: false });
+			else cold.selected_request_observation_truncated = true;
 		};
 		const onResponse = (response: Response) => {
-			const request = response.request();
-			if (windows.has(request)) windows.set(request, response.status());
+			const observation = selectedRequests.get(response.request());
+			if (observation) observation.status = response.status();
+		};
+		const onFailure = (request: Request) => {
+			const observation = selectedRequests.get(request);
+			if (observation) observation.failed = true;
 		};
 		context.on('request', onRequest);
 		context.on('response', onResponse);
+		context.on('requestfailed', onFailure);
 		try {
 			await page.evaluate(armSelectedFrameProbe, { rowSelector: ROW_SELECTOR, chatId, timeoutMs: READABLE_FRAME_TIMEOUT_MS });
 			const startedAt = await page.evaluate(() => performance.now());
@@ -713,12 +746,26 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			const clickEpoch = await page.evaluate(selectedFrameClickEpoch);
 			cold.offer = offerAtClick(chatId, clickEpoch);
 			cold.stage = 'correlate_selected_network';
-			cold.selected_read = await readEvidence(chatId, startedAt);
+			const clickStart = clickEpoch === null ? startedAt : clickEpoch - await page.evaluate(() => performance.timeOrigin);
+			cold.selected_read = await readEvidence(chatId, clickStart);
 			if (clickEpoch !== null) {
-				const requests = [...windows].map(([request, status]) => ({ timing: request.timing(), status }))
-					.filter(({ timing }) => timing.startTime >= clickEpoch)
+				const observed = [...selectedRequests].map(([request, info]) => ({ timing: request.timing(), ...info }));
+				cold.selected_request_timing_unknown = observed.filter(({ timing }) =>
+					!Number.isFinite(timing.startTime) || timing.startTime <= 0).length;
+				const afterClick = observed.filter(({ timing }) => timing.startTime >= clickEpoch)
 					.sort((a, b) => a.timing.startTime - b.timing.startTime);
+				const requests = afterClick.filter(({ kind }) => kind === 'window');
+				const metadata = afterClick.filter(({ kind }) => kind === 'metadata');
+				cold.selected_network_observation = requests.length > 0 ? 'window_observed'
+					: metadata.length > 0 ? 'metadata_observed_window_unknown' : 'metadata_and_window_unknown';
 				cold.selected_window_requests_after_click = requests.length;
+				cold.selected_window_failed_without_status = requests.filter(({ failed, status }) => failed && status === null).length;
+				cold.selected_metadata_requests_after_click = metadata.length;
+				cold.selected_metadata_failed_without_status = metadata.filter(({ failed, status }) => failed && status === null).length;
+				if (metadata[0]) {
+					cold.first_selected_metadata_request_ms = Math.round(metadata[0].timing.startTime - clickEpoch);
+					cold.selected_metadata_http_status = metadata[0].status;
+				}
 				const firstRequest = requests[0];
 				if (firstRequest) {
 					cold.first_selected_window_request_ms = Math.round(firstRequest.timing.startTime - clickEpoch);
@@ -737,6 +784,8 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		} finally {
 			context.off('request', onRequest);
 			context.off('response', onResponse);
+			context.off('requestfailed', onFailure);
+			selectedRequests.clear();
 			await page.evaluate(clearSelectedFrameProbe);
 		}
 	} catch {
