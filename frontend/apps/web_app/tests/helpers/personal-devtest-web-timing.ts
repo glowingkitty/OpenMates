@@ -8,6 +8,7 @@ type ProbeWindow = Window & {
 	__devTestSelectedFrame?: {
 		result: Promise<SelectedFrameResult>;
 		stop: () => void;
+		clickEpoch: () => number | null;
 	};
 };
 
@@ -109,12 +110,21 @@ export function armSelectedFrameProbe({ rowSelector, chatId, timeoutMs }: {
 		() => finish(clickAt === null ? 'missing_click' : 'visible_text_timeout'), timeoutMs,
 	);
 	document.addEventListener('click', onClick, true);
-	browser.__devTestSelectedFrame = { result, stop: () => finish('cancelled') };
+	browser.__devTestSelectedFrame = {
+		result,
+		stop: () => finish('cancelled'),
+		clickEpoch: () => clickAt === null ? null : performance.timeOrigin + clickAt,
+	};
 }
 
 export async function takeSelectedFrameProbe(): Promise<SelectedFrameResult> {
 	return await (window as ProbeWindow).__devTestSelectedFrame?.result
 		?? { outcome: 'missing_click', click_to_readable_frame_ms: null };
+}
+
+/** Compare the trusted click to browser request timing without adding it to the report. */
+export function selectedFrameClickEpoch(): number | null {
+	return (window as ProbeWindow).__devTestSelectedFrame?.clickEpoch() ?? null;
 }
 
 export function clearSelectedFrameProbe(): void {
@@ -134,4 +144,77 @@ export function browserNavigationTimings() {
 		dom_content_loaded_end_ms: millis(navigation.domContentLoadedEventEnd),
 		load_event_end_ms: millis(navigation.loadEventEnd),
 	} : null;
+}
+
+
+interface ColdChatScan {
+	chatId: string | null;
+	checked: number;
+	missingMetadata: number;
+	ineligibleMetadata: number;
+	positiveHistory: number;
+	retained: number;
+}
+
+/** Inspect only keyed saved rows and their bounded set of transcript counts. */
+export function inspectColdChatRows(chatIds: string[]): Promise<ColdChatScan | null> {
+	return new Promise(resolve => {
+		let db: IDBDatabase | null = null;
+		let tx: IDBTransaction | null = null;
+		let settled = false;
+		const finish = (result: ColdChatScan | null) => {
+			if (settled) return;
+			settled = true;
+			window.clearTimeout(timer);
+			if (!result) {
+				try { tx?.abort(); } catch { /* The readonly transaction already ended. */ }
+			}
+			db?.close();
+			resolve(result);
+		};
+		const timer = window.setTimeout(() => finish(null), 3000);
+		const request = indexedDB.open('chats_db');
+		request.onupgradeneeded = () => { request.transaction?.abort(); finish(null); };
+		request.onblocked = request.onerror = () => finish(null);
+		request.onsuccess = () => {
+			db = request.result;
+			if (settled) { db.close(); return; }
+			db.onversionchange = () => finish(null);
+			const messageStores = ['messages', 'saved_messages_v34'].filter(store => db!.objectStoreNames.contains(store));
+			if (!messageStores.length) { finish(null); return; }
+			const ids = [...new Set(chatIds)].slice(0, 48);
+			const scan: ColdChatScan = { chatId: null, checked: ids.length, missingMetadata: 0,
+				ineligibleMetadata: 0, positiveHistory: 0, retained: 0 };
+			const counts = new Map<string, number>();
+			try {
+				tx = db.transaction(['chats', ...messageStores], 'readonly');
+				const chats = tx.objectStore('chats');
+				const indexes = messageStores.map(store => tx!.objectStore(store).index('chat_id'));
+				for (const id of ids) {
+					const chat = chats.get(id);
+					chat.onsuccess = () => {
+						const meta = chat.result;
+						if (!meta) { scan.missingMetadata++; return; }
+						if (meta.chat_id !== id || meta.is_incognito || meta.is_anonymous || meta.team_id || meta.hashed_team_id
+							|| meta.chat_visibility === 'direct' || !Number.isSafeInteger(meta.messages_v) || meta.messages_v <= 0) {
+							scan.ineligibleMetadata++;
+							return;
+						}
+						scan.positiveHistory++;
+						counts.set(id, 0);
+						for (const index of indexes) {
+							const count = index.count(id);
+							count.onsuccess = () => counts.set(id, (counts.get(id) ?? 0) + count.result);
+						}
+					};
+				}
+				tx.oncomplete = () => {
+					scan.retained = [...counts.values()].filter(count => count > 0).length;
+					scan.chatId = ids.find(id => counts.get(id) === 0) ?? null;
+					finish(scan);
+				};
+				tx.onerror = tx.onabort = () => finish(null);
+			} catch { finish(null); }
+		};
+	});
 }

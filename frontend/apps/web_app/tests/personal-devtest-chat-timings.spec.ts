@@ -4,7 +4,8 @@
 import type { Request, Response, WebSocketRoute } from "@playwright/test";
 import { preparePersonalDevtestWebOrigin } from "./helpers/personal-devtest-web-origin";
 import {
-	armSelectedFrameProbe, browserNavigationTimings, clearSelectedFrameProbe, takeSelectedFrameProbe,
+	armSelectedFrameProbe, browserNavigationTimings, clearSelectedFrameProbe, inspectColdChatRows,
+	selectedFrameClickEpoch, takeSelectedFrameProbe,
 } from "./helpers/personal-devtest-web-timing";
 
 const { test, expect } = require('@playwright/test');
@@ -532,4 +533,146 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	expect(olderHeaderRequests).toEqual({ sync_metadata_chats: 0, load_more_chats: 0 });
 	expect(failedOnlineSelections, 'All three online selections must render').toBe(0);
 	expect(readableSelections).toHaveLength(3);
+
+	// Keep the cold trial after all retained, bounded, and reconnect assertions.
+	// A user may explicitly show more rows here, but the timed click starts only
+	// once the same authenticated sidebar exposes a genuine cold candidate.
+	const cold = {
+		outcome: 'no_cold_candidate',
+		stage: 'inspect_sidebar',
+		checked_rows: 0,
+		missing_metadata: 0,
+		ineligible_metadata: 0,
+		positive_history_metadata: 0,
+		already_retained: 0,
+		show_more_clicks: 0,
+		durable_rows_before_click: null as number | null,
+		selected_viewport: null as Awaited<ReturnType<typeof takeSelectedFrameProbe>> | null,
+		selected_read: null as Awaited<ReturnType<typeof readEvidence>> | null,
+		selected_window_requests_after_click: 0,
+		first_selected_window_request_ms: null as number | null,
+		selected_window_http_status: null as number | null,
+		selected_window_complete_before_readable: false,
+	};
+	const readUnseenRows = ({ selector, prior }: { selector: string; prior: string[] }) => {
+		const seen = new Set(prior);
+		const result: string[] = [];
+		for (const row of document.querySelectorAll<HTMLElement>(selector)) {
+			const id = row.dataset.chatId;
+			if (!id || !/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id)
+				|| seen.has(id) || !row.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+			seen.add(id);
+			result.push(id);
+			if (result.length === 48) break;
+		}
+		return result;
+	};
+	try {
+		if (!(await sidebar.isVisible())) await page.getByTestId('sidebar-toggle').click();
+		const excluded = new Set([...selected, await active.getAttribute('data-current-chat-id') ?? '']);
+		let candidate: string | null = null;
+		for (let scan = 0; scan < 6; scan++) {
+			const args = { selector: ROW_SELECTOR, prior: [...excluded] };
+			let chatIds: string[] = await page.evaluate(readUnseenRows, args);
+			if (chatIds.length === 0) {
+				const more = sidebar.getByTestId('show-more-chats');
+				if (cold.show_more_clicks >= 2 || !(await more.isVisible())) break;
+				cold.stage = 'expand_sidebar';
+				await more.click();
+				cold.show_more_clicks++;
+				try {
+					await expect.poll(async () => (await page.evaluate(readUnseenRows, args)).length,
+						{ timeout: 6000, message: 'Explicit sidebar expansion exposes new saved rows' }).toBeGreaterThan(0);
+				} catch {
+					cold.outcome = 'show_more_no_new_rows';
+					return;
+				}
+				chatIds = await page.evaluate(readUnseenRows, args);
+			}
+			cold.stage = 'inspect_durable_rows';
+			chatIds.forEach(id => excluded.add(id));
+			const result = await page.evaluate(inspectColdChatRows, chatIds);
+			if (!result) {
+				cold.outcome = 'indexeddb_snapshot_unavailable';
+				return;
+			}
+			cold.checked_rows += result.checked;
+			cold.missing_metadata += result.missingMetadata;
+			cold.ineligible_metadata += result.ineligibleMetadata;
+			cold.positive_history_metadata += result.positiveHistory;
+			cold.already_retained += result.retained;
+			if (result.chatId) { candidate = result.chatId; break; }
+		}
+		if (!candidate) return;
+
+		cold.stage = 'recheck_candidate';
+		const chatId = candidate;
+		const row = page.locator(ROW_SELECTOR + '[data-chat-id="' + chatId + '"]');
+		await row.scrollIntoViewIfNeeded();
+		const before = await page.evaluate(inspectColdChatRows, [chatId]);
+		if (!before || before.chatId !== chatId ||
+			await active.getAttribute('data-authenticated') !== 'true' ||
+			await active.getAttribute('data-current-chat-id') === chatId) {
+			cold.outcome = 'candidate_changed_before_click';
+			return;
+		}
+		cold.durable_rows_before_click = 0;
+
+		const windowPath = '/v1/chats/' + encodeURIComponent(chatId) + '/messages/window';
+		const windows = new Map<Request, number | null>();
+		const onRequest = (request: Request) => {
+			const url = new URL(request.url());
+			if (url.origin === 'https://api.dev.openmates.org' && url.pathname === windowPath && request.method() === 'GET') {
+				windows.set(request, null);
+			}
+		};
+		const onResponse = (response: Response) => {
+			const request = response.request();
+			if (windows.has(request)) windows.set(request, response.status());
+		};
+		context.on('request', onRequest);
+		context.on('response', onResponse);
+		try {
+			await page.evaluate(armSelectedFrameProbe, { rowSelector: ROW_SELECTOR, chatId, timeoutMs: READABLE_FRAME_TIMEOUT_MS });
+			const startedAt = await page.evaluate(() => performance.now());
+			cold.stage = 'selected_click';
+			await row.click();
+			cold.stage = 'selected_readable_frame';
+			cold.selected_viewport = await page.evaluate(takeSelectedFrameProbe);
+			const clickEpoch = await page.evaluate(selectedFrameClickEpoch);
+			cold.stage = 'correlate_selected_network';
+			cold.selected_read = await readEvidence(chatId, startedAt);
+			if (clickEpoch !== null) {
+				const requests = [...windows].map(([request, status]) => ({ timing: request.timing(), status }))
+					.filter(({ timing }) => timing.startTime >= clickEpoch)
+					.sort((a, b) => a.timing.startTime - b.timing.startTime);
+				cold.selected_window_requests_after_click = requests.length;
+				const firstRequest = requests[0];
+				if (firstRequest) {
+					cold.first_selected_window_request_ms = Math.round(firstRequest.timing.startTime - clickEpoch);
+					cold.selected_window_http_status = firstRequest.status;
+				}
+				const readableMs = cold.selected_viewport?.click_to_readable_frame_ms;
+				if (readableMs != null) {
+					cold.selected_window_complete_before_readable = requests.some(({ timing, status }) =>
+						status !== null && status >= 200 && status < 300 && timing.responseEnd >= 0 &&
+						timing.startTime + timing.responseEnd <= clickEpoch + readableMs + 1);
+				}
+			}
+			cold.outcome = cold.selected_viewport?.outcome === 'visible'
+				? (cold.selected_window_complete_before_readable ? 'cold_network_readable' : 'selected_network_unproven')
+				: (cold.selected_viewport?.outcome ?? 'selected_frame_unavailable');
+		} finally {
+			context.off('request', onRequest);
+			context.off('response', onResponse);
+			await page.evaluate(clearSelectedFrameProbe);
+		}
+	} catch {
+		cold.outcome = 'cold_trial_failed';
+	} finally {
+		await testInfo.attach('personal-devtest-web-cold-selection', {
+			body: JSON.stringify(cold),
+			contentType: 'application/json',
+		});
+	}
 });
