@@ -9282,7 +9282,7 @@ assertions:
     supporting_tests:
     - &id1186
       path: frontend/apps/web_app/tests/real-inference-tui-artifact-steering.spec.ts
-      line: 44
+      line: 46
       name: applies two corrections to the same recipe app from the terminal while
         its reply is streaming
       surface: cli
@@ -101660,7 +101660,7 @@ assertions:
       surface: rest_api
     - &id12710
       path: frontend/apps/web_app/tests/real-inference-tui-artifact-steering.spec.ts
-      line: 44
+      line: 46
       name: applies two corrections to the same recipe app from the terminal while
         its reply is streaming
       surface: cli

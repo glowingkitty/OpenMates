@@ -11,7 +11,9 @@ const { getTestAccount } = require('./signup-flow-helpers');
 
 const MODEL = 'Mercury 3';
 const MODEL_MENTION = '@Mercury-3';
-const RECIPE = 'Build a working recipe app in one self-contained HTML code block named recipe.html. Start the code block straight away. Include 30 example recipes, ingredient search, adjustable servings, and favorites. Set the header background to blue (#0055ff) initially.';
+const RECIPE_OPENING = 'Build a working recipe app in one self-contained HTML code block named recipe.html. Start the code block straight away.';
+const RECIPE_DETAILS = 'Include 30 example recipes, ingredient search, adjustable servings, and favorites. Set the header background to blue (#0055ff) initially.';
+const RECIPE = RECIPE_OPENING + ' ' + RECIPE_DETAILS;
 const RED = 'Make the header red (#d00000) in this same recipe app.';
 const FONT = 'Use Lexend Deca in this same recipe app, and keep the red header.';
 const STREAMING = 'Response streaming';
@@ -80,7 +82,9 @@ test('applies two corrections to the same recipe app from the terminal while its
 		const priorChats = new Set((await listChats()).map(({ id }) => id));
 		const steps = [
 			{ name: 'chat-home', wait_for: 'Ask anything, or /help', wait_timeout_ms: STEP_TIMEOUT },
-			{ name: 'recipe-request', text: MODEL_MENTION + ' ' + RECIPE },
+			// The recorder bounds each text input. Both pieces form one composer draft.
+			{ name: 'recipe-request', text: MODEL_MENTION + ' ' + RECIPE_OPENING },
+			{ name: 'recipe-details', text: ' ' + RECIPE_DETAILS },
 			{ name: 'recipe-send', key: 'Return', wait_for: STREAMING, wait_timeout_ms: STEP_TIMEOUT },
 			{ name: 'original-card', wait_for: '/embed ', wait_timeout_ms: STEP_TIMEOUT },
 			{ name: 'red-request', text: RED, wait_for: STREAMING, wait_timeout_ms: STEP_TIMEOUT },
