@@ -12,7 +12,7 @@ const { browserResourceSnapshot } = require('./helpers/performance-evidence.cjs'
 const { createBrowserProcessEvidence } = require('./helpers/browser-process-evidence.cjs');
 const { loginToTestAccount, waitForChatReady, dismissSecurityReminderIfPresent } = require('./helpers/chat-test-helpers');
 const DEV_ORIGIN = 'https://app.dev.openmates.org';
-const DEV_CHAT_STATS = 'https://api.dev.openmates.org/v1/settings/chats';
+const DEV_AUTHORIZED_CHAT_COUNT = 'https://api.dev.openmates.org/v1/chats?order=modified&limit=1';
 const IDLE_OBSERVATION_MS = 15000;
 const SETTLED_READINESS_TIMEOUT_MS = 15000;
 const READABLE_FRAME_TIMEOUT_MS = 8000;
@@ -43,7 +43,7 @@ const ROW_SELECTOR = '[data-testid="activity-history-wrapper"] [data-testid="cha
 
 const READ_STAGES = [
 	'read-online-session', 'read-local-session', 'read-no-local-session',
-	'local-session-start', 'local-session-ready', 'cache-read-start', 'cache-read-end',
+	'local-session-start', 'local-session-ready', 'session-start', 'session-ready', 'cache-read-start', 'cache-read-end',
 	'cache-plan-owned_metadata', 'cache-plan-messages', 'cache-miss-rust',
 	'cache-miss-unsupported', 'cache-miss-unavailable', 'cache-miss-empty',
 	'local-cache-miss', 'cold-retention-request', 'cold-retention-io-start',
@@ -215,14 +215,22 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	]);
 	await waitForChatReady(page);
 
-	const stats = await context.request.get(DEV_CHAT_STATS);
-	expect(stats.ok()).toBe(true);
-	const accountChatTotal = (await stats.json()).total_count;
-	expect(Number.isSafeInteger(accountChatTotal)).toBe(true);
-	expect(accountChatTotal, 'The populated account exceeds the recent window').toBeGreaterThan(100);
+	// The list is permission-scoped and excludes deletion-fenced rows. Use the
+	// independent REST list result rather than the settings storage inventory.
+	const readAuthorizedChatCount = async (): Promise<number> => {
+		const result = await context.request.get(DEV_AUTHORIZED_CHAT_COUNT);
+		expect(result.ok()).toBe(true);
+		const total: unknown = (await result.json()).total_count;
+		if (typeof total !== 'number' || !Number.isSafeInteger(total) || total <= 100) {
+			throw new Error('Expected a populated authorized chat inventory');
+		}
+		return total;
+	};
+	let accountChatTotal = await readAuthorizedChatCount();
 
 	const count = page.getByTestId('chat-account-total');
 	const assertAccountCount = async () => {
+		accountChatTotal = await readAuthorizedChatCount();
 		await expect.soft(count).toBeVisible();
 		await expect.soft(count).toHaveAttribute('data-chat-count', String(accountChatTotal));
 	};
@@ -258,13 +266,17 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			};
 		});
 		const view = document.querySelector('[data-testid="active-chat-container"]');
+		const marks = performance.getEntriesByType('mark')
+			.filter(mark => mark.startTime >= start && allowed.includes(mark.name)).slice(-40);
 		return {
 			retained_rows: retainedRows,
 			active_message_count: Number(view?.getAttribute('data-current-message-count') ?? 0),
 			navigator_online: navigator.onLine,
-			read_stages: performance.getEntriesByType('mark')
-				.filter(mark => mark.startTime >= start && allowed.includes(mark.name))
-				.map(mark => mark.name).slice(-40),
+			read_stages: marks.map(mark => mark.name),
+			read_stage_timing_ms: marks.map(mark => ({
+				stage: mark.name,
+				elapsed_ms: Math.round(mark.startTime - start),
+			})),
 		};
 	}, { id: chatId, start: startedAt, allowed: READ_STAGES });
 	const assertTranscript = async (chatId: string, stage = 'online selection') => {
