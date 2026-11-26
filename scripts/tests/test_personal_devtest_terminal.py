@@ -129,3 +129,79 @@ def test_clean_quit_sends_native_ctrl_q_and_drains_the_pty():
     finally:
         os.close(slave)
         os.close(master)
+
+
+def startup_screen(labels, title=None, body=None, status="Live updates delayed"):
+    rows = auth_screen(status)
+    rows[2] = "╭ Recent chats · 1284 total ╮"
+    if title:
+        rows[2] += f"  ‹ Back › Chats › {title}   Share Download ⧉ Copy More Close"
+    sidebar_width = 28
+    for index in range(5, 28):
+        label = labels[index - 5] if index - 5 < len(labels) else ""
+        rows[index] = f"│ {label:<25}│"
+    if title:
+        rows[5] += " " * (rows[2].index("‹ Back") - sidebar_width) + "You"
+    if body:
+        rows[6] += " " * (rows[2].index("‹ Back") - sidebar_width) + body
+    return rows
+
+
+def test_startup_distinguishes_ten_actual_chat_rows_from_the_old_prefix(monkeypatch):
+    elapsed = iter([1.015, 1.080])
+    monkeypatch.setattr(benchmark.time, "monotonic", lambda: next(elapsed))
+    samples = []
+    startup = benchmark.StartupEvidence(samples, 1, None)
+    startup.started = 1.0
+    labels = [f"Synthetic topic {i}" for i in range(9)]
+    startup.observe(startup_screen(labels + ["› ●9+ Synthetic topic 1", "Show more"]))
+    assert samples[0]["selectable_prefix_at_ms"] == 15
+    assert samples[0]["ten_distinct_chat_rows_at_ms"] is None
+    assert samples[0]["max_distinct_chat_rows"] == 9
+    startup.observe(startup_screen(labels + ["Tenth synthetic topic"]))
+    assert samples[0]["ten_distinct_chat_rows_at_ms"] == 80
+    assert "Synthetic" not in repr(samples)
+
+
+def test_startup_requires_matching_title_and_message_body(monkeypatch):
+    elapsed = iter([1.050, 1.100, 1.300, 1.301])
+    monkeypatch.setattr(benchmark.time, "monotonic", lambda: next(elapsed))
+    auth = SimpleNamespace(sample={})
+    startup = benchmark.StartupEvidence([], 1, "Target synthetic title")
+    startup.started = 1.0
+    labels = [f"Synthetic topic {i}" for i in range(10)]
+    startup.observe(startup_screen(labels, "Other synthetic title", "Some text"))
+    startup.observe(startup_screen(labels, "Target synthetic title", "Thinking…"))
+    assert startup.sample["last_open_first_readable_at_ms"] is None
+    startup.observe(startup_screen(labels, "Target synthetic title", "Visible message"))
+    startup.finish(auth)
+    assert startup.sample["ten_distinct_chat_rows_at_ms"] == 50
+    assert startup.sample["last_open_first_readable_at_ms"] == 300
+    assert startup.sample["last_open_result"] == "late_after_ten_rows"
+    assert "Target" not in repr(startup.sample)
+
+
+def test_startup_reports_typed_timeout_after_an_authenticated_empty_list():
+    auth = AuthEvidence([], 2)
+    startup = benchmark.StartupEvidence([], 2, "Target synthetic title")
+    startup.started = benchmark.time.monotonic()
+    rows = startup_screen([], status="The server returned an invalid or unsupported response")
+    auth.observe(rows)
+    startup.observe(rows)
+    auth.sample["wait_outcome"] = "timeout"
+    startup.finish(auth)
+    assert startup.sample["authenticated_at_ms"] is not None
+    assert startup.sample["max_distinct_chat_rows"] == 0
+    assert startup.sample["ten_distinct_chat_rows_result"] == "timeout"
+    assert startup.sample["last_open_result"] == "timeout"
+    assert auth.sample["last_status"] == "invalid_server_response"
+    assert auth.sample["last_severity"] == "error"
+    assert "Target" not in repr(startup.sample)
+
+
+def test_real_click_timing_ignores_other_transcripts_appearing_after_selection():
+    rows = startup_screen(["One", "Two"], "Prior title", "Some text")
+    evidence = OpenEvidence([], 1, rows, "Selected title")
+    assert not evidence.observe(startup_screen(["One", "Two"], "Other title", "Some text"))
+    assert evidence.observe(startup_screen(["One", "Two"], "Selected title", "Some text"))
+    assert evidence.sample["result"] == "readable"

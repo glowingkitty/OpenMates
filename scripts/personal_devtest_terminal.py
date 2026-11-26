@@ -26,6 +26,10 @@ else:
 
 API_ORIGIN = "https://api.dev.openmates.org"
 MAX_FRAME_BYTES = 4 * 1024 * 1024
+STARTUP_SECONDS = 45
+SETTLEMENT_SECONDS = 8
+UNREAD_PREFIX = re.compile(r"^●[1-9]\+?\s+")
+SIDEBAR_CONTROLS = {"show more", "load more", "new chat", "＋ new chat"}
 FRAME_END = b"\x1b[?2026l"
 COMPOSER_PANEL = re.compile(
     r"╭ (?:Message · Enter send · Alt\+Enter newline"
@@ -183,6 +187,10 @@ def terminal_status(rows):
         ("opening saved chat", "opening"),
         ("this saved chat has no messages", "empty_chat"),
         ("chat refreshed", "chat_refreshed"),
+        ("showing all cached messages", "cache_settled"),
+        ("selected chat is no longer available", "selection_unavailable"),
+        ("the requested item is unavailable", "selection_unavailable"),
+        ("the object changed", "conflict"),
         ("cached chat · refreshing", "cached_refreshing"),
         ("cached chat · offline", "cached_offline"),
         ("canonical completion recovery pending", "recovery_pending"),
@@ -199,6 +207,19 @@ def terminal_status(rows):
         if status.startswith(prefix):
             return label
     return "other"
+
+
+def status_severity(status):
+    errors = {
+        "authentication_failed", "vault_locked", "two_factor_required", "verification_required",
+        "encrypted_data_invalid", "invalid_server_response", "forbidden", "expired", "cancelled",
+        "local_error", "selection_unavailable", "conflict",
+    }
+    if status in errors:
+        return "error"
+    if status in {"offline", "cached_offline", "recovery_pending", "live_updates_delayed"}:
+        return "warning"
+    return "info"
 
 
 def terminal_auth_state(rows):
@@ -226,6 +247,7 @@ class AuthEvidence:
             "mode": "login" if attempt == 0 else "vault_relaunch",
             "stage": "launch",
             "milestones_ms": {},
+            "stage_durations_ms": {},
             "screen_transitions": [],
             "result": "failed",
         }
@@ -238,20 +260,25 @@ class AuthEvidence:
             not transitions or (transitions[-1]["state"], transitions[-1]["status"]) != (state, status)
         ):
             transitions.append({
-                "state": state, "status": status,
+                "state": state, "status": status, "severity": status_severity(status),
                 "at_ms": self.elapsed(),
             })
         self.sample["last_state"] = state
         self.sample["last_status"] = status
+        self.sample["last_severity"] = status_severity(status)
 
     def elapsed(self):
         return round((time.monotonic() - self.started) * 1000)
 
-    def wait(self, terminal, stage, accept):
+    def wait(self, terminal, stage, accept, startup=None):
         self.sample["stage"] = stage
+
+        began = time.monotonic()
 
         def observe(rows):
             self.observe(rows)
+            if startup is not None:
+                startup.observe(rows)
             return accept(rows)
 
         try:
@@ -259,6 +286,8 @@ class AuthEvidence:
         except TerminalWaitError as error:
             self.sample["wait_outcome"] = error.outcome
             raise
+        finally:
+            self.sample["stage_durations_ms"][stage] = round((time.monotonic() - began) * 1000)
         self.sample["milestones_ms"][stage] = round((reached - self.started) * 1000)
         return reached
 
@@ -269,7 +298,7 @@ class AuthEvidence:
         self.sample["result"] = "passed"
 
 
-def recent_chat_cells(rows):
+def recent_chat_entries(rows):
     for top, row in enumerate(rows):
         if row.startswith("╭ Recent chats ") and "╮" in row:
             break
@@ -283,8 +312,16 @@ def recent_chat_cells(rows):
             break
         panel = row.split("│", 2)
         if len(panel) == 3 and panel[1].strip(" ›"):
-            cells.append((index, 3))
+            label, unread = UNREAD_PREFIX.subn("", panel[1].strip(" ›"))
+            label = " ".join(label.split())
+            if label and label.casefold() not in SIDEBAR_CONTROLS:
+                cells.append((index, 3, label, bool(unread)))
     return True, cells
+
+
+def recent_chat_cells(rows):
+    visible, entries = recent_chat_entries(rows)
+    return visible, [(row, column) for row, column, _, _ in entries]
 
 
 def recent(rows):
@@ -309,11 +346,136 @@ def readable_chat(rows):
     return any(re.search(r"\w", line[column:]) for line in rows[index + 2:-10])
 
 
+def readable_startup_transcript(rows):
+    header = transcript_header(rows)
+    if header is None:
+        return False
+    index, column = header
+    previous = False
+    for line in rows[index + 2:-10]:
+        body = line[column:].strip()
+        if not body or body.startswith("· "):
+            previous = False
+        elif body not in {"Thinking…", "Thought process available in chat export", "● Responding…"}:
+            if previous and re.search(r"\w", body):
+                return True
+            previous = True
+    return False
+
+
+def transcript_title(rows):
+    header = transcript_header(rows)
+    if header is None:
+        return None
+    index, column = header
+    title = rows[index][column:].removeprefix("‹ Back").removesuffix("Close").strip()
+    # Production lays out these fixed controls separately from the title.
+    title = re.sub(r"\s+Share\s+Download\s+⧉\s+Copy\s+More$", "", title).strip()
+    return " ".join(title.removeprefix("› Chats › ").split()) or None
+
+
+def same_startup_title(expected, actual):
+    if not expected or not actual:
+        return False
+    # Opening the sidebar can clip the title by one terminal cell.
+    shorter, longer = sorted((expected, actual), key=len)
+    return expected == actual or len(shorter) >= 40 and len(longer) - len(shorter) <= 1 and longer.startswith(shorter)
+
+
+class StartupEvidence:
+    """Independent startup milestones drawn from actual synchronized PTY paints."""
+
+    def __init__(self, samples, attempt, expected):
+        self.started = None
+        self.expected = expected  # Screen identity exists only in memory.
+        self.sample = {
+            "attempt": attempt,
+            "mode": "login" if attempt == 0 else "vault_relaunch",
+            "selectable_prefix_at_ms": None,
+            "ten_distinct_chat_rows_at_ms": None,
+            "last_open_first_readable_at_ms": None,
+            "authenticated_at_ms": None,
+            "sidebar_requested_at_ms": None,
+            "sidebar_visible_at_ms": None,
+            "max_distinct_chat_rows": 0,
+            "target_seeded": expected is not None,
+            "ten_distinct_chat_rows_result": "not_observed",
+            "last_open_result": "unseeded" if expected is None else "not_observed",
+        }
+        samples.append(self.sample)
+
+    def elapsed(self):
+        return round((time.monotonic() - self.started) * 1000)
+
+    def observe(self, rows):
+        if self.started is None or terminal_auth_state(rows) != "authenticated":
+            return
+        elapsed = self.elapsed()
+        if elapsed > STARTUP_SECONDS * 1000:
+            return
+        if self.sample["authenticated_at_ms"] is None:
+            self.sample["authenticated_at_ms"] = elapsed
+        visible, entries = recent_chat_entries(rows)
+        if visible and self.sample["sidebar_visible_at_ms"] is None:
+            self.sample["sidebar_visible_at_ms"] = elapsed
+        labels = {label.casefold() for _, _, label, _ in entries}
+        # A badge may clip a few trailing cells. Do not count a clipped title
+        # separately when another row displays its longer prefix match.
+        longest_first = sorted(labels, key=len, reverse=True)
+        distinct = sum(not any(other.startswith(label) and 0 < len(other) - len(label) <= 5
+                               for other in longest_first[:index])
+                       for index, label in enumerate(longest_first))
+        self.sample["max_distinct_chat_rows"] = max(self.sample["max_distinct_chat_rows"], distinct)
+        if len(entries) >= 3 and self.sample["selectable_prefix_at_ms"] is None:
+            self.sample["selectable_prefix_at_ms"] = elapsed
+        if distinct >= 10 and self.sample["ten_distinct_chat_rows_at_ms"] is None:
+            self.sample["ten_distinct_chat_rows_at_ms"] = elapsed
+        if (self.sample["last_open_first_readable_at_ms"] is None
+                and same_startup_title(self.expected, transcript_title(rows)) and readable_startup_transcript(rows)):
+            self.sample["last_open_first_readable_at_ms"] = elapsed
+
+    def await_extended(self, terminal, auth):
+        def observe(rows):
+            auth.observe(rows)
+            self.observe(rows)
+            return self.sample["ten_distinct_chat_rows_at_ms"] is not None and (
+                self.expected is None or self.sample["last_open_first_readable_at_ms"] is not None
+            )
+
+        remaining = max(0, STARTUP_SECONDS - (time.monotonic() - self.started))
+        began = time.monotonic()
+        try:
+            terminal.wait("extended startup evidence", observe, seconds=remaining)
+        except TerminalWaitError as error:
+            self.sample["wait_outcome"] = error.outcome
+            if error.outcome != "timeout":
+                raise
+        finally:
+            auth.sample["stage_durations_ms"]["extended_startup"] = round((time.monotonic() - began) * 1000)
+
+    def finish(self, auth):
+        self.sample.setdefault("wait_outcome", auth.sample.get("wait_outcome"))
+        failure = self.sample["wait_outcome"] or (
+            "timeout" if self.started is not None and self.elapsed() >= STARTUP_SECONDS * 1000 else "not_observed"
+        )
+        ten = self.sample["ten_distinct_chat_rows_at_ms"]
+        selected = self.sample["last_open_first_readable_at_ms"]
+        self.sample["ten_distinct_chat_rows_result"] = "ready" if ten is not None else failure
+        if self.expected is None:
+            outcome = "unseeded"
+        elif selected is None:
+            outcome = failure
+        else:
+            outcome = "late_after_ten_rows" if ten is not None and selected > ten else "readable"
+        self.sample["last_open_result"] = outcome
+
+
 class OpenEvidence:
     """Capture first-paint milestones without exporting any account text."""
 
-    def __init__(self, samples, candidate_index, rows=()):
+    def __init__(self, samples, candidate_index, rows=(), expected_prefix=None):
         self.started = time.monotonic()
+        self.expected_prefix = expected_prefix
         self.preexisting_header = self.header_text(rows)
         self.sample = {"candidate_index": candidate_index, "status_transitions": []}
         samples.append(self.sample)
@@ -331,7 +493,7 @@ class OpenEvidence:
         status = terminal_status(rows)
         transitions = self.sample["status_transitions"]
         if len(transitions) < 20 and (not transitions or transitions[-1]["status"] != status):
-            transitions.append({"status": status, "at_ms": elapsed})
+            transitions.append({"status": status, "severity": status_severity(status), "at_ms": elapsed})
         if status == "opening":
             self.sample.setdefault("selection_received_ms", elapsed)
         header = self.header_text(rows)
@@ -339,6 +501,8 @@ class OpenEvidence:
             self.preexisting_header = None
             return False
         if header == self.preexisting_header:
+            return False
+        if self.expected_prefix is not None and not (transcript_title(rows) or "").startswith(self.expected_prefix):
             return False
         self.sample.setdefault("chat_header_ms", elapsed)
         if readable_chat(rows):
@@ -353,26 +517,93 @@ class OpenEvidence:
     def finish(self, terminal):
         self.sample.setdefault("result", "timeout")
         self.sample["last_status"] = terminal_status(terminal.rows)
+        self.sample["last_severity"] = status_severity(self.sample["last_status"])
         self.sample["visible_chat_rows"] = len(recent_chat_cells(terminal.rows)[1])
 
 
-def enter_authenticated(terminal, evidence, form, input_text):
-    evidence.wait(terminal, form, lambda rows: terminal_auth_state(rows) == form)
-    evidence.sample["stage"] = "submit_credentials"
-    started = time.monotonic()
-    terminal.send(input_text())
-    evidence.sample["milestones_ms"]["submit_credentials"] = evidence.elapsed()
-    evidence.wait(terminal, "authenticated", lambda rows: terminal_auth_state(rows) == "authenticated")
-    evidence.sample["stage"] = "recent_rows"
-    if not recent_chat_cells(terminal.rows)[0]:
-        terminal.send("\x02")
-    shown = evidence.wait(terminal, "recent_rows", recent)
-    return round((shown - started) * 1000)
+def enter_authenticated(terminal, evidence, startup, form, input_text):
+    try:
+        evidence.wait(terminal, form, lambda rows: terminal_auth_state(rows) == form)
+        evidence.sample["stage"] = "submit_credentials"
+        payload = input_text()
+        startup.started = time.monotonic()
+        terminal.send(payload)
+        evidence.sample["milestones_ms"]["submit_credentials"] = evidence.elapsed()
+        evidence.wait(terminal, "authenticated", lambda rows: terminal_auth_state(rows) == "authenticated", startup)
+        evidence.sample["stage"] = "recent_rows"
+        if not recent_chat_cells(terminal.rows)[0]:
+            startup.sample["sidebar_requested_at_ms"] = startup.elapsed()
+            terminal.send("\x02")
+        shown = evidence.wait(terminal, "recent_rows", recent, startup)
+        elapsed = round((shown - startup.started) * 1000)
+        startup.await_extended(terminal, evidence)
+        return elapsed
+    finally:
+        startup.finish(evidence)
+
+
+def remember_open(terminal, title, diagnostics):
+    """Give the ordinary explicit selection time to settle before quitting."""
+    if not title:
+        diagnostics["settlement_outcome"] = "no_title"
+        return
+    began = time.monotonic()
+    try:
+        terminal.wait("selected chat settlement", lambda rows: (
+            same_startup_title(title, transcript_title(rows))
+            and terminal_status(rows) in {"chat_refreshed", "cache_settled"}
+        ), seconds=SETTLEMENT_SECONDS)
+        diagnostics["settlement_outcome"] = "seen"
+    except TerminalWaitError as error:
+        diagnostics["settlement_outcome"] = error.outcome
+        if error.outcome != "timeout":
+            raise
+    finally:
+        diagnostics["settlement_wait_ms"] = round((time.monotonic() - began) * 1000)
+
+
+def seed_last_open(terminal, diagnostics):
+    _, entries = recent_chat_entries(terminal.rows)
+    current = transcript_title(terminal.rows)
+    # Leave the first legacy candidate alone. Avoid opening unread chats,
+    # because the native view can mark a visible newest reply as read.
+    for row, column, label, unread in entries[1:] + entries[:1]:
+        if unread or (current and current.startswith(label)):
+            continue
+        if sum(entry[2].casefold() == label.casefold() for entry in entries) != 1:
+            continue
+        terminal.click(row, column)
+        break
+    else:
+        diagnostics["result"] = "no_distinct_candidate"
+        return None
+    def selected(rows):
+        title = transcript_title(rows)
+        return bool(title and title.startswith(label) and (
+            readable_startup_transcript(rows) or terminal_status(rows) == "empty_chat"
+        ))
+
+    try:
+        terminal.wait("deliberate startup seed", selected)
+    except TerminalWaitError as error:
+        diagnostics["result"] = error.outcome
+        if error.outcome != "timeout":
+            raise
+        return None
+    if not readable_startup_transcript(terminal.rows):
+        diagnostics["result"] = "empty_chat"
+        return None
+    title = transcript_title(terminal.rows)
+    diagnostics["result"] = "readable"
+    remember_open(terminal, title, diagnostics)
+    return title
 
 
 def measure(binary, private_output):
     metrics = {
         "auth_attempts": [],
+        "startup_samples": [],
+        "startup_seed": {"result": "not_attempted"},
         "vault_unlock_to_recent_rows_ms": [],
         "select_to_visible_message_ms": [],
         "open_samples": [],
@@ -381,33 +612,45 @@ def measure(binary, private_output):
         email, password, key = credentials()
         with tempfile.TemporaryDirectory(prefix="native-state-", dir=private_output) as state:
             evidence = AuthEvidence(metrics["auth_attempts"], 0)
+            startup = StartupEvidence(metrics["startup_samples"], 0, None)
             with open_tui(binary, Path(state)) as terminal:
-                enter_authenticated(terminal, evidence, "login_prompt",
+                enter_authenticated(terminal, evidence, startup, "login_prompt",
                                     lambda: email + "\t" + password + "\t" + totp(key) + "\t\r")
+                evidence.sample["stage"] = "seed_last_open"
+                expected = seed_last_open(terminal, metrics["startup_seed"])
                 evidence.quit(terminal)
 
-            candidate_index = 0
+            candidates_seen = set()
             for attempt in range(1, 4):
                 auth = AuthEvidence(metrics["auth_attempts"], attempt)
+                startup = StartupEvidence(metrics["startup_samples"], attempt, expected)
                 with open_tui(binary, Path(state)) as terminal:
-                    elapsed = enter_authenticated(terminal, auth, "vault_prompt", lambda: password + "\t\r")
+                    elapsed = enter_authenticated(terminal, auth, startup, "vault_prompt", lambda: password + "\t\r")
                     metrics["vault_unlock_to_recent_rows_ms"].append(elapsed)
 
                     auth.sample["stage"] = "open_chat"
                     while True:
-                        _, visible_cells = recent_chat_cells(terminal.rows)
-                        if candidate_index >= len(visible_cells):
-                            raise RuntimeError("Ran out of visible saved conversations for three timing samples")
-                        selection = visible_cells[candidate_index]
-                        evidence = OpenEvidence(metrics["open_samples"], candidate_index, terminal.rows)
-                        candidate_index += 1
-                        terminal.click(*selection)
+                        _, entries = recent_chat_entries(terminal.rows)
+                        current = transcript_title(terminal.rows)
+                        for candidate_index, (row, column, label, unread) in enumerate(entries):
+                            if unread or label in candidates_seen or (current and current.startswith(label)):
+                                continue
+                            if sum(entry[2].casefold() == label.casefold() for entry in entries) == 1:
+                                break
+                        else:
+                            raise RuntimeError("Ran out of distinct already-read conversations for three timing samples")
+                        candidates_seen.add(label)
+                        evidence = OpenEvidence(metrics["open_samples"], candidate_index, terminal.rows, label)
+                        terminal.click(row, column)
                         try:
                             terminal.wait("readable or explicitly empty saved chat", evidence.observe)
                         finally:
                             evidence.finish(terminal)
                         if evidence.sample["result"] == "readable":
                             metrics["select_to_visible_message_ms"].append(evidence.sample["first_readable_message_ms"])
+                            title = transcript_title(terminal.rows)
+                            expected = title if title and title.startswith(label) else None
+                            remember_open(terminal, expected, evidence.sample)
                             break
                     auth.quit(terminal)
     finally:
