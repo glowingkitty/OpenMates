@@ -8,7 +8,7 @@ const { loginToTestAccount, waitForChatReady, dismissSecurityReminderIfPresent }
 const DEV_ORIGIN = 'https://app.dev.openmates.org';
 const ROW_SELECTOR = '[data-testid="activity-history-wrapper"] [data-testid="chat-item-wrapper"][data-chat-id]';
 
-test('Personal DevTest opens existing conversations after a cached launch', async ({ page }: { page: any }, testInfo: any) => {
+test('Personal DevTest opens existing conversations after a cached launch', async ({ page, context }: { page: any; context: any }, testInfo: any) => {
 	test.skip(process.env.OPENMATES_PRIVATE_ACCOUNT_TIMINGS !== '1', 'Private Personal DevTest workflow only');
 	test.setTimeout(240000);
 	if (process.env.PLAYWRIGHT_TEST_BASE_URL !== DEV_ORIGIN) throw new Error('Personal DevTest requires the development app');
@@ -20,6 +20,24 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	if (!credentials.email || !credentials.password || !credentials.otpKey) {
 		throw new Error('Personal DevTest repository secrets are required');
 	}
+	const transports: Array<{ closed: boolean }> = [];
+	page.on('websocket', (socket: any) => {
+		if (!socket.url().includes('/v1/ws')) return;
+		const observed = { closed: false };
+		transports.push(observed);
+		socket.on('close', () => { observed.closed = true; });
+	});
+	await page.addInitScript(() => {
+		const BaseSocket = window.WebSocket;
+		const chatSockets: WebSocket[] = [];
+		(window as typeof window & { __devTestChatSockets?: WebSocket[] }).__devTestChatSockets = chatSockets;
+		window.WebSocket = class extends BaseSocket {
+			constructor(url: string | URL, protocols?: string | string[]) {
+				super(url, protocols);
+				if (String(url).includes('/v1/ws')) chatSockets.push(this);
+			}
+		};
+	});
 	await loginToTestAccount(page, undefined, undefined, { credentials });
 	await dismissSecurityReminderIfPresent(page);
 	await waitForChatReady(page);
@@ -27,6 +45,13 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	const recentRowsMS: number[] = [];
 	const visibleMessageMS: number[] = [];
 	const selected = new Set<string>();
+	const active = page.getByTestId('active-chat-container');
+	const assertTranscript = async (chatId: string) => {
+		await expect(active).toHaveAttribute('data-current-chat-id', chatId);
+		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count'))).toBeGreaterThan(0);
+		await expect(page.getByTestId('chat-history-content')).toBeVisible();
+		await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
+	};
 	for (let sample = 0; sample < 3; sample++) {
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		if (new URL(page.url()).origin !== DEV_ORIGIN) throw new Error('Unexpected application origin');
@@ -43,7 +68,6 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		}, ROW_SELECTOR);
 		recentRowsMS.push(Math.round(seen.at));
 
-		const active = page.getByTestId('active-chat-container');
 		const current = await active.getAttribute('data-current-chat-id');
 		const chatId = seen.ids.find((id: string) => id !== current && !selected.has(id));
 		if (!chatId) throw new Error('Expected another existing recent conversation');
@@ -51,14 +75,40 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		const row = page.locator(ROW_SELECTOR + '[data-chat-id="' + chatId + '"]');
 		const start = await page.evaluate(() => performance.now());
 		await row.click();
-		await expect(active).toHaveAttribute('data-current-chat-id', chatId);
-		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count'))).toBeGreaterThan(0);
-		await expect(page.getByTestId('chat-history-content')).toBeVisible();
-		await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await assertTranscript(chatId);
 		visibleMessageMS.push(Math.round(await page.evaluate(() => performance.now()) - start));
 	}
 	await testInfo.attach('personal-devtest-web-timings', {
 		body: JSON.stringify({ cached_navigation_to_recent_rows_ms: recentRowsMS, select_to_visible_message_ms: visibleMessageMS }),
 		contentType: 'application/json',
 	});
+
+	// Use only the conversations already opened above. Keep both the existing
+	// transcript and a second cached selection usable across an actual socket loss.
+	const [first, , last] = [...selected];
+	if (!first || !last) throw new Error('Expected three distinct existing conversations');
+	const original = transports.at(-1);
+	expect(original?.closed).toBe(false);
+	const previousTransportCount = transports.length;
+	await context.setOffline(true);
+	try {
+		await page.evaluate(() => {
+			const sockets = (window as typeof window & { __devTestChatSockets?: WebSocket[] }).__devTestChatSockets ?? [];
+			for (const socket of sockets) {
+				if (socket.readyState === WebSocket.OPEN) socket.close(1000, 'Read-only development benchmark');
+			}
+		});
+		await expect.poll(() => original?.closed).toBe(true);
+		await assertTranscript(last);
+		await page.evaluate((id: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(id)}`;
+		}, first);
+		await assertTranscript(first);
+	} finally {
+		await context.setOffline(false);
+	}
+	await expect.poll(() => transports.slice(previousTransportCount).some(socket => !socket.closed)).toBe(true);
+	await waitForChatReady(page);
+	await assertTranscript(first);
+	await expect(active).toHaveAttribute('data-current-message-ids-unique', 'true');
 });
