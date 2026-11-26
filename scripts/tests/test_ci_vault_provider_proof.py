@@ -12,8 +12,19 @@ import pytest
 from scripts import ci_environment as environment
 
 
+@pytest.mark.parametrize("profile", ["storage", "terminal"])
 @pytest.mark.parametrize("fault", [None, "limited-token", "denied-list", "extra-provider", "missing-provider", "missing-vapid"])
-def test_disposable_provider_probe_uses_initializer_root_and_exact_namespace(monkeypatch, fault):
+def test_disposable_provider_probe_uses_initializer_root_and_exact_namespace(monkeypatch, profile, fault):
+    vault = environment.compose_profile(
+        "a" * 40,
+        object_storage=profile == "storage",
+        real_inference=profile == "terminal",
+        codex_real_inference=profile == "terminal",
+    )["services"]["vault-init"]["environment"]
+    for name in ("CI_STORAGE_ACCESS_KEY", "CI_REAL_INFERENCE", "CI_REAL_INFERENCE_PROVIDERS", "CI_VAULT_SEED_VAPID"):
+        monkeypatch.delenv(name, raising=False)
+        if name in vault:
+            monkeypatch.setenv(name, vault[name])
     monkeypatch.setenv("VAULT_TOKEN", "synthetic-initializer-root")
     calls = []
     class HTTPError(Exception):
@@ -21,11 +32,15 @@ def test_disposable_provider_probe_uses_initializer_root_and_exact_namespace(mon
     def response(stage):
         status = 403 if fault == "denied-list" and stage == "list" else 200
         policies = ["api-service"] if fault == "limited-token" else ["root"]
-        keys = ["core_server", "hetzner", "vapid"]
+        keys = ["core_server", "vapid"]
+        provider = "hetzner" if profile == "storage" else "inception_labs"
+        keys.append(provider)
+        if profile == "terminal":
+            keys.append("typesafe")
         if fault == "extra-provider":
             keys.append("provider-name-must-not-be-printed")
         if fault == "missing-provider":
-            keys.remove("hetzner")
+            keys.remove(provider)
         if fault == "missing-vapid":
             keys.remove("vapid")
         def raise_for_status():
@@ -98,13 +113,19 @@ def test_probe_failure_reports_only_bounded_classification_without_secret_stderr
         assert "stage=list" in text and "http_status=403" in text
 
 
-def test_storage_bootstrap_generates_only_disposable_vapid_pair(monkeypatch):
+@pytest.mark.parametrize("profile", ["storage", "terminal"])
+def test_vault_bootstrap_generates_disposable_vapid_pair(monkeypatch, profile):
     import base64
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-    for name, value in {"VAULT_TOKEN": "synthetic-initializer-root", "INTERNAL_API_SHARED_TOKEN": "synthetic-internal",
-                        "CI_STORAGE_ACCESS_KEY": "synthetic-storage", "CI_STORAGE_SECRET_KEY": "synthetic-storage-secret"}.items():
-        monkeypatch.setenv(name, value)
+    vault = environment.compose_profile(
+        "a" * 40,
+        object_storage=profile == "storage",
+        real_inference=profile == "terminal",
+        codex_real_inference=profile == "terminal",
+    )["services"]["vault-init"]["environment"]
+    for name, value in vault.items():
+        monkeypatch.setenv(name, "synthetic-provider-key" if value is None else value)
     writes = {}
     def post(url, **kwargs):
         if "/kv/data/" in url:
@@ -114,13 +135,14 @@ def test_storage_bootstrap_generates_only_disposable_vapid_pair(monkeypatch):
     # Exercise the real bootstrap body with no HTTP, policy or token calls.
     bootstrap = environment.VAULT_INITIALIZE.split("class Client:", 1)[0]
     bootstrap = bootstrap[bootstrap.index("url="):]
-    exec(bootstrap, {"os": os, "requests": SimpleNamespace(post=post)})
-    assert set(writes) == {"core_server", "hetzner", "vapid"}
+    exec(bootstrap, {"json": json, "os": os, "requests": SimpleNamespace(post=post)})
+    expected = {"hetzner"} if profile == "storage" else {"inception_labs", "typesafe"}
+    assert set(writes) == {"core_server", "vapid"} | expected
     vapid = writes["vapid"]
     private = int.from_bytes(base64.urlsafe_b64decode(vapid["private_key"] + "=" * (-len(vapid["private_key"]) % 4)), "big")
     public = base64.urlsafe_b64decode(vapid["public_key"] + "=" * (-len(vapid["public_key"]) % 4))
     assert ec.derive_private_key(private, ec.SECP256R1()).public_key().public_bytes(
         Encoding.X962, PublicFormat.UncompressedPoint) == public
     first_public_key = vapid["public_key"]
-    exec(bootstrap, {"os": os, "requests": SimpleNamespace(post=post)})
+    exec(bootstrap, {"json": json, "os": os, "requests": SimpleNamespace(post=post)})
     assert writes["vapid"]["public_key"] != first_public_key

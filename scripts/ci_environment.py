@@ -368,6 +368,7 @@ if os.environ.get('CI_STORAGE_ACCESS_KEY'):
     data={'s3_access_key':os.environ['CI_STORAGE_ACCESS_KEY'],'s3_secret_key':os.environ['CI_STORAGE_SECRET_KEY'],'s3_region_name':'nbg1'}
     response=requests.post(url+'kv/data/providers/hetzner',headers=headers,json={'data':data},timeout=15)
     response.raise_for_status()
+if os.environ.get('CI_VAULT_SEED_VAPID') == '1':
     # Normal API startup needs VAPID signing keys. Generate them within this
     # disposable Vault bootstrap; these are local keys, not inference secrets.
     import base64
@@ -443,7 +444,9 @@ try:
     assert isinstance(keys,list) and all(isinstance(key,str) for key in keys), 'Invalid provider namespace'
     expected=['core_server']
     if os.environ.get('CI_STORAGE_ACCESS_KEY'):
-        expected.extend(['hetzner','vapid'])
+        expected.append('hetzner')
+    if os.environ.get('CI_VAULT_SEED_VAPID') == '1':
+        expected.append('vapid')
     if os.environ.get('CI_REAL_INFERENCE') == '1':
         expected=sorted(expected+list(json.loads(os.environ['CI_REAL_INFERENCE_PROVIDERS'])))
     missing=len(set(expected)-set(keys)); unexpected=sum(key not in expected for key in keys)
@@ -1518,6 +1521,10 @@ def compose_profile(
         }
         for name in ("api", "core-worker"):
             services[name]["depends_on"]["mailpit"] = {"condition": "service_started"}
+    if object_storage or codex_real_inference:
+        # Bootstrap the local push fixture before API startup so the exact
+        # provider inventory does not depend on the API creating it at runtime.
+        services["vault-init"]["environment"]["CI_VAULT_SEED_VAPID"] = "1"
     if object_storage:
         # Real S3 SDK operations hit a disposable store, never shared buckets.
         services["object-storage"] = {

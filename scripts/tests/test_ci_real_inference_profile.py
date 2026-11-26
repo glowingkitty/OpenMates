@@ -227,6 +227,23 @@ def test_codex_workflow_binds_exact_specs_and_narrow_secrets_to_one_step():
     assert '"$GITHUB_SHA"' in dedicated["run"]
 
 
+def test_codex_workflow_pins_consumer_checkout_and_checks_preparation_producer():
+    path = Path(__file__).resolve().parents[2] / ".github/workflows/isolated-tests.yml"
+    job = yaml.safe_load(path.read_text())["jobs"]["test"]
+    consumer_commit = job["env"]["CI_HARNESS_COMMIT"]
+    for spec in CODEX_REAL_INFERENCE_SPECS:
+        assert f"inputs.specs_json == '[{json.dumps(spec)}]'" in consumer_commit
+    assert "inputs.mode == 'e2e'" in consumer_commit
+    assert "github.sha || inputs.harness_commit || github.sha" in consumer_commit
+    checkout = next(step for step in job["steps"] if step.get("with", {}).get("path") == "tooling")
+    assert checkout["with"]["ref"] == "${{ env.CI_HARNESS_COMMIT }}"
+    restore = next(step for step in job["steps"] if step.get("id") == "artifacts")
+    assert restore["env"]["CI_PREPARATION_HARNESS_COMMIT"] == "${{ inputs.harness_commit || github.sha }}"
+    assert '--harness-commit "$CI_PREPARATION_HARNESS_COMMIT"' in restore["run"]
+    assert '--source "$BUILD_COMMIT_SHA"' in restore["run"]
+    assert '--candidate-tree "$CI_CANDIDATE_TREE"' in restore["run"]
+
+
 def test_codex_provider_keys_are_redacted_from_diagnostics():
     profile = compose_profile("a" * 40, real_inference=True, codex_real_inference=True)
     value = "synthetic-inception-credential-redacted"

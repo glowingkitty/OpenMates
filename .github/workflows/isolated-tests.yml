@@ -140,7 +140,11 @@ jobs:
       CI: 'true'
       OPENMATES_CI_ISOLATED: '1'
       OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
-      CI_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}
+      # The protected terminal consumer runs this workflow's tooling. The
+      # earlier producer harness is used only to verify its prepared bundle.
+      CI_HARNESS_COMMIT: >-
+        ${{ inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') &&
+            github.sha || inputs.harness_commit || github.sha }}
       CI_PREPARATION_KEY: ${{ inputs.preparation_key }}
       CI_PREPARED_RUN_ID: ${{ inputs.prepared_run_id }}
       CI_RUNTIME_SEED: ${{ inputs.runtime_seed }}
@@ -249,7 +253,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 15 || 360 }}
         with:
-          ref: ${{ inputs.harness_commit || github.sha }}
+          ref: ${{ env.CI_HARNESS_COMMIT }}
           path: tooling
           sparse-checkout: |
             scripts
@@ -262,7 +266,7 @@ jobs:
         run: |
           test "$GITHUB_REF" = 'refs/heads/dev'
           test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"
       - name: Require private preparation transport ticket
         if: >-
           inputs.mode == 'prepare' ||
@@ -454,6 +458,8 @@ jobs:
       - name: Verify and restore prepared web and CLI bytes
         id: artifacts
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        env:
+          CI_PREPARATION_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}
         run: |
           python3 ../tooling/scripts/ci_artifacts.py restore \
             --source "$BUILD_COMMIT_SHA" \
@@ -463,7 +469,7 @@ jobs:
             --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
             ${{ inputs.web_rust_core == 'true' && contains(inputs.ci_speedups, 'prepared-rust-core') && '--include-web-rust-core true' || '' }} \
             --expected-key "${{ inputs.preparation_key }}" \
-            --harness-commit "$CI_HARNESS_COMMIT" \
+            --harness-commit "$CI_PREPARATION_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
       - name: Download exact private backend runtime seed
         if: >-
@@ -910,7 +916,7 @@ jobs:
           OPENMATES_CODEX_REAL_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_TYPESAFE_API_KEY }}
         run: |
           test "$GITHUB_REF" = 'refs/heads/dev'
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"
           /usr/bin/python3 -E scripts/ci_environment.py start
           /usr/bin/python3 -E scripts/ci_environment.py verify
       - name: Start and verify backend diagnostic stack

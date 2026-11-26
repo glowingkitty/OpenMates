@@ -207,6 +207,22 @@ def test_harness_mismatch_is_an_explicit_cold_fallback(tmp_path):
     assert receipt["reason"] == "harness_commit_mismatch"
 
 
+def test_restore_checks_original_producer_when_consumer_tooling_advances(tmp_path, monkeypatch):
+    bundle = tmp_path / "bundle"
+    make_bundle(tmp_path / "producer", bundle)
+    monkeypatch.setenv("CI_HARNESS_COMMIT", "d" * 40)
+    receipt = artifacts.restore_bundle(
+        tmp_path / "consumer",
+        bundle,
+        SOURCE,
+        candidate_tree=TREE,
+        include_cli=True,
+        include_upload=False,
+        harness_commit=HARNESS,
+    )
+    assert receipt["reused"] is True
+
+
 def test_create_command_receipt_has_source_bound_result_identity(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_RUN_ID", PRODUCER_RUN)
     root = tmp_path / "producer"

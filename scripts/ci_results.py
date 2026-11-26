@@ -93,6 +93,25 @@ def admitted_e2b_runner(job: dict, entry: dict) -> bool:
     )
 
 
+def codex_terminal_job(job: dict) -> bool:
+    """Recognize only the individually dispatched protected terminal specs."""
+    if job.get("mode") != "e2e":
+        return False
+    if __package__:
+        from .ci_environment import CODEX_REAL_INFERENCE_SPECS
+    else:
+        from ci_environment import CODEX_REAL_INFERENCE_SPECS
+    specs = json.loads(job["specs"])
+    return isinstance(specs, list) and len(specs) == 1 and specs[0] in CODEX_REAL_INFERENCE_SPECS
+
+
+def expected_job_harness_commit(job: dict, workflow_commit: str) -> str:
+    """Keep the prepared build's producer distinct from a keyed consumer."""
+    if codex_terminal_job(job):
+        return workflow_commit
+    return job.get("preparation_harness_commit") or workflow_commit
+
+
 def green_e2e_source_and_egress_verified(
     environment: dict,
     job: dict,
@@ -107,6 +126,11 @@ def green_e2e_source_and_egress_verified(
     ):
         return False
     selected = sorted(json.loads(job["specs"]))
+    if codex_terminal_job(job) and (
+        not expected_harness_commit
+        or environment.get("harness_commit") != expected_harness_commit
+    ):
+        return False
     if job.get("mode") == "e2e" and selected == ["cli-memory-readiness.spec.ts"]:
         # Exact harmless Node-only lane: real private services, no web renderer.
         # Complete fixture assertions and run-bound cleanup remain required below.
@@ -1853,9 +1877,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             raise RuntimeError(
                 "CI run did not build the web app with the Rust client core that the job requested"
             )
-        expected_harness_commit = (
-            job.get("preparation_harness_commit") or run["head_sha"]
-        )
+        expected_harness_commit = expected_job_harness_commit(job, run["head_sha"])
         if report and (
             report.get("harness_commit") != expected_harness_commit
             or report.get("proof_profile", "") != job.get("proof_profile", "")

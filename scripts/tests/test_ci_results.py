@@ -9,6 +9,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 
 import io
 import hashlib
+import json
 import os
 import stat
 import sys
@@ -75,6 +76,38 @@ def test_browser_component_result_keeps_existing_frontend_identity_requirement()
     assert ci_results.green_e2e_source_and_egress_verified(environment, job) is True
     environment["frontend"] = {"source_commit": "b" * 40}
     assert ci_results.green_e2e_source_and_egress_verified(environment, job) is False
+
+
+@pytest.mark.parametrize("spec", [
+    "real-inference-tui-chat-processing.spec.ts",
+    "real-inference-tui-artifact-steering.spec.ts",
+])
+def test_terminal_real_inference_evidence_uses_executing_workflow_after_dev_advances(spec):
+    source = "a" * 40
+    producer = "b" * 40
+    workflow = "c" * 40
+    job = {"source": source, "mode": "e2e", "specs": json.dumps([spec]),
+           "preparation_harness_commit": producer}
+    environment = {"source_commit": source, "shared_dev_https": "rejected",
+                   "services": {"api": {"running": True}},
+                   "frontend": {"source_commit": source}, "harness_commit": workflow}
+    assert ci_results.expected_job_harness_commit(job, workflow) == workflow
+    assert ci_results.expected_job_harness_commit(
+        {**job, "preparation_harness_commit": ""}, workflow
+    ) == workflow
+    assert ci_results.green_e2e_source_and_egress_verified(
+        environment, job, expected_harness_commit=workflow
+    )
+    assert not ci_results.green_e2e_source_and_egress_verified(
+        {**environment, "harness_commit": producer}, job, expected_harness_commit=workflow
+    )
+
+    for other in (
+        {**job, "specs": json.dumps(["other.spec.ts"])},
+        {**job, "specs": json.dumps([spec, "other.spec.ts"])},
+        {**job, "mode": "component"},
+    ):
+        assert ci_results.expected_job_harness_commit(other, workflow) == producer
 
 
 def test_timings_separate_preparation_admission_and_actual_github_work():
