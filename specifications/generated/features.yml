@@ -2159,7 +2159,7 @@ features:
   description: Sidebar chat navigation with running chats first and nested Project navigation.
   specifications:
   - id: feature.chat-navigation
-    status: approved
+    status: draft
     path: specifications/features/chat-navigation
   apps: []
   product_features: []
@@ -24761,7 +24761,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 19
+  assertions: 20
   surfaces:
     web:
       status: failing
@@ -24771,8 +24771,8 @@ features:
         passing: 3
         failing: 2
         not_run: 2
-        missing: 12
-        counted: 19
+        missing: 13
+        counted: 20
       failing_tests:
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on
         demand
@@ -24798,8 +24798,8 @@ features:
         passing: 3
         failing: 1
         not_run: 1
-        missing: 14
-        counted: 19
+        missing: 15
+        counted: 20
       failing_tests:
       - apple/OpenMatesTests/KeychainSharingTests.swift › testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper
       key_tests: []
@@ -24843,8 +24843,8 @@ features:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 13
-        counted: 19
+        missing: 14
+        counted: 20
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts
@@ -24874,8 +24874,8 @@ features:
         passing: 0
         failing: 0
         not_run: 13
-        missing: 6
-        counted: 19
+        missing: 7
+        counted: 20
       key_tests: []
       e2e_tests: []
       key_unit_tests:

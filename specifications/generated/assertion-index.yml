@@ -26973,7 +26973,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   sync.client.shared-rust-policy:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 572afc939777a8ad5e639c4b00940b7981893e849835caf1476732dc98af6a1d
     direct_tests: []
     supporting_tests:
@@ -27094,8 +27094,8 @@ assertions:
         - *id3468
     current_direct_proof: false
   sync.access.first-party-authenticated:
-    specification: architecture.sync@2
-    fingerprint: 25024cd46ec98a6dacd64a8f3dfcaeb46a7b35a9c89dd8b6156a467758a02c3f
+    specification: architecture.sync@3
+    fingerprint: 1b92d5adf6730d6f7ef58da86c4ae79b6b5dfb9a913b511022bd7ba71bb8cf9f
     direct_tests:
     - &id3479
       path: backend/tests/test_chat_sync_feed_service.py
@@ -27266,7 +27266,7 @@ assertions:
         - *id3483
     current_direct_proof: false
   sync.status.startup-window-ready:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 2339aea47780b16cd00b47e4dda33ed7da06b53608098df16d1a9f0317eaa694
     direct_tests: []
     supporting_tests: []
@@ -27274,7 +27274,7 @@ assertions:
     surfaces: {}
     current_direct_proof: false
   sync.status.incomplete-window-rewarms:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 4663db8af86750fd5e3ec1690d12a45e5fabbf74c27f2312f299b441708e062f
     direct_tests: []
     supporting_tests:
@@ -27299,8 +27299,8 @@ assertions:
         - *id3492
     current_direct_proof: false
   sync.startup.bounded-phases:
-    specification: architecture.sync@2
-    fingerprint: 0da7f58eeea01a1b6d380f4aa8b0815970e199c8fba8f1c7f43046b1656514e5
+    specification: architecture.sync@3
+    fingerprint: ad28ce7c692faf1f3b1abfcb1c00303b2d41fb55f24cee6265613ae94a34391a
     direct_tests:
     - &id3493
       path: apple/OpenMatesTests/ChatSyncParityTests.swift
@@ -27851,16 +27851,24 @@ assertions:
         - *id3565
     current_direct_proof: false
   sync.startup.recent-metadata-cap:
-    specification: architecture.sync@2
-    fingerprint: dff584f14900424fe5ddfa836556a23813073eba45b05dde5928c63dcf3c5f8b
+    specification: architecture.sync@3
+    fingerprint: 1447ffb0ba58509015aa525075dd6b7c38ae363cbf3fd89d94ff88e43543ea98
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  sync.startup.opened-offline-and-archive:
+    specification: architecture.sync@3
+    fingerprint: 7c73619540ee69a9093bd66731890340e507ec5876c5573e44272776acb563f1
     direct_tests: []
     supporting_tests: []
     tests: []
     surfaces: {}
     current_direct_proof: false
   sync.phase2.metadata-only:
-    specification: architecture.sync@2
-    fingerprint: b6ffbb847af572f8bf917b21c13f12624f5abcb37af574b11ad076a35ae79626
+    specification: architecture.sync@3
+    fingerprint: c036d911c278db6deb23fd7d192186a3d30d7c08682a0fd120a709e9cddf3744
     direct_tests:
     - &id3572
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
@@ -28094,7 +28102,7 @@ assertions:
         - *id3596
     current_direct_proof: false
   sync.phase2.drafts.authoritative-encrypted:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 6742500e72c783c4ad540847860a38e22b5c97699e2c1594a12251e9ea998144
     direct_tests:
     - &id3597
@@ -28129,7 +28137,7 @@ assertions:
         - *id3599
     current_direct_proof: false
   sync.deletion.partial-window-not-authoritative:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: a65212c39b90a2ec0924918a9e8864e176fd3a934023d804ba7418add74fb9e1
     direct_tests:
     - &id3600
@@ -28251,7 +28259,7 @@ assertions:
         - *id3613
     current_direct_proof: false
   sync.delta.cursor-gap-free:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 220f0a61d08e40ca6c10cc897dc84689623d545b71f9b71d76b3f42dfad5fbc8
     direct_tests:
     - &id3618
@@ -28300,7 +28308,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   sync.delta.metadata-only:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: c348ba4d8d7ffb37f56e4974ad299d7dd649d375625fc89264f389ab412b5574
     direct_tests:
     - &id3621
@@ -28342,7 +28350,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   sync.delta.reset:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 2de4a9bf11e22002ab662a2efceffe9c885aa2ad6194ef7091f9801848b500ef
     direct_tests:
     - &id3625
@@ -28374,7 +28382,7 @@ assertions:
         - *id3624
     current_direct_proof: false
   sync.delta.scope-revocation:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: ce0fe4bc12f907e464f8aebc00238409de3956292b04285845cd35de3c9e7e5d
     direct_tests:
     - &id3628
@@ -28414,7 +28422,7 @@ assertions:
         - *id3627
     current_direct_proof: false
   sync.delta.live-hint:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 3a219db1c5f8a7964ded6374ef0dae4200b9be6637972a512f2fe13be9a62bbd
     direct_tests:
     - &id3632
@@ -28454,7 +28462,7 @@ assertions:
         - *id3633
     current_direct_proof: false
   sync.open.not-gated:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: abb11aaff85db61e390fed378e1da57b8650c8cb7576936623f5036684e749a2
     direct_tests: []
     supporting_tests: []
@@ -28462,7 +28470,7 @@ assertions:
     surfaces: {}
     current_direct_proof: false
   sync.overview.priority-order:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 81482809e8e61d6e0cb083d2ce289e2c54cc3c4173f1fdd8bfb05d7c6f6e1478
     direct_tests:
     - &id3634
@@ -28490,7 +28498,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   sync.overview.cross-device:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 92c1aea9a57cfbfe197a6e8593d5045f16a4847db83c9bedea6f69676d3331fb
     direct_tests:
     - &id3638
@@ -28539,7 +28547,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   sync.overview.ready-fast:
-    specification: architecture.sync@2
+    specification: architecture.sync@3
     fingerprint: 933753e9777f7bf82ac2f2b7d7ea90a030e7cdde522397c449249d848c8ff0b6
     direct_tests: []
     supporting_tests: []
@@ -28547,8 +28555,8 @@ assertions:
     surfaces: {}
     current_direct_proof: false
   sync.surface.semantic-parity:
-    specification: architecture.sync@2
-    fingerprint: 0190acaf9a2d4ca2259d86a6a319bf2a6619519496b69da0a464dc113a582ab3
+    specification: architecture.sync@3
+    fingerprint: ed9e267b504a90e8380485a949044692fdf8020df0b0d71efb315982df7f3faf
     direct_tests:
     - &id3675
       path: apple/OpenMatesTests/ChatSyncParityTests.swift
@@ -96240,7 +96248,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.order.sidebar-header-match:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 304d60ef7ef67fda3489baaf82ca7febf87610c959e35f520fa2f0bbfabb3aa0
     direct_tests:
     - &id12043
@@ -96374,7 +96382,7 @@ assertions:
         - *id12056
     current_direct_proof: false
   chat-navigation.sidebar.overlay-motion:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: a440cfebca8b0347dc84231da7dca608bc91d69d0c578cb09f98ce7bd4201afc
     direct_tests:
     - &id12059
@@ -96414,8 +96422,8 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.sidebar.close-at-menu-position:
-    specification: feature.chat-navigation@4
-    fingerprint: bae596b80bcc2661c1ac1ef6ed4582ee448a46d1282451645c39054a7158a97e
+    specification: feature.chat-navigation@5
+    fingerprint: 6a3927e95f4bd9a476618804c0728a5ce46535d99147af505018b8c1971a38e8
     direct_tests:
     - &id12063
       path: frontend/apps/web_app/tests/chat-sidebar-overlay.spec.ts
@@ -96433,7 +96441,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.sidebar.width-transition:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: f6dde06fe2263dd0a810426142a9b2f0bd1081d1e82d2f1078d194205695137f
     direct_tests:
     - &id12064
@@ -96465,7 +96473,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.sidebar.keyboard-focus:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 9ae4dc8d287f2069477dc89528cafd1f7f972257185d3193dbb699c4710a89ba
     direct_tests:
     - &id12067
@@ -96512,7 +96520,7 @@ assertions:
         supporting_tests: []
     current_direct_proof: false
   chat-navigation.draft-only.addressable:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: c1f4f444e4ce87760cdb2ddf3c0e1709c5079f73fd9337956498945639ff7bcf
     direct_tests:
     - &id12074
@@ -96942,7 +96950,7 @@ assertions:
         - *id12095
     current_direct_proof: false
   chat-navigation.empty-new-chat.excluded:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 899bddb5043598c562b92646db3ef7f840955360d9746f00cd0a5e4d47185c24
     direct_tests:
     - &id12130
@@ -97012,15 +97020,15 @@ assertions:
         - *id12136
     current_direct_proof: false
   chat-navigation.startup.useful-content:
-    specification: feature.chat-navigation@4
-    fingerprint: f23c0fdccfb189a7505a3b7ce454fd9ecad7016d0cc89acdba7f134366fe4465
+    specification: feature.chat-navigation@5
+    fingerprint: 92ef8960e6094be7232a9776ada63eeb6fd1cf4d379e3629f5c2f48a350d7637
     direct_tests: []
     supporting_tests: []
     tests: []
     surfaces: {}
     current_direct_proof: false
   chat-navigation.open.local-first-coherent:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: f3dd7052e12da2b9cffffd5f546483ebdcde012bae419bd4c0e7b7331bc757f6
     direct_tests:
     - &id12154
@@ -97834,7 +97842,7 @@ assertions:
         - *id12222
     current_direct_proof: false
   chat-navigation.open.visible-embed-previews:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 611d01463641019eeb44ca41f4c3cc2381cb9620aac16fdac77df3cd0260ba12
     direct_tests: []
     supporting_tests: []
@@ -97842,7 +97850,7 @@ assertions:
     surfaces: {}
     current_direct_proof: false
   chat-navigation.projects.nested-readable:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 0eacedb712902bc183c65f60b87f01fd1ed1d389fcff8786cbefc3e252dc8a20
     direct_tests:
     - &id12255
@@ -98046,7 +98054,7 @@ assertions:
         - *id12265
     current_direct_proof: false
   chat-navigation.projects.only-with-chats:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 023b43690d9f595b06d05de9378b5ab8f1f305b41244fc1ddf16044eab892d45
     direct_tests: []
     supporting_tests:
@@ -98071,7 +98079,7 @@ assertions:
         - *id12272
     current_direct_proof: false
   chat-navigation.activity.global-running:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: dda1d964798eb9196ebcab37cdfe79034e31e1a4897e2f5c57f6e22fc9897f6d
     direct_tests:
     - &id12285
@@ -98351,7 +98359,7 @@ assertions:
         - *id12299
     current_direct_proof: false
   chat-navigation.projects.organize:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 9adf659eb6a652b7b46f95952e842fa51df92fe79bfc5457b5a18711903a8f34
     direct_tests:
     - &id12323
@@ -98526,7 +98534,7 @@ assertions:
         - *id12325
     current_direct_proof: false
   chat-navigation.menu.parity-ranked:
-    specification: feature.chat-navigation@4
+    specification: feature.chat-navigation@5
     fingerprint: 63e72e4f8d333bcbff3ee268c23a874cd837e35051fb6c40d718b7caf628158c
     direct_tests:
     - &id12331

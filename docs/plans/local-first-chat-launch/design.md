@@ -24,6 +24,14 @@ OpenMates already has the key primitives. Rust can restore the encrypted index a
 
 Use the same workspace across startup states. While identity is unresolved, mount its neutral controls and keep cached private rows hidden until locally eligible. A returning user should not see a guest example flash during an ordinary authorized restore, and losing access must remove affected private rows immediately. Same-scope revisits of Tasks and Projects can retain a bounded, already-renderable projection while refreshing independently.
 
+## Open order, sidebar order and offline storage
+
+The account records deliberate saved-chat opens across its devices. Startup first uses the last known authorized open to show cached messages. It resolves the current cross-device last open and refreshes the newest messages. A user tap supersedes that choice. With the foreground chat readable, the shared core prepares the next ten distinct opened chats, one bounded page at a time. It records confirmed coverage so disconnecting during preparation cannot mark partial history complete. A foreground read can interrupt this work. A quiet, up-to-date device issues no repeat history requests.
+
+The sidebar initially reads up to 100 recently modified headers and a count. On an account with 2,000 chats, selecting Show more requests 20 further headers. Opening one of those entries requests its exact transcript. Terminal and Apple reclaim replaceable downloads above 100 retained transcripts, with recent offline chats and pending local edits protected. Eviction only affects the local cache.
+
+Apple acceptance measures a cold process launch with a populated, unlocked encrypted cache. Time ten readable entries separately from the first rendered row, a tap to readable text, and the latest message from another device. Test on signed release hardware and report hosted simulator or virtual Mac timings separately. The target for ten cached entries is under one second. Fresh login and an unprimed device have separate measurements.
+
 ## Implementation design
 
 1. **One readiness model in the Rust core.** Keep access, local-content readiness and online freshness as distinct states. Build the first recent-chat list from the existing encrypted index as a bounded projection. Keep established resume ordering and prioritize an explicit selected or restored chat. Load only the fields the first screen draws. Full inventory and settings run separately. If profiling shows that decoding the existing index grows with the entire account, subdivide the existing encrypted cache by read purpose behind its existing byte adapters with revision-stamped, replaceable sections.

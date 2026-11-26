@@ -1,6 +1,6 @@
 schema_version: 1
 id: architecture.sync
-version: 2
+version: 3
 status: draft
 title: Chat Sync Startup And Incremental Feed
 summary: >
@@ -54,6 +54,17 @@ models:
       required: true
 
   StartupLimits:
+    additional_opened_chats:
+      type: integer
+      default: 10
+      constraints: {distinct: true, excludes_last_opened: true, order: most_recent_user_open}
+    explicit_older_header_page:
+      type: integer
+      default: 20
+    native_retained_chat_limit:
+      type: integer
+      default: 100
+      constraints: {unit: saved_transcripts, eviction: least_recently_opened}
     phase1b_parent_chat_limit:
       type: integer
       default: 20
@@ -310,7 +321,7 @@ assertions:
     depends_on: [examples.shared_client_sync]
   - id: sync.access.first-party-authenticated
     type: security
-    must: Chat startup sync and the incremental feed run only on authenticated first-party session or approved-device WebSocket paths and the session-only GET /v1/chats/changes route; developer API keys, anonymous callers and non-members of a Team are rejected, and no response exposes decrypted chat, draft, message, or embed plaintext.
+    must: Chat startup sync and the incremental feed run only on authenticated first-party session or approved-device WebSocket paths and session-only change-feed and saved-chat open-history routes; developer API keys, anonymous callers and non-members of a Team are rejected, and no response exposes decrypted chat, draft, message, or embed plaintext.
     depends_on: [models.SyncStatusRequest, models.Phase2MetadataPayload, models.SyncFeedRequest, examples.surface_scope]
   - id: sync.status.startup-window-ready
     type: behavior
@@ -322,12 +333,16 @@ assertions:
     depends_on: [models.SyncStatusResponse, examples.startup_readiness]
   - id: sync.startup.bounded-phases
     type: invariant
-    must: A cold start (no valid feed cursor) uses phase=all startup sync limited to Phase 1a shell metadata, Phase 1b content for at most 20 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories, and ends with a feed cursor whose clock was read before its snapshot reads. A warm start with a valid cursor uses the feed instead and transfers no transcript content. Sub-chat navigation metadata may accompany the parents; sub-chat messages load on demand. An admitted native client with an empty cache may publish a small authorized metadata-only page before recovery and the normal phased sync.
+    must: The shared startup path prioritizes the account's last genuinely opened saved chat in the admitted workspace across devices. Paint any authorized cached tail immediately and check for the latest messages before starting bulk history work. A new selection takes priority over automatic work. The next ten distinct genuinely opened chats follow in descending open order. Prepare their encrypted conversations for offline use on terminal, web and Apple, paging older text after the foreground is readable. A completed offline chat can reopen and traverse its saved messages with the network disconnected. Persist partial progress and resume only missing work. Automatic reads never update open order. Legacy clients retain the twenty-parent Phase 1b ceiling. Preserve the snapshot-before-cursor boundary for reconciliation.
     depends_on: [models.StartupLimits, models.SyncFeedCursor]
   - id: sync.startup.recent-metadata-cap
     type: invariant
-    must: Startup and reconnect do not request or index an older-history metadata expansion after the recent 100-chat window. The chat workspace shows the total account count even when more than 100 chats exist. Older history is kept on the server and can be opened explicitly without expanding the automatic cache. Web startup unwraps keys only for the recent window. An authorized older chat or incoming background update resolves its key on demand. Logout and workspace switches invalidate outstanding key loads, and incoming writes preserve existing wrapped-key conflict checks.
+    must: Startup and reconnect do not request or index an older-history metadata expansion after the recent 100-chat window. The chat workspace shows the total account count even when more than 100 chats exist. Older history stays on the server. Exact reads are allowed for the cross-device offline set, a user selection or pending user work without expanding the automatic sidebar window. Web startup unwraps keys only for the recent window. An authorized older chat or incoming background update resolves its key on demand. Logout and workspace switches invalidate outstanding key loads, and incoming writes preserve existing wrapped-key conflict checks.
     depends_on: [models.StartupLimits.phase2_metadata_chat_limit, models.SyncStatusResponse, examples.recent_metadata_cap]
+  - id: sync.startup.opened-offline-and-archive
+    type: behavior
+    must: The automatic sidebar metadata window contains up to 100 chats ordered by last modification. Show the full authorized count. Show more requests the next 20 headers in the same order and scope. Selecting an older entry fetches its exact missing transcript and usable previews. Terminal and Apple retain at most 100 evictable saved transcripts per account, ordered by actual user opens, with the admitted recent offline set protected. Local eviction removes replaceable downloaded data only. Preserve unsent work until acknowledged. The server retains the chat. Repeated launch, idle and reconnect perform bounded work and coalesce duplicate requests. They never enumerate or hydrate the archive solely because it exists.
+    depends_on: [models.StartupLimits, examples.opened_and_edited]
   - id: sync.phase2.metadata-only
     type: privacy
     must: Phase 2 sends encrypted metadata and encrypted draft metadata only; messages, embeds, embed keys, chat key wrappers, Code Run outputs, and compression checkpoints are absent.
@@ -384,7 +399,7 @@ assertions:
 applies_to:
   rest_api:
     required: true
-    role: Only the session-authenticated first-party GET /v1/chats/changes route and the internal Directus change-hint endpoint are added; developer API keys are rejected and existing REST helpers such as offline prefetch and load-more stay outside this contract.
+    role: The first-party change-feed and scoped opened-chat endpoints require an admitted session. The internal Directus change-hint endpoint remains private; developer API keys are rejected and existing REST helpers such as offline prefetch and load-more stay outside this contract.
   cli:
     required: true
     parity: semantic

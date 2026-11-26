@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chat-navigation@4
+specification: feature.chat-navigation@5
 sidebar_header_order:
 - id: selected-chat-navigates-older-and-newer
   given:
@@ -84,7 +84,7 @@ startup_useful_content:
 - id: returning-account-has-usable-local-chats
   given: A returning account has an authorized cached chat list and the network is slow.
   when: The user launches the web, Apple or terminal app.
-  then: The recent chats are visible and selectable before account sync finishes.
+  then: The recent chats are visible and selectable before account sync finishes. On a returning Apple installation with ten cached chats, measure launch to those ten entries with the network held, then measure arrival of the latest messages separately.
 - id: first-visit-uses-bundled-examples
   given: The web or Apple app opens for a visitor who is signed out.
   when: The workspace first appears.

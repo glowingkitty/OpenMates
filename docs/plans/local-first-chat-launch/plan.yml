@@ -32,7 +32,11 @@ contracts:
 acceptance:
   - With the network held, an eligible returning account paints and can select recent chats from the admitted local cache.
   - A confirmed signed-out cold launch paints bundled examples.
-  - Automatic startup and reconnect sync only the most recent 100 personal chat headers. The sidebar shows the full account count, and older chats remain available on explicit request.
+  - Use the cross-device last user-opened chat as the first transcript. Paint its authorized local tail, refresh the newest messages, and preempt background work on an explicit selection.
+  - Make the next ten distinct previously opened chats available offline on terminal, web and Apple. Persist confirmed page coverage and resume incomplete offline preparation when the client is active.
+  - On Apple and terminal retain at most 100 eligible downloaded transcripts by user open order. Protect recent offline chats and unsent operations. Eviction is local.
+  - Measure Apple cached launch to ten readable entries, targeting under one second, separately from the first visible row and the latest cross-device message. Record hardware, build, viewport and cache state.
+  - Reveal additional metadata in pages of 20 only on explicit Show more. Automatic startup and reconnect sync only the 100 most recently modified personal chat headers. The sidebar shows the full account count, and older chats remain available on explicit request.
   - Private measurements capture idle CPU and network work on the populated account after the first readable view. Ordinary idle and reconnect do not restart older-header or transcript downloads.
   - With sync busy, terminal cold launch reads zero unrelated transcript sections and opening a cached chat reads only its encrypted section. A scope change revokes the pending result.
   - A capable device with a warm render bundle opens a cached chat before sync or animation completes.

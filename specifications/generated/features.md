@@ -213,7 +213,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | [App Skill Execution](#app-skill-execution) | **FAIL** 5/27 | partial 3/27 |  | partial 6/27 | **FAIL** 0/1 | **FAIL** 15/27 | partial 1/27 | partial 1/27 | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Chat Drafts](#drafts) | **FAIL** 5/8 | partial 6/8 | tested 4/4 | impl | impl | partial 1/2 | impl | impl | on (no flag) | on (no flag) | v0.10.0-alpha |
-| [Chat Sync Startup And Incremental Feed](#sync) | **FAIL** 3/19 | **FAIL** 3/19 | not run 0/1 | partial 6/19 | impl | not run 0/19 | not run 0/1 | impl | on (no flag) | on (no flag) | v0.10.0-alpha |
+| [Chat Sync Startup And Incremental Feed](#sync) | **FAIL** 3/20 | **FAIL** 3/20 | not run 0/1 | partial 6/20 | impl | not run 0/20 | not run 0/1 | impl | on (no flag) | on (no flag) | v0.10.0-alpha |
 | [Connected Accounts](#connected-accounts) | partial 4/14 | impl |  | not run 0/14 | wip | partial 4/14 | impl | impl | on (no flag) | on (no flag) | v0.12.0-alpha |
 | [Deterministic Daily Security Reporting](#security-reporting) | — | — |  | — | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Object Storage Outage Resilience](#storage-resilience) | — | — |  | not run 0/6 | — | not run 0/6 | — | — | on (no flag) | on (no flag) | unverified |
@@ -946,7 +946,7 @@ A compact timeline to preview and jump to any exchange in a long chat.
 
 Sidebar chat navigation with running chats first and nested Project navigation.
 
-- Specifications: [feature.chat-navigation](../../specifications/features/chat-navigation/specification.yml) (approved) · 15 assertion(s)
+- Specifications: [feature.chat-navigation](../../specifications/features/chat-navigation/specification.yml) (draft) · 15 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.8.0-alpha
 
 <details><summary>Tests per surface</summary>
@@ -1058,19 +1058,19 @@ Chat-specific settings and zero-knowledge share links in Settings / Chats.
 
 Fast chat sync at start-up (due items, last chat, recent chats) plus an incremental feed.
 
-- Specifications: [architecture.sync](../../specifications/architecture/sync/specification.yml) (draft) · 19 assertion(s)
+- Specifications: [architecture.sync](../../specifications/architecture/sync/specification.yml) (draft) · 20 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.10.0-alpha
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | **FAIL** 3/19 | 3 pass · 2 fail · 2 not run · 12 no test | [chat-sync-empty-indexeddb-recovery.spec.ts](../../frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts)<br>[chat-list-deletion.spec.ts](../../frontend/apps/web_app/tests/components/chat-list-deletion.spec.ts)<br>[connection-status.spec.ts](../../frontend/apps/web_app/tests/connection-status.spec.ts)<br>[logout-blocked-userdb-relogin.spec.ts](../../frontend/apps/web_app/tests/logout-blocked-userdb-relogin.spec.ts)<br>[startup-sync-contract.spec.ts](../../frontend/apps/web_app/tests/startup-sync-contract.spec.ts)<br>19 unit test file(s), e.g. [test_phased_sync_handler.py](../../backend/tests/test_phased_sync_handler.py), [chatSyncServiceHandlersPhasedSync.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts)<br>❌ [startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on demand](../../frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on demand) |
-| Apple | **FAIL** 3/19 | 3 pass · 1 fail · 1 not run · 14 no test | [ChatFlowRealAccountUITests.swift](../../apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift)<br>[CrossClientChatSyncUITests.swift](../../apple/OpenMatesUITests/CrossClientChatSyncUITests.swift)<br>[DevComponentPreviewUITests.swift](../../apple/OpenMatesUITests/DevComponentPreviewUITests.swift)<br>[ShareExtensionAttachmentParityUITests.swift](../../apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift)<br>[WorkspaceSwitcherUITests.swift](../../apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift)<br>12 unit test file(s), e.g. [ChatSyncParityTests.swift](../../apple/OpenMatesTests/ChatSyncParityTests.swift), [BackgroundChatSenderParityTests.swift](../../apple/OpenMatesTests/BackgroundChatSenderParityTests.swift)<br>❌ [KeychainSharingTests.swift › testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper](../../apple/OpenMatesTests/KeychainSharingTests.swift › testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper) |
+| Web | **FAIL** 3/20 | 3 pass · 2 fail · 2 not run · 13 no test | [chat-sync-empty-indexeddb-recovery.spec.ts](../../frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts)<br>[chat-list-deletion.spec.ts](../../frontend/apps/web_app/tests/components/chat-list-deletion.spec.ts)<br>[connection-status.spec.ts](../../frontend/apps/web_app/tests/connection-status.spec.ts)<br>[logout-blocked-userdb-relogin.spec.ts](../../frontend/apps/web_app/tests/logout-blocked-userdb-relogin.spec.ts)<br>[startup-sync-contract.spec.ts](../../frontend/apps/web_app/tests/startup-sync-contract.spec.ts)<br>19 unit test file(s), e.g. [test_phased_sync_handler.py](../../backend/tests/test_phased_sync_handler.py), [chatSyncServiceHandlersPhasedSync.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts)<br>❌ [startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on demand](../../frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on demand) |
+| Apple | **FAIL** 3/20 | 3 pass · 1 fail · 1 not run · 15 no test | [ChatFlowRealAccountUITests.swift](../../apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift)<br>[CrossClientChatSyncUITests.swift](../../apple/OpenMatesUITests/CrossClientChatSyncUITests.swift)<br>[DevComponentPreviewUITests.swift](../../apple/OpenMatesUITests/DevComponentPreviewUITests.swift)<br>[ShareExtensionAttachmentParityUITests.swift](../../apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift)<br>[WorkspaceSwitcherUITests.swift](../../apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift)<br>12 unit test file(s), e.g. [ChatSyncParityTests.swift](../../apple/OpenMatesTests/ChatSyncParityTests.swift), [BackgroundChatSenderParityTests.swift](../../apple/OpenMatesTests/BackgroundChatSenderParityTests.swift)<br>❌ [KeychainSharingTests.swift › testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper](../../apple/OpenMatesTests/KeychainSharingTests.swift › testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper) |
 | Watch | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | [WatchPairPhoneReadinessUITests.swift](../../apple/OpenMatesUITests/WatchPairPhoneReadinessUITests.swift) |
-| CLI | partial 6/19 | 6 pass · 0 fail · 0 not run · 13 no test | [cli-rust-chat-sync-feed.spec.ts](../../frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts)<br>1 unit test file(s), e.g. [crypto.test.ts](../../frontend/packages/openmates-cli/tests/crypto.test.ts) |
+| CLI | partial 6/20 | 6 pass · 0 fail · 0 not run · 14 no test | [cli-rust-chat-sync-feed.spec.ts](../../frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts)<br>1 unit test file(s), e.g. [crypto.test.ts](../../frontend/packages/openmates-cli/tests/crypto.test.ts) |
 | TUI | impl | — | — |
-| REST API | not run 0/19 | 0 pass · 0 fail · 13 not run · 6 no test | 7 unit test file(s), e.g. [test_chat_sync_feed_service.py](../../backend/tests/test_chat_sync_feed_service.py), [operations.test.js](../../backend/core/directus/extensions/chat-sync/test/operations.test.js) |
+| REST API | not run 0/20 | 0 pass · 0 fail · 13 not run · 7 no test | 7 unit test file(s), e.g. [test_chat_sync_feed_service.py](../../backend/tests/test_chat_sync_feed_service.py), [operations.test.js](../../backend/core/directus/extensions/chat-sync/test/operations.test.js) |
 | npm SDK | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | 1 unit test file(s), e.g. [sdk-session.test.ts](../../frontend/packages/openmates-cli/tests/sdk-session.test.ts) |
 | PyPI SDK | impl | — | — |
 

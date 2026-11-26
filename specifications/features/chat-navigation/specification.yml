@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chat-navigation
-version: 4
-status: approved
+version: 5
+status: draft
 title: Chat Navigation
 summary: First-party chat navigation follows sidebar order, keeps running parent chats
   globally first, and provides readable nested Project navigation and chat organization.
@@ -172,7 +172,11 @@ assertions:
   type: behavior
   must: >-
     On launch, an authorized returning account can see and select its local recent
-    chats without waiting for account-wide sync. With no usable local list, show
+    chats without waiting for account-wide sync. A returning Apple installation with
+    at least ten authorized cached recent chats targets under one second from app
+    launch to ten readable, selectable entries. Display the entries that fit the
+    viewport and make the rest available by scrolling. Measure that milestone
+    independently of first-row paint and arrival of the latest cross-device messages. With no usable local list, show
     the workspace and reveal real chats as the first authorized metadata arrives.
     A confirmed signed-out web or Apple launch displays the bundled default example
     chats. A full-screen loading view does not replace the workspace, and private

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: architecture.sync@2
+specification: architecture.sync@3
 
 startup_readiness:
   - id: bounded-large-account-ready
@@ -71,7 +71,7 @@ startup_payloads:
     assertion_ids: [sync.startup.bounded-phases]
     given: A device has a cached overview and a valid feed cursor from its last session; while it was offline two chats received new messages on another device.
     when: The workspace opens and the client pulls the feed with its cursor.
-    then: The page lists the two chats with kinds metadata and messages, their new versions and encrypted metadata; no transcript messages, embeds or Phase 1b content are sent, and the transcripts load only when the user opens those chats.
+    then: The page lists the two chats with kinds metadata and messages, their new versions and encrypted metadata; the feed itself sends no transcript messages or embeds. The current cross-device last open refreshes first, the offline set refreshes after it, and other transcripts are fetched on selection.
   - id: cold-start-cursor-read-before-snapshot
     assertion_ids: [sync.startup.bounded-phases]
     given: A new device has no cursor; while its cold start reads the 20-chat Phase 1a window, another device renames a chat in that window.
@@ -89,6 +89,18 @@ recent_metadata_cap:
     given: A previously used browser holds encrypted chat headers from before the recent-window limit.
     when: The account signs in and an incoming update references one older chat.
     then: Startup unwraps only recent keys. The older update resolves its exact key in the current workspace, preserves conflict checks and stops if the user signs out or switches scope.
+
+opened_and_edited:
+  - id: last-opened-on-a-different-device
+    assertion_ids: [sync.startup.opened-offline-and-archive]
+    given: A phone last opened Kitchen renovation. Another conversation was edited later. The laptop has an older cached copy of Kitchen renovation and access to 2,000 chats.
+    when: The laptop starts, shows the cached rows and reconnects.
+    then: Kitchen renovation shows its cached tail and receives the newest messages first. The next ten distinct opened conversations become available offline. The sidebar lists the 100 most recently edited chats and the total of 2,000. A user selection takes priority.
+  - id: browse-with-bounded-offline-storage
+    assertion_ids: [sync.startup.opened-offline-and-archive]
+    given: A Mac has 100 locally retained saved conversations and an unsent draft.
+    when: The user requests more sidebar entries, opens an older conversation and relaunches.
+    then: One request returns at most 20 more headers. Only the selected conversation loads. The oldest eligible local download can be evicted while the recent offline set and unsent draft survive. The evicted conversation remains accessible from the server.
 
 deletion_authority:
   - id: partial-window-retains-local-chats
