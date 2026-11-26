@@ -54,6 +54,7 @@ MAX_UI_SPECS = 40
 # run would upload hundreds of megabytes of passing-test video nobody watches.
 MAX_RECORDED_UI_SPECS = 12
 KEEP_RECORDINGS_STEP = "keep screen recordings of passing tests"
+SIGN_MAC_STARTUP_STEP = "sign the private macOS startup test app"
 RECORDED_XCTESTRUN = "OpenMates_recorded.xctestrun"
 # Attachment lifetimes in an .xctestrun: system attachments and, separately, the automatic
 # UI-test screen capture ("On, and keep all" in a test plan).
@@ -210,6 +211,8 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
         "-clonedSourcePackagesDirPath", str(results / "SourcePackages"),
         "-skipPackagePluginValidation", "-skipMacroValidation",
     ]
+    if mac_startup:
+        shared += ["-configuration", "Debug"]
     # The script phases (OpenMatesCore, LocalModelBridge) run cargo and read repository
     # files, which Xcode's script sandbox denies; the TestFlight build passes the same override.
     signing = ["CODE_SIGNING_ALLOWED=YES", "CODE_SIGN_IDENTITY=-"] if benchmark else [
@@ -235,6 +238,16 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
     ]
     steps: list[Step] = [(BUILD_STEP, build, {}, "")]
     products = results / "DerivedData" / "Build" / "Products"
+    if mac_startup:
+        steps.append((
+            SIGN_MAC_STARTUP_STEP,
+            [
+                sys.executable, str(Path(__file__).resolve()), "sign-macos-startup",
+                str(products / "Debug" / "OpenMates.app"),
+            ],
+            {},
+            "",
+        ))
     recorded = mode == "apple-ui" and len(only) <= MAX_RECORDED_UI_SPECS
     if recorded:
         steps.append((
@@ -305,6 +318,59 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
         ),
         *steps,
     ]
+
+
+def sign_macos_startup_app(root: Path, app: Path) -> None:
+    """Apply the existing Personal Team signing recipe to the hosted Debug bundle."""
+    import plistlib
+    import subprocess
+
+    # Match apple_local_macos.sh. taskgated rejects the ordinary paid-team
+    # entitlements when the hosted runner ad-hoc signs without a profile.
+    app_entitlements = root / "apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements"
+    extension_entitlements = root / (
+        "apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOSPersonalTeam.entitlements"
+    )
+    allowed = {
+        app_entitlements: {
+            "com.apple.security.files.user-selected.read-only",
+            "com.apple.security.device.camera",
+            "com.apple.security.device.audio-input",
+        },
+        extension_entitlements: {
+            "com.apple.security.app-sandbox",
+            "com.apple.security.network.client",
+        },
+    }
+    for path, allowed_keys in allowed.items():
+        entitlements = plistlib.loads(path.read_bytes())
+        if (
+            not isinstance(entitlements, dict)
+            or entitlements.keys() - allowed_keys
+            or any(value is not True for value in entitlements.values())
+        ):
+            raise ValueError("The hosted macOS ad-hoc signature requires unrestricted entitlements")
+
+    contents = app / "Contents"
+    info_path = contents / "Info.plist"
+    info = plistlib.loads(info_path.read_bytes())
+    if info.get("CFBundleIdentifier") != "org.openmates.app":
+        raise ValueError("The hosted macOS startup build did not produce the OpenMates app")
+    # An ad-hoc app uses its default Keychain access. Leaving the production
+    # override in this copy makes KeychainHelper ask for a group it cannot use.
+    if "OpenMatesKeychainAccessGroup" in info:
+        del info["OpenMatesKeychainAccessGroup"]
+        info_path.write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
+
+    for extension in sorted((contents / "PlugIns").glob("*.appex")):
+        subprocess.run(
+            ["codesign", "--force", "--sign", "-", "--entitlements", str(extension_entitlements), str(extension)],
+            check=True,
+        )
+    subprocess.run(
+        ["codesign", "--force", "--sign", "-", "--entitlements", str(app_entitlements), str(app)], check=True,
+    )
+    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
 
 
 def keep_recordings(products: Path) -> int:
@@ -478,5 +544,7 @@ def main() -> None:
 if __name__ == "__main__":
     if sys.argv[1:2] == ["keep-recordings"]:
         keep_recordings(Path(sys.argv[2]))
+    elif sys.argv[1:2] == ["sign-macos-startup"]:
+        sign_macos_startup_app(Path.cwd(), Path(sys.argv[2]))
     else:
         main()

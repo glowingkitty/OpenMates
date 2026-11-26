@@ -177,10 +177,67 @@ def test_private_mac_startup_uses_hosted_macos_and_preserves_recordings():
     assert build[build.index("-scheme") + 1] == "OpenMates_macOS"
     assert build[build.index("-destination") + 1] == "platform=macOS"
     assert "CODE_SIGNING_ALLOWED=YES" in build
-    assert any(name == ci_apple.KEEP_RECORDINGS_STEP for name, *_ in plan)
+    assert build[build.index("-configuration") + 1] == "Debug"
+    names = [name for name, *_ in plan]
+    signing = names.index(ci_apple.SIGN_MAC_STARTUP_STEP)
+    assert names.index(ci_apple.BUILD_STEP) < signing < names.index(ci_apple.KEEP_RECORDINGS_STEP)
+    assert plan[signing][1][-2:] == [
+        "sign-macos-startup", "/out/DerivedData/Build/Products/Debug/OpenMates.app",
+    ]
+    ios = ci_apple.xcode_plan("apple-ui", Path("/out"), sorted(ci_apple.STARTUP_BENCHMARK_SPECS), benchmark=True)
+    release_build = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])
+    assert all(name != ci_apple.SIGN_MAC_STARTUP_STEP for name, *_ in ios + release_build)
     test = plan[-1][1]
     assert test[test.index("-destination") + 1] == "platform=macOS"
     assert {test[index + 1] for index, field in enumerate(test) if field == "-only-testing"} == set(specs)
+
+
+def test_private_mac_signing_replaces_profile_bound_app_signature(tmp_path, monkeypatch):
+    import plistlib
+    import subprocess
+
+    root = Path(__file__).resolve().parents[2]
+    app = tmp_path / "OpenMates.app"
+    contents = app / "Contents"
+    extension = contents / "PlugIns" / "Share.appex"
+    extension.mkdir(parents=True)
+    plist = contents / "Info.plist"
+    plist.write_bytes(plistlib.dumps({
+        "CFBundleIdentifier": "org.openmates.app",
+        "OpenMatesKeychainAccessGroup": "TEAM.example.keychain",
+    }))
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda arguments, *, check: calls.append((arguments, check)))
+
+    ci_apple.sign_macos_startup_app(root, app)
+
+    assert plistlib.loads(plist.read_bytes()) == {"CFBundleIdentifier": "org.openmates.app"}
+    assert [Path(arguments[-1]) for arguments, _ in calls] == [extension, app, app]
+    for arguments, check in calls[:2]:
+        assert check and arguments[:5] == ["codesign", "--force", "--sign", "-", "--entitlements"]
+        entitlements = plistlib.loads(Path(arguments[5]).read_bytes())
+        assert "com.apple.security.application-groups" not in entitlements
+        assert "keychain-access-groups" not in entitlements
+        assert "com.apple.developer.associated-domains" not in entitlements
+    assert calls[-1] == (["codesign", "--verify", "--deep", "--strict", str(app)], True)
+
+
+@pytest.mark.parametrize("restricted", [
+    "keychain-access-groups",
+    "com.apple.security.application-groups",
+    "com.apple.developer.associated-domains",
+])
+def test_private_mac_signing_rejects_entitlements_from_a_profile_bound_build(tmp_path, restricted):
+    import plistlib
+
+    app_entitlements = tmp_path / "apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements"
+    app_entitlements.parent.mkdir(parents=True)
+    app_entitlements.write_bytes(plistlib.dumps({restricted: ["TEAM.example.group"]}))
+
+    # Fail before any codesign call or mutation of the built app. The hosted
+    # app was rejected by taskgated when ad-hoc signed with its normal settings.
+    with pytest.raises(ValueError, match="requires unrestricted entitlements"):
+        ci_apple.sign_macos_startup_app(tmp_path, tmp_path / "OpenMates.app")
 
 
 def test_mac_startup_rejects_unencrypted_execution_and_mixed_platforms(monkeypatch, tmp_path):
