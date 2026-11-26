@@ -36,6 +36,15 @@ STARTUP_STAGE_NAMES = {
     "cold_sidebar_envelope", "cold_sidebar_id", "cold_sidebar_wrappers", "cold_sidebar_timestamp",
     "cold_sidebar_render", "cold_sidebar_persist", "cold_sidebar_projection", "cold_sidebar_publish",
     "resume", "reconcile", "hydrate", "live_canonical_read",
+    "list_convert_id", "list_convert_status", "list_convert_title", "list_convert_created_at",
+    "list_convert_updated_at", "list_convert_messages_version", "list_convert_unread_count",
+    "list_convert_pinned", "list_convert_archived", "list_convert_has_draft", "list_convert_footer",
+    "list_convert_other", "list_meta_sub_chat_settings", "list_meta_shared_by_others",
+    "list_meta_last_visible_message", "list_meta_app", "list_meta_sub_chat_wait",
+    "list_meta_sub_chat_report", "list_meta_parent", "list_meta_is_sub_chat", "list_meta_is_shared",
+    "list_meta_is_private", "list_meta_is_hidden", "list_meta_last_message_at", "list_meta_last_edited_at",
+    "list_meta_budget_limit", "list_meta_budget_spent", "list_meta_draft_version", "list_meta_team",
+    "list_meta_key", "list_meta_icon", "list_meta_active_focus", "list_meta_draft_preview",
 }
 STARTUP_STAGE_OUTCOMES = {
     "ok", "protocol", "crypto", "offline", "io", "cancelled", "denied", "locked", "invalid",
