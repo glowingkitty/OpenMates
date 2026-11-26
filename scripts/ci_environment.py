@@ -299,6 +299,17 @@ SCOPED_RECIPE_PHASES = frozenset({
     "original_durable_code", "original_durable_application", "original_durable_other_reply",
     "original_durable_reply_missing", "original_durable_read_unavailable",
 })
+SCOPED_WEB_VOICE_PROGRESS = "real-web-voice-progress.json"
+SCOPED_WEB_VOICE_PHASES = frozenset({
+    "started", "runtime_verified", "fixture_verified", "frontend_version_verified",
+    "sign_in_started", "signed_in", "second_tab_open", "capture_ready",
+    "microphone_adapter_ready", "chat_ready", "model_saved", "call_start_clicked",
+    "privacy_prompt_seen", "privacy_prompt_accepted", "listening", "mic_injection_started",
+    "mic_injection_complete", "final_transcript_visible", "reply_visible", "reply_identity_verified",
+    "pcm_verified", "call_ended", "typed_sent", "typed_reply_visible",
+    "encrypted_rows_verified", "reloaded_chat_verified", "timing_written", "mux_started",
+    "mux_finished", "passed",
+})
 SCOPED_PROOF_FILES = {
     "real-inference-tui-chat-processing.spec.ts": (
         "rust-terminal-real-chat-processing/raw-terminal.mp4",
@@ -2520,10 +2531,13 @@ def scoped_proof_paths(source: Path, spec: str, source_commit: str) -> list[Path
     return paths
 
 
-def scoped_recipe_progress_path(source: Path, *, required: bool) -> Path | None:
+def _scoped_phase_progress_path(
+    source: Path, file_name: str, allowed_phases: frozenset[str], error: str,
+    *, required: bool, max_elapsed_ms: int = 3_600_000, require_zero_origin: bool = False,
+) -> Path | None:
     """Return only a closed phase receipt, including when its test failed."""
     cases = _scoped_playwright_cases(source, allow_missing=not required)
-    _, receipt = _scoped_proof_file(cases, SCOPED_RECIPE_PROGRESS, allow_missing=not required)
+    _, receipt = _scoped_proof_file(cases, file_name, allow_missing=not required)
     if receipt is None:
         return None
     values = _bounded_scoped_receipt(receipt)
@@ -2532,12 +2546,27 @@ def scoped_recipe_progress_path(source: Path, *, required: bool) -> Path | None:
         values.keys() != {"schemaVersion", "phases"}
         or type(values["schemaVersion"]) is not int or values["schemaVersion"] != 1
         or not isinstance(phases, dict) or "started" not in phases
-        or not phases.keys() <= SCOPED_RECIPE_PHASES
-        or any(type(ms) is not int or not 0 <= ms <= 3_600_000 for ms in phases.values())
+        or (require_zero_origin and phases["started"] != 0)
+        or not phases.keys() <= allowed_phases
+        or any(type(ms) is not int or not 0 <= ms <= max_elapsed_ms for ms in phases.values())
         or (required and "passed" not in phases)
     ):
-        raise ValueError("Scoped recipe progress receipt has an invalid phase or timing")
+        raise ValueError(error)
     return receipt.relative_to(source)
+
+def scoped_recipe_progress_path(source: Path, *, required: bool) -> Path | None:
+    return _scoped_phase_progress_path(
+        source, SCOPED_RECIPE_PROGRESS, SCOPED_RECIPE_PHASES,
+        "Scoped recipe progress receipt has an invalid phase or timing", required=required,
+    )
+
+
+def scoped_web_voice_progress_path(source: Path, *, required: bool) -> Path | None:
+    return _scoped_phase_progress_path(
+        source, SCOPED_WEB_VOICE_PROGRESS, SCOPED_WEB_VOICE_PHASES,
+        "Scoped web voice progress receipt has an invalid phase or timing",
+        required=required, max_elapsed_ms=180_000, require_zero_origin=True,
+    )
 
 
 def run_action(action: str):
@@ -2805,6 +2834,18 @@ def run_action(action: str):
                 or not selects_codex_real_inference(selected, CODEX_REAL_INFERENCE_SPECS, os.environ)):
             raise RuntimeError("Scoped recipe progress requires the exact terminal recipe spec")
         progress = scoped_recipe_progress_path(
+            Path(SOURCE), required=os.environ.get("CI_SCOPED_PROOF_PASSED") == "1",
+        )
+        if progress is not None:
+            with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                output.write(f"path=subject/{progress.as_posix()}\n")
+    elif action == "web-voice-progress":
+        selected = json.loads(os.environ["CI_SPECS_JSON"])
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        if not selects_codex_web_voice(selected, real_specs, os.environ):
+            raise RuntimeError("Scoped web voice progress requires the exact signed-in spec")
+        progress = scoped_web_voice_progress_path(
             Path(SOURCE), required=os.environ.get("CI_SCOPED_PROOF_PASSED") == "1",
         )
         if progress is not None:
@@ -3475,6 +3516,8 @@ def main():
             print("Scoped CI proof requires its approved recordings and timing receipt.", file=sys.stderr)
         elif action == "recipe-progress":
             print("Scoped CI recipe progress receipt is missing or invalid.", file=sys.stderr)
+        elif action == "web-voice-progress":
+            print("Scoped CI web voice progress receipt is missing or invalid.", file=sys.stderr)
         else:
             phase = action if action in {"seed", "start", "verify", "logs", "stop"} else "unknown"
             print(f"Scoped CI {phase} failed; see the structured stack receipts.", file=sys.stderr)

@@ -704,6 +704,11 @@ jobs:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
           cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
+          # The Docker adapter config omits the version name. Keep the client
+          # bundle's public version tied to the source verified at checkout.
+          cat >> frontend/apps/web_app/svelte.config.js <<'SVELTEKIT_VERSION'
+          config.kit.version = { ...config.kit.version, name: process.env.BUILD_COMMIT_SHA };
+          SVELTEKIT_VERSION
           node frontend/apps/web_app/scripts/process-docs.js
           case "$CI_TEST_MODE:$CI_SPECS_JSON" in
             'e2e:["web-essential-startup-performance.spec.ts"]')
@@ -1252,6 +1257,15 @@ jobs:
           CI_SCOPED_PROOF_PASSED: ${{ steps.scoped_proof.outcome == 'success' && '1' || '0' }}
         run: >-
           /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' recipe-progress
+      - name: Validate scoped web voice progress
+        id: scoped_web_voice_progress
+        if: always() && steps.scoped_tooling.outcome == 'success' && env.CI_CODEX_WEB_VOICE == '1' && inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]'
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          CI_SCOPED_PROOF_PASSED: ${{ steps.scoped_proof.outcome == 'success' && '1' || '0' }}
+        run: >-
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' web-voice-progress
       - name: Explain failed Rust lane in the job log
         if: >-
           failure() &&
@@ -1364,6 +1378,7 @@ jobs:
             subject/test-results/ci-cleanup.json
             ${{ steps.scoped_proof.outcome == 'success' && steps.scoped_proof.outputs.paths || '' }}
             ${{ steps.scoped_recipe_progress.outcome == 'success' && steps.scoped_recipe_progress.outputs.path || '' }}
+            ${{ steps.scoped_web_voice_progress.outcome == 'success' && steps.scoped_web_voice_progress.outputs.path || '' }}
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
         if: always() && (inputs.mode == 'rust-wasm' || (env.CI_LANE_RUST_BROWSER == 'true'))

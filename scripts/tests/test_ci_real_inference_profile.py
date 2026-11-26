@@ -450,6 +450,11 @@ def test_scoped_workflow_uploads_only_closed_receipts_and_expected_proof_files()
     assert progress_gate["if"].startswith("always()")
     assert f'inputs.specs_json == \'["{ci.SCOPED_RECIPE_SPEC}"]\'' in progress_gate["if"]
     assert progress_gate["run"].strip().endswith(" recipe-progress")
+    assert "steps.scoped_web_voice_progress.outcome == 'success' && steps.scoped_web_voice_progress.outputs.path" in paths
+    voice_progress = next(step for step in steps if step.get("id") == "scoped_web_voice_progress")
+    assert voice_progress["if"].startswith("always()")
+    assert f"inputs.specs_json == '{json.dumps([CODEX_WEB_VOICE_SPEC])}'" in voice_progress["if"]
+    assert voice_progress["run"].strip().endswith(" web-voice-progress")
     proof_gate = next(step for step in steps if step.get("id") == "scoped_proof")
     assert "success()" in proof_gate["if"] and proof_gate["run"].endswith(" proof")
     assert scoped["if"].startswith("always()")
@@ -627,3 +632,55 @@ def test_scoped_recipe_progress_rejects_unknown_or_unbounded_data(payload, tmp_p
     with pytest.raises(ValueError) as refused:
         ci.scoped_recipe_progress_path(tmp_path, required=False)
     assert "synthetic-secret" not in str(refused.value)
+
+def test_failed_web_voice_keeps_only_the_bounded_progress_receipt(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CI_TEST_MODE", "e2e")
+    monkeypatch.setenv("CI_CODEX_WEB_VOICE", "1")
+    monkeypatch.delenv("CI_CODEX_REAL_INFERENCE", raising=False)
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps([CODEX_WEB_VOICE_SPEC]))
+    monkeypatch.setenv("CI_SCOPED_PROOF_PASSED", "0")
+    output = tmp_path / "github-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    monkeypatch.setattr(ci, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(ci, "require_runner", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["ci_environment.py", "web-voice-progress"])
+
+    ci.main()
+    assert not output.exists()
+    case = tmp_path / ci.SCOPED_PLAYWRIGHT_OUTPUT / "scoped-case-chromium"
+    case.mkdir(parents=True)
+    phase = case / ci.SCOPED_WEB_VOICE_PROGRESS
+    for name in ("trace.zip", "signed-in-voice-with-audio.webm", "real-web-voice-timing.json"):
+        (case / name).write_bytes(b"synthetic excluded output")
+    phase.write_text('{"schemaVersion":1,"phases":{"started":0,"sign_in_started":16}}')
+    ci.main()
+    assert output.read_text() == f"path=subject/{phase.relative_to(tmp_path).as_posix()}\n"
+    output.unlink()
+
+    for payload in [
+        '{"schemaVersion":1,"phases":{"started":0,"unknown":1}}',
+        '{"schemaVersion":1,"phases":{"started":0,"signed_in":"synthetic-secret"}}',
+        '{"schemaVersion":1,"phases":{"started":0,"signed_in":true}}',
+        '{"schemaVersion":1,"phases":{"started":0,"signed_in":1.25}}',
+        '{"schemaVersion":1,"phases":{"started":0,"signed_in":-1}}',
+        '{"schemaVersion":1,"phases":{"started":0,"signed_in":180001}}',
+        '{"schemaVersion":1,"phases":{"started":1}}',
+        '{"schemaVersion":1,"phases":{"started":0,"started":0}}',
+        '{"schemaVersion":1,"phases":{"started":0},"detail":"synthetic-secret"}',
+    ]:
+        phase.write_text(payload)
+        with pytest.raises(SystemExit, match="1"):
+            ci.main()
+        assert "synthetic-secret" not in capsys.readouterr().err
+        assert not output.exists()
+
+    phase.write_text('{"schemaVersion":1,"phases":{"started":0,"signed_in":16}}')
+    monkeypatch.setenv("CI_SCOPED_PROOF_PASSED", "1")
+    with pytest.raises(SystemExit, match="1"):
+        ci.main()
+    phase.write_text('{"schemaVersion":1,"phases":{"started":0,"passed":180000}}')
+    assert ci.scoped_web_voice_progress_path(tmp_path, required=True) == phase.relative_to(tmp_path)
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps([ci.SCOPED_RECIPE_SPEC]))
+    with pytest.raises(SystemExit, match="1"):
+        ci.main()
+    assert not output.exists()

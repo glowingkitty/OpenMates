@@ -202030,7 +202030,7 @@ assertions:
       surface: gui.web
     - &id25500
       path: frontend/apps/web_app/tests/real-inference-web-voice-processing.spec.ts
-      line: 93
+      line: 125
       name: a real signed-in web voice turn plays audible speech and keeps its encrypted
         chat for the typed follow-up
       surface: gui.web
@@ -207095,7 +207095,7 @@ assertions:
       surface: gui.web
     - &id26135
       path: frontend/apps/web_app/tests/real-inference-web-voice-processing.spec.ts
-      line: 93
+      line: 125
       name: a real signed-in web voice turn plays audible speech and keeps its encrypted
         chat for the typed follow-up
       surface: gui.web
@@ -208360,7 +208360,7 @@ assertions:
       surface: gui.web
     - &id26300
       path: frontend/apps/web_app/tests/real-inference-web-voice-processing.spec.ts
-      line: 93
+      line: 125
       name: a real signed-in web voice turn plays audible speech and keeps its encrypted
         chat for the typed follow-up
       surface: gui.web
