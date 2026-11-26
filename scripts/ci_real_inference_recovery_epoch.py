@@ -8,12 +8,13 @@ import subprocess
 from typing import Callable
 
 if __package__:
-    from .ci_environment import CODEX_REAL_INFERENCE_SPECS
+    from .ci_environment import CODEX_REAL_INFERENCE_SPECS, CODEX_WEB_VOICE_POLICY, CODEX_WEB_VOICE_SPEC
 else:
-    from ci_environment import CODEX_REAL_INFERENCE_SPECS
+    from ci_environment import CODEX_REAL_INFERENCE_SPECS, CODEX_WEB_VOICE_POLICY, CODEX_WEB_VOICE_SPEC
 
 REAL_INFERENCE_RECOVERY_SPECS = CODEX_REAL_INFERENCE_SPECS | {
     "real-inference-task-inline-embeds.spec.ts",
+    CODEX_WEB_VOICE_SPEC,
 }
 FIXTURE_FLAG = "OPENMATES_CI_REAL_INFERENCE_RECOVERY_FIXTURE"
 EXPECTED_ENV = {
@@ -79,7 +80,10 @@ def activate_real_inference_recovery(
     services = profile.get("services", {})
     api = services.get("api", {})
     gateway_env = services.get("runner-gateway", {}).get("environment", {})
-    proxy_policy = "codex" if spec_name in CODEX_REAL_INFERENCE_SPECS else "1"
+    proxy_policy = (
+        CODEX_WEB_VOICE_POLICY if spec_name == CODEX_WEB_VOICE_SPEC else
+        "codex" if spec_name in CODEX_REAL_INFERENCE_SPECS else "1"
+    )
     if (
         profile.get("name") != "openmates-ci"
         or profile.get("networks", {}).get("default", {}).get("internal") is not True

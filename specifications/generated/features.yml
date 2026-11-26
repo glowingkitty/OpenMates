@@ -10469,6 +10469,7 @@ features:
       - frontend/apps/web_app/tests/components/voice-call-screen-share.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-waiting.spec.ts
+      - frontend/apps/web_app/tests/real-inference-web-voice-processing.spec.ts
       - frontend/apps/web_app/tests/voice-call-ambient-sounds.spec.ts
       - frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts
       - frontend/apps/web_app/tests/voice-call-guest-real.spec.ts
@@ -10484,7 +10485,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 74
+      unit_test_files: 75
     apple:
       status: partial
       source: tests

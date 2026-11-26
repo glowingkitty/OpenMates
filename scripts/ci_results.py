@@ -93,21 +93,25 @@ def admitted_e2b_runner(job: dict, entry: dict) -> bool:
     )
 
 
-def codex_terminal_job(job: dict) -> bool:
-    """Recognize only the individually dispatched protected terminal specs."""
+def dedicated_codex_profile(job: dict) -> str | None:
+    """Recognize only the individually dispatched protected proofs."""
     if job.get("mode") != "e2e":
-        return False
+        return None
     if __package__:
-        from .ci_environment import CODEX_REAL_INFERENCE_SPECS
+        from .ci_environment import CODEX_REAL_INFERENCE_SPECS, CODEX_WEB_VOICE_PROFILE, CODEX_WEB_VOICE_SPEC
     else:
-        from ci_environment import CODEX_REAL_INFERENCE_SPECS
+        from ci_environment import CODEX_REAL_INFERENCE_SPECS, CODEX_WEB_VOICE_PROFILE, CODEX_WEB_VOICE_SPEC
     specs = json.loads(job["specs"])
-    return isinstance(specs, list) and len(specs) == 1 and specs[0] in CODEX_REAL_INFERENCE_SPECS
+    if specs == [CODEX_WEB_VOICE_SPEC]:
+        return CODEX_WEB_VOICE_PROFILE
+    if isinstance(specs, list) and len(specs) == 1 and isinstance(specs[0], str) and specs[0] in CODEX_REAL_INFERENCE_SPECS:
+        return "codex-real-inference"
+    return None
 
 
 def expected_job_harness_commit(job: dict, workflow_commit: str) -> str:
     """Keep the prepared build's producer distinct from a keyed consumer."""
-    if codex_terminal_job(job):
+    if dedicated_codex_profile(job):
         return workflow_commit
     return job.get("preparation_harness_commit") or workflow_commit
 
@@ -126,9 +130,17 @@ def green_e2e_source_and_egress_verified(
     ):
         return False
     selected = sorted(json.loads(job["specs"]))
-    if codex_terminal_job(job) and (
+    protected_profile = dedicated_codex_profile(job)
+    if protected_profile and (
         not expected_harness_commit
         or environment.get("harness_commit") != expected_harness_commit
+    ):
+        return False
+    if protected_profile == "codex-real-web-voice" and (
+        environment.get("real_inference_profile") != protected_profile
+        or environment.get("provider_egress") != "real-inference-allowlist"
+        or environment.get("real_inference_providers") != ["elevenlabs", "inception_labs", "mistral_ai", "typesafe"]
+        or environment["services"].get("speech-worker", {}).get("running") is not True
     ):
         return False
     if job.get("mode") == "e2e" and selected == ["cli-memory-readiness.spec.ts"]:

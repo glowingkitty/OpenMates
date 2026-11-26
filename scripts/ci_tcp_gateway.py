@@ -102,6 +102,10 @@ class Forwarder(socketserver.BaseRequestHandler):
             relay(self.request, upstream)
 
 
+
+CODEX_WEB_VOICE_HOSTS = CODEX_REAL_INFERENCE_HOSTS | {"api.mistral.ai", "api.elevenlabs.io"}
+
+
 class Gateway(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -116,6 +120,8 @@ def provider_proxy_hosts(environ) -> frozenset[str] | None:
         raise RuntimeError("Real-inference and replay provider proxies never share a run")
     if real_inference == "codex":
         return CODEX_REAL_INFERENCE_HOSTS
+    if real_inference == "codex-web-voice":
+        return CODEX_WEB_VOICE_HOSTS
     if real_inference == "1":
         return REAL_INFERENCE_HOSTS
     if real_inference:

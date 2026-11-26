@@ -125,12 +125,13 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch' && inputs.personal_devtest_surface == '' && !startsWith(inputs.mode, 'apple-')
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.runner_label != '' && fromJSON(format('["openmates-e2b","{0}"]', inputs.runner_label)) || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
-    # Two exact terminal selections use a separate protected, dev-only key set.
+    # Each exact Codex proof uses its dedicated dev-only credential set.
     # Every other real-inference job retains the existing protected environment.
     environment: >-
       ${{ inputs.mode == 'e2e' &&
-          ((inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') && 'codex-real-inference' ||
-           startsWith(inputs.specs_json, '["real-inference-') && 'real-inference') || '' }}
+          ((inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]') && 'codex-web-voice' ||
+           (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') && 'codex-real-inference' ||
+           !contains(inputs.specs_json, '"real-inference-web-voice-processing.spec.ts"') && startsWith(inputs.specs_json, '["real-inference-') && 'real-inference') || '' }}
     timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || startsWith(inputs.specs_json, '["real-inference-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
@@ -140,10 +141,10 @@ jobs:
       CI: 'true'
       OPENMATES_CI_ISOLATED: '1'
       OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
-      # The protected terminal consumer runs this workflow's tooling. The
+      # Protected Codex consumers run this workflow's tooling. The
       # earlier producer harness is used only to verify its prepared bundle.
       CI_HARNESS_COMMIT: >-
-        ${{ inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') &&
+        ${{ inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]' || inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]') &&
             github.sha || inputs.harness_commit || github.sha }}
       CI_PREPARATION_KEY: ${{ inputs.preparation_key }}
       CI_PREPARED_RUN_ID: ${{ inputs.prepared_run_id }}
@@ -152,6 +153,7 @@ jobs:
       CI_SPECS_JSON: ${{ inputs.specs_json }}
       CI_CASE_TITLE: ${{ inputs.case_title }}
       CI_CODEX_REAL_INFERENCE: ${{ inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') && '1' || '' }}
+      CI_CODEX_WEB_VOICE: ${{ inputs.mode == 'e2e' && inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]' && '1' || '' }}
       PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
       PLAYWRIGHT_BROWSER_NAME: ${{ contains(inputs.specs_json, 'example-chat-ipad-multitab.spec.ts') && 'webkit' || 'chromium' }}
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
@@ -260,8 +262,8 @@ jobs:
             .github/workflows
             .github/requirements
           persist-credentials: false
-      - name: Require the dev workflow's own harness for terminal real inference
-        if: env.CI_CODEX_REAL_INFERENCE == '1'
+      - name: Require the dev workflow's own harness for scoped real inference
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
         working-directory: tooling
         run: |
           test "$GITHUB_REF" = 'refs/heads/dev'
@@ -894,7 +896,8 @@ jobs:
           (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
           !(inputs.mode == 'e2e' &&
             (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' ||
-             inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]'))
+             inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]')) &&
+          !contains(inputs.specs_json, '"real-inference-web-voice-processing.spec.ts"')
         env:
           # The existing dev-only key set still passes by name into its
           # disposable Vault. Ordinary jobs resolve these to empty values.
@@ -914,6 +917,22 @@ jobs:
           CI_CODEX_REAL_INFERENCE: '1'
           OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY }}
           OPENMATES_CODEX_REAL_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_TYPESAFE_API_KEY }}
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/dev'
+          test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"
+          /usr/bin/python3 -E scripts/ci_environment.py start
+          /usr/bin/python3 -E scripts/ci_environment.py verify
+      - name: Start isolated signed-in web voice backend
+        if: inputs.mode == 'e2e' && inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]'
+        working-directory: tooling
+        env:
+          CI_TEST_MODE: e2e
+          CI_SPECS_JSON: ${{ inputs.specs_json }}
+          CI_CODEX_WEB_VOICE: '1'
+          OPENMATES_CODEX_WEB_VOICE_INCEPTION_LABS_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_INCEPTION_LABS_API_KEY }}
+          OPENMATES_CODEX_WEB_VOICE_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_TYPESAFE_API_KEY }}
+          OPENMATES_CODEX_WEB_VOICE_MISTRAL_AI_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_MISTRAL_AI_API_KEY }}
+          OPENMATES_CODEX_WEB_VOICE_ELEVENLABS_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_ELEVENLABS_API_KEY }}
         run: |
           test "$GITHUB_REF" = 'refs/heads/dev'
           test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"

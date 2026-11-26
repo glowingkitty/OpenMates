@@ -2548,6 +2548,8 @@ def run_e2e(
                 if name == "rust-core-first-session.spec.ts":
                     env["OPENMATES_RUST_FIRST_SESSION_PROVIDER"] = "1"
                 env["PLAYWRIGHT_TEST_API_URL"] = API
+                if name == "real-inference-web-voice-processing.spec.ts" and os.environ.get("CI_CODEX_WEB_VOICE") == "1":
+                    env["OPENMATES_CI_REAL_WEB_VOICE"] = "1"
                 recovery_epoch_receipt = None
                 if not (component or artifact):
                     profile = json.loads(COMPOSE_PATH.read_text())
