@@ -140,7 +140,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [File](#file) | impl | impl |  | wip | impl | — | impl | wip | on | on | v0.19.0 |
 | [Finance](#finance) | impl | impl |  | impl | impl | impl | impl | impl | on | on | v0.19.0 |
 | [Fitness](#fitness) | partial 1/2 | impl |  | impl | impl | impl | impl | impl | on | on | v0.1-alpha-1 |
-| [Health](#health) | **FAIL** 1/7 | impl |  | impl | impl | not run 0/6 | impl | impl | on | on | v0.1-alpha-1 |
+| [Health](#health) | **FAIL** 1/9 | impl |  | impl | impl | not run 0/8 | impl | impl | on | on | v0.1-alpha-1 |
 | [Home](#home) | **FAIL** 1/7 | impl |  | not run 0/6 | impl | not run 0/6 | impl | impl | on | on | v0.8.0-alpha |
 | [Hosting](#hosting) | **FAIL** 1/8 | partial 5/6 |  | partial 2/6 | impl | not run 0/6 | not run 0/6 | not run 0/6 | on | on | untagged-main |
 | [IdeaBucket](#ideabucket) | impl | — |  | impl | impl | impl | impl | impl | on | on | v0.19.0 |
@@ -1647,7 +1647,7 @@ Shared lifecycle, full system instruction application, system history, controls,
 
 Improve your health and well being.
 
-- Specifications: [feature.app-skill.health-search-appointments](../../specifications/features/app-skills/health-search-appointments/specification.yml) (draft) · 6 assertion(s)
+- Specifications: [feature.app-skill.health-search-appointments](../../specifications/features/app-skills/health-search-appointments/specification.yml) (draft) · 8 assertion(s)
 - Apps: `health`
 - Flags: `app:health` · dev on · prod on · release v0.1-alpha-1
 
@@ -1655,13 +1655,13 @@ Improve your health and well being.
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | **FAIL** 1/7 | 1 pass · 1 fail · 1 not run · 4 no test | [skill-health-appointments.spec.ts](../../frontend/apps/web_app/tests/skill-health-appointments.spec.ts)<br>[result-entry-design.spec.ts](../../frontend/apps/web_app/tests/components/result-entry-design.spec.ts)<br>1 unit test file(s), e.g. [ResultEmbedFullscreen.test.ts](../../frontend/packages/ui/src/components/embeds/__tests__/ResultEmbedFullscreen.test.ts)<br>❌ [result-entry-design.spec.ts › result previews show bottom identity and explicit chat expansion at ${width}px](../../frontend/apps/web_app/tests/components/result-entry-design.spec.ts › result previews show bottom identity and explicit chat expansion at ${width}px) |
-| Apple | impl | 0 pass · 0 fail · 0 not run · 6 no test | — |
-| CLI | impl | 0 pass · 0 fail · 0 not run · 6 no test | — |
+| Web | **FAIL** 1/9 | 1 pass · 1 fail · 1 not run · 6 no test | [skill-health-appointments.spec.ts](../../frontend/apps/web_app/tests/skill-health-appointments.spec.ts)<br>[result-entry-design.spec.ts](../../frontend/apps/web_app/tests/components/result-entry-design.spec.ts)<br>1 unit test file(s), e.g. [ResultEmbedFullscreen.test.ts](../../frontend/packages/ui/src/components/embeds/__tests__/ResultEmbedFullscreen.test.ts)<br>❌ [result-entry-design.spec.ts › result previews show bottom identity and explicit chat expansion at ${width}px](../../frontend/apps/web_app/tests/components/result-entry-design.spec.ts › result previews show bottom identity and explicit chat expansion at ${width}px) |
+| Apple | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
+| CLI | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
 | TUI | impl | — | — |
-| REST API | not run 0/6 | 0 pass · 0 fail · 1 not run · 5 no test | 1 unit test file(s), e.g. [test_health_search_appointments_skill.py](../../backend/tests/test_health_search_appointments_skill.py) |
-| npm SDK | impl | 0 pass · 0 fail · 0 not run · 6 no test | — |
-| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 6 no test | — |
+| REST API | not run 0/8 | 0 pass · 0 fail · 3 not run · 5 no test | 2 unit test file(s), e.g. [test_health_search_appointments_skill.py](../../backend/tests/test_health_search_appointments_skill.py), [test_delegate_skill.py](../../backend/tests/test_delegate_skill.py) |
+| npm SDK | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
+| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
 
 </details>
 

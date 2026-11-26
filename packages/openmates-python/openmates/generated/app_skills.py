@@ -2490,8 +2490,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'health',
   'app_namespace_py': 'health',
   'app_namespace_ts': 'health',
-  'description': 'Appointment search is currently unavailable because no permitted provider is '
-                 'configured. Report this limitation; do not attempt alternate provider access.',
+  'description': 'Use installed sources for live medical appointment requests. If none are '
+                 'installed, report unavailable. For a consultation about medication, request a '
+                 'prescribing clinician and treat generic or unverified slots as leads whose '
+                 'eligibility must be confirmed.',
   'description_key': 'app_skills.health.search_appointments.description',
   'schema': {'properties': {'requests': {'description': 'Array of appointment search requests. '
                                                         'Each request searches for available '
@@ -2529,15 +2531,31 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'control': 'location',
                                                                                     'location_mode': 'city'}},
                                                                   'days_ahead': {'default': 7,
-                                                                                 'description': 'Search '
-                                                                                                'is '
-                                                                                                'currently '
-                                                                                                'unavailable '
-                                                                                                'without '
+                                                                                 'description': 'Days '
+                                                                                                'to '
+                                                                                                'check '
+                                                                                                'for '
+                                                                                                'availability. '
+                                                                                                'Defaults '
+                                                                                                'to '
+                                                                                                'seven. '
+                                                                                                'Use '
+                                                                                                '30 '
+                                                                                                'or '
+                                                                                                '60 '
+                                                                                                'days '
+                                                                                                'when '
+                                                                                                'the '
+                                                                                                'user '
+                                                                                                'requests '
                                                                                                 'a '
-                                                                                                'permitted '
-                                                                                                'provider.',
-                                                                                 'enum': [1, 3, 7],
+                                                                                                'longer '
+                                                                                                'search.',
+                                                                                 'enum': [1,
+                                                                                          3,
+                                                                                          7,
+                                                                                          30,
+                                                                                          60],
                                                                                  'type': 'integer',
                                                                                  'x-ui': {'basic': True}},
                                                                   'insurance_sector': {'description': 'Insurance '
@@ -2623,15 +2641,88 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                   'minimum': 1,
                                                                                   'type': 'integer',
                                                                                   'x-ui': {'basic': False}},
+                                                                  'medication_visit': {'description': 'Use '
+                                                                                                      'initiation '
+                                                                                                      'for '
+                                                                                                      'discussing '
+                                                                                                      'starting '
+                                                                                                      'medication '
+                                                                                                      'and '
+                                                                                                      'continuation '
+                                                                                                      'for '
+                                                                                                      'continuing '
+                                                                                                      'treatment.',
+                                                                                       'enum': ['initiation',
+                                                                                                'continuation'],
+                                                                                       'type': 'string'},
                                                                   'provider_platform': {'description': 'Optional '
-                                                                                                       'source '
-                                                                                                       'identifier; '
-                                                                                                       'search '
-                                                                                                       'is '
-                                                                                                       'currently '
-                                                                                                       'unavailable.',
+                                                                                                       'identifier '
+                                                                                                       'of '
+                                                                                                       'an '
+                                                                                                       'installed '
+                                                                                                       'appointment '
+                                                                                                       'source.',
                                                                                         'type': 'string',
                                                                                         'x-ui': {'basic': False}},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'requirements '
+                                                                                                        'for '
+                                                                                                        'appointment '
+                                                                                                        'ranking. '
+                                                                                                        'Use '
+                                                                                                        'a '
+                                                                                                        'short, '
+                                                                                                        'impersonal '
+                                                                                                        'description '
+                                                                                                        'of '
+                                                                                                        'the '
+                                                                                                        'appointment '
+                                                                                                        'and '
+                                                                                                        'preferences. '
+                                                                                                        'Do '
+                                                                                                        'not '
+                                                                                                        'include '
+                                                                                                        'a '
+                                                                                                        "patient's "
+                                                                                                        'name, '
+                                                                                                        'contact '
+                                                                                                        'information '
+                                                                                                        'or '
+                                                                                                        'personal '
+                                                                                                        'history. '
+                                                                                                        'Omit '
+                                                                                                        'to '
+                                                                                                        'use '
+                                                                                                        'provider '
+                                                                                                        'order.',
+                                                                                         'type': 'string'},
+                                                                  'requires_external_diagnosis_acceptance': {'default': False,
+                                                                                                             'description': 'True '
+                                                                                                                            'if '
+                                                                                                                            'the '
+                                                                                                                            'existing '
+                                                                                                                            'diagnosis '
+                                                                                                                            'came '
+                                                                                                                            'from '
+                                                                                                                            'another '
+                                                                                                                            'practice '
+                                                                                                                            'and '
+                                                                                                                            'must '
+                                                                                                                            'be '
+                                                                                                                            'accepted.',
+                                                                                                             'type': 'boolean'},
+                                                                  'requires_prescribing_clinician': {'default': False,
+                                                                                                     'description': 'True '
+                                                                                                                    'for '
+                                                                                                                    'visits '
+                                                                                                                    'to '
+                                                                                                                    'discuss '
+                                                                                                                    'medication '
+                                                                                                                    'with '
+                                                                                                                    'a '
+                                                                                                                    'prescribing '
+                                                                                                                    'clinician.',
+                                                                                                     'type': 'boolean'},
                                                                   'speciality': {'description': 'Doctor '
                                                                                                 'speciality '
                                                                                                 'or '
@@ -11289,7 +11380,7 @@ class HealthAppSkills:
         self._run_skill = run_skill
 
     def search_appointments(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Appointment search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.
+        """Use installed sources for live medical appointment requests. If none are installed, report unavailable. For a consultation about medication, request a prescribing clinician and treat generic or unverified slots as leads whose eligibility must be confirmed.
 
         Description key: app_skills.health.search_appointments.description
         Skill: health/search_appointments

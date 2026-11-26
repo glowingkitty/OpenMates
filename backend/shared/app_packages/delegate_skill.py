@@ -86,6 +86,7 @@ class OriginalSkillModels:
     provider_objects: bool = False
     # Optional ``refine_installed_group`` of the original skill class.
     group_refiner: Optional[Callable[..., Awaitable[None]]] = None
+    group_postprocessor: Optional[Callable[..., Awaitable[None]]] = None
 
 
 # --------------------------------------------------------------------------
@@ -203,9 +204,11 @@ def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
         logger.info("[AppPackages] No request item model found for %s; items are passed as JSON objects", class_path)
     response_defaults, provider_objects = _resolve_response_shape(module)
     refiner = getattr(skill_class, GROUP_REFINER_ATTRIBUTE, None)
+    postprocessor = getattr(skill_class, "postprocess_installed_group", None)
     return OriginalSkillModels(item_model=item_model, response_defaults=response_defaults,
                                provider_objects=provider_objects,
-                               group_refiner=refiner if callable(refiner) else None)
+                               group_refiner=refiner if callable(refiner) else None,
+                               group_postprocessor=postprocessor if callable(postprocessor) else None)
 
 
 # --------------------------------------------------------------------------
@@ -404,6 +407,8 @@ class InstalledProviderSkill(BaseSkill):
         # A price order needs more candidates per provider than the final list shows.
         widened = ranked or (compared and wants_price_order(contract_input))
         provider_input = keep_selectors(contract_input, raw)
+        if models.group_postprocessor is not None:
+            provider_input.pop(CRITERIA_FIELD, None)
         # Selectors are read from the raw item: the item model may not declare them.
         provider_ids = select_provider_ids(raw, providers)
         # The web is searched too unless the caller named the providers to use.
@@ -423,6 +428,9 @@ class InstalledProviderSkill(BaseSkill):
         group = build_group(request_id, outcomes)
         if models.group_refiner is not None and not names_providers(raw) and not group.get("error"):
             await models.group_refiner(group, contract_input, self._search_more(secrets_manager), secrets_manager)
+        if models.group_postprocessor is not None and not group.get("error"):
+            await models.group_postprocessor(group, contract_input, secrets_manager, policy)
+            group["providers"] = list(dict.fromkeys(result["provider_id"] for result in group["results"]))
         if compared:
             group["results"], group["price_comparison"] = compare_offers(group["results"], contract_input)
         if ranked and group["results"]:

@@ -305,7 +305,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/health-search-appointments
-    fingerprint: 44c4445e2b6480d9e7e141258aff25c92f7cd92315fb2671b25c8e96811eab32
+    fingerprint: 63ef08c35b9a8dc45d459639e7af8d539d9b6bbe774cc05a2c3c8518664f8103
     required_applies_to:
     - rest_api
     - cli
@@ -5526,7 +5526,31 @@ assertions:
     specification: feature.app-skill.health-search-appointments@1
     specification_id: feature.app-skill.health-search-appointments
     type: behavior
-    fingerprint: 1a21a507901e7ec51c310b34d7a508df3f20d3f79212c87c17a609eb50ef9ef0
+    fingerprint: 0ab2e71cce07f56ac5f6cb0a02c9809562c5c1f0d2de5ccf4ebd20c872fe5360
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.results.prescribing-evidence:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: behavior
+    fingerprint: b615d02b2c97110ed990411f2e6d8c0f8cc6ce0f0f80a476dfccd9b1848bb5bd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.results.optional-relevance:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: behavior
+    fingerprint: 000cd224ce72c9125608fc2700d32b092b5d87e45574e1f411cf69e29a339f93
     required_applies_to:
     - rest_api
     - cli
@@ -5574,7 +5598,7 @@ assertions:
     specification: feature.app-skill.health-search-appointments@1
     specification_id: feature.app-skill.health-search-appointments
     type: failure
-    fingerprint: 51d9f760b870876d319b416006473f5a82e2326e7baa37997b170e900f889cda
+    fingerprint: f75a0d58e753df4a46d2ba47dcd88bd1a028ebb75c6be3f636a089f0318822bd
     required_applies_to:
     - rest_api
     - cli
@@ -5586,7 +5610,7 @@ assertions:
     specification: feature.app-skill.health-search-appointments@1
     specification_id: feature.app-skill.health-search-appointments
     type: parity
-    fingerprint: 8401df61d73a2e6ad531eeb0906276ee88be63799055ee3e2e7ac1e494e6fe50
+    fingerprint: 2d369b10b76f80d60ecc8cb80f88ce559b03f69947cc4787d81f6a51ee746275
     required_applies_to:
     - rest_api
     - cli

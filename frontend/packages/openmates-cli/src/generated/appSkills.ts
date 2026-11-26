@@ -2873,7 +2873,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "health",
     "skill_method_py": "search_appointments",
     "description_key": "app_skills.health.search_appointments.description",
-    "description": "Appointment search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.",
+    "description": "Use installed sources for live medical appointment requests. If none are installed, report unavailable. For a consultation about medication, request a prescribing clinician and treat generic or unverified slots as leads whose eligibility must be confirmed.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2907,7 +2907,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Optional source identifier; search is currently unavailable."
+                "description": "Optional identifier of an installed appointment source."
               },
               "insurance_sector": {
                 "x-ui": {
@@ -2940,13 +2940,37 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "integer",
-                "description": "Search is currently unavailable without a permitted provider.",
+                "description": "Days to check for availability. Defaults to seven. Use 30 or 60 days when the user requests a longer search.",
                 "enum": [
                   1,
                   3,
-                  7
+                  7,
+                  30,
+                  60
                 ],
                 "default": 7
+              },
+              "requires_prescribing_clinician": {
+                "type": "boolean",
+                "description": "True for visits to discuss medication with a prescribing clinician.",
+                "default": false
+              },
+              "medication_visit": {
+                "type": "string",
+                "enum": [
+                  "initiation",
+                  "continuation"
+                ],
+                "description": "Use initiation for discussing starting medication and continuation for continuing treatment."
+              },
+              "requires_external_diagnosis_acceptance": {
+                "type": "boolean",
+                "description": "True if the existing diagnosis came from another practice and must be accepted.",
+                "default": false
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "description": "Optional requirements for appointment ranking. Use a short, impersonal description of the appointment and preferences. Do not include a patient's name, contact information or personal history. Omit to use provider order."
               },
               "max_doctors": {
                 "x-ui": {
@@ -10815,7 +10839,7 @@ export class HealthAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Appointment search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.
+   * Use installed sources for live medical appointment requests. If none are installed, report unavailable. For a consultation about medication, request a prescribing clinician and treat generic or unverified slots as leads whose eligibility must be confirmed.
    * Description key: app_skills.health.search_appointments.description
    * Skill: health/search_appointments
    */

@@ -13863,7 +13863,7 @@ features:
     - app:health
     dev: enabled
     prod: enabled
-  assertions: 6
+  assertions: 8
   surfaces:
     web:
       status: failing
@@ -13873,8 +13873,8 @@ features:
         passing: 1
         failing: 1
         not_run: 1
-        missing: 4
-        counted: 7
+        missing: 6
+        counted: 9
       failing_tests:
       - frontend/apps/web_app/tests/components/result-entry-design.spec.ts › result previews show bottom identity and explicit
         chat expansion at ${width}px
@@ -13893,8 +13893,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 6
-        counted: 6
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: apple/OpenMates/Sources/Embeds/Grouping/EmbedFullscreenContainer.swift health search_appointments, HealthSearchIntent
       e2e_tests: []
@@ -13912,8 +13912,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 6
-        counted: 6
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: openmates apps health search_appointments
       e2e_tests: []
@@ -13941,14 +13941,15 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 1
+        not_run: 3
         missing: 5
-        counted: 6
+        counted: 8
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_health_search_appointments_skill.py
-      unit_test_files: 1
+      - backend/tests/test_delegate_skill.py
+      unit_test_files: 2
     sdk_npm:
       status: implemented
       source: intent
@@ -13957,8 +13958,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 6
-        counted: 6
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: src/generated/appSkills.ts apps.health (generic skill call)
       e2e_tests: []
@@ -13972,8 +13973,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 6
-        counted: 6
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: generated/app_skills.py apps.health (generic skill call)
       e2e_tests: []
