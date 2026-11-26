@@ -259,3 +259,37 @@ def test_next_click_waits_for_empty_candidate_completion(monkeypatch, tmp_path):
         evidence = {}
         assert benchmark.wait_for_recorded_open(terminal, 0, evidence, require_completion=True) == "recorded"
         assert not list(steps)
+
+
+def test_filled_composer_requires_native_admitted_paint_proof(tmp_path):
+    with (tmp_path / "diagnostics").open("w+b", buffering=0) as trace:
+        terminal = Terminal(SimpleNamespace(poll=lambda: None), 1, trace.fileno())
+        rows = auth_screen("Signed in · native encrypted session", "Synthetic restored draft")
+        assert terminal.auth_state(rows) == "unconfirmed"
+        trace.write(b"OPENMATES_STARTUP_STAGE authenticated_frame ok 10\n")
+        assert terminal.auth_state(rows) == "authenticated"
+        assert terminal.auth_state(auth_screen("Live updates delayed", "Synthetic restored draft")) == "authenticated"
+        assert terminal.auth_state(auth_screen("This session expired", "Synthetic restored draft")) == "unconfirmed"
+        assert terminal.auth_state(auth_screen("Signed in", form="Unlock local vault")) == "vault_prompt"
+
+
+def test_auth_wait_can_observe_late_native_frame_marker_without_more_pty_output(monkeypatch, tmp_path):
+    with (tmp_path / "diagnostics").open("w+b", buffering=0) as trace:
+        terminal = Terminal(SimpleNamespace(poll=lambda: None), 1, trace.fileno())
+        terminal.rows = auth_screen("Signed in · native encrypted session", "Synthetic restored draft")
+        auth = AuthEvidence([], 0)
+        startup = benchmark.StartupEvidence([], 0, None)
+        startup.started = benchmark.time.monotonic()
+
+        def idle(*_args):
+            trace.write(b"OPENMATES_STARTUP_STAGE authenticated_frame ok 10\n")
+            return [], [], []
+
+        monkeypatch.setattr(benchmark.select, "select", idle)
+        auth.wait(
+            terminal, "authenticated", lambda rows: terminal.auth_state(rows) == "authenticated",
+            startup, observe_idle=True,
+        )
+        assert auth.sample["last_state"] == "authenticated"
+        assert startup.sample["authenticated_at_ms"] is not None
+        assert "Synthetic" not in repr((auth.sample, startup.sample))

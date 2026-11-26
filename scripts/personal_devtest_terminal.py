@@ -36,6 +36,7 @@ STARTUP_STAGE_NAMES = {
     "cold_sidebar_envelope", "cold_sidebar_id", "cold_sidebar_wrappers", "cold_sidebar_timestamp",
     "cold_sidebar_render", "cold_sidebar_persist", "cold_sidebar_projection", "cold_sidebar_publish",
     "resume", "reconcile", "hydrate", "live_canonical_read", "opened_recorded", "open_selection_completed",
+    "authenticated_frame",
     "list_convert_id", "list_convert_status", "list_convert_title", "list_convert_created_at",
     "list_convert_updated_at", "list_convert_messages_version", "list_convert_unread_count",
     "list_convert_pinned", "list_convert_archived", "list_convert_has_draft", "list_convert_footer",
@@ -91,6 +92,7 @@ class Terminal:
         self.process = process
         self.master = master
         self.diagnostics_fd = diagnostics_fd
+        self.authenticated_frame_seen = False
         self.output = bytearray()
         self.rows = []
 
@@ -108,6 +110,24 @@ class Terminal:
         # observe the trace without seeking or interfering with its writes.
         raw = os.pread(self.diagnostics_fd, 128 * 1024, position)
         return startup_diagnostic_rows(raw[:raw.rfind(b"\n") + 1])
+
+    def auth_state(self, rows):
+        screen = terminal_auth_state(rows)
+        if screen != "unconfirmed" or not rows or self.diagnostics_fd is None:
+            return screen
+        if terminal_status(rows) in {
+            "signed_out", "submitting", "authentication_failed", "vault_locked",
+            "two_factor_required", "verification_required", "expired",
+        }:
+            return screen
+        # The empty composer is absent when an admitted chat restores a draft.
+        # Require a real admitted native paint, never a sticky footer alone.
+        if not self.authenticated_frame_seen:
+            self.authenticated_frame_seen = any(
+                row["stage"] == "authenticated_frame" and row["outcome"] == "ok"
+                for row in self.diagnostics_after(0)
+            )
+        return "authenticated" if self.authenticated_frame_seen else screen
 
     def wait(self, label, accept, seconds=45, observe_idle=False):
         deadline = time.monotonic() + seconds
@@ -150,7 +170,7 @@ class Terminal:
         raise TerminalWaitError(
             outcome, f"Native terminal did not reach {label} "
             f"(sidebar_visible={sidebar_visible}, visible_chat_rows={len(chat_cells)}, "
-            f"auth={terminal_auth_state(self.rows)}, status={terminal_status(self.rows)})"
+            f"auth={self.auth_state(self.rows)}, status={terminal_status(self.rows)})"
         )
 
     def quit(self):
@@ -306,8 +326,9 @@ class AuthEvidence:
         }
         samples.append(self.sample)
 
-    def observe(self, rows):
-        state, status = terminal_auth_state(rows), terminal_status(rows)
+    def observe(self, rows, state=None):
+        state = state if state is not None else terminal_auth_state(rows)
+        status = terminal_status(rows)
         transitions = self.sample["screen_transitions"]
         if len(transitions) < 20 and (
             not transitions or (transitions[-1]["state"], transitions[-1]["status"]) != (state, status)
@@ -323,19 +344,21 @@ class AuthEvidence:
     def elapsed(self):
         return round((time.monotonic() - self.started) * 1000)
 
-    def wait(self, terminal, stage, accept, startup=None):
+    def wait(self, terminal, stage, accept, startup=None, *, observe_idle=False):
         self.sample["stage"] = stage
 
         began = time.monotonic()
 
         def observe(rows):
-            self.observe(rows)
+            state = terminal.auth_state(rows) if startup is not None else None
+            self.observe(rows, state)
             if startup is not None:
-                startup.observe(rows)
+                startup.observe(rows, state)
             return accept(rows)
 
         try:
-            reached = terminal.wait(stage, observe)
+            options = {"observe_idle": True} if observe_idle else {}
+            reached = terminal.wait(stage, observe, **options)
         except TerminalWaitError as error:
             self.sample["wait_outcome"] = error.outcome
             raise
@@ -461,8 +484,9 @@ class StartupEvidence:
     def elapsed(self):
         return round((time.monotonic() - self.started) * 1000)
 
-    def observe(self, rows):
-        if self.started is None or terminal_auth_state(rows) != "authenticated":
+    def observe(self, rows, state=None):
+        state = state if state is not None else terminal_auth_state(rows)
+        if self.started is None or state != "authenticated":
             return
         elapsed = self.elapsed()
         if elapsed > STARTUP_SECONDS * 1000:
@@ -490,8 +514,9 @@ class StartupEvidence:
 
     def await_extended(self, terminal, auth):
         def observe(rows):
-            auth.observe(rows)
-            self.observe(rows)
+            state = terminal.auth_state(rows)
+            auth.observe(rows, state)
+            self.observe(rows, state)
             return self.sample["ten_distinct_chat_rows_at_ms"] is not None and (
                 self.expected is None or self.sample["last_open_first_readable_at_ms"] is not None
             )
@@ -583,7 +608,10 @@ def enter_authenticated(terminal, evidence, startup, form, input_text):
         startup.started = time.monotonic()
         terminal.send(payload)
         evidence.sample["milestones_ms"]["submit_credentials"] = evidence.elapsed()
-        evidence.wait(terminal, "authenticated", lambda rows: terminal_auth_state(rows) == "authenticated", startup)
+        evidence.wait(
+            terminal, "authenticated", lambda rows: terminal.auth_state(rows) == "authenticated",
+            startup, observe_idle=True,
+        )
         evidence.sample["stage"] = "recent_rows"
         if not recent_chat_cells(terminal.rows)[0]:
             startup.sample["sidebar_requested_at_ms"] = startup.elapsed()
