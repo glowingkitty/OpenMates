@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- CommonJS test helpers. */
 // contract-test-file: tooling
 /** Read-only, deployed-dev timings. Use the private Personal DevTest workflow. */
-export {};
+import type { WebSocketRoute } from "@playwright/test";
 
 const { test, expect } = require('@playwright/test');
 const { loginToTestAccount, waitForChatReady, dismissSecurityReminderIfPresent } = require('./helpers/chat-test-helpers');
@@ -20,12 +20,14 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	if (!credentials.email || !credentials.password || !credentials.otpKey) {
 		throw new Error('Personal DevTest repository secrets are required');
 	}
-	const transports: Array<{ closed: boolean }> = [];
-	page.on('websocket', (socket: any) => {
-		if (!socket.url().includes('/v1/ws')) return;
-		const observed = { closed: false };
-		transports.push(observed);
-		socket.on('close', () => { observed.closed = true; });
+	let offline = false;
+	const transports: Array<{ socket: WebSocketRoute; server: WebSocketRoute }> = [];
+	await page.routeWebSocket(/\/v1\/ws(?:\?|$)/, async (socket: WebSocketRoute) => {
+		if (offline) {
+			await socket.close({ code: 3001, reason: 'Development benchmark transport offline' });
+			return;
+		}
+		transports.push({ socket, server: socket.connectToServer() });
 	});
 	await page.addInitScript(() => {
 		const BaseSocket = window.WebSocket;
@@ -37,6 +39,10 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 				if (String(url).includes('/v1/ws')) chatSockets.push(this);
 			}
 		};
+	});
+	const hasOpenTransport = () => page.evaluate(() => {
+		const sockets = (window as typeof window & { __devTestChatSockets?: WebSocket[] }).__devTestChatSockets ?? [];
+		return sockets.some(socket => socket.readyState === WebSocket.OPEN);
 	});
 	await loginToTestAccount(page, undefined, undefined, { credentials });
 	await dismissSecurityReminderIfPresent(page);
@@ -87,27 +93,29 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	// transcript and a second cached selection usable across an actual socket loss.
 	const [first, , last] = [...selected];
 	if (!first || !last) throw new Error('Expected three distinct existing conversations');
+	await expect.poll(hasOpenTransport, { timeout: 15000 }).toBe(true);
 	const original = transports.at(-1);
-	expect(original?.closed).toBe(false);
+	if (!original) throw new Error('Expected the real development WebSocket route');
 	const previousTransportCount = transports.length;
+	offline = true;
 	await context.setOffline(true);
 	try {
-		await page.evaluate(() => {
-			const sockets = (window as typeof window & { __devTestChatSockets?: WebSocket[] }).__devTestChatSockets ?? [];
-			for (const socket of sockets) {
-				if (socket.readyState === WebSocket.OPEN) socket.close(1000, 'Read-only development benchmark');
-			}
-		});
-		await expect.poll(() => original?.closed).toBe(true);
+		// Closing the route in both directions also works when the network can
+		// no longer complete a browser-initiated close handshake.
+		const close = { code: 3001, reason: 'Read-only development benchmark disconnect' };
+		await Promise.all([original.socket.close(close), original.server.close(close)]);
+		await expect.poll(hasOpenTransport, { timeout: 15000 }).toBe(false);
 		await assertTranscript(last);
 		await page.evaluate((id: string) => {
 			window.location.hash = `chat-id=${encodeURIComponent(id)}`;
 		}, first);
 		await assertTranscript(first);
 	} finally {
+		offline = false;
 		await context.setOffline(false);
 	}
-	await expect.poll(() => transports.slice(previousTransportCount).some(socket => !socket.closed)).toBe(true);
+	await expect.poll(() => transports.length, { timeout: 30000 }).toBeGreaterThan(previousTransportCount);
+	await expect.poll(hasOpenTransport, { timeout: 30000 }).toBe(true);
 	await waitForChatReady(page);
 	await assertTranscript(first);
 	await expect(active).toHaveAttribute('data-current-message-ids-unique', 'true');
