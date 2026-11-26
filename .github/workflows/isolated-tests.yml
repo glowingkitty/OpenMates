@@ -94,17 +94,13 @@ on:
         required: false
         default: ''
       personal_devtest_surface:
-        description: Optional read-only benchmark on the deployed development account (terminal or web)
+        description: Private read-only benchmark surface (terminal, web, or web-local for a paired runner build)
         type: string
         default: ''
       personal_devtest_evidence_recipient:
         description: Base64-encoded public PEM certificate for private benchmark evidence
         type: string
         default: ''
-      personal_devtest_local_build:
-        description: Build the trusted dev web baseline on the runner for a paired candidate comparison
-        type: boolean
-        default: false
 permissions:
   actions: read
   contents: read
@@ -114,8 +110,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev' && inputs.personal_devtest_surface != ''
     uses: ./.github/workflows/personal-devtest.yml
     with:
-      surface: ${{ inputs.personal_devtest_surface }}
-      local_build: ${{ inputs.personal_devtest_local_build }}
+      surface: ${{ inputs.personal_devtest_surface == 'web-local' && 'web' || inputs.personal_devtest_surface }}
+      local_build: ${{ inputs.personal_devtest_surface == 'web-local' }}
       evidence_recipient: ${{ inputs.personal_devtest_evidence_recipient }}
       checkout_ref: ${{ inputs.checkout_ref }}
       source_commit: ${{ inputs.source_commit }}

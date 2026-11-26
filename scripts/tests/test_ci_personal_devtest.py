@@ -6,8 +6,10 @@ import hashlib
 import json
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
+import yaml
 
 from scripts.ci_personal_devtest import admit, git, reconstruct
 
@@ -132,3 +134,13 @@ def test_reconstructs_exact_detached_candidate_from_a_clean_base(tmp_path):
     assert git(subject, "rev-parse", "HEAD") == source
     assert status.read_text() == "reviewed candidate\n"
     assert subprocess.run(["git", "-C", str(subject), "symbolic-ref", "-q", "HEAD"]).returncode == 1
+
+def test_private_baseline_fits_github_dispatch_input_budget():
+    workflow = Path(__file__).resolve().parents[2] / ".github/workflows/isolated-tests.yml"
+    parsed = yaml.safe_load(workflow.read_text())
+    triggers = parsed.get("on") or parsed[True]
+    dispatch = triggers["workflow_dispatch"]["inputs"]
+    assert len(dispatch) <= 25
+    assert "personal_devtest_surface" in dispatch
+    job = parsed["jobs"]["personal-devtest"]["with"]
+    assert "web-local" in job["surface"] and "web-local" in job["local_build"]
