@@ -1,6 +1,7 @@
 """Codex chats run the repository's Claude hooks through scripts/codex_hook_adapter.py (TASK-4476)."""
 
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -80,6 +81,30 @@ def test_session_id_is_the_chat_id_and_the_thread_is_recorded(repo, tmp_path):
     seen = json.loads((repo / "who.json").read_text())
     assert seen["session_id"] == CHAT and seen["codex_thread_id"] == THREAD
     assert json.loads((chats / f"{CHAT}.json").read_text())["thread_id"] == THREAD
+
+
+# contract-test: tooling
+@pytest.mark.parametrize(("event", "action"), [
+    ("UserPromptSubmit", "hook-prompt"), ("Stop", "hook-stop"), ("SessionStart", "hook"),
+])
+def test_claude_reserve_notice_stays_out_of_codex_hooks(repo, tmp_path, event, action):
+    (tmp_path / "weekly-model.json").write_text(json.dumps({
+        "active": True, "used": 95, "resets_at": "2099-01-01T00:00:00+00:00",
+    }))
+    script = Path(__file__).resolve().parents[1] / "chat_compaction_handoff.py"
+    command = f"python3 {shlex.quote(str(script))} {action}"
+    (repo / ".claude" / "settings.json").write_text(json.dumps({
+        "hooks": {event: [{"hooks": [{"type": "command", "command": command}]}]},
+    }))
+    payload = {"session_id": THREAD, "source": "compact"}
+    env = {"PATH": "/usr/bin:/bin", "OPENMATES_USAGE_GUARD_DIR": str(tmp_path)}
+    code, out, err = adapter.run_one(command, payload, env, repo, 10)
+    assert (code, err) == (0, "")
+    assert "Claude has less than 10% weekly usage left" in out
+    assert run(repo, event, payload, env) == (0, "", "")
+    managed_env = {**env, "OPENMATES_CHAT_ID": CHAT}
+    assert run(repo, event, payload, managed_env) == (0, "", "")
+    assert run(repo, event, {"source": "compact"}, managed_env) == (0, "", "")
 
 
 # contract-test: tooling

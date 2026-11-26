@@ -186,7 +186,8 @@ def reserve_handoff_note(payload: dict, handed_path: Path) -> str:
     import claude_weekly_model
 
     chat_id = payload.get("session_id")
-    if (chat_id and not payload.get("codex_thread_id") and chat_id not in _load(handed_path)
+    # The Codex adapter supplies this key even when the native thread id is unavailable.
+    if (chat_id and "codex_thread_id" not in payload and chat_id not in _load(handed_path)
             and claude_weekly_model.needs_handoff(
                 chat_id, exemption=os.environ.get(claude_weekly_model.RESERVE_EXEMPT_ENV, ""))):
         return handoff_now(RESERVE_REASON)
@@ -215,7 +216,7 @@ def hook_prompt(raw: str, **paths) -> str:
             paths["codex_path"] = Path(transcript) if transcript else codex_chats.rollout_path(thread)
         reason = due_reason(chat_id, **paths)
         transcript = payload.get("transcript_path")
-        if not reason and not thread and transcript:
+        if not reason and "codex_thread_id" not in payload and transcript:
             handed_path = paths.get("handed_path") or handed_off_file()
             if chat_id not in _load(handed_path) and claude_context(Path(transcript)) >= CLAUDE_CONTEXT_TOKENS:
                 reason = f"This chat's most recent input context reached {CLAUDE_CONTEXT_TOKENS:,} tokens."
@@ -281,7 +282,7 @@ def hook(raw: str, path: Path | None = None) -> str:
             return ""
         if payload.get("agent_id"):
             return ""
-        if payload.get("codex_thread_id"):
+        if "codex_thread_id" in payload:
             return hook_prompt(raw)
         if note := reserve_handoff_note(payload, handed_off_file()):
             return note

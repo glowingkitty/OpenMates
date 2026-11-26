@@ -18,6 +18,7 @@ Translation:
   * identity: `session_id` becomes the chat id the launcher exported (OPENMATES_CHAT_ID),
     so session bindings, CI waiters and push records match the chat; the Codex thread id
     is stored in the chat's registry record (OPENMATES_CODEX_CHATS_DIR/<chat id>.json).
+    Every adapted payload carries codex_thread_id, even without a launcher chat id.
   * output: Codex rejects plain text on Stop; plain stdout of a Stop hook that exits 0 is
     dropped. Exit 2 and JSON decisions pass through.
 Built-in guards run before the repository hooks: sub-agents keep the chat's model and at
@@ -132,8 +133,8 @@ def normalize(payload: dict[str, Any], env: dict[str, str]) -> dict[str, Any]:
     if UUID_RE.match(chat_id):
         if thread and thread != chat_id:
             record_thread(chat_id, thread, env)
-        payload = {**payload, "session_id": chat_id, "codex_thread_id": thread}
-    return payload
+        payload = {**payload, "session_id": chat_id}
+    return {**payload, "codex_thread_id": thread}
 
 
 def hook_env(env: dict[str, str], root: Path) -> dict[str, str]:
