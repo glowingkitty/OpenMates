@@ -229,6 +229,8 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 	const recentRowsMS: number[] = [];
 	const visibleMessageMS: number[] = [];
 	const selected = new Set<string>();
+	const readableSelections: string[] = [];
+	let failedOnlineSelections = 0;
 	const active = page.getByTestId('active-chat-container');
 	const sidebar = page.getByTestId('activity-history-wrapper');
 	const clickChat = async (chatId: string) => {
@@ -248,8 +250,8 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			request.onsuccess = () => {
 				const db = request.result;
 				try {
-					const tx = db.transaction('messages', 'readonly');
-					const count = tx.objectStore('messages').index('chat_id').count(id);
+					const tx = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readonly');
+					const count = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').index('chat_id').count(id);
 					tx.oncomplete = () => { db.close(); finish(count.result); };
 					tx.onabort = tx.onerror = () => { db.close(); finish(null); };
 				} catch { db.close(); finish(null); }
@@ -310,6 +312,21 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			visibleMessageMS.push(Math.round(await page.evaluate(() => performance.now()) - start));
 			selectedRead = await readEvidence(chatId, start);
 			firstFrame = await page.evaluate(takeSelectedFrameProbe);
+			readableSelections.push(chatId);
+		} catch {
+			failedOnlineSelections++;
+			// Diagnose this one deliberately selected chat after its timed attempt.
+			// Only numeric counts, fixed stage names and HTTP status enter evidence.
+			const snapshot = await readEvidence(chatId, start);
+			const tail = await context.request.get('https://api.dev.openmates.org/v1/chats/' + chatId +
+				'/messages/window?direction=latest&limit=1&respect_compression_boundary=false', { timeout: 10000 }).catch(() => null);
+			const body = tail?.ok() ? await tail.json().catch(() => null) : null;
+			const serverRows = Array.isArray(body?.messages) ? body.messages.length : null;
+			await testInfo.attach('personal-devtest-web-failed-selection-' + (sample + 1), {
+				body: JSON.stringify({ ...snapshot, server_status: tail?.status() ?? null, server_tail_rows: serverRows }),
+				contentType: 'application/json',
+			});
+			continue;
 		} finally {
 			await page.evaluate(clearSelectedFrameProbe);
 		}
@@ -419,8 +436,13 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 
 	// Use only the conversations already opened above. Keep both the existing
 	// transcript and a second cached selection usable across an actual socket loss.
-	const [first, , last] = [...selected];
-	if (!first || !last) throw new Error('Expected three distinct existing conversations');
+	const first = readableSelections[0];
+	const last = readableSelections.at(-1);
+	if (!first || !last || first === last) throw new Error('Offline navigation requires two independently opened and readable conversations');
+	if (await active.getAttribute('data-current-chat-id') !== last) {
+		await clickChat(last);
+		await assertTranscript(last, 'restore readable selection before disconnect');
+	}
 	await expect.poll(hasOpenTransport, { timeout: 15000 }).toBe(true);
 	if (!transports.at(-1)) throw new Error('Expected the real development WebSocket route');
 	const previousTransportCount = transports.length;
@@ -480,4 +502,6 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		contentType: 'application/json',
 	});
 	expect(olderHeaderRequests).toEqual({ sync_metadata_chats: 0, load_more_chats: 0 });
+	expect(failedOnlineSelections, 'All three online selections must render').toBe(0);
+	expect(readableSelections).toHaveLength(3);
 });
