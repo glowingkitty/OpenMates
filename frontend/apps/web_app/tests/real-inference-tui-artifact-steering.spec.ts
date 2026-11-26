@@ -13,7 +13,7 @@ const { getTestAccount } = require('./signup-flow-helpers');
 
 const MODEL = 'Mercury 3';
 const MODEL_MENTION = '@Mercury-3';
-const RECIPE_OPENING = 'Build a working recipe app in one self-contained HTML code block named recipe.html. Start the code block straight away.';
+const RECIPE_OPENING = 'Return only standalone HTML source in one Markdown code block. Begin with three backticks followed by html:recipe.html and a newline. No application preview, generated project, or extra files. Put all CSS and JavaScript inside recipe.html.';
 const RECIPE_DETAILS = 'Include 30 example recipes, ingredient search, adjustable servings, and favorites. Set the header background to blue (#0055ff) initially.';
 const RECIPE = RECIPE_OPENING + ' ' + RECIPE_DETAILS;
 const RED = 'Make the header red (#d00000) in this same recipe app.';
@@ -23,14 +23,14 @@ const STEP_TIMEOUT = 30_000;
 
 type SavedMessage = { role: string; content: string; modelName: string | null };
 
-function codeReferences(messages: SavedMessage[]): string[] {
+function artifactReferences(messages: SavedMessage[], kind: 'code' | 'application' = 'code'): string[] {
 	const ids = new Set<string>();
 	for (const { role, content } of messages) {
 		if (role !== 'assistant') continue;
 		for (const match of content.matchAll(/`{3}json(?:_embed)?[ \t]*\r?\n([\s\S]*?)\r?\n\s*`{3}/g)) {
 			try {
 				const { type, embed_id } = JSON.parse(match[1]);
-				if (type === 'code' && typeof embed_id === 'string') ids.add(embed_id);
+				if (type === kind && typeof embed_id === 'string') ids.add(embed_id);
 			} catch {
 				// A Markdown JSON example need not be an artifact reference.
 			}
@@ -58,8 +58,8 @@ test('applies two corrections to the same recipe app from the terminal while its
 	phase('build_ready');
 	const home = createRustHome('tui-artifact-steering');
 	const env = rustEnv(home, apiUrl, appUrl);
-	const listChats = async (): Promise<Array<{ id: string }>> => {
-		const result = await runRust(binary, env, ['chats', 'list', '--json'], 90_000);
+	const listChats = async (timeout = 90_000): Promise<Array<{ id: string }>> => {
+		const result = await runRust(binary, env, ['chats', 'list', '--json'], timeout);
 		expect(result.code, 'read newly saved chat in a fresh process').toBe(0);
 		return JSON.parse(result.stdout).chats;
 	};
@@ -103,20 +103,45 @@ test('applies two corrections to the same recipe app from the terminal while its
 		];
 		const originalCardStep = steps.findIndex(({ name }) => name === 'original-card');
 		const fontStep = steps.findIndex(({ name }) => name === 'font-send');
+		let originalStreaming = false;
+		let originalCardVisible = false;
 		const terminal = recordRust(binary, [], env, testInfo, 'artifact-steering', {
 			timeoutSeconds: 300,
 			steps,
 			onInputProgress({ index, completed }: { index: number; completed: boolean }) {
 				switch (steps[index].name) {
 				case 'chat-home': if (completed) phase('composer_ready'); break;
-				case 'recipe-send': phase(completed ? 'original_streaming' : 'original_sent'); break;
-				case 'original-card': if (completed) phase('original_card_visible'); break;
+				case 'recipe-send':
+					originalStreaming = completed;
+					phase(completed ? 'original_streaming' : 'original_sent');
+					break;
+				case 'original-card':
+					originalCardVisible = completed;
+					if (completed) phase('original_card_visible');
+					break;
 				case 'red-send': phase(completed ? 'red_step_completed' : 'red_sent'); break;
 				case 'font-request': if (completed) phase('font_preview_visible'); break;
 				case 'font-send': if (completed) phase('font_sent'); break;
 				}
 			},
 		});
+		async function recordOriginalArtifactKind() {
+			const newChats = (await listChats(8_000)).filter(({ id }) => !priorChats.has(id));
+			if (newChats.length !== 1) throw new Error('Original chat is unavailable');
+			const read = await runRust(binary, env, ['chats', 'show', newChats[0].id, '--json'], 8_000);
+			if (read.code !== 0) throw new Error('Original chat is unreadable');
+			const { messages }: { messages: SavedMessage[] } = JSON.parse(read.stdout);
+			const answers = messages.filter(({ role }) => role === 'assistant');
+			if (!answers.length) {
+				phase('original_durable_reply_missing');
+			} else {
+				const hasCode = artifactReferences(answers).length > 0;
+				const hasApplication = artifactReferences(answers, 'application').length > 0;
+				if (hasCode) phase('original_durable_code');
+				if (hasApplication) phase('original_durable_application');
+				if (!hasCode && !hasApplication) phase('original_durable_other_reply');
+			}
+		}
 		phase('terminal_started');
 		try {
 			const { card } = await terminal.waitForInputCheckpoint(originalCardStep, 90_000);
@@ -141,12 +166,12 @@ test('applies two corrections to the same recipe app from the terminal while its
 				if (!answers.length) return 'waiting for the original assistant reply';
 				expect(answers.every(({ modelName }) => modelName === MODEL)).toBe(true);
 				phase('mercury_replies');
-				const originalRefs = codeReferences([answers[0]]);
+				const originalRefs = artifactReferences([answers[0]]);
 				if (!originalRefs.length) return 'waiting for the original saved Code reference';
 				expect(originalRefs).toEqual([
 					expect.stringMatching(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/),
 				]);
-				expect(codeReferences(messages)).toEqual(originalRefs);
+				expect(artifactReferences(messages)).toEqual(originalRefs);
 				phase('one_matching_card');
 				[artifactId] = originalRefs;
 				const readArtifact = await runRust(binary, env, ['embeds', 'show', artifactId, '--json']);
@@ -202,7 +227,26 @@ test('applies two corrections to the same recipe app from the terminal while its
 				await finalSource.dispose();
 			}
 		} finally {
+			const failedOriginalCheckpoint = originalStreaming && !originalCardVisible;
+			if (failedOriginalCheckpoint) {
+				try {
+					// Inspect private local data only. The receipt contains fixed labels.
+					const screen = terminal.plainTranscript();
+					if (/╭─ *html\b|<!doctype html>/i.test(screen)) phase('original_raw_html_seen');
+					if (screen.includes('Embed · Code')) phase('original_code_label_seen');
+					if (screen.includes('Embed · Application')) phase('original_application_label_seen');
+				} catch {
+					// Keep the original checkpoint failure even if no capture survives.
+				}
+			}
 			await terminal.dispose();
+			if (failedOriginalCheckpoint) {
+				try {
+					await recordOriginalArtifactKind();
+				} catch {
+					phase('original_durable_read_unavailable');
+				}
+			}
 		}
 	} finally {
 		rmSync(home, { recursive: true, force: true });

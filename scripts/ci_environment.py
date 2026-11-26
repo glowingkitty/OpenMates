@@ -295,6 +295,9 @@ SCOPED_RECIPE_PHASES = frozenset({
     "mercury_replies", "one_matching_card", "latest_source_read", "latest_header_red",
     "latest_font_lexend", "latest_source_verified", "previous_source_read", "previous_source_verified",
     "terminal_exit_verified", "input_plan_verified", "revised_source_visible", "passed",
+    "original_raw_html_seen", "original_code_label_seen", "original_application_label_seen",
+    "original_durable_code", "original_durable_application", "original_durable_other_reply",
+    "original_durable_reply_missing", "original_durable_read_unavailable",
 })
 SCOPED_PROOF_FILES = {
     "real-inference-tui-chat-processing.spec.ts": (
