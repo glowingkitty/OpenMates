@@ -93,13 +93,31 @@ on:
         type: string
         required: false
         default: ''
+      personal_devtest_surface:
+        description: Optional read-only benchmark on the deployed development account (terminal or web)
+        type: string
+        default: ''
+      personal_devtest_evidence_recipient:
+        description: Base64-encoded public PEM certificate for private benchmark evidence
+        type: string
+        default: ''
 permissions:
   actions: read
   contents: read
   packages: read
 jobs:
+  personal-devtest:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev' && inputs.personal_devtest_surface != ''
+    uses: ./.github/workflows/personal-devtest.yml
+    with:
+      surface: ${{ inputs.personal_devtest_surface }}
+      evidence_recipient: ${{ inputs.personal_devtest_evidence_recipient }}
+    secrets:
+      OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+      OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+      OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
   test:
-    if: github.event_name == 'workflow_dispatch' && !startsWith(inputs.mode, 'apple-')
+    if: github.event_name == 'workflow_dispatch' && inputs.personal_devtest_surface == '' && !startsWith(inputs.mode, 'apple-')
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.runner_label != '' && fromJSON(format('["openmates-e2b","{0}"]', inputs.runner_label)) || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
     # Real-inference specs (one per job, real-inference-* names; TASK-5616) run in
     # the protected environment whose dev-only provider keys exist only for the
@@ -1262,7 +1280,7 @@ jobs:
     # the older 26.2 rejects code that Xcode compiles there (stricter `sending` checks).
     # They use no secrets, accounts or runtime seeds; macOS minutes are free for this public repo.
     # apple-build, apple-unit and apple-ui share the Xcode steps (every `inputs.mode != 'apple-core'` step).
-    if: github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'apple-')
+    if: github.event_name == 'workflow_dispatch' && inputs.personal_devtest_surface == '' && startsWith(inputs.mode, 'apple-')
     runs-on: macos-26
     timeout-minutes: ${{ inputs.mode != 'apple-core' && 120 || 100 }}
     defaults:

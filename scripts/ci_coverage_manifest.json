@@ -1442,6 +1442,9 @@
     }
   },
   "holds": {
+    "personal-devtest-chat-timings.spec.ts": {
+      "next_action": "Run against the populated development account only through the private Personal DevTest web workflow. It uses GitHub secrets and encrypts browser logs and recordings before upload."
+    },
     "cli-native-agentic-app-real.spec.ts": {
       "next_action": "Real Gemini inference against dev with the personal test account: run only on the dev host with the personal-dev lease and the native CLI binary in OPENMATES_NATIVE_CLI. Never submit this provider-billed flow to isolated CI."
     },

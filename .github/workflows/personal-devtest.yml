@@ -1,0 +1,109 @@
+name: Personal DevTest read-only timings
+on:
+  workflow_call:
+    inputs:
+      surface:
+        description: Client surface to measure
+        required: true
+        type: string
+      evidence_recipient:
+        description: Base64-encoded public PEM certificate for encrypted test evidence
+        required: true
+        type: string
+    secrets:
+      OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL:
+        required: true
+      OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD:
+        required: true
+      OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-devtest-read-only
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    if: ${{ github.ref == 'refs/heads/dev' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate benchmark inputs and public evidence certificate
+        env:
+          SURFACE: ${{ inputs.surface }}
+          RECIPIENT: ${{ inputs.evidence_recipient }}
+        run: |
+          case "$SURFACE" in
+            web|terminal) ;;
+            *) echo "Invalid Personal DevTest surface" >&2; exit 1 ;;
+          esac
+          umask 077
+          printf '%s' "$RECIPIENT" | base64 --decode > "$RUNNER_TEMP/personal-devtest-recipient.pem"
+          openssl x509 -in "$RUNNER_TEMP/personal-devtest-recipient.pem" -checkend 0 -noout
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        if: inputs.surface == 'web'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: inputs.surface == 'web'
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: inputs.surface == 'web'
+      - run: pnpm exec playwright install --with-deps chromium
+        if: inputs.surface == 'web'
+        working-directory: frontend/apps/web_app
+      - name: Measure read-only web startup and existing chats
+        if: inputs.surface == 'web'
+        working-directory: frontend/apps/web_app
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: https://app.dev.openmates.org
+          OPENMATES_PRIVATE_ACCOUNT_TIMINGS: '1'
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+        run: |
+          umask 077
+          private="$RUNNER_TEMP/personal-devtest-evidence"
+          mkdir "$private"
+          PLAYWRIGHT_JSON_OUTPUT_FILE="$private/results.json" pnpm exec playwright test tests/personal-devtest-chat-timings.spec.ts \
+            --retries=0 --workers=1 --reporter=json --output="$private/playwright" > "$private/runner.log" 2>&1 \
+            || { echo "Personal DevTest web benchmark failed. See encrypted evidence."; exit 1; }
+          jq -e '.stats.expected == 1 and .stats.unexpected == 0 and .stats.skipped == 0' "$private/results.json" >/dev/null
+      - name: Build the source-matched native terminal in release mode
+        if: inputs.surface == 'terminal'
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          cargo +1.98.1 build --release --locked -p openmates --bin openmates
+      - name: Measure read-only terminal startup and existing chats
+        if: inputs.surface == 'terminal'
+        env:
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+        run: |
+          umask 077
+          private="$RUNNER_TEMP/personal-devtest-evidence"
+          mkdir "$private"
+          python3 scripts/personal_devtest_terminal.py ./target/release/openmates "$private" > "$private/runner.log" 2>&1 \
+            || { echo "Personal DevTest terminal benchmark failed. See encrypted evidence."; exit 1; }
+      - name: Encrypt private test logs, timings and recordings
+        if: always()
+        run: |
+          private="$RUNNER_TEMP/personal-devtest-evidence"
+          test -d "$private" || exit 0
+          umask 077
+          tar -C "$private" -czf - . | openssl cms -encrypt -binary -aes-256-gcm -outform DER \
+            -out "$RUNNER_TEMP/personal-devtest-evidence.cms" "$RUNNER_TEMP/personal-devtest-recipient.pem"
+      - uses: actions/upload-artifact@ea165f8d65e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: personal-devtest-encrypted-evidence
+          path: ${{ runner.temp }}/personal-devtest-evidence.cms
+          if-no-files-found: warn
+          retention-days: 7
