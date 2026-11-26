@@ -169,6 +169,20 @@ def test_test_lanes_build_once_then_test_on_those_products(mode, specs):
     assert sum(1 for _, command, *_ in plan if command[:2] == ["xcodebuild", "build-for-testing"]) == 1
 
 
+def test_only_private_startup_uses_the_multi_relaunch_allowance():
+    plans = [
+        (ci_apple.STARTUP_BENCHMARK_SPECS, True, "600"),
+        (ci_apple.MAC_STARTUP_BENCHMARK_SPECS, True, "600"),
+        (ci_apple.STARTUP_BENCHMARK_SPECS, False, "300"),
+        ({"OpenMatesUITests/A"}, False, "300"),
+    ]
+    for specs, private, allowance in plans:
+        command = ci_apple.xcode_plan("apple-ui", Path("/out"), sorted(specs), benchmark=private)[-1][1]
+        for flag in ("default", "maximum"):
+            option = f"-{flag}-test-execution-time-allowance"
+            assert command[command.index(option) + 1] == allowance
+
+
 def test_private_mac_startup_uses_hosted_macos_and_preserves_recordings():
     specs = sorted(ci_apple.MAC_STARTUP_BENCHMARK_SPECS)
     assert ci_apple.validate_specs("apple-ui", specs) == specs

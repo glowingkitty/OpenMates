@@ -70,7 +70,10 @@ MAC_STARTUP_BENCHMARK_SPECS = {
 PERSONAL_CREDENTIAL_KEYS = tuple(
     f"OPENMATES_PERSONAL_TEST_ACOUNT_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")
 )
-TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
+TEST_ALLOWANCE_SECONDS = 300
+# Private startup preserves all three process relaunches and their independent
+# foreground, sidebar, reconciliation and quiet-process measurements.
+STARTUP_TEST_ALLOWANCE_SECONDS = 600
 XCODE_MODES = ("apple-build", "apple-unit", "apple-ui")
 RESULT_BUNDLES = {
     "apple-build": "OpenMatesBuild.xcresult",
@@ -200,7 +203,9 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
     """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests."""
     build_only = mode == "apple-build"
     only = [] if build_only else [UNIT_TARGET] if specs == [ALL] else specs
-    mac_startup = benchmark and startup_benchmark_platform(specs) == "macOS"
+    startup_platform = startup_benchmark_platform(specs) if benchmark and mode == "apple-ui" else None
+    mac_startup = startup_platform == "macOS"
+    allowance = STARTUP_TEST_ALLOWANCE_SECONDS if startup_platform else TEST_ALLOWANCE_SECONDS
     scheme = "OpenMates_macOS" if mac_startup else "OpenMates_iOS"
     destination = "platform=macOS" if mac_startup else f"platform=iOS Simulator,name={SIMULATOR}"
     shared = [
@@ -290,8 +295,8 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
             "xcodebuild", "test-without-building", *source,
             "-resultBundlePath", str(results / RESULT_BUNDLES[mode]),
             "-test-timeouts-enabled", "YES",
-            "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
-            "-maximum-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
+            "-default-test-execution-time-allowance", str(allowance),
+            "-maximum-test-execution-time-allowance", str(allowance),
         ]
         if mode == "apple-ui":
             # One simulator, one test at a time: UI tests share the app's on-device state.
