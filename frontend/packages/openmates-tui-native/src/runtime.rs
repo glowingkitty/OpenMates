@@ -957,7 +957,11 @@ async fn actor(
     } } {
         state.core.acquire().await;
         let background = matches!(&request.work, Work::Live | Work::Inspirations | Work::Command(UiCommand::MarkRead(_)));
-        let booting = matches!(&request.work, Work::Boot);
+        let booting = matches!(
+            &request.work,
+            Work::Boot | Work::Command(UiCommand::Login { .. })
+        ) || (state.pair_phase == 0
+            && matches!(&request.work, Work::Command(UiCommand::Unlock { .. })));
         let syncing = matches!(&request.work, Work::BootSync);
         let opening_chat = matches!(&request.work, Work::Command(UiCommand::Open(Workspace::Chats, _)));
         let epoch = request.epoch;
@@ -1892,10 +1896,10 @@ impl Actor {
                         cleanup?;
                         return Err(Error::Cancelled);
                     }
-                    self.authorized(replies, epoch).await?;
-                    let items = self.core.client_mut().list(Workspace::Chats).await?;
-                    self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items))).await
+                    // Paint the authenticated shell and let the same
+                    // preemptible Rust startup sync used for returning
+                    // sessions fetch the list once the UI is ready.
+                    self.authorized_admission(replies, epoch).await
                 }),
                 UiCommand::Unlock { passphrase } => Box::pin(async move {
                     let _request_cancel = &cancel;

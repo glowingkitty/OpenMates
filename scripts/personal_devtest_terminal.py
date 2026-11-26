@@ -85,7 +85,8 @@ class Terminal:
         sidebar_visible, chat_cells = recent_chat_cells(self.rows)
         raise RuntimeError(
             f"Native terminal did not reach {label} "
-            f"(sidebar_visible={sidebar_visible}, visible_chat_rows={len(chat_cells)})"
+            f"(sidebar_visible={sidebar_visible}, visible_chat_rows={len(chat_cells)}, "
+            f"status={terminal_status(self.rows)})"
         )
 
 
@@ -116,6 +117,24 @@ def open_tui(binary, state):
         os.close(master)
         if slave is not None:
             os.close(slave)
+
+
+def terminal_status(rows):
+    status = rows[-1].strip().lower() if rows else ""
+    for prefix, label in (
+        ("signed in", "signed_in"),
+        ("offline", "offline"),
+        ("live updates delayed", "live_updates_delayed"),
+        ("encrypted data could not be authenticated", "encrypted_data_invalid"),
+        ("the server returned an invalid or unsupported response", "invalid_server_response"),
+        ("this operation is not available", "forbidden"),
+        ("this session expired", "expired"),
+        ("the operation was cancelled", "cancelled"),
+        ("the local operation could not be completed", "local_error"),
+    ):
+        if status.startswith(prefix):
+            return label
+    return "other"
 
 
 def recent_chat_cells(rows):
