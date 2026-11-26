@@ -46,7 +46,14 @@ const READ_STAGES = [
 	'local-session-start', 'local-session-ready', 'session-start', 'session-ready', 'cache-read-start', 'cache-read-end',
 	'cache-plan-owned_metadata', 'cache-plan-messages', 'cache-miss-rust',
 	'cache-miss-unsupported', 'cache-miss-unavailable', 'cache-miss-empty',
-	'local-cache-miss', 'cold-retention-request', 'cold-retention-io-start',
+	'load-chat', 'history-load', 'history-request',
+	'admission-bootstrap-wait-start', 'admission-bootstrap-wait-end',
+	'admission-platform-ready', 'admission-profile-capture-start', 'admission-worker-acquired',
+	'admission-restore-start', 'admission-restore-response', 'admission-profile-verified',
+	'platform-ready', 'worker-ready', 'local-platform-ready',
+	'local-cache-miss', 'local-cache-empty-latest', 'local-cache-failed-unavailable',
+	'local-cache-failed-invalidated_snapshot', 'local-cache-failed-cancelled', 'local-cache-failed-session_expired',
+	'cold-retention-request', 'cold-retention-io-start',
 	'cold-retention-io-complete', 'cold-retention-ready',
 	'cold-retention-failed-unavailable', 'cold-retention-failed-session_expired',
 	'cold-retention-io-failed-unavailable', 'server-read-start', 'server-read-end',
@@ -266,14 +273,23 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 			};
 		});
 		const view = document.querySelector('[data-testid="active-chat-container"]');
-		const marks = performance.getEntriesByType('mark')
-			.filter(mark => mark.startTime >= start && allowed.includes(mark.name)).slice(-40);
+		const observedMarks = performance.getEntriesByType('mark').filter(mark => allowed.includes(mark.name));
+		const marks = observedMarks.filter(mark => mark.startTime >= start).slice(-56);
+		// An admission can start while the sidebar is painting, before the selected click.
+		// These are the selected-session spine's fixed events, without chat identity.
+		const previousAdmission = observedMarks.filter(mark => mark.startTime < start &&
+			(mark.name.startsWith('openmates:rust:admission-') ||
+				mark.name === 'openmates:rust:session-start' || mark.name === 'openmates:rust:session-ready')).slice(-12);
 		return {
 			retained_rows: retainedRows,
 			active_message_count: Number(view?.getAttribute('data-current-message-count') ?? 0),
 			navigator_online: navigator.onLine,
 			read_stages: marks.map(mark => mark.name),
 			read_stage_timing_ms: marks.map(mark => ({
+				stage: mark.name,
+				elapsed_ms: Math.round(mark.startTime - start),
+			})),
+			preclick_admission_timing_ms: previousAdmission.map(mark => ({
 				stage: mark.name,
 				elapsed_ms: Math.round(mark.startTime - start),
 			})),
