@@ -3,14 +3,19 @@
 /** Read-only, deployed-dev timings. Use the private Personal DevTest workflow. */
 import type { Request, Response, WebSocketRoute } from "@playwright/test";
 import { preparePersonalDevtestWebOrigin } from "./helpers/personal-devtest-web-origin";
+import {
+	armSelectedFrameProbe, browserNavigationTimings, clearSelectedFrameProbe, takeSelectedFrameProbe,
+} from "./helpers/personal-devtest-web-timing";
 
 const { test, expect } = require('@playwright/test');
+const { browserResourceSnapshot } = require('./helpers/performance-evidence.cjs');
 const { createBrowserProcessEvidence } = require('./helpers/browser-process-evidence.cjs');
 const { loginToTestAccount, waitForChatReady, dismissSecurityReminderIfPresent } = require('./helpers/chat-test-helpers');
 const DEV_ORIGIN = 'https://app.dev.openmates.org';
 const DEV_CHAT_STATS = 'https://api.dev.openmates.org/v1/settings/chats';
 const IDLE_OBSERVATION_MS = 15000;
 const SETTLED_READINESS_TIMEOUT_MS = 15000;
+const READABLE_FRAME_TIMEOUT_MS = 8000;
 const INBOUND_KINDS = new Set([
 	'phase_1_last_chat_ready', 'phase_1b_chat_content_ready', 'phase_2_last_20_chats_ready',
 	'phase_3_chunk_ready', 'phase_3_last_100_chats_ready', 'background_message_sync',
@@ -91,6 +96,8 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 
 	const olderHeaderRequests: Record<string, number> = { sync_metadata_chats: 0, load_more_chats: 0 };
 	await preparePersonalDevtestWebOrigin(context);
+	const httpCacheMode = process.env.OPENMATES_PRIVATE_WEB_PREVIEW
+		? 'disabled_by_playwright_http_routing' : 'browser_default';
 	await page.routeWebSocket(/^wss:\/\/api\.dev\.openmates\.org\/v1\/ws(?:\?|$)/, async (socket: WebSocketRoute) => {
 		if (offline) {
 			await socket.close({ code: 3001, reason: 'Development benchmark transport offline' });
@@ -135,6 +142,8 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		if (transport?.phase1bReceived) transport.phase1bApplied = true;
 	});
 	await page.addInitScript(() => {
+		// Capacity without a resource observer during the measured idle windows.
+		performance.setResourceTimingBufferSize(4096);
 		const BaseSocket = window.WebSocket;
 		const applied = { phase2: false, completeEpoch: null as number | null, completeAt: null as number | null };
 		Object.defineProperty(window, '__devTestAppliedSync', { value: applied });
@@ -291,13 +300,30 @@ test('Personal DevTest opens existing conversations after a cached launch', asyn
 		}, { timeout: 15000, message: 'A different existing recent chat becomes selectable' }).toBe(true);
 		const chatId = candidate!;
 		selected.add(chatId);
+		await page.evaluate(armSelectedFrameProbe, { rowSelector: ROW_SELECTOR, chatId, timeoutMs: READABLE_FRAME_TIMEOUT_MS });
 		const start = await page.evaluate(() => performance.now());
-		await clickChat(chatId);
-		await assertTranscript(chatId);
-		visibleMessageMS.push(Math.round(await page.evaluate(() => performance.now()) - start));
+		let firstFrame: Awaited<ReturnType<typeof takeSelectedFrameProbe>>;
+		let selectedRead: Awaited<ReturnType<typeof readEvidence>>;
+		try {
+			await clickChat(chatId);
+			await assertTranscript(chatId);
+			visibleMessageMS.push(Math.round(await page.evaluate(() => performance.now()) - start));
+			selectedRead = await readEvidence(chatId, start);
+			firstFrame = await page.evaluate(takeSelectedFrameProbe);
+		} finally {
+			await page.evaluate(clearSelectedFrameProbe);
+		}
+		const navigation = await page.evaluate(browserNavigationTimings);
+		const assets = await page.evaluate(browserResourceSnapshot);
 		await testInfo.attach('personal-devtest-web-trial-' + (sample + 1), {
 			body: JSON.stringify({ cached_navigation_to_recent_rows_ms: recentRowsMS[sample],
-				select_to_visible_message_ms: visibleMessageMS[sample], ...await readEvidence(chatId, start) }),
+				select_to_visible_message_ms: visibleMessageMS[sample], selected_viewport: firstFrame,
+				navigation, app_load: {
+					http_cache_mode: httpCacheMode, service_workers: 'blocked',
+					document_sizes: assets.navigation, resource_buckets: assets.buckets,
+					resource_count: assets.totalEntries,
+					resource_timing_may_be_truncated: assets.totalEntries >= 4096,
+				}, ...selectedRead }),
 			contentType: 'application/json',
 		});
 	}
