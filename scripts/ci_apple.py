@@ -81,6 +81,7 @@ APP_SAMPLE_SECONDS = 2
 APP_SAMPLE_POLL_SECONDS = 0.2
 APP_SAMPLE_LIMIT = 20
 APP_SAMPLED_PROCESS = 2
+APP_PROCESS_PATTERN = r"OpenMates\.app/(Contents/MacOS/)?OpenMates( |$)"
 TEST_ALLOWANCE_SECONDS = 300
 # Private startup preserves all three process relaunches and their independent
 # foreground, sidebar, reconciliation and quiet-process measurements.
@@ -475,7 +476,8 @@ def sample_app_process(folder: Path, stop) -> None:
     seen: list[str] = []
     taken = 0
     while taken < APP_SAMPLE_LIMIT and not stop.wait(APP_SAMPLE_POLL_SECONDS):
-        found = subprocess.run(["pgrep", "-n", "-f", r"OpenMates\.app/(Contents/MacOS/)?OpenMates$"],
+        # The app is launched with test arguments after its executable path.
+        found = subprocess.run(["pgrep", "-n", "-f", APP_PROCESS_PATTERN],
                                capture_output=True, text=True, check=False).stdout.split()
         if not found:
             continue
@@ -487,8 +489,10 @@ def sample_app_process(folder: Path, stop) -> None:
             continue
         taken += 1
         target = folder / f"sample-{taken:02d}-pid{found[0]}.txt"
-        subprocess.run(["sample", found[0], str(APP_SAMPLE_SECONDS), "-mayDie", "-file", str(target)],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        sampled = subprocess.run(["sample", found[0], str(APP_SAMPLE_SECONDS), "-mayDie", "-file", str(target)],
+                                 capture_output=True, text=True, check=False)
+        with (folder / "sampler.log").open("a") as log:
+            log.write(f"sample {taken} pid-index {len(seen)} exit {sampled.returncode}\n")
 
 
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
