@@ -19036,10 +19036,10 @@ features:
       - frontend/apps/web_app/tests/cli-team-tasks-real.spec.ts
       key_unit_tests:
       - frontend/packages/openmates-cli/tests/tasks.test.ts
+      - frontend/packages/openmates-cli/tests/cliTaskClaudeLink.test.ts
       - frontend/packages/openmates-cli/tests/codexConnection.test.ts
       - frontend/packages/openmates-cli/tests/tuiTasksWorkspace.test.ts
       - scripts/tests/test_task_live_smoke_cleanup.py
-      - frontend/packages/openmates-cli/tests/cliTaskClaudeLink.test.ts
       unit_test_files: 25
     tui:
       status: failing

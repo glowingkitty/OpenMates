@@ -1209,7 +1209,7 @@ async function handleTasks(
         dueAt: parseDueAt(flags.due),
         priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
         slug: typeof flags.slug === "string" ? flags.slug : undefined,
-      })));
+      }, taskScopeResolvedProjects(flags, scope))));
     }
     const result = await client.askUserTasks({ instruction, encryptedCreates });
     if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
@@ -1232,7 +1232,7 @@ async function handleTasks(
       dueAt: parseDueAt(flags.due),
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
-    });
+    }, taskScopeResolvedProjects(flags, scope));
     const teamKey = scope.teamId ? await client.getTaskTeamKey(scope.teamId) : undefined;
     const input = await buildCreateUserTaskInput(masterKey,
       { ...createOptions, teamId: scope.teamId ?? undefined }, teamKey);
@@ -1417,11 +1417,23 @@ function claimClaudeExternalChat(context: { id: string; title?: string }): Exter
   return { provider: "claude", id: context.id, title: context.title?.trim() || "Claude Code session" };
 }
 
+/**
+ * `--project` already resolved by resolveTaskScope, keyed by the flag value. Each
+ * resolution lists every Project (`GET /v1/projects?include_archived=true`, ~0.8 s on
+ * dev), so resolving it twice made `tasks create --project <id>` take ~2.5 s and the
+ * dev connector's start_chat Task creation time out (2026-11-27).
+ */
+export function taskScopeResolvedProjects(flags: Record<string, string | boolean>, scope: { projectId?: string }): Map<string, string> {
+  const flag = typeof flags.project === "string" ? flags.project.trim() : "";
+  return flag && scope.projectId ? new Map([[flag, scope.projectId]]) : new Map();
+}
+
 async function resolveTaskCreateOptions(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   flags: Record<string, string | boolean>,
   input: TaskCreateOptions,
+  resolvedProjects: ReadonlyMap<string, string> = new Map(),
 ): Promise<TaskCreateOptions> {
   if (input.externalChat?.provider === "codex") {
     assertCodexClaimCaller(input.externalChat.id);
@@ -1433,7 +1445,7 @@ async function resolveTaskCreateOptions(
   const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
   const projectIds: string[] = [];
   for (const projectId of input.projectIds ?? []) {
-    projectIds.push((await requiredResolvedProject(client, masterKey, projectId, flags)).projectId);
+    projectIds.push(resolvedProjects.get(projectId) ?? (await requiredResolvedProject(client, masterKey, projectId, flags)).projectId);
   }
   const planId = input.planId ? (await requiredResolvedPlan(client, masterKey, input.planId, teamContextFromFlags(flags), "task link")).planId : input.planId;
   return { ...input, chatId, projectIds, planId };
