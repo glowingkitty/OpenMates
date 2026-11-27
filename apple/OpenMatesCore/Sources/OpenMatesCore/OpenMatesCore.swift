@@ -26932,6 +26932,19 @@ public func embedUpdateTimeline(rows: [EmbedTimelineRowRecord]) -> [EmbedTimelin
 })
 }
 /**
+ * Selects the current private set from already scoped, decoded snapshot bytes.
+ * See `daily-inspiration.personalized-priority`; an unusable set returns none.
+ */
+public func selectPersonalizedInspirationSnapshot(payload: Data, nowSeconds: Double) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_select_personalized_inspiration_snapshot(
+        FfiConverterData.lower(payload),
+        FfiConverterDouble.lower(nowSeconds),uniffiCallStatus
+    )
+})
+}
+/**
  * Parse the plaintext of a chat's `role: system` message: the notice record
  * when it is a valid `context_entry` event ("Memory saved", "Workflow
  * updated"), else `nil`. Pure; for rendering chat history rows.
@@ -27319,6 +27332,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_embed_update_timeline() != 59258) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_select_personalized_inspiration_snapshot() != 45763) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_context_entry_notice() != 3233) {

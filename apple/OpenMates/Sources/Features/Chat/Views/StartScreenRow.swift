@@ -38,36 +38,61 @@ enum StartRowMotion {
     }
 }
 
-/// Web WorkspaceReportIssueButton on every workspace start screen: the bug icon in a white
-/// circle at the top left; panes from REPORT_LABEL_MIN_WIDTH (640px) also show the
-/// "Report issue" text. Native panes that wide are the regular size class (iPad, Mac).
+/// Shared Report Issue control for workspace starts and chat headers.
 struct WorkspaceReportIssueButton: View {
-    var background: Color = .grey0
+    var background: Color = .grey10
+    var showsLabel: Bool? = nil
+    var overlapsHeader = false
     let accessibilityIdentifier: String
     let action: () -> Void
     @Environment(\.horizontalSizeClass) private var sizeClass
 
+    private var displaysLabel: Bool { showsLabel ?? (sizeClass == .regular) }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: .spacing4) {
-                Icon("bug", size: 23).foregroundStyle(LinearGradient.primary)
-                if sizeClass == .regular {
+                Icon("bug", size: 25)
+                    .foregroundStyle(overlapsHeader ? AnyShapeStyle(Color.white) : AnyShapeStyle(LinearGradient.primary))
+                if displaysLabel {
                     Text(AppStrings.reportIssue)
                         .font(.omP.weight(.semibold))
-                        .foregroundStyle(Color.fontPrimary)
+                        .foregroundStyle(overlapsHeader ? .white : Color.fontPrimary)
                         .lineLimit(1)
                         .padding(.trailing, .spacing4)
                         .accessibilityIdentifier("report-issue-label")
                 }
             }
-            .frame(minWidth: 42, minHeight: 42)
-            .padding(.horizontal, sizeClass == .regular ? 10 : 0)
-            .background(background, in: Capsule())
-            .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
+            .padding(.spacing4)
+            .background(overlapsHeader ? Color.white.opacity(0.2) : background, in: Capsule())
+            .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ReportIssueButtonStyle())
+        .omClickablePointer()
+        .help(Text(AppStrings.reportIssue))
         .accessibilityLabel(AppStrings.reportIssue)
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+private struct ReportIssueButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        ReportIssueButtonFeedback(configuration: configuration)
+    }
+}
+
+private struct ReportIssueButtonFeedback: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovered = false
+
+    var body: some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : hovered ? 1.08 : 1)
+            .shadow(color: .black.opacity(0.13), radius: configuration.isPressed ? 2 : hovered ? 10 : 6, y: 3)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: hovered)
+            .onHover { hovered = $0 }
     }
 }
 

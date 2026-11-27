@@ -3500,7 +3500,7 @@ features:
       - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
       - apple/OpenMatesTests/StreamingClientFanoutTests.swift
       - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
-      unit_test_files: 71
+      unit_test_files: 70
       platforms:
       - ios
       - ipados

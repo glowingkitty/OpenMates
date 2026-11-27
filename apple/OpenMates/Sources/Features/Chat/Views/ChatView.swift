@@ -530,6 +530,9 @@ struct ChatView: View {
     @State private var recordHintTask: Task<Void, Never>?
     @State private var recordingUploadTasks: [String: Task<Void, Never>] = [:]
     @State private var recordingTemporaryFiles: [String: URL] = [:]
+    #if DEBUG
+    @State private var pendingUITestRecordingCorrection: String?
+    #endif
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions: Set<String> = []
     @StateObject private var piiDetectionCoordinator = ComposerPIIDetectionCoordinator()
@@ -1262,22 +1265,7 @@ struct ChatView: View {
                 status: AppleComposerEmbedLifecycleState.correcting.rawValue
             )
             isInputFocused = true
-            Task { @MainActor in
-                // Leave the realtime transcript visible long enough for the UI test
-                // process to attach after app launch, then model correction in place.
-                try? await Task.sleep(for: .seconds(8))
-                guard composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
-                try? composerSession.updatePendingEmbedTitle(
-                    nodeID: nodeID,
-                    title: "Corrected realtime transcript"
-                )
-                try? composerSession.resolveEmbed(
-                    nodeID: nodeID,
-                    durableEmbedID: "ui-test-recording-server",
-                    referenceType: "audio-recording",
-                    status: AppleComposerEmbedLifecycleState.finished.rawValue
-                )
-            }
+            pendingUITestRecordingCorrection = nodeID
         } catch {
             NativeDiagnostics.error(
                 "Recording pending transcript fixture failed: \(type(of: error))",
@@ -1285,9 +1273,30 @@ struct ChatView: View {
             )
         }
     }
+
+    private func applyUITestRecordingCorrection(_ nodeID: String) {
+        defer { pendingUITestRecordingCorrection = nil }
+        do {
+            try composerSession.updatePendingEmbedTitle(nodeID: nodeID, title: "Corrected realtime transcript")
+            try composerSession.resolveEmbed(
+                nodeID: nodeID,
+                durableEmbedID: "ui-test-recording-server",
+                referenceType: "audio-recording",
+                status: AppleComposerEmbedLifecycleState.finished.rawValue
+            )
+        } catch {
+            NativeDiagnostics.error(
+                "Recording transcript correction fixture failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+        }
+    }
     #endif
 
     private func resetComposerForChatLoad() {
+        #if DEBUG
+        pendingUITestRecordingCorrection = nil
+        #endif
         guard !composerSession.canonicalMarkdown.isEmpty || !composerSession.controller.document.nodes.isEmpty else {
             return
         }
@@ -2651,11 +2660,10 @@ struct ChatView: View {
     private var chatFloatingActions: some View {
         ZStack(alignment: Alignment(horizontal: .chatMoreLeading, vertical: .top)) {
             HStack(spacing: .spacing2) {
-                chatFloatingAction(
-                    icon: "bug",
-                    label: AppStrings.settingsReportIssue,
-                    accessibilityIdentifier: "report-issue-button",
-                    showsLabel: chatContainerWidth >= 640
+                WorkspaceReportIssueButton(
+                    showsLabel: chatContainerWidth >= 640,
+                    overlapsHeader: chatHeaderActionsOverlapBanner,
+                    accessibilityIdentifier: "report-issue-button"
                 ) {
                     onReportIssue?(.init(title: "", category: "bug"))
                 }
@@ -3524,6 +3532,13 @@ struct ChatView: View {
                 draftPreviewMicrophone: AnyView(recordGestureButton),
                 onRestoreDraft: { isInputFocused = true }
             ) {
+                #if DEBUG
+                if let nodeID = pendingUITestRecordingCorrection {
+                    Button("Apply fixture transcript correction") { applyUITestRecordingCorrection(nodeID) }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("ui-test-apply-recording-correction")
+                }
+                #endif
                 if isVerifyingPIISend {
                     ProgressView(AppStrings.enhancedPIIModelVerifying).font(.omXs)
                         .accessibilityIdentifier("composer-pii-verifying")

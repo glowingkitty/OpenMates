@@ -1925,54 +1925,28 @@ extension AppStrings {
 }
 
 // Web: WorkspaceContinueCard.svelte `.resume-large-orbs`. The compact pill
-// keeps its flat gradient; the 300×200 card has three softly drifting blooms.
+// keeps its flat gradient and the large card keeps three stationary blooms.
 private struct ProjectContinueCardBackground: View {
     let showOrbs: Bool
     let height: CGFloat
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             LinearGradient.primary
             if showOrbs {
-                TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
-                    let time = timeline.date.timeIntervalSinceReferenceDate
-                    let first = drift(time, duration: 19,
-                        frames: [(0, 0, 0), (0.25, 80, 40), (0.5, 100, 10), (0.75, 40, 60), (1, 0, 0)])
-                    let second = drift(time, duration: 23,
-                        frames: [(0, 0, 0), (0.3, -80, -30), (0.6, -50, -80), (0.85, -90, -20), (1, 0, 0)])
-                    let third = drift(time, duration: 29,
-                        frames: [(0, 0, 0), (0.2, -50, 30), (0.45, 50, 50), (0.7, -30, -40), (1, 0, 0)])
-                    ZStack {
-                        ProjectContinueOrb(width: 280, height: 240, opacity: 0.35)
-                            .position(x: 70 + first.width, y: 60 + first.height)
-                        ProjectContinueOrb(width: 260, height: 220, opacity: 0.35)
-                            .position(x: 250 + second.width, y: 170 + second.height)
-                        ProjectContinueOrb(width: 200, height: 180, opacity: 0.38)
-                            .position(x: 175 + third.width, y: 80 + third.height)
-                    }
-                    .frame(width: 300, height: 200)
+                ZStack {
+                    ProjectContinueOrb(width: 280, height: 240, opacity: 0.35)
+                        .position(x: 70, y: 60)
+                    ProjectContinueOrb(width: 260, height: 220, opacity: 0.35)
+                        .position(x: 250, y: 170)
+                    ProjectContinueOrb(width: 200, height: 180, opacity: 0.38)
+                        .position(x: 175, y: 80)
                 }
+                .frame(width: 300, height: 200)
             }
         }
         .frame(width: 300, height: height)
         .clipped()
-    }
-
-    private func drift(_ time: TimeInterval, duration: Double,
-                       frames: [(Double, CGFloat, CGFloat)]) -> CGSize {
-        guard !reduceMotion else { return .zero }
-        let fraction = time.truncatingRemainder(dividingBy: duration) / duration
-        for index in 0..<(frames.count - 1) where fraction <= frames[index + 1].0 {
-            let from = frames[index]
-            let to = frames[index + 1]
-            let progress = (fraction - from.0) / (to.0 - from.0)
-            let eased = CGFloat(progress * progress * (3 - 2 * progress))
-            return CGSize(width: from.1 + (to.1 - from.1) * eased,
-                          height: from.2 + (to.2 - from.2) * eased)
-        }
-        return .zero
     }
 }
 

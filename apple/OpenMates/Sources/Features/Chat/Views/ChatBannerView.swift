@@ -1,5 +1,5 @@
 // Full-width gradient banner displayed at the top of the chat message list.
-// Matches the web ChatHeader.svelte: living gradient orbs, floating decorative
+// Matches the web ChatHeader.svelte: gradient orbs and decorative
 // icons, shimmer loading state, category gradient loaded state, incognito state,
 // and previous/next navigation arrows.
 
@@ -144,8 +144,6 @@ struct ChatBannerView: View {
     }
 
     var body: some View {
-        // Only decorative layers need animation ticks. Keeping text and geometry
-        // outside the timeline prevents per-frame formatting and layout churn.
         GeometryReader { geo in
                 let _ = updateBannerWidth(geo.size.width)
                 ZStack {
@@ -155,15 +153,12 @@ struct ChatBannerView: View {
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
 
-                    TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil, paused: !motionEnabled)) { timeline in
-                        let now = timeline.date.timeIntervalSinceReferenceDate
-                        ZStack {
-                            orbLayer(time: now)
-                            decoIcons(time: now)
-                        }
-                        .frame(width: geo.size.width, height: bannerHeight)
-                        .clipped()
+                    ZStack {
+                        orbLayer(time: 0)
+                        decoIcons(time: 0)
                     }
+                    .frame(width: geo.size.width, height: bannerHeight)
+                    .clipped()
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
 
@@ -783,9 +778,7 @@ struct ChatBannerView: View {
 }
 
 // MARK: - Orb View
-// Web: .orb — radial-gradient blob with blur, animated morph + drift.
-// Driven by absolute time (via TimelineView) instead of SwiftUI withAnimation,
-// ensuring continuous smooth motion of the computed sin/cos transforms.
+// The header uses a fixed pose for each radial gradient orb.
 
 private struct OrbView: View {
     let color: Color

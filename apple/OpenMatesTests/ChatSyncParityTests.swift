@@ -1339,16 +1339,18 @@ final class ChatSyncParityTests: XCTestCase {
     func testContinuationUsesActualWireDraftPresenceInsteadOfVersion() throws {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        func decoded(_ id: String, encryptedDraft: Any, version: Int, timestamp: Int) throws -> Chat {
+        // Only a draft-only chat (no title, no messages) gets draft priority, so the
+        // chat holding the real wire draft carries no generated title.
+        func decoded(_ id: String, encryptedDraft: Any, version: Int, timestamp: Int, titled: Bool = true) throws -> Chat {
             try decoder.decode(Chat.self, from: JSONSerialization.data(withJSONObject: [
-                "id": id, "title": id, "created_at": 1, "updated_at": timestamp,
+                "id": id, "title": titled ? id : NSNull(), "created_at": 1, "updated_at": timestamp,
                 "last_edited_overall_timestamp": timestamp, "draft_v": version,
                 "encrypted_draft_md": encryptedDraft
             ]))
         }
         let cleared = try decoded("cleared", encryptedDraft: NSNull(), version: 9, timestamp: 30)
         let empty = try decoded("empty", encryptedDraft: "", version: 4, timestamp: 20)
-        let actual = try decoded("actual", encryptedDraft: "encrypted-body", version: 0, timestamp: 10)
+        let actual = try decoded("actual", encryptedDraft: "encrypted-body", version: 0, timestamp: 10, titled: false)
         XCTAssertEqual(WelcomeScreenState.recentChats(from: [cleared, empty, actual], excluding: nil).map(\.id),
                        ["actual", "cleared", "empty"])
         XCTAssertEqual(PersistedChat(from: actual).toChat().hasNonEmptyDraft, true)
@@ -1950,10 +1952,10 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
               accountGeneration: UUID(), teamEpoch: epoch)
     }
     private func rows(_ prefix: String = "fixture", at timestamp: Double = Date().timeIntervalSince1970 - 1) -> [[String: Any]] {
-        (0..<10).map { index in
+        (0..<6).map { index in
             ["inspiration_id": "\(prefix)-\(index)", "phrase": "Local fixture \(index)",
              "category": "general_knowledge", "generated_at": timestamp,
-             "content_type": index < 3 ? "video" : index < 6 ? "wiki" : "feature"]
+             "content_type": index < 3 ? "video" : "wiki"]
         }
     }
     private func payload(_ rows: [[String: Any]]) throws -> Data {
@@ -1979,8 +1981,14 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority,daily-inspiration.authenticated-continuity
     func testCompleteSetRejectsPartialDuplicateGuestExpiredAndFutureRecords() throws {
         let now = Date(), current = rows(at: now.timeIntervalSince1970)
-        XCTAssertEqual(NativeDailyInspirationStore.personalizedRows(try payload(current), now: now)?.count, 10)
+        XCTAssertEqual(NativeDailyInspirationStore.personalizedRows(try payload(current), now: now)?.count, 6)
         XCTAssertNil(NativeDailyInspirationStore.personalizedRows(try payload(Array(current.dropLast())), now: now))
+        var legacy = current[0]
+        legacy["inspiration_id"] = "retired-feature"
+        legacy["content_type"] = "feature"
+        let recovered = NativeDailyInspirationStore.personalizedRows(try payload([legacy] + current), now: now)
+        XCTAssertEqual(recovered?.compactMap { $0["inspiration_id"] as? String },
+                       current.compactMap { $0["inspiration_id"] as? String })
         var duplicate = current; duplicate[1]["inspiration_id"] = duplicate[0]["inspiration_id"]
         XCTAssertNil(NativeDailyInspirationStore.personalizedRows(try payload(duplicate), now: now))
         var guest = current; guest[0]["feature"] = ["feature_id": "openmates-signup-cta"]
@@ -2004,7 +2012,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         XCTAssertFalse(String(data: bytes, encoding: .utf8)?.contains("Local fixture") == true)
         let cold = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
         try await cold.restore(scope: owner)
-        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        XCTAssertEqual(visible(cold, scope: owner).count, 6)
         for other in [
             NativeWorkspaceOfflineScope(accountID: "other-account", server: owner.server, teamID: nil,
                 accountGeneration: owner.accountGeneration, teamEpoch: owner.teamEpoch),
@@ -2019,7 +2027,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
             XCTAssertTrue(visible(cold, scope: other).isEmpty)
         }
         do { try await cold.refresh(); XCTFail("Offline request must fail") } catch { }
-        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        XCTAssertEqual(visible(cold, scope: owner).count, 6)
         cold.reset()
         XCTAssertTrue(visible(cold, scope: owner).isEmpty)
     }
@@ -2039,11 +2047,11 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         let now = Date().timeIntervalSince1970
         try await ingest(repaired, rows: rows("new", at: now - 1), scope: owner)
         try await ingest(repaired, rows: rows("old", at: now - 86400), scope: owner)
-        XCTAssertEqual(visible(repaired, scope: owner).count, 10)
+        XCTAssertEqual(visible(repaired, scope: owner).count, 6)
         XCTAssertTrue(visible(repaired, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("new-") == true })
         let cold = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
         try await cold.restore(scope: owner)
-        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        XCTAssertEqual(visible(cold, scope: owner).count, 6)
     }
 
     // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.guest-isolated
@@ -2069,7 +2077,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         waiting?.resume(returning: first)
         try await old.value
         XCTAssertEqual(store.scope, second)
-        XCTAssertEqual(visible(store, scope: second).count, 10)
+        XCTAssertEqual(visible(store, scope: second).count, 6)
     }
 
     // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority
@@ -2089,7 +2097,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         let decoder = NativeDailyInspirationDecoder()
         let clear = try await decoder.decrypt(payload(records), masterKey: key)
         let prepared = try await decoder.prepare(clear, personalized: true, retainedAt: Date(), now: Date())
-        XCTAssertEqual(prepared?.items.count, 10)
+        XCTAssertEqual(prepared?.items.count, 6)
         XCTAssertEqual(prepared?.items.first?.text, "Local fixture 0")
     }
 
@@ -2106,7 +2114,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         XCTAssertNil(expired)
         let personal = try await decoder.prepare(payload(rows(at: now.timeIntervalSince1970 - 86400)),
             personalized: true, retainedAt: now, now: now)
-        XCTAssertEqual(personal?.items.count, 10)
+        XCTAssertEqual(personal?.items.count, 6)
     }
 
     // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority,daily-inspiration.guest-isolated
@@ -2119,7 +2127,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         try await ingest(store, rows: rows(), scope: owner)
         try await store.ingest(fields: ["payload": ["context_epoch": 2, "daily_inspirations": [["invalid": true]]]],
             type: "phase_1_last_chat_ready", scope: owner)
-        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertEqual(visible(store, scope: owner).count, 6)
     }
 
     // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.personalized-priority
@@ -2156,7 +2164,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         XCTAssertEqual(visible(store, scope: owner).first?.inspirationId, "public")
         pending?.resume(returning: apiBytes); pending = nil
         try await first.value
-        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertEqual(visible(store, scope: owner).count, 6)
         XCTAssertTrue(visible(store, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("api-") == true })
         let second = Task { try await store.refresh() }
         await withCheckedContinuation { continuation in
@@ -2165,7 +2173,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         try await ingest(store, rows: rows("live"), scope: owner)
         pending?.resume(returning: apiBytes); pending = nil
         try await second.value
-        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertEqual(visible(store, scope: owner).count, 6)
         XCTAssertTrue(visible(store, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("live-") == true })
     }
 
@@ -2208,7 +2216,7 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         XCTAssertTrue(visible(store, scope: owner).isEmpty)
         pending?.resume(returning: data)
         try await recovery.value
-        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertEqual(visible(store, scope: owner).count, 6)
         XCTAssertTrue(visible(store, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("valid-api-") == true })
     }
 
@@ -2224,12 +2232,12 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         var failed = false
         do { try await ingest(store, rows: values, scope: owner) } catch { failed = true }
         XCTAssertTrue(failed)
-        XCTAssertEqual(visible(store, scope: owner).count, 10)
+        XCTAssertEqual(visible(store, scope: owner).count, 6)
         try FileManager.default.removeItem(at: directory)
         try await ingest(store, rows: values, scope: owner)
         let cold = self.store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
         try await cold.restore(scope: owner)
-        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        XCTAssertEqual(visible(cold, scope: owner).count, 6)
         XCTAssertTrue(visible(cold, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("retry-") == true })
     }
 
@@ -2259,11 +2267,11 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
         XCTAssertTrue(visible(returning, scope: owner).isEmpty)
         pending?.resume()
         try await restore.value
-        XCTAssertEqual(visible(returning, scope: owner).count, 10)
+        XCTAssertEqual(visible(returning, scope: owner).count, 6)
         XCTAssertTrue(visible(returning, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("cached-personal-") == true })
         let cold = store(NativeWorkspaceOfflineCache(directory: directory), scope: owner, key: key)
         try await cold.restore(scope: owner)
-        XCTAssertEqual(visible(cold, scope: owner).count, 10)
+        XCTAssertEqual(visible(cold, scope: owner).count, 6)
         XCTAssertTrue(visible(cold, scope: owner).allSatisfy { $0.inspirationId?.hasPrefix("cached-personal-") == true })
     }
 

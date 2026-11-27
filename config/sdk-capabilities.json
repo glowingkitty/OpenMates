@@ -7826,6 +7826,7 @@
             "client.image_enhance_job.EnhancedImage",
             "client.image_enhance_job.EnhancedImage.file_keys",
             "client.image_enhance_job.EnhancedImage.media_index",
+            "client.inspiration_snapshot.select_personalized_snapshot",
             "client.inspirations.Inspiration",
             "client.inspirations.Inspiration.category",
             "client.inspirations.Inspiration.feature_title",

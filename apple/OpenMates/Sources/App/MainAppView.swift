@@ -8501,10 +8501,10 @@ enum WelcomeScreenState {
             .filter { isContinuationEligible($0, draftPreview: draftPreview($0.id)) && $0.id != resumeChatId && $0.id != activeChatId }
             .sorted { lhs, rhs in
                 if (lhs.isPinned == true) != (rhs.isPinned == true) { return lhs.isPinned == true }
-                // Web sorts on encrypted_draft_md presence, not draft_v.
-                let lhsHasDraft = ChatSidebarDisplayPolicy.hasDraftContent(lhs, preview: draftPreview(lhs.id))
-                let rhsHasDraft = ChatSidebarDisplayPolicy.hasDraftContent(rhs, preview: draftPreview(rhs.id))
-                if lhsHasDraft != rhsHasDraft { return lhsHasDraft }
+                // A draft-only chat gets its own rank. A follow-up draft keeps the chat's activity rank.
+                let lhsDraftOnly = isDraftOnly(lhs, draftPreview: draftPreview(lhs.id))
+                let rhsDraftOnly = isDraftOnly(rhs, draftPreview: draftPreview(rhs.id))
+                if lhsDraftOnly != rhsDraftOnly { return lhsDraftOnly }
                 let lhsTime = lhs.sidebarActivityDate ?? .distantPast
                 let rhsTime = rhs.sidebarActivityDate ?? .distantPast
                 if lhsTime != rhsTime { return lhsTime > rhsTime }
@@ -11588,42 +11588,37 @@ private struct GuestLandingStoryCard: View {
     let height: CGFloat
     let onSignup: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     private var isCompact: Bool { height <= 300 }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            ZStack(alignment: .topLeading) {
-                AnimatedCategoryBackground(category: "openmates_official", iconName: story.icon, time: time)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+        ZStack(alignment: .topLeading) {
+            CategoryCardBackground(category: "openmates_official", iconName: story.icon)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: isCompact ? .spacing3 : .spacing5) {
-                    landingMetric
-                    featureHeader
+            VStack(alignment: .leading, spacing: isCompact ? .spacing3 : .spacing5) {
+                landingMetric
+                featureHeader
 
-                    Group {
-                        switch story.kind {
-                        case .intro:
-                            introContent
-                        case .actionable:
-                            actionableContent
-                        case .privacy, .mates, .platform:
-                            productStoryContent
-                        case .signup:
-                            signupContent
-                        }
+                Group {
+                    switch story.kind {
+                    case .intro:
+                        introContent
+                    case .actionable:
+                        actionableContent
+                    case .privacy, .mates, .platform:
+                        productStoryContent
+                    case .signup:
+                        signupContent
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .padding(.horizontal, isCompact ? 38 : 44)
-                .padding(.top, isCompact ? 14 : 18)
-                .padding(.bottom, isCompact ? 18 : 22)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .zIndex(2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
+            .padding(.horizontal, isCompact ? 38 : 44)
+            .padding(.top, isCompact ? 14 : 18)
+            .padding(.bottom, isCompact ? 18 : 22)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .zIndex(2)
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
@@ -12352,18 +12347,14 @@ struct WelcomeResumeCard: View {
 }
 
 
-/// Only decorative pixels depend on animation time. Semantic content and
-/// gesture/accessibility state remain in the stable parent card.
+/// The card keeps the category artwork in a fixed pose while idle.
 private struct WelcomeResumeCardBackground: View {
     let category: String
     let iconName: String
 
     var body: some View {
-        WelcomeDecorativeClock { time in
-            AnimatedCategoryBackground(category: category, iconName: iconName,
-                time: time)
-        }
-        .accessibilityHidden(true)
+        CategoryCardBackground(category: category, iconName: iconName)
+            .accessibilityHidden(true)
     }
 }
 
@@ -12498,26 +12489,25 @@ private struct WelcomeCardInteractionSurface: UIViewRepresentable {
 }
 #endif
 
-private struct AnimatedCategoryBackground: View {
+private struct CategoryCardBackground: View {
     let category: String
     let iconName: String
-    let time: Double
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 CategoryMapping.gradient(for: category)
 
-                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 280, height: 240), opacity: 0.35, time: time, morph: 11, drift: 19)
+                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 280, height: 240), opacity: 0.35)
                     .position(x: -20, y: 20)
-                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 260, height: 220), opacity: 0.35, time: time + 8, morph: 13, drift: 23)
+                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 260, height: 220), opacity: 0.35)
                     .position(x: geo.size.width + 20, y: geo.size.height + 10)
-                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 200, height: 180), opacity: 0.38, time: time + 15, morph: 17, drift: 29)
+                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 200, height: 180), opacity: 0.38)
                     .position(x: geo.size.width * 0.48, y: 50)
 
-                decoIcon(size: 80, rotation: -15, time: time)
+                decoIcon(size: 80, rotation: -15)
                     .position(x: 30, y: geo.size.height - 12)
-                decoIcon(size: 80, rotation: 15, time: time + 8)
+                decoIcon(size: 80, rotation: 15)
                     .position(x: geo.size.width - 30, y: geo.size.height - 12)
             }
         }
@@ -12526,13 +12516,8 @@ private struct AnimatedCategoryBackground: View {
         .accessibilityHidden(true)
     }
 
-    private func resumeOrb(color: Color, size: CGSize, opacity: Double, time: Double, morph: Double, drift: Double) -> some View {
-        let morphX = 1.0 + 0.15 * sin(time * .pi * 2 / morph)
-        let morphY = 1.0 + 0.15 * cos(time * .pi * 2 / morph + 0.7)
-        let driftX = 18 * sin(time * .pi * 2 / drift)
-        let driftY = 15 * cos(time * .pi * 2 / drift + 1.2)
-
-        return Ellipse()
+    private func resumeOrb(color: Color, size: CGSize, opacity: Double) -> some View {
+        Ellipse()
             .fill(
                 RadialGradient(
                     colors: [color, color, color.opacity(0)],
@@ -12542,20 +12527,14 @@ private struct AnimatedCategoryBackground: View {
                 )
             )
             .frame(width: size.width, height: size.height)
-            .scaleEffect(x: morphX, y: morphY)
-            .offset(x: driftX, y: driftY)
             .blur(radius: 22)
             .opacity(opacity)
     }
 
-    private func decoIcon(size: CGFloat, rotation: Double, time: Double) -> some View {
+    private func decoIcon(size: CGFloat, rotation: Double) -> some View {
         WelcomeCardIcon(name: iconName, size: size)
             .opacity(0.3)
             .rotationEffect(.degrees(rotation))
-            .offset(
-                x: 7 * cos(time * .pi * 2 / 16),
-                y: 8 * sin(time * .pi * 2 / 16)
-            )
     }
 }
 

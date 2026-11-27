@@ -56,6 +56,7 @@ mod view_fixture_ffi;
 #[cfg(any(test, feature = "test-support"))]
 mod view_fixture_rows;
 mod view_http;
+mod view_inspiration_snapshot;
 mod view_legacy;
 mod view_login;
 mod view_login_migration;
@@ -113,6 +114,8 @@ pub use view_embeds::{
     EmbedVersionRecord, embed_update_timeline,
 };
 pub use view_http::{HttpFieldRecord, HttpRequestRecord, HttpResponseRecord};
+/// The shared Daily Inspiration snapshot selection presented to Apple.
+pub use view_inspiration_snapshot::select_personalized_inspiration_snapshot;
 pub use view_legacy::LegacySocketGrantRecord;
 pub use view_login::PairChallengeRecord;
 pub use view_login_migration::{LoginRecord, PasswordMigrationRecord};

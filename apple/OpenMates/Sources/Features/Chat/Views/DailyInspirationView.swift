@@ -1,5 +1,5 @@
 // Daily inspiration banner — gradient card shown on the new chat welcome screen.
-// Displays a category-specific gradient background with living orbs, mate profile
+// Displays a category-specific gradient background with decorative orbs, mate profile
 // circle, inspiration phrase, and "Click to start chat" CTA.
 // Matches the web DailyInspirationBanner.svelte layout and visual treatment.
 
@@ -30,132 +30,6 @@ import SwiftUI
 import UIKit
 #elseif os(macOS)
 import AppKit
-#endif
-
-/// Slow ornamental motion keeps its wall-clock periods without display-rate
-/// SwiftUI layout work. Foreground/viewport visibility belongs to this leaf.
-enum WelcomeDecorativeMotionPolicy {
-    static let minimumInterval: TimeInterval = 1.0 / 20.0
-    static func runs(paneVisible: Bool, scrollVisible: Bool, sceneActive: Bool, windowVisible: Bool, reduced: Bool) -> Bool {
-        windowVisible && WorkspaceMotionPolicy.shouldAnimate(paneVisible: paneVisible, scrollVisible: scrollVisible,
-            sceneActive: sceneActive, reduced: reduced)
-    }
-}
-
-struct WelcomeDecorativeClock<Content: View>: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.workspacePaneIsVisible) private var paneVisible
-    @State private var scrollVisible = true
-    @State private var windowVisible = false
-    @ViewBuilder let content: (Double) -> Content
-    private var runs: Bool {
-        WelcomeDecorativeMotionPolicy.runs(paneVisible: paneVisible, scrollVisible: scrollVisible,
-            sceneActive: scenePhase == .active, windowVisible: windowVisible, reduced: reduceMotion)
-    }
-    private var clock: some View {
-        TimelineView(.animation(minimumInterval: WelcomeDecorativeMotionPolicy.minimumInterval, paused: !runs)) { timeline in
-            content(reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate)
-        }
-        .background(WelcomeDecorativeVisibilityReader { visible in
-            if windowVisible != visible { windowVisible = visible }
-        })
-    }
-    var body: some View {
-        if #available(iOS 18, macOS 15, *) {
-            clock.onScrollVisibilityChange(threshold: 0.01) { scrollVisible = $0 }
-        } else {
-            // Native visible-rect observation also covers older deployment targets.
-            clock
-        }
-    }
-}
-
-#if os(macOS)
-private struct WelcomeDecorativeVisibilityReader: NSViewRepresentable {
-    let changed: (Bool) -> Void
-    func makeNSView(context: Context) -> Reader { Reader() }
-    func updateNSView(_ view: Reader, context: Context) { view.changed = changed; view.publish() }
-    static func dismantleNSView(_ view: Reader, coordinator: ()) { view.detach() }
-    final class Reader: NSView {
-        var changed: (Bool) -> Void = { _ in }
-        private var observers: [NSObjectProtocol] = []
-        private var lastValue: Bool?
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); attach() }
-        override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); attach() }
-        override func layout() { super.layout(); publish() }
-        func detach() { observers.forEach(NotificationCenter.default.removeObserver); observers = [] }
-        private func attach() {
-            detach()
-            guard let window else { publish(); return }
-            for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
-                         NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
-                         NSWindow.didChangeOcclusionStateNotification] { observe(name, object: window) }
-            for name in [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification] { observe(name, object: nil) }
-            var ancestor = superview
-            while let view = ancestor {
-                if let clip = view as? NSClipView {
-                    clip.postsBoundsChangedNotifications = true
-                    observe(NSView.boundsDidChangeNotification, object: clip)
-                }
-                ancestor = view.superview
-            }
-            publish()
-        }
-        private func observe(_ name: Notification.Name, object: Any?) {
-            observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.publish() }
-            })
-        }
-        func publish() {
-            let visible = window.map { NSApp.isActive && $0.isKeyWindow && $0.isVisible && !$0.isMiniaturized
-                && $0.occlusionState.contains(.visible) } == true && !isHiddenOrHasHiddenAncestor && !visibleRect.isEmpty
-            guard lastValue != visible else { return }; lastValue = visible
-            DispatchQueue.main.async { [weak self] in self?.changed(visible) }
-        }
-    }
-}
-#elseif os(iOS)
-private struct WelcomeDecorativeVisibilityReader: UIViewRepresentable {
-    let changed: (Bool) -> Void
-    func makeUIView(context: Context) -> Reader { Reader() }
-    func updateUIView(_ view: Reader, context: Context) { view.changed = changed; view.publish() }
-    static func dismantleUIView(_ view: Reader, coordinator: ()) { view.observations = [] }
-    final class Reader: UIView {
-        var changed: (Bool) -> Void = { _ in }
-        var observations: [NSKeyValueObservation] = []
-        private var lastValue: Bool?
-        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
-        override func didMoveToWindow() { super.didMoveToWindow(); attach() }
-        override func didMoveToSuperview() { super.didMoveToSuperview(); attach() }
-        override func layoutSubviews() { super.layoutSubviews(); publish() }
-        private func attach() {
-            observations = []
-            var ancestor = superview
-            while let view = ancestor {
-                if let scroll = view as? UIScrollView {
-                    observations.append(scroll.observe(\.contentOffset) { [weak self] _, _ in self?.publish() })
-                }
-                ancestor = view.superview
-            }
-            publish()
-        }
-        func publish() {
-            var rect = bounds
-            var current: UIView? = self
-            while let view = current, !rect.isEmpty {
-                if view.isHidden || view.alpha == 0 { rect = .zero; break }
-                if view.clipsToBounds || view is UIScrollView || view is UIWindow { rect = rect.intersection(view.bounds) }
-                guard let parent = view.superview else { break }
-                rect = view.convert(rect, to: parent); current = parent
-            }
-            let visible = window != nil && !rect.isEmpty && !rect.isNull
-            guard lastValue != visible else { return }; lastValue = visible
-            DispatchQueue.main.async { [weak self] in self?.changed(visible) }
-        }
-    }
-}
 #endif
 
 // MARK: - Data model
@@ -400,17 +274,13 @@ struct InspirationCard: View {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
 
-            // Only decorative layers depend on the animation clock. Keep
-            // the content, actions and phase task outside frame updates.
-            WelcomeDecorativeClock { now in
-                ZStack {
-                    orbLayer(time: now)
-                    decoIcons(time: now)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: bannerHeight)
-                .clipped()
+            ZStack {
+                orbLayer(time: 0)
+                decoIcons(time: 0)
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: bannerHeight)
+            .clipped()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
 
@@ -1200,31 +1070,11 @@ final class NativeDailyInspirationStore {
         return calendar
     }
 
-    /// Mirrors the web's newest-ten, unique complete 3/3/4 set and 72-hour TTL.
+    /// Decode the selected rows for native card presentation.
     nonisolated static func personalizedRows(_ data: Data, now: Date) -> [[String: Any]]? {
-        guard data.count <= 2 * 1_024 * 1_024,
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let records = object["inspirations"] as? [[String: Any]], records.count <= 30 else { return nil }
-        let forbidden = NativeDailyInspirationContentPolicy.retiredPromotionalIDs
-        let rows = records.filter {
-            guard let timestamp = $0["generated_at"] as? Double, timestamp.isFinite,
-                  timestamp <= now.timeIntervalSince1970, now.timeIntervalSince1970 - timestamp < ttl,
-                  let id = $0["inspiration_id"] as? String, !id.isEmpty,
-                  let phrase = $0["phrase"] as? String, !phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  let category = $0["category"] as? String, !category.isEmpty else { return false }
-            let featureID = ($0["feature"] as? [String: Any])?["feature_id"] as? String ?? ""
-            return !forbidden.contains(id) && !forbidden.contains(featureID)
-        }.sorted {
-            let left = $0["generated_at"] as? Double ?? 0, right = $1["generated_at"] as? Double ?? 0
-            if left != right { return left > right }
-            return ($0["inspiration_id"] as? String ?? "") < ($1["inspiration_id"] as? String ?? "")
-        }
-        let newest = Array(rows.prefix(10))
-        guard newest.count == 10, Set(newest.compactMap { $0["inspiration_id"] as? String }).count == 10 else { return nil }
-        for (type, count) in [("video", 3), ("wiki", 3), ("feature", 4)] {
-            guard newest.filter({ $0["content_type"] as? String == type }).count == count else { return nil }
-        }
-        return newest
+        guard let selected = selectPersonalizedInspirationSnapshot(payload: data, nowSeconds: now.timeIntervalSince1970),
+              let object = try? JSONSerialization.jsonObject(with: selected) as? [String: Any] else { return nil }
+        return object["inspirations"] as? [[String: Any]]
     }
 }
 

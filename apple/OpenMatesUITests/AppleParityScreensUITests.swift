@@ -58,6 +58,10 @@ final class AppleParityScreensUITests: XCTestCase {
         XCTAssertTrue(inspiration.isHittable, "Daily inspiration is a tappable start card")
         XCTAssertGreaterThan(inspiration.frame.height, 150, "Portrait inspiration uses the large chat-card layout")
         capture(app, "apple-chats-large-inspiration")
+        let settledCard = inspiration.screenshot().pngRepresentation
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertTrue(settledCard == inspiration.screenshot().pngRepresentation,
+                      "Inspiration artwork should stay still while the row is idle")
         let first = rows[0]
         let label = first.label
         first.tap()
@@ -103,6 +107,15 @@ final class AppleParityScreensUITests: XCTestCase {
         XCTAssertLessThan(report.frame.maxX, app.frame.midX, "report issue must sit on the left")
         XCTAssertGreaterThan(call.frame.minX, app.frame.midX, "call must sit on the right")
         XCTAssertLessThan(call.frame.maxX, close.frame.minX + 1, "call sits just left of close")
+        let banner = element(app, "chat-header-banner")
+        XCTAssertTrue(banner.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.frame.contains(banner.frame))
+        // The icon can fade in once when the header first arrives.
+        Thread.sleep(forTimeInterval: 1)
+        let settledBanner = banner.screenshot().pngRepresentation
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertTrue(settledBanner == banner.screenshot().pngRepresentation,
+                      "Open chat header artwork should stay still while the chat is idle")
         capture(app, "apple-02-active-chat-header-composer")
     }
 

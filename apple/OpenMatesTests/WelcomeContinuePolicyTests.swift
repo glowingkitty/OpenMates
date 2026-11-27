@@ -3,19 +3,6 @@ import XCTest
 @testable import OpenMates
 
 final class WelcomeContinuePolicyTests: XCTestCase {
-    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
-    func testDecorativeClocksPauseForInvisibleInactiveOrReducedMotionSurfaces() {
-        XCTAssertTrue(WelcomeDecorativeMotionPolicy.runs(paneVisible: true, scrollVisible: true,
-            sceneActive: true, windowVisible: true, reduced: false))
-        for flags in [(false, true, true, true, false), (true, false, true, true, false),
-                      (true, true, false, true, false), (true, true, true, false, false), (true, true, true, true, true)] {
-            XCTAssertFalse(WelcomeDecorativeMotionPolicy.runs(paneVisible: flags.0, scrollVisible: flags.1,
-                sceneActive: flags.2, windowVisible: flags.3, reduced: flags.4))
-        }
-        XCTAssertEqual(WelcomeDecorativeMotionPolicy.minimumInterval, 0.05, accuracy: 0.0001,
-            "20Hz caps decorative invalidation; orb periods still use wall-clock time")
-    }
-
     let now = Date(timeIntervalSince1970: 1_800_000_000)
     private func memory(_ id: String, offset: Double, endOffset: Double? = nil) -> SettingsMemoryEntry {
         let formatter = ISO8601DateFormatter()
