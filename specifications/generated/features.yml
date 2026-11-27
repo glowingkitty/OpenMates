@@ -8225,7 +8225,7 @@ features:
       - frontend/apps/web_app/src/lib/workflowCompletionRoute.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
       - backend/tests/test_bank_transfer_duplicate_reference_email.py
-      unit_test_files: 17
+      unit_test_files: 18
     apple:
       status: partial
       source: tests

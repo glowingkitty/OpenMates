@@ -56,6 +56,8 @@ final class BackgroundChatNotificationUITests: XCTestCase {
             XCTAssertFalse(notificationPreview.contains(internalMarker),
                            "System notification exposed an internal message marker")
         }
+        // Layout: chat title as the title, the answer excerpt as the body.
+        XCTAssertFalse(board.staticTexts[notificationBody].exists, "Generic body shown instead of the answer excerpt")
         attachScreenshot(named: "Actual DEV completion notification after background")
         try openDeliveredNotification(delivered, on: board)
         XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(

@@ -36,15 +36,15 @@ def test_preference_is_merged_and_cached(stored, value, expected):
 
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
 def test_preview_preference_is_merged_independently():
-    _, directus, _ = _run({"includeChatTitle": False}, True, field="includePreview")
+    _, directus, _ = _run({"includeChatTitle": False}, True, field="includeAnswerText")
     directus.update_user.assert_awaited_once_with(
-        "synthetic-user", {"push_notification_preferences": {"includeChatTitle": False, "includePreview": True}})
+        "synthetic-user", {"push_notification_preferences": {"includeChatTitle": False, "includeAnswerText": True}})
 
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
 def test_preference_rejects_non_boolean_values_and_empty_requests():
     with pytest.raises(ValidationError):
         PushPreferencesRequest(includeChatTitle="false")
     with pytest.raises(ValidationError):
-        PushPreferencesRequest(includePreview=1)
+        PushPreferencesRequest(includeAnswerText=1)
     with pytest.raises(HTTPException):
         asyncio.run(update_push_preferences(PushPreferencesRequest(), SimpleNamespace(id="u"), SimpleNamespace(), SimpleNamespace()))

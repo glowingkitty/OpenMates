@@ -19,9 +19,15 @@ registration_lifecycle:
     expect: {registration_active: false, delivery_state: failed, fabricated_success: false}
 
 payload_privacy:
-  - id: readable-encrypted-skill-and-response-start
-    given: {first_app: web, first_skill: search, first_query: GPT6.1 Astra, additional_skill_uses: 3, inline_images: 3}
-    expect: {encrypted_preview_start: "Web | Search: 'GPT6.1 Astra' & 3 other app skills", response_separator: "\n\n", inline_marker: "[3 Images]", raw_json_visible: false, internal_ids_visible: false, maximum_apns_payload_bytes: 4096}
+  - id: chat-title-and-answer-excerpt
+    given: {language: en, chat_title: Garden planning notes, answer: "## Raised beds\n**Good news:** a 1.2 m wide bed works well. (long markdown answer with a code block and a table)", preferences: {}}
+    expect: {device_title: Garden planning notes, device_body_starts_with: "Raised beds\nGood news: a 1.2 m wide bed works well.", line_breaks_kept: true, excerpt_ends_with_word_and_ellipsis: true, code_visible: false, markdown_markers_visible: false, maximum_apns_payload_bytes: 4096, apns_alert: {title: OpenMates, body: New message received}}
+  - id: skill-labels-only-without-prose
+    given: {first_app: web, first_skill: search, first_query: GPT6.1 Astra, additional_skill_uses: 3, answer_prose: null}
+    expect: {device_body_starts_with: "Web | Search: 'GPT6.1 Astra' & 3 other app skills", raw_json_visible: false, internal_ids_visible: false}
+  - id: answer-excerpt-turned-off
+    given: {preferences: {includeAnswerText: false}, chat_title: Garden planning notes, language: de}
+    expect: {device_title: Garden planning notes, device_body: Neue Nachricht erhalten}
   - id: watch-without-service-extension-keeps-generic-alert
     given: {platform: watchos, chat_title: Private chat, message_preview: Private response, service_extension_available: false}
     expect: {alert_contains_chat_title: false, alert_contains_message_preview: false, encrypted_preview_in_payload: false, generic_localized_text: true}

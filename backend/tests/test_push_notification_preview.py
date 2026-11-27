@@ -40,7 +40,7 @@ def completion_dispatch(**constants):
     ('Readable first.\n```json\n{"type":"app_skill_use","embed_id":', 'Readable first.'),
     ('```json\n{"type":"app_skill_use","embed_id":', ''),
     ('JSON objects can contain app_skill_use and embed_id words in ordinary prose.', 'JSON objects can contain app_skill_use and embed_id words in ordinary prose.'),
-    ('# Heading\n- **Bold** and [human link](https://example.invalid).\n![image](https://example.invalid/image)', 'Heading Bold and human link. [Image]'),
+    ('# Heading\n- **Bold** and [human link](https://example.invalid).\n![image](https://example.invalid/image)', 'Heading\nBold and human link.\n[Image]'),
 ])
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
 def test_notification_preview_preserves_prose_and_removes_fences(content, expected):
@@ -60,7 +60,7 @@ def test_completion_dispatch_sanitizes_full_content_before_preview_limit(monkeyp
     cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value={
         "push_notification_enabled": True,
         "push_notification_subscription": '{"type":"apns","token":"synthetic"}',
-        "push_notification_preferences": {"aiResponses": True, "includePreview": True},
+        "push_notification_preferences": {"aiResponses": True, "includeAnswerText": True},
     }))
     app = SimpleNamespace(state=SimpleNamespace(cache_service=cache))
     assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", content))
@@ -142,14 +142,17 @@ def test_preview_skill_summary_query_and_readable_inline_images():
             'metadata': {'private_id': 'must-never-render'},
         }) + '\n```')
     prose = 'Here are the results [3 Images](embed:private-image-slug).'
-    expected = "Web | Search: 'GPT6.1 Astra' & 3 other app skills\n\nHere are the results [3 Images]."
+    # The answer text wins; the skill summary only stands in when there is no prose.
+    expected = "Here are the results [3 Images]."
     assert notification_preview_text('\n'.join(blocks) + '\n' + prose) == expected
     assert notification_preview_text(expected) == expected
+    assert notification_preview_text('\n'.join(blocks)) == "Web | Search: 'GPT6.1 Astra' & 3 other app skills"
 
 
 @pytest.mark.parametrize('content,expected', [
-    ('```json\n{"type":"app_skill_use","embed_id":"private","app_id":"web","skill_id":"search"}\n```\nSummary.', 'Web | Search\n\nSummary.'),
-    ('{"type":"app_skill_use","embed_id":"private","app_id":"web","skill_id":"search","query":{"private":"never"}}\nSummary.', 'Web | Search\n\nSummary.'),
+    ('```json\n{"type":"app_skill_use","embed_id":"private","app_id":"web","skill_id":"search"}\n```\nSummary.', 'Summary.'),
+    ('{"type":"app_skill_use","embed_id":"private","app_id":"web","skill_id":"search","query":{"private":"never"}}\nSummary.', 'Summary.'),
+    ('| Plant | Spacing |\n|---|:--:|\n| Tomato | 50 cm |\n\n---\nWater daily.', 'Plant · Spacing.\nTomato · 50 cm.\nWater daily.'),
     ('Summary. {"type":"image","embed_id":"private","metadata":{"url":"private"}}', 'Summary. [Image]'),
     ('Summary. {"type":"app_skill_use","embed_id":', 'Summary.'),
     ('Summary. {"type":{},"embed_id":"private"}', 'Summary.'),
@@ -208,7 +211,7 @@ def _apns_with_device_key(monkeypatch, subscription_extra=None):
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.preview.readable
 def test_apns_chat_title_is_sealed_to_the_device_and_absent_from_the_wire(monkeypatch, extra, expected_body):
     service, target, calls, opened = _apns_with_device_key(monkeypatch, extra)
-    headline = 'Mate in Garden planning notes'
+    headline = 'Garden planning notes'
     assert service._send_apns_notification(target, 'OpenMates', 'Garden answer is ready.', 'synthetic-chat',
                                            APNS_CHAT_CATEGORY, None, encrypted_title=headline)
     wire = json.dumps(calls[0])
@@ -247,12 +250,12 @@ def test_completion_dispatch_adds_chat_title_by_default_and_honours_opt_out(monk
     assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", "Garden answer.",
                               chat_title="Garden planning notes"))
     sent = celery.send_task.call_args.kwargs["kwargs"]
+    assert sent["body"] == "Garden answer."
+    assert sent["chat_context"] is None
     if expect_title:
-        assert sent["chat_title"].endswith(" in Garden planning notes")
-        assert sent["chat_title"].count(" in ") == 1
+        assert sent["title"] == sent["chat_title"] == "Garden planning notes"
     else:
-        assert sent["chat_title"] is None
-        assert sent["title"] == "OpenMates"
+        assert (sent["title"], sent["chat_title"]) == ("OpenMates", None)
 
 
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
@@ -260,9 +263,10 @@ def test_apns_sealed_context_line_is_verbatim_and_absent_from_the_wire(monkeypat
     service, target, calls, opened = _apns_with_device_key(monkeypatch)
     # A chat title with braces/markdown must never be run through the answer-text projection.
     assert service._send_apns_notification(target, 'OpenMates', '', 'synthetic-chat', APNS_CHAT_CATEGORY, None,
-                                           encrypted_title='✅ Added 4 models', encrypted_context='in "Garden {notes} **plan**"')
-    assert 'Garden' not in json.dumps(calls[0]) and 'Added' not in json.dumps(calls[0])
-    assert opened() == {'title': '✅ Added 4 models', 'body': 'in "Garden {notes} **plan**"'}
+                                           encrypted_title='Garden {notes} **plan**')
+    assert 'Garden' not in json.dumps(calls[0])
+    # The chat title is sealed verbatim; without an excerpt the body is the generic text.
+    assert opened() == {'title': 'Garden {notes} **plan**', 'body': APNS_CHAT_MESSAGE_BODY}
 
 
 def _dispatch_with_summary(monkeypatch, prefs, *, headline, metadata):
@@ -281,23 +285,78 @@ def _dispatch_with_summary(monkeypatch, prefs, *, headline, metadata):
     app = SimpleNamespace(state=SimpleNamespace(cache_service=cache, directus_service=directus,
                                                 encryption_service=SimpleNamespace()))
     assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", "The beds are planned.",
-                              chat_title="Garden planning notes", task_id="synthetic-task"))
+                              chat_title="Garden planning notes"))
     return celery.send_task.call_args.kwargs["kwargs"], read
 
 
-# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
-def test_completion_dispatch_seals_summary_title_and_chat_context_by_default(monkeypatch):
-    sent, read = _dispatch_with_summary(monkeypatch, {}, headline="✅ Added 4 models, 3 tests pass", metadata={"is_hidden": False})
-    assert sent["chat_title"] == sent["title"] == "✅ Added 4 models, 3 tests pass"
-    assert sent["chat_context"] == 'in "Garden planning notes"'
-    assert sent["body"] == ""  # the answer text is not sent unless the user opted into previews
-    assert read.await_args.kwargs["task_id"] == "synthetic-task"
-
-
-# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
-def test_completion_dispatch_preview_is_opt_in(monkeypatch):
-    sent, _ = _dispatch_with_summary(monkeypatch, {"includePreview": True}, headline="✅ Added 4 models", metadata={})
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.preview.readable
+def test_completion_dispatch_sends_chat_title_and_excerpt_by_default(monkeypatch):
+    sent, read = _dispatch_with_summary(monkeypatch, {}, headline="✅ Added 4 models", metadata={"is_hidden": False})
+    assert sent["chat_title"] == sent["title"] == "Garden planning notes"
     assert sent["body"] == "The beds are planned."
+    assert sent["chat_context"] is None
+    assert sent["language"] == "en"
+    read.assert_not_awaited()  # the post-processing summary no longer delays or titles the push
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+def test_completion_dispatch_preview_can_be_turned_off(monkeypatch):
+    sent, _ = _dispatch_with_summary(monkeypatch, {"includeAnswerText": False}, headline=None, metadata={})
+    assert (sent["title"], sent["body"]) == ("Garden planning notes", "")
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.preview.readable
+@pytest.mark.parametrize("language,generic", [("en", "New message received"), ("de", "Neue Nachricht erhalten")])
+def test_long_markdown_reply_fills_the_payload_under_the_chat_title(monkeypatch, language, generic):
+    from backend.core.api.app.services.push_notification_content import compose_push_content
+    reply = ("## Raised beds\n**Good news:** a 1.2 m wide bed works well. ```python\nprint('code')\n```\n"
+             "- Fill the bottom with branches and compost before the topsoil goes in.\n") * 60
+    content = compose_push_content(preferences={}, chat_title="Garden planning notes",
+                                   preview_text=notification_preview_text(reply), hidden=False)
+    service, target, calls, opened = _apns_with_device_key(monkeypatch)
+    assert service._send_apns_notification(target, content.title, content.body, 'synthetic-chat', APNS_CHAT_CATEGORY, None,
+                                           encrypted_title=content.sealed_title, encrypted_context=content.context,
+                                           language=language)
+    import httpx
+    assert len(httpx.Request('POST', 'https://example.invalid', json=calls[0]).content) <= 4096
+    assert calls[0]['aps']['alert'] == {'title': 'OpenMates', 'body': generic}
+    shown = opened()
+    excerpt = shown['body']
+    assert shown['title'] == 'Garden planning notes'
+    # The first lines of the answer, line breaks kept; only the last line is cut.
+    lines = excerpt.split('\n')
+    source_lines = {'Raised beds', 'Good news: a 1.2 m wide bed works well.',
+                    'Fill the bottom with branches and compost before the topsoil goes in.'}
+    assert lines[:3] == ['Raised beds', 'Good news: a 1.2 m wide bed works well.',
+                         'Fill the bottom with branches and compost before the topsoil goes in.']
+    assert all(line in source_lines for line in lines[:-1])
+    assert excerpt.endswith('…') and not excerpt[:-1].endswith((' ', '\n')) and len(excerpt) > 600
+    assert all(marker not in excerpt for marker in ('**', '##', '```', "print("))
+    assert reply.replace('**', '').replace('## ', '').replace('- ', '').split()[0] in excerpt
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+def test_multi_target_fan_out_keeps_chat_title_and_language(monkeypatch):
+    service, target, calls, opened = _apns_with_device_key(monkeypatch)
+    multi = json.dumps({"type": "multi", "targets": [target]})
+    assert service.send_push_notification(multi, 'Garden', 'Answer.', chat_id='synthetic-chat', category=APNS_CHAT_CATEGORY,
+                                          encrypted_title='Garden', language='de')
+    assert calls[0]['aps']['alert'] == {'title': 'OpenMates', 'body': 'Neue Nachricht erhalten'}
+    assert opened() == {'title': 'Garden', 'body': 'Answer.'}
+
+
+# contract-test: supporting surface=gui.web assertions=notifications.content.privacy-boundary
+def test_web_push_uses_the_same_layout(monkeypatch):
+    sent = {}
+    monkeypatch.setitem(sys.modules, 'pywebpush', SimpleNamespace(webpush=lambda **kwargs: sent.update(kwargs)))
+    service = PushNotificationService()
+    service._initialized, service._vapid_private_key, service._vapid_public_key = True, 'synthetic', 'synthetic'
+    target = json.dumps({"endpoint": "https://push.example.invalid/x", "keys": {"p256dh": "k", "auth": "a"}})
+    assert service.send_push_notification(target, 'Garden planning notes', 'word ' * 300, chat_id='c',
+                                          category=APNS_CHAT_CATEGORY)
+    data = json.loads(sent['data'])
+    assert data['title'] == 'Garden planning notes'
+    assert data['body'].endswith('word…') and len(data['body']) <= 600
 
 
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
@@ -312,11 +371,11 @@ def test_completion_dispatch_hidden_or_unknown_chats_stay_generic(monkeypatch, m
     cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value={
         "push_notification_enabled": True, "vault_key_id": "k",
         "push_notification_subscription": '{"type":"apns","token":"synthetic"}',
-        "push_notification_preferences": {"aiResponses": True, "includePreview": True},
+        "push_notification_preferences": {"aiResponses": True, "includeAnswerText": True},
     }))
     directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value=metadata)))
     app = SimpleNamespace(state=SimpleNamespace(cache_service=cache, directus_service=directus, encryption_service=SimpleNamespace()))
-    assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", "Secret answer.", chat_title="Secret", task_id="t"))
+    assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", "Secret answer.", chat_title="Secret"))
     sent = celery.send_task.call_args.kwargs["kwargs"]
     assert (sent["title"], sent["body"], sent["chat_title"], sent["chat_context"]) == ("OpenMates", "", None, None)
     read.assert_not_awaited()

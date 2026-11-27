@@ -22358,16 +22358,16 @@
           "text": "New Messages"
         },
         "push_include_chat_title": {
-          "text": "Show summary and chat title"
+          "text": "Show the chat title"
         },
         "push_include_chat_title_desc": {
-          "text": "Shows a one-line summary of the reply, for example \"✅ Garden beds planned\", and the chat title in app notifications. Both are encrypted for your device and shown only there; Apple and Google cannot read them. Turn off to keep notifications generic."
+          "text": "Uses the chat title as the title of app notifications. It is encrypted for your device and shown only there; Apple and Google cannot read it. Turn off to show \"OpenMates\" instead. On by default."
         },
         "push_include_preview": {
-          "text": "Show the start of the answer"
+          "text": "Show the answer text"
         },
         "push_include_preview_desc": {
-          "text": "Adds the first lines of the reply to app notifications. They are encrypted for your device and shown only there; Apple and Google cannot read them. Off by default."
+          "text": "Shows as much of the reply as fits in app notifications. It is encrypted for your device and shown only there; Apple and Google cannot read it. Turn off to show only \"New message received\". On by default."
         },
         "missed_warning": {
           "text": "Email and push notifications are both off. You may miss important replies and updates. Turn one of them on to stay informed."

@@ -65,7 +65,7 @@ class PushSubscribeResponse(BaseModel):
 class PushPreferencesRequest(BaseModel):
     """Per-channel push content switches; send one or both. Nothing else is writable."""
     includeChatTitle: Optional[StrictBool] = None
-    includePreview: Optional[StrictBool] = None
+    includeAnswerText: Optional[StrictBool] = None
 
 
 class NativeDeviceRegisterResponse(PushSubscribeResponse):
@@ -243,8 +243,9 @@ async def update_push_preferences(
     cache_service: CacheService = Depends(get_cache_service),
 ):
     """
-    Save the push content switches: `includeChatTitle` (summary title and chat title,
-    default on) and `includePreview` (first lines of the answer, default off).
+    Save the push content switches: `includeChatTitle` (chat title as the notification
+    title, default on) and `includeAnswerText` (answer excerpt, default on; replaces the old
+    default-off `includePreview` key, which is ignored so stale defaults do not opt out).
 
     API surface: first-party client only (session auth); carries booleans and no
     chat content. Titles and summaries never reach this route or storage.

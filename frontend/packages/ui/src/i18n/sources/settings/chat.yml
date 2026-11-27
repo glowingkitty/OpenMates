@@ -439,24 +439,24 @@ notifications.new_messages:
   he: הודעות חדשות
   verified_by_human: []
 notifications.push_include_chat_title:
-  context: Push notification toggle - show a one-line summary and the chat title in the notification
-  en: Show summary and chat title
-  de: Zusammenfassung und Chat-Titel anzeigen
+  context: Push notification toggle - use the chat title as the notification title
+  en: Show the chat title
+  de: Chat-Titel anzeigen
   verified_by_human: []
 notifications.push_include_chat_title_desc:
-  context: Explains the push summary/title toggle and the client-side encryption boundary
-  en: Shows a one-line summary of the reply, for example "✅ Garden beds planned", and the chat title in app notifications. Both are encrypted for your device and shown only there; Apple and Google cannot read them. Turn off to keep notifications generic.
-  de: Zeigt in App-Benachrichtigungen eine einzeilige Zusammenfassung der Antwort, zum Beispiel "✅ Gartenbeete geplant", und den Chat-Titel. Beides wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können es nicht lesen. Ausschalten, damit Benachrichtigungen allgemein bleiben.
+  context: Explains the push chat title toggle and the client-side encryption boundary
+  en: Uses the chat title as the title of app notifications. It is encrypted for your device and shown only there; Apple and Google cannot read it. Turn off to show "OpenMates" instead. On by default.
+  de: Verwendet den Chat-Titel als Titel von App-Benachrichtigungen. Er wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können ihn nicht lesen. Ausschalten, um stattdessen "OpenMates" anzuzeigen. Standardmäßig an.
   verified_by_human: []
 notifications.push_include_preview:
-  context: Push notification toggle - show the first lines of the answer in the notification
-  en: Show the start of the answer
-  de: Anfang der Antwort anzeigen
+  context: Push notification toggle - show as much of the answer text as fits in the notification
+  en: Show the answer text
+  de: Antworttext anzeigen
   verified_by_human: []
 notifications.push_include_preview_desc:
-  context: Explains the optional push answer preview and the client-side encryption boundary
-  en: Adds the first lines of the reply to app notifications. They are encrypted for your device and shown only there; Apple and Google cannot read them. Off by default.
-  de: Fügt App-Benachrichtigungen die ersten Zeilen der Antwort hinzu. Sie werden für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können sie nicht lesen. Standardmäßig aus.
+  context: Explains the push answer excerpt and the client-side encryption boundary
+  en: Shows as much of the reply as fits in app notifications. It is encrypted for your device and shown only there; Apple and Google cannot read it. Turn off to show only "New message received". On by default.
+  de: Zeigt in App-Benachrichtigungen so viel von der Antwort, wie hineinpasst. Sie wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können sie nicht lesen. Ausschalten, um nur "Neue Nachricht erhalten" anzuzeigen. Standardmäßig an.
   verified_by_human: []
 notifications.missed_warning:
   context: Warning when both email and push notifications are off

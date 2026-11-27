@@ -801,11 +801,6 @@ def _trace_final_stream_delivery(
 # OFFLINE NOTIFICATIONS (PUSH + EMAIL) FOR OFFLINE USERS
 # =============================================================================
 
-# Post-processing normally finishes before the push (10 s of offline checks);
-# wait this much longer for a late summary, then fall back to the title or generic text.
-HEADLINE_WAIT_SECONDS = 8.0
-
-
 async def _check_user_offline_and_send_email(
     app: FastAPI,
     manager: ConnectionManager,
@@ -908,8 +903,6 @@ async def _check_user_offline_and_send_email(
             response_preview=response_preview,
             message_id=message_id,
             chat_title=chat_title,
-            mate_category=category,
-            task_id=task_id,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
@@ -923,8 +916,6 @@ async def _send_push_notification_if_enabled(
     response_preview: str,
     message_id: Optional[str] = None,
     chat_title: Optional[str] = None,
-    mate_category: Optional[str] = None,
-    task_id: Optional[str] = None,
 ) -> bool:
     """
     Look up user's push subscription from cache and dispatch push Celery task if enabled.
@@ -957,6 +948,7 @@ async def _send_push_notification_if_enabled(
                 "push_notification_enabled",
                 "push_notification_subscription",
                 "push_notification_preferences",
+                "language",
             ],
         )
         if not isinstance(cached_user, dict):
@@ -1001,32 +993,12 @@ async def _send_push_notification_if_enabled(
 
     from backend.core.api.app.services.push_notification_service import notification_preview_text
     from backend.core.api.app.services.push_notification_content import compose_push_content
-    from backend.core.api.app.services.notification_email_preferences import (
-        push_chat_title_enabled, push_preview_enabled,
-    )
-    from backend.core.api.app.services.notification_headline_handoff import lookup_vault_key_id, read_headline
-
+    from backend.core.api.app.services.notification_email_preferences import push_preview_enabled
     language = str(cached_user.get("language") or "en")
-    # Title/summary are decided by the user's switches; the summary comes from the
-    # post-processing call, sealed in Redis (never a decrypted stored title).
-    headline = None
-    if not hidden and push_chat_title_enabled(push_prefs) and task_id:
-        try:
-            headline = await read_headline(
-                cache_service=cache_service, encryption_service=app.state.encryption_service,
-                vault_key_id=cached_user.get("vault_key_id") or await lookup_vault_key_id(cache_service, directus_service, user_id),
-                user_id=user_id, chat_id=chat_id, task_id=task_id, wait_seconds=HEADLINE_WAIT_SECONDS,
-            )
-        except Exception as exc:
-            logger.warning(f"{log_prefix} Notification summary unavailable ({type(exc).__name__}); using title or generic text")
-    mate_name = "Mate"
-    if chat_title and not headline:
-        from backend.core.api.app.services.translations import TranslationService
-        translated = TranslationService().get_nested_translation(f"mates.{mate_category or 'general_knowledge'}", language)
-        if isinstance(translated, str) and translated and not translated.startswith("mates."):
-            mate_name = translated
+    # Title = chat title; body = answer excerpt; both sealed to the device
+    # (see push_notification_content).
     content = compose_push_content(
-        preferences=push_prefs, headline=headline, chat_title=chat_title, mate_name=mate_name, hidden=hidden,
+        preferences=push_prefs, chat_title=chat_title, hidden=hidden,
         preview_text=notification_preview_text(response_preview, lang=language) if push_preview_enabled(push_prefs) else "",
     )
     push_url = f"/?chat={chat_id}"
@@ -1053,6 +1025,7 @@ async def _send_push_notification_if_enabled(
                 "workspace": workspace,
                 "chat_title": content.sealed_title,
                 "chat_context": content.context,
+                "language": language,
             },
             queue="push",
         )

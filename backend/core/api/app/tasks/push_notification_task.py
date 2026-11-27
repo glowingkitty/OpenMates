@@ -44,6 +44,7 @@ def send_push_notification(
     workspace: Optional[dict] = None,
     chat_title: Optional[str] = None,
     chat_context: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> bool:
     """
     Celery task to send a browser push notification.
@@ -57,6 +58,7 @@ def send_push_notification(
         chat_id: Native notification chat target for APNs actions.
         category: Native notification category identifier.
         user_id: User ID (for logging / subscription cleanup on expiry).
+        language: Recipient UI language for the generic alert text.
 
     Returns:
         True if the push was accepted, False otherwise.
@@ -99,6 +101,7 @@ def send_push_notification(
         # Plaintext headline sealed to the device key before leaving the server.
         encrypted_title=chat_title,
         encrypted_context=chat_context,
+        language=language,
     )
 
     if not success:
