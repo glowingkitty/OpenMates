@@ -54,14 +54,8 @@ paths:
 - `sessions.py deploy --title <title> --message <why>` validates, serializes and
   pushes the scoped diff to `dev`. Use `prepare-deploy` only to inspect scope.
   Keep the canonical checkout on `dev`.
-- Claude and Codex hand off after two compactions or 100M cumulative weighted tokens.
-  Codex also uses 80% of its reported context window. Claude counts compact SessionStart
-  events and Codex reads its native rollout. Shared prompt and Stop hooks surface the
-  handoff. Run `scripts/chat_compaction_handoff.py handoff --summary-file <f> [--task <id>]`
-  with Done, Not done, Next step, Open decisions and References. It verifies the Task
-  activity write and releases the Task link before dispatching a successor. The successor
-  claims the Task and adopts the preserved worktree. The lifecycle archives the source
-  chat once idle, without a Discord push for the transfer.
+- No compaction or context-size handoff (owner, 27 Nov): a chat keeps working in the same chat
+  until its work is finished; the handoff hooks are removed.
 - Below 10% weekly Claude usage remaining, automatic wake-up transfers a stopped
   Claude chat only when its linked Task already contains a handover. Active Claude
   work prepares its handover at the next turn boundary. Record work done, open

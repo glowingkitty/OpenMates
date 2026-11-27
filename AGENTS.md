@@ -67,10 +67,8 @@ when a skill or this file points to it.
    scripts/worktree_wip.py park --session <id> --reason "<why>"`. Turn ends
    snapshot dirty worktrees to `refs/openmates/wip/<session>`; the chat
    lifecycle wakes a chat with unfinished work before stopping it.
-   Claude and Codex hand off after the 2nd compaction or an oversized context: it writes a
-   note (done, not done, next step, open decisions, references) and runs
-   `scripts/chat_compaction_handoff.py handoff`, which puts the note in the Task, starts
-   a fresh chat on the same session and Task and archives the old one (hooks say when).
+   Chats never hand off to a fresh chat because of compactions or context size
+   (owner, 27 Nov): keep working in the same chat until the work is finished.
 4. Production changes, destructive data changes and ownership transfers need
    explicit authorization by the owner: typed in this chat, or a message from
    the owner's dev connector (header "[… via the owner's authenticated dev

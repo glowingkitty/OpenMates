@@ -244,11 +244,6 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/reinject-session.sh",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/chat_compaction_handoff.py hook",
-            "timeout": 5
           }
         ]
       },
@@ -304,11 +299,6 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/chat_compaction_handoff.py hook-prompt",
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/peer-chats.sh",
             "timeout": 10
           },
@@ -323,11 +313,6 @@
     "Stop": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/chat_compaction_handoff.py hook-stop",
-            "timeout": 5
-          },
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/check-uncommitted.sh",
