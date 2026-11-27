@@ -1102,7 +1102,7 @@ specifications:
     version: 4
     status: draft
     path: features/tasks
-    fingerprint: e25de4c594fcdd05ba50141c2731db79d2d13cd932cedf10836d27d93893ef3d
+    fingerprint: 71e4de524d61204e1e6aed4814f5500b818ffde994d547a7b963fbe2784d8754
     required_applies_to:
     - rest_api
     - cli
@@ -15535,6 +15535,17 @@ assertions:
     specification_id: feature.tasks
     type: behavior
     fingerprint: 8701c51573492792315c074ef42eda7c575565165a0727c6dd658b0369ac6b30
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.activity.updates-task-time:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: c401e6affa3d1c5582200954d98f202f1737e8fc25aab2a4e981e909fc226ae4
     required_applies_to:
     - rest_api
     - cli

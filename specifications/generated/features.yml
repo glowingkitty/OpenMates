@@ -18956,7 +18956,7 @@ features:
     - platform:tasks
     dev: enabled
     prod: disabled
-  assertions: 30
+  assertions: 31
   surfaces:
     web:
       status: failing
@@ -18966,8 +18966,8 @@ features:
         passing: 10
         failing: 2
         not_run: 7
-        missing: 11
-        counted: 30
+        missing: 12
+        counted: 31
       failing_tests:
       - frontend/apps/web_app/tests/unified-detail-header.spec.ts › Task title and description expose hints, save, and undo
         semantics
@@ -19028,8 +19028,8 @@ features:
         passing: 2
         failing: 0
         not_run: 17
-        missing: 11
-        counted: 30
+        missing: 12
+        counted: 31
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-claude-session-tasks.spec.ts
@@ -19069,18 +19069,18 @@ features:
       assertions:
         passing: 6
         failing: 0
-        not_run: 13
+        not_run: 14
         missing: 11
-        counted: 30
+        counted: 31
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/storage-archive-lifecycle.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
       key_unit_tests:
       - backend/tests/test_user_tasks_api.py
+      - backend/tests/test_user_task_activity_api.py
       - backend/tests/test_user_task_admission.py
       - backend/tests/test_task_main_processor_tools.py
-      - backend/tests/test_user_task_activity_api.py
       - backend/tests/test_task_queue_auto_continuation.py
       unit_test_files: 19
     sdk_npm:
@@ -19091,8 +19091,8 @@ features:
         passing: 0
         failing: 0
         not_run: 9
-        missing: 21
-        counted: 30
+        missing: 22
+        counted: 31
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -19107,8 +19107,8 @@ features:
         passing: 0
         failing: 0
         not_run: 10
-        missing: 20
-        counted: 30
+        missing: 21
+        counted: 31
       key_tests: []
       e2e_tests: []
       key_unit_tests:
