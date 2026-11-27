@@ -37,6 +37,7 @@ Every step records a result row through ci_rust_checks so the coordinator and
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -466,6 +467,25 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
         credential_file.unlink()
 
 
+def simulator_device_arguments(pid: str) -> list[str]:
+    """Name the booted Simulator for xctrace when the pid runs inside one.
+
+    xctrace resolves `--attach` pids on the host by default and cannot find a
+    Simulator app process without its device.
+    """
+    import subprocess
+
+    command = subprocess.run(["ps", "-p", pid, "-o", "command="], capture_output=True,
+                             text=True, check=False).stdout
+    if "/CoreSimulator/" not in command:
+        return []
+    listing = subprocess.run(["xcrun", "simctl", "list", "devices", "booted", "-j"],
+                             capture_output=True, text=True, check=False).stdout
+    booted = [device["udid"] for devices in json.loads(listing or "{}").get("devices", {}).values()
+              for device in devices if device.get("state") == "Booted"]
+    return ["--device", booted[0]] if len(booted) == 1 else []
+
+
 def sample_app_process(folder: Path, stop) -> None:
     """Record a Time Profiler trace of exactly one launched OpenMates app process.
 
@@ -493,7 +513,8 @@ def sample_app_process(folder: Path, stop) -> None:
             return
         trace = folder / f"launch-pid{found[0]}.trace"
         steps = [
-            ["xcrun", "xctrace", "record", "--template", "Time Profiler", "--attach", found[0],
+            ["xcrun", "xctrace", "record", "--template", "Time Profiler",
+             *simulator_device_arguments(found[0]), "--attach", found[0],
              "--time-limit", f"{APP_PROFILE_SECONDS}s", "--output", str(trace), "--no-prompt"],
             ["xcrun", "xctrace", "export", "--input", str(trace), "--toc",
              "--output", str(folder / "toc.xml")],

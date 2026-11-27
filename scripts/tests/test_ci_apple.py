@@ -321,6 +321,7 @@ def test_only_private_startup_builds_with_the_release_optimizer():
 
 
 def test_profiler_traces_only_the_first_cached_relaunch(tmp_path, monkeypatch):
+    import json
     import subprocess
 
     pids = iter(["11", "11", "22", "33"])
@@ -333,6 +334,12 @@ def test_profiler_traces_only_the_first_cached_relaunch(tmp_path, monkeypatch):
     def fake_run(command, **_kwargs):
         if command[0] == "pgrep":
             return subprocess.CompletedProcess(command, 0, stdout=next(pids) + "\n")
+        if command[0] == "ps":
+            return subprocess.CompletedProcess(
+                command, 0, stdout="/Users/x/Library/Developer/CoreSimulator/Devices/D/OpenMates.app/OpenMates -x\n")
+        if command[:3] == ["xcrun", "simctl", "list"]:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(
+                {"devices": {"ios": [{"udid": "SIM-1", "state": "Booted"}, {"udid": "SIM-2", "state": "Shutdown"}]}}))
         commands.append(command)
         return subprocess.CompletedProcess(command, 0, stderr="")
 
@@ -340,4 +347,5 @@ def test_profiler_traces_only_the_first_cached_relaunch(tmp_path, monkeypatch):
     ci_apple.sample_app_process(tmp_path / "samples", Stop())
     assert [command[2] for command in commands] == ["record", "export", "export"]
     assert commands[0][commands[0].index("--attach") + 1] == "22"
+    assert commands[0][commands[0].index("--device") + 1] == "SIM-1"
     assert (tmp_path / "samples" / "sampler.log").read_text().count("exit 0") == 3
