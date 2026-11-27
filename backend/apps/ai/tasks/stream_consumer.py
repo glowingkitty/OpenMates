@@ -403,13 +403,20 @@ async def publish_voice_reasoning_confirmation(
     *, task_id: str, request_data: AskSkillRequest, voice_profile_id: str,
     language: str | None, phase: int, cache_service: Any, log_prefix: str,
 ) -> None:
-    """Play the routed Mate's cached thinking line when the answer actually starts reasoning."""
+    """Play the routed Mate's cached clip on each new reasoning phase."""
     from backend.apps.ai.assistant_speech.voice_status import select_categorized_voice_feedback
+    from backend.apps.audio.assistant_speech.acknowledgements import build_work_cue
 
-    clip = select_categorized_voice_feedback(
-        voice_profile_id=voice_profile_id, category="answering", language=language,
-        seed=f"{task_id}:{phase}",
-    )
+    clip = None
+    if phase > 1 and language:
+        resumed = build_work_cue(voice_profile_id=voice_profile_id, language=language, category="still_thinking")
+        if resumed:
+            clip = {**resumed, "clip_id": f"{resumed['clip_id']}-resumed"}
+    if clip is None:
+        clip = select_categorized_voice_feedback(
+            voice_profile_id=voice_profile_id, category="answering", language=language,
+            seed=f"{task_id}:{phase}",
+        )
     if clip:
         try:
             async with asyncio.timeout(0.15):

@@ -142,9 +142,11 @@ final class NativeVoiceCallRootRuntime: ObservableObject {
         subscription = coordinator.$state.map(\.status).removeDuplicates().sink { [weak self, weak coordinator] status in
             Task { @MainActor in
                 guard let self, let coordinator, self.coordinator === coordinator else { return }
-                if status == .ended || status == .failed {
+                if (status == .ended || status == .failed) && coordinator.state.status == status {
                     self.memory.invalidate(); self.presentation.toolWorking = false
-                    if self.admittedArtifactCount == 0 { NativeVoiceCallSendAdmission.shared.releaseCall(self.callAdmissionOwner) }
+                    if !coordinator.isActive, self.admittedArtifactCount == 0 {
+                        NativeVoiceCallSendAdmission.shared.releaseCall(self.callAdmissionOwner)
+                    }
                 }
                 // NativeVoiceCallOverlay/StartControl observe coordinator directly.
                 // No root objectWillChange forwarding, including clock/meter ticks.
@@ -216,10 +218,23 @@ final class NativeVoiceCallRootRuntime: ObservableObject {
     func start(_ destination: NativeVoiceCallAppDestination) async {
         let chatID: String
         switch destination { case .existing(let id): chatID = id; case .newPersonal(let id, _): chatID = id.uuidString.lowercased() }
-        guard coordinator != nil, NativeVoiceCallSendAdmission.shared.claimCall(callAdmissionOwner, chatID: chatID) else { return }
-        defer { if coordinator?.isActive != true { NativeVoiceCallSendAdmission.shared.releaseCall(callAdmissionOwner) } }
+        guard let coordinator else { return }
+        let admission = NativeVoiceCallSendAdmission.shared
+        if coordinator.isActive {
+            guard case .existing = destination, let chat = store?.chat(for: chatID),
+                  supports(chat: chat), chat.encryptedChatKey?.isEmpty == false,
+                  coordinator.canReplaceCall(chatID: chatID), !admission.isPreparing(chatID: chatID)
+            else { return }
+        } else {
+            guard admission.claimCall(callAdmissionOwner, chatID: chatID) else { return }
+        }
+        defer {
+            if self.coordinator === coordinator, !coordinator.isActive, admittedArtifactCount == 0 {
+                admission.releaseCall(callAdmissionOwner)
+            }
+        }
         presentation.creditsCharged = nil; presentation.toolWorking = false
-        await coordinator?.start(destination)
+        await coordinator.start(destination)
     }
     func revokeOwner() {
         generation = UUID(); ownerIdentity = nil; memory.invalidate()
@@ -363,12 +378,14 @@ struct NativeVoiceCallStartControl: View {
     let chatID: String
     let overlapsHeader: Bool
     let canBegin: Bool
+    var allowsReplacement = false
     let action: () -> Void
     var body: some View {
-        if !coordinator.isActive {
+        let replacing = allowsReplacement && coordinator.canReplaceCall(chatID: chatID)
+        if !coordinator.isActive || replacing {
             NativeHeaderActionPill(icon: "audiocall", label: AppStrings.nativeCall("start"),
                 overlapsHeader: overlapsHeader, accessibilityIdentifier: "voice-call-start", action: action)
-                .disabled(!canBegin || admission.blocksOrdinary || admission.isPreparing(chatID: chatID))
+                .disabled(!canBegin || (!replacing && admission.blocksOrdinary) || admission.isPreparing(chatID: chatID))
         }
     }
 }

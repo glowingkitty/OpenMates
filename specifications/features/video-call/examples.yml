@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@26
+specification: feature.video-call@27
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -13,6 +13,10 @@ binding:
   then: A pulsing handset-and-timer pill replaces the global brand immediately after the menu button; call messages still
     enter ramen while travel uses ordinary messaging. Pressing the pill returns to ramen, restores the brand and shows
     that call's strip without reconnecting.
+- id: start-a-call-in-another-chat
+  given: The ramen call is still active while Maya has the saved travel chat open.
+  when: She presses the call button in travel.
+  then: OpenMates ends the ramen call and opens one call bound to travel, with the ramen history preserved.
 call_strip:
 - id: inline-to-fixed-call-strip
   given: Maya is at the top of the ramen chat with its full header and an active call strip directly beneath it.

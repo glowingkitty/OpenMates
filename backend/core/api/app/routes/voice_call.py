@@ -1010,10 +1010,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     call_id, (time.monotonic() - accepted_at) * 1000)
         chat_id, _summary, _messages, startup_ms = _start(start_message)
         likely_end_hints = _likely_end_hints(start_message)
-        playback_only_barge_in = json.loads(start_message).get("playback_only_barge_in", False)
-        if not isinstance(playback_only_barge_in, bool):
-            raise ValueError("Invalid playback interruption option")
-        _context_options(json.loads(start_message).get("context", {}))
+        start_options = json.loads(start_message)
+        playback_only_barge_in = start_options.get("playback_only_barge_in", False)
+        state_cues = start_options.get("voice_state_cues", False)
+        if not isinstance(playback_only_barge_in, bool) or not isinstance(state_cues, bool):
+            raise ValueError("Invalid voice call capability")
+        state_cues = state_cues or playback_only_barge_in
+        _context_options(start_options.get("context", {}))
         allowance = startup_ms * PCM_INPUT_BYTES_PER_SECOND // 1000
         stage = "personal_chat"
         logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
@@ -1023,9 +1026,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         # Bind call admission before provider work under the same durable chat
         # lock as automatic cleanup. Older clients disqualify any prior attempt.
         from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
-        start_options = json.loads(start_message)
         cleanup_attempt_id = start_options.get("cleanup_attempt_id")
-        feedback_enabled = instant_feedback_enabled(start_options) and not playback_only_barge_in
+        feedback_enabled = instant_feedback_enabled(start_options) and not state_cues
         cleanup_state = await ChatRecoveryService(websocket.app.state.directus_service).execute(
             "update_call_cleanup_candidate", {"protocol_version": 1,
                 "hashed_user_id": user_hash, "chat_id": chat_id, "mode": "start",
@@ -1050,7 +1052,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         lease_task = asyncio.create_task(_renew_lock(lock_client, lock_key, lock_token))
         await register_active_call(websocket.app.state.cache_service, user_id=user_id,
                                    session_id=session_id, chat_id=chat_id, call_id=call_id,
-                                   instant_feedback=feedback_enabled, state_cues=playback_only_barge_in)
+                                   instant_feedback=feedback_enabled, state_cues=state_cues)
         registered = True
         # Updates from chats this chat started are spoken at quiet moments.
         gate = CallInterpretationGate(

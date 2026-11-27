@@ -282,6 +282,7 @@ final class NativeVoiceCallTests: XCTestCase {
         try await controller.start(scope: scope)
         let start = try await transport.frames().first
         XCTAssertEqual(start?["speech_output_transport"]?.string, "mp3_turn_stream_v2")
+        XCTAssertEqual(start?["voice_state_cues"]?.bool, true)
         var frame = ready(); frame["mate_category"] = nil; frame["mate_name"] = nil
         frame["camera_available"] = .bool(true)
         try await transport.push(frame)

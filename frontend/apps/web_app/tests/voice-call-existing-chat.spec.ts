@@ -4,13 +4,13 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { proofAudioLaunchArgs } from './helpers/proof-audio';
-import { installNativeVoiceInput } from './helpers/voice-call-test-helpers';
+import { installNativeVoiceInput, nativeVoiceInput } from './helpers/voice-call-test-helpers';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test: auditedTest } = require('./helpers/cookie-audit');
 const { withProofAudio } = require('./helpers/proof-audio');
 // Proof videos carry the call's sound in sync (tests/helpers/proof-audio.ts).
 const test = withProofAudio(auditedTest);
-const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage, startNewChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { withMockMarker } = require('./signup-flow-helpers');
 const { expireIsolatedAccessWindow } = require('./helpers/isolated-session-rotation');
 
@@ -106,6 +106,80 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.screenshot({path:testInfo.outputPath('call-after-session-rotation.png')});
     await page.getByTestId('voice-call-hangup').click();
   });
+  // contract-test: direct surface=gui.web assertions=video-call.chat.fixed-binding,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+  test('keeps the call and its audio in the background until another chat explicitly starts one', async ({ page }) => {
+    test.setTimeout(200_000);
+    await installNativeVoiceInput(page);
+    const outgoing: { type: string; chatId?: string; socket: number }[] = [];
+    let speechCancels = 0;
+    let voiceSockets = 0;
+    page.on('websocket', socket => {
+      const path = new URL(socket.url()).pathname;
+      const index = path === '/v1/voice-call' ? ++voiceSockets : 0;
+      socket.on('framesent', ({ payload }) => {
+        if (typeof payload !== 'string') return;
+        const frame = JSON.parse(payload);
+        if (index && ['start', 'hangup'].includes(frame.type)) {
+          outgoing.push({ type: frame.type, chatId: frame.chat_id, socket: index });
+        }
+        if (path === '/v1/ws' && frame.type === 'assistant_speech' && frame.payload?.action === 'cancel') {
+          speechCancels++;
+        }
+      });
+    });
+    await loginToTestAccount(page, () => {}, async () => {});
+    const openedChat = page.getByTestId('active-chat-container');
+    const createChat = async (prompt: string) => {
+      await sendMessage(page, withMockMarker(prompt, 'chat_flow_capital', 'fast'));
+      await waitForAssistantMessage(page, { which: 'last', logCheckpoint: () => {} });
+      await expect(openedChat).toHaveAttribute('data-current-chat-id', /^[a-f0-9-]{36}$/i);
+      return (await openedChat.getAttribute('data-current-chat-id'))!;
+    };
+    const otherChat = await createChat('What is the capital of Germany?');
+    await startNewChat(page);
+    const callChat = await createChat('What is the capital of France?');
+    expect(callChat).not.toBe(otherChat);
+
+    const handset = page.locator('[data-testid="voice-call-start"]:visible');
+    const close = page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible');
+    const listening = page.getByTestId('voice-call-status-text');
+    await handset.click();
+    await expect(listening).toContainText('Listening', { timeout: 45_000 });
+
+    try {
+      const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+      await editor.click();
+      await page.keyboard.insertText('Can you repeat the capital?');
+      await page.getByTestId('composer-send-button').click();
+      // Wait until this call owns an assistant reply. Before the fix, closing
+      // the pane then sends a cancel for that reply even though the call stays live.
+      await expect(page.getByTestId('message-assistant').last()).toContainText('I received your text:', { timeout: 40_000 });
+      const beforeClose = speechCancels;
+      await close.click();
+      await expect(page.getByTestId('voice-call-pill')).toBeVisible();
+      const samples = (await nativeVoiceInput(page)).samples;
+      await expect.poll(async () => (await nativeVoiceInput(page)).samples).toBeGreaterThan(samples);
+
+      await page.evaluate(chatId => { window.location.hash = 'chat-id=' + chatId; }, otherChat);
+      await expect(openedChat).toHaveAttribute('data-current-chat-id', otherChat);
+      await expect(page.getByTestId('voice-call-pill')).toBeVisible();
+      expect(speechCancels).toBe(beforeClose);
+      expect(outgoing).toEqual([{ type: 'start', chatId: callChat, socket: 1 }]);
+      expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+
+      await expect(handset).toHaveAccessibleName(/start/i);
+      await handset.click();
+      await expect(listening).toContainText('Listening', { timeout: 45_000 });
+      await expect.poll(() => outgoing.map(frame => [frame.type, frame.socket]))
+        .toEqual([['start', 1], ['hangup', 1], ['start', 2]]);
+      expect(outgoing[2].chatId).toBe(otherChat);
+      await expect(page.getByTestId('voice-call-pill')).toHaveCount(0);
+    } finally {
+      const hangup = page.getByTestId('voice-call-hangup');
+      if (await hangup.isVisible()) await hangup.click();
+    }
+  });
+
 });
 
 test.describe('First voice call of a just-signed-up account', () => {
@@ -230,7 +304,8 @@ test.describe('First voice call of a just-signed-up account', () => {
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.rustCoreAdmit), {
         timeout: 45_000, message: 'the call chat must be admitted into the core',
       }).toBe('ok');
-      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      // A connected call can become automatically idle while core admission settles.
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText(/^(Listening · You can speak now|Speak to resume call\.)$/);
       await expect(page.getByTestId('notification').filter({ hasText: 'Voice calling is unavailable right now' })).toHaveCount(0);
       await page.getByTestId('voice-call-hangup').click();
     } finally {

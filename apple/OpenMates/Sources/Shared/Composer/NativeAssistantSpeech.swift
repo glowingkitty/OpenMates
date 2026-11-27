@@ -279,14 +279,19 @@ final class NativeAssistantSpeech: ObservableObject {
             sequence: event.sequence, status: event.status, generated_asset_id: event.generated_asset_id, request_sequence: event.request_sequence, kind: event.kind)]
         for segment in incoming {
             guard let id = segment.segment_id, let sequence = segment.sequence, (sequence >= 0 || (sequence == -1 && ["acknowledgement", "waiting_confirmation"].contains(segment.kind ?? ""))) else { continue }
-            if sequence == -1 && (manual || passivePreludeSuperseded) { continue }
+            if sequence == -1 && (manual || passivePreludeSuperseded || played.contains(id)) { continue }
             if sequence == -1 && ["error", "cancelled", "deleted"].contains(segment.status ?? "") {
                 discardPassivePrelude(); continue
             }
             if segments[id]?.status == "ready", ["queued", "generating", "registered"].contains(segment.status ?? "") { continue }
-            // A duplicate sequence cannot randomly replace an already queued
-            // provider asset. Provider retries require an explicit manual request.
-            if let other = segments.values.first(where: { $0.sequence == sequence }), other.segment_id != id { continue }
+            // A fresh call cue may reuse the passive slot after the previous clip
+            // has finished. An active clip or a canonical speech segment keeps its slot.
+            if let other = segments.values.first(where: { $0.sequence == sequence }),
+               let previousID = other.segment_id, previousID != id {
+                guard sequence == -1, voiceCallMode, segment.kind == "acknowledgement",
+                      playbackTask == nil, played.contains(previousID) else { continue }
+                segments.removeValue(forKey: previousID)
+            }
             if sequence == -1, segments.isEmpty, playbackTask == nil { nextSequence = -1; activeSequence = -1 }
             // Preserve the accepted source mapping when later worker events omit it.
             var merged = segment

@@ -8719,7 +8719,9 @@ async def handle_main_processing(
                     if chunk.content:
                         visible_text = suggested_followup_stream.feed(chunk.content)
                         if visible_text:
-                            llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
+                            if _has_visible_text(visible_text):
+                                announced_reasoning_iteration = None
+                                llm_turn_had_content = True
                             if artifact_revision is None:
                                 yield visible_text
                                 published_answer_text.append(visible_text)
@@ -8733,7 +8735,9 @@ async def handle_main_processing(
                 if chunk:
                     visible_text = suggested_followup_stream.feed(chunk)
                     if visible_text:
-                        llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
+                        if _has_visible_text(visible_text):
+                            announced_reasoning_iteration = None
+                            llm_turn_had_content = True
                         if artifact_revision is None:
                             yield visible_text
                             published_answer_text.append(visible_text)

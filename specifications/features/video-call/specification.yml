@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 26
+version: 27
 status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -126,8 +126,9 @@ assertions:
   must: A call remains bound to its starting chat. Closing or browsing away replaces the global Header's OpenMates brand
     mark with a gently pulsing audiocall-and-duration pill, without changing the destination of call messages, context,
     skills or future media. Pressing the pill opens the bound chat and restores the usual brand mark. A different chat
-    retains its ordinary messaging behavior. The connected call remains single-owner throughout these navigation and
-    layout changes.
+    retains its ordinary messaging behavior. Microphone capture and assistant playback continue while the call's pane
+    is closed or another chat is visible. Starting a call in a different eligible saved chat ends the previous call
+    before opening the replacement. The connected call remains single-owner throughout these navigation and layout changes.
   depends_on:
   - models.CallSession.chat_id
   - examples.binding
@@ -537,9 +538,11 @@ assertions:
     or none independently of the existing wait intent. Play one of three static variants in the answering Mate's
     voice once that Mate is known. A new chat may use its existing neutral startup cue before a Mate is known when
     that cue exists in the detected language. None or an unavailable decision skips the early categorized clip.
-    When the live signed-in web call actually starts an answer-model reasoning phase, including later phases after a skill,
-    play one of three cached thinking clips in the routed Mate's voice and reply language independently of Jev or any startup cue.
-    Retries within that phase do not repeat it. An unsupported language skips the clip. A cached clip never submits a chat turn,
+    When a signed-in web or supported Apple call starts an answer-model reasoning phase, including another phase after a
+    skill or spoken answer text, play the routed Mate's cached thinking cue independently of Jev or any startup cue.
+    A resumed phase can use the recorded still-thinking line in English or German. Other supported reply languages use
+    their cached thinking variants. Retries within one phase do not repeat the cue. An unsupported language skips the clip.
+    A cached clip never submits a chat turn,
     counts as caller speech when recaptured by the microphone, or uses runtime speech synthesis.
   depends_on:
   - examples.localized_waiting

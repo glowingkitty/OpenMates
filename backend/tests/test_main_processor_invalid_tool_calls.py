@@ -338,7 +338,7 @@ async def _run_mocked_protocol_guard_main_processor(
     monkeypatch.setattr(
         main_processor,
         "StreamChunkType",
-        SimpleNamespace(THINKING="thinking", THINKING_SIGNATURE="signature", TEXT="text"),
+        SimpleNamespace(THINKING="thinking", THINKING_REDACTED="redacted", THINKING_SIGNATURE="signature", TEXT="text"),
     )
 
     # Every provider boundary is local in this loop fixture, including the
@@ -598,6 +598,36 @@ async def test_argument_normalization_failure_returns_tool_error_without_dispatc
     assert decode(tool_results[0]["content"])["status"] == "error"
     assert "Malformed skill arguments" in tool_results[0]["content"]
     assert "I could not search" in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+async def test_reasoning_restarts_after_visible_text_in_the_same_provider_stream(monkeypatch):
+    phases = []
+
+    async def announce():
+        phases.append("thinking")
+
+    class ProviderChunks:
+        def __iter__(self):
+            for phase, text in [
+                ("thinking", "First thought"), ("redacted", ""), ("thinking", "Same thought"),
+                ("text", "The first point. "), ("thinking", "Another thought"),
+                ("thinking", "Same new thought"), ("text", "The conclusion."),
+            ]:
+                if phase == "thinking" and text in {"First thought", "Another thought"}:
+                    assert len(phases) == (0 if text == "First thought" else 1)
+                chunk = main_processor.UnifiedStreamChunk()
+                chunk.type, chunk.content = phase, text
+                yield chunk
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [ProviderChunks()],
+        processor_overrides={"on_reasoning_dispatch": announce},
+    )
+
+    assert len(calls) == 1
+    assert phases == ["thinking", "thinking"]
+    assert "The conclusion." in "".join(chunk for chunk in output if isinstance(chunk, str))
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

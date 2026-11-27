@@ -2679,7 +2679,8 @@ struct ChatView: View {
                     NativeVoiceCallStartControl(coordinator: coordinator, chatID: chat.id,
                         overlapsHeader: chatHeaderActionsOverlapBanner,
                         canBegin: !recordAttemptActive && recordingUploadTasks.isEmpty && !isVerifyingPIISend
-                            && viewModel.queuedEditSession == nil && !viewModel.isStreaming) {
+                            && viewModel.queuedEditSession == nil && !viewModel.isStreaming,
+                        allowsReplacement: chat.encryptedChatKey?.isEmpty == false) {
                         Task {
                             if chat.encryptedChatKey == nil, let id = UUID(uuidString: chat.id) {
                                 await voiceCallRuntime.start(.newPersonal(chatID: id, mateCategory: chat.category ?? "general_knowledge"))

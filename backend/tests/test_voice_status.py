@@ -218,8 +218,8 @@ async def test_reasoning_clip_is_call_bound_and_uses_the_routed_voice_and_langua
 
     assert len(published) == 2
     assert all(payload["voice_call_id"] == "call" for payload in published)
-    assert all(payload["audio_url"].startswith("/audio/assistant-acknowledgements/george/de-DE/reasoning-")
-               for payload in published)
+    assert published[0]["audio_url"].startswith("/audio/assistant-acknowledgements/george/de-DE/reasoning-")
+    assert published[1]["audio_url"] == "/audio/assistant-acknowledgements/george/de-DE/still_thinking-1.mp3"
     assert len({payload["clip_id"] for payload in published}) == 2
     assert "task" not in stream_consumer._INSTANT_ACK_SENT
 

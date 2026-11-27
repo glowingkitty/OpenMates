@@ -126,12 +126,27 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
         let seconds = Int(max(0, min(state.activeSeconds, 99 * 3600)))
         return String(format: "%02d:%02d", seconds / 60, seconds % 60)
     }
+    func canReplaceCall(chatID: String) -> Bool {
+        guard isActive, !starting, submitting == nil, let boundChatID else { return false }
+        return boundChatID != chatID
+    }
     func start(_ destination: NativeVoiceCallAppDestination) async {
-        guard !isActive, submitting == nil else { return }
-        starting = true; integrationError = nil
+        guard !starting, submitting == nil else { return }
+        let replacing = isActive
+        if replacing {
+            guard case .existing(let chatID) = destination, canReplaceCall(chatID: chatID) else { return }
+        }
+        starting = true
+        defer { starting = false }
+        if replacing {
+            let owner = ownerGeneration
+            await hangup()
+            guard owner == ownerGeneration, !Task.isCancelled, state.status != .live,
+                  state.status != .connecting else { return }
+        }
+        integrationError = nil
         generation = UUID(); earlyAccepted.removeAll(); earlyRejected.removeAll()
         recovered = Set(recoverableDrafts.map { "\($0.id):\($0.revision)" })
-        defer { starting = false }
         do { try await driver.start(destination) }
         catch { integrationError = error as? NativeVoiceCallError ?? .callUnavailable; finishDrafts() }
     }

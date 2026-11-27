@@ -31,6 +31,37 @@ final class NativeAssistantSpeechTests: XCTestCase {
         XCTAssertFalse(speech.voiceCallMode)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.localized-waiting
+    func testFreshReasoningCueCanPlayAfterAnEarlierCueForTheSameCallReply() async {
+        var deps = dependencies()
+        let first = expectation(description: "Initial reasoning cue played")
+        let resumed = expectation(description: "Resumed reasoning cue played")
+        var played: [String] = []
+        deps.resolveAcknowledgement = { _, path in Data(path.utf8) }
+        deps.play = { data in
+            let path = String(decoding: data, as: UTF8.self)
+            played.append(path)
+            if path == "initial" { first.fulfill() } else { resumed.fulfill() }
+        }
+        let speech = NativeAssistantSpeech(dependencies: deps)
+        await speech.activate(scope)
+        speech.setVoiceCallMode(true)
+        speech.expectResponse("assistant", in: scope)
+        func cue(_ id: String) {
+            speech.receive(.init(chat_id: scope.chatID, message_id: "assistant", status: "ready",
+                segment_id: nil, sequence: nil, generated_asset_id: nil,
+                segments: [.init(segment_id: id, sequence: -1, status: "ready", generated_asset_id: nil,
+                    kind: "acknowledgement", audio_url: id)]), in: scope)
+        }
+        cue("initial")
+        await fulfillment(of: [first], timeout: 2)
+        cue("resumed")
+        await fulfillment(of: [resumed], timeout: 2)
+        cue("initial")
+        XCTAssertEqual(played, ["initial", "resumed"])
+        speech.reset()
+    }
+
     // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle
     func testStoreChangesCannotWarmLocalSpeechDuringCaptureOrFinalDecode() async {
         await assertRecordingSuppressesPreparation(terminal: .correctionDone(.init(

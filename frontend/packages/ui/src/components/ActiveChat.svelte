@@ -5143,9 +5143,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         anonymousFileAttachmentPending = false;
         liveInputText = '';
         suggestionsWouldOverlapWelcome = false;
-        void assistantSpeechController.stop().catch((error) => {
-            console.debug('[ActiveChat] Assistant speech was already unavailable during UI reset:', error);
-        });
+        // Closing or switching panes does not change the call's audio owner.
+        if (!voiceCallOwnsAudio) {
+            void assistantSpeechController.stop().catch((error) => {
+                console.debug('[ActiveChat] Assistant speech was already unavailable during UI reset:', error);
+            });
+        }
         if (clearLiveInput) {
             void messageInputFieldRef?.clearMessageField(false, false).catch((error) => {
                 console.warn('[ActiveChat] Error clearing message input during UI reset:', error);
@@ -8182,25 +8185,23 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         !$authStore.isAuthenticated && !voiceCallOwnsAudio && isGuestVoiceCallSupported() &&
         (showWelcome || (!!currentChat?.chat_id && !isPublicChat(currentChat.chat_id)))
     );
+    const voiceCallInAnotherChat = $derived(voiceCallOwnsAudio && !showWelcome &&
+        !!callState.chatId && !!currentChat?.chat_id && currentChat.chat_id !== callState.chatId);
     const voiceCallLaunchEligible = $derived(guestVoiceCallLaunchEligible ||
-        $authStore.isAuthenticated && !voiceCallOwnsAudio &&
+        $authStore.isAuthenticated && (!voiceCallOwnsAudio || voiceCallInAnotherChat) &&
         (showWelcome ? !$incognitoMode : !!currentChat?.chat_id && !currentChat.is_incognito &&
             !currentChat.is_shared_by_others && !currentChat.team_id && currentChat.chat_visibility !== 'direct' &&
             !isPublicChat(currentChat.chat_id))
     );
 
     async function handleStartVoiceCall(): Promise<void> {
-        if (voiceCallOwnsAudio) {
-            callController.hangup();
-            return;
-        }
         if (!voiceCallLaunchEligible) return;
         const guest = !$authStore.isAuthenticated;
         if (guest && !await messageInputFieldRef?.allowGuestMediaStart()) return;
         if (!voiceCallLaunchEligible) return;
         messageInputFieldRef?.stopRecordingForVoiceCall();
-        void assistantSpeechController.stop();
         if (guest) {
+            void assistantSpeechController.stop();
             // Guest turns arrive through the turn sink, which already shows the
             // local guest chat; the binding only keeps the call strip in place.
             void guestVoiceCallController.start(showWelcome ? undefined : currentChat?.chat_id, (boundChatId) => {
@@ -8219,6 +8220,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const draftReady = chatId && (showWelcome || isActiveDraftOnlyChat)
             ? Promise.resolve().then(() => draftInput?.prepareVoiceCallDraft?.(chatId) ?? false).catch(() => false)
             : undefined;
+        if (voiceCallInAnotherChat) voiceCallController.hangup();
         void voiceCallController.start(chatId, (boundChatId) => {
             voiceCallBindingChatId = boundChatId;
             void handleChatNavigate(boundChatId);
@@ -13981,7 +13983,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                   {#snippet close()}
                     <VoiceCallHeaderActions
                         callState={callController}
-                        showCall={voiceCallLaunchEligible && !voiceCallOwnsAudio && !showVoiceCallBarHere}
+                        showCall={voiceCallLaunchEligible && !showVoiceCallBarHere}
+                        callInAnotherChat={voiceCallInAnotherChat}
                         showClose={!showWelcome}
                         {closingChat}
                         onToggleCall={handleStartVoiceCall}
