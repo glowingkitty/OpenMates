@@ -81,6 +81,7 @@ OPTIMIZED_BENCHMARK_SETTINGS = (
 # Time Profiler trace of one benchmarked app process: where its main thread
 # spends startup. The host `sample` tool records no frames of Simulator apps.
 APP_PROFILE_SECONDS = 15
+APP_PROFILE_STEP_TIMEOUT_SECONDS = 600
 APP_SAMPLE_POLL_SECONDS = 0.1
 APP_SAMPLED_PROCESS = 2
 # XCUITest spawns the app suspended and resumes it itself; attaching the
@@ -463,7 +464,7 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
             return subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=False).returncode
     finally:
         stop.set()
-        sampler.join(timeout=APP_PROFILE_SECONDS + 240)
+        sampler.join(timeout=3 * APP_PROFILE_STEP_TIMEOUT_SECONDS)
         credential_file.unlink()
 
 
@@ -532,9 +533,17 @@ def sample_app_process(folder: Path, stop) -> None:
             for step in steps:
                 log.write(f"{step[2]} start\n")
                 log.flush()
-                done = subprocess.run(step, capture_output=True, text=True, check=False,
-                                      timeout=APP_PROFILE_SECONDS + 120)
+                # Recording every process of the Simulator device takes minutes to
+                # finalize on the hosted runner; a timeout is logged, never silent.
+                try:
+                    done = subprocess.run(step, capture_output=True, text=True, check=False,
+                                          timeout=APP_PROFILE_STEP_TIMEOUT_SECONDS)
+                except subprocess.TimeoutExpired:
+                    log.write(f"{step[2]} timeout after {APP_PROFILE_STEP_TIMEOUT_SECONDS}s\n")
+                    log.flush()
+                    break
                 log.write(f"{step[2]} exit {done.returncode}\n{done.stderr[-2000:]}\n")
+                log.flush()
         # The exported table holds every sampled stack; the raw bundle is large.
         shutil.rmtree(trace, ignore_errors=True)
         return
