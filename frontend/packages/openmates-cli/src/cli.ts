@@ -222,6 +222,7 @@ import {
   splitCsvFlag,
   taskEditLookupScope,
   taskLookupScopes,
+  taskTimestampsToJson,
   workflowProjectionDeleteGuidance,
   type DecryptedUserTask,
   type DecryptedTaskActivityEntry,
@@ -4681,6 +4682,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     blocked_reason: task.blockedReason || null,
     ai_execution_state: task.aiExecutionState,
     version: task.version,
+    ...taskTimestampsToJson(task),
   };
 }
 

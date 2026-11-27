@@ -143,6 +143,20 @@ export interface DecryptedTaskActivityEntry {
   embedRefs: string[];
 }
 
+/**
+ * Plaintext lifecycle times (Unix seconds) for `--json` output, so scripts can sort
+ * and filter Tasks by date. A time the server did not send stays null.
+ */
+export function taskTimestampsToJson(task: DecryptedUserTask): Record<string, number | null> {
+  const record = task.encrypted;
+  return {
+    created_at: record.created_at ?? null,
+    updated_at: record.updated_at ?? null,
+    started_at: record.started_at ?? null,
+    completed_at: record.completed_at ?? null,
+  };
+}
+
 export function workflowProjectionDeleteGuidance(task: DecryptedUserTask): string {
   const workflowId = task.workflowId ?? "<workflow-id>";
   const lines = [`Task ${task.shortId} is a read-only workflow projection, not an ordinary task.`];
