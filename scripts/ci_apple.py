@@ -467,23 +467,28 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
         credential_file.unlink()
 
 
-def simulator_device_arguments(pid: str) -> list[str]:
-    """Name the booted Simulator for xctrace when the pid runs inside one.
+def profiler_target_arguments(pid: str, log) -> list[str]:
+    """Return the xctrace target for one launched app process.
 
-    xctrace resolves `--attach` pids on the host by default and cannot find a
-    Simulator app process without its device.
+    xctrace cannot resolve a Simulator app pid on the host, so a pid that runs
+    inside CoreSimulator is recorded as every process on its booted device; the
+    export keeps the process column to select the app afterwards.
     """
     import subprocess
 
     command = subprocess.run(["ps", "-p", pid, "-o", "command="], capture_output=True,
                              text=True, check=False).stdout
     if "/CoreSimulator/" not in command:
-        return []
+        log.write("target host pid\n")
+        return ["--attach", pid]
     listing = subprocess.run(["xcrun", "simctl", "list", "devices", "booted", "-j"],
                              capture_output=True, text=True, check=False).stdout
     booted = [device["udid"] for devices in json.loads(listing or "{}").get("devices", {}).values()
               for device in devices if device.get("state") == "Booted"]
-    return ["--device", booted[0]] if len(booted) == 1 else []
+    log.write(f"target simulator, booted devices {len(booted)}\n")
+    if len(booted) != 1:
+        return ["--attach", pid]
+    return ["--device", booted[0], "--all-processes"]
 
 
 def sample_app_process(folder: Path, stop) -> None:
@@ -512,9 +517,10 @@ def sample_app_process(folder: Path, stop) -> None:
         if stop.wait(APP_PROFILE_ATTACH_DELAY_SECONDS):
             return
         trace = folder / f"launch-pid{found[0]}.trace"
+        with (folder / "sampler.log").open("a") as log:
+            target = profiler_target_arguments(found[0], log)
         steps = [
-            ["xcrun", "xctrace", "record", "--template", "Time Profiler",
-             *simulator_device_arguments(found[0]), "--attach", found[0],
+            ["xcrun", "xctrace", "record", "--template", "Time Profiler", *target,
              "--time-limit", f"{APP_PROFILE_SECONDS}s", "--output", str(trace), "--no-prompt"],
             ["xcrun", "xctrace", "export", "--input", str(trace), "--toc",
              "--output", str(folder / "toc.xml")],

@@ -346,6 +346,6 @@ def test_profiler_traces_only_the_first_cached_relaunch(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     ci_apple.sample_app_process(tmp_path / "samples", Stop())
     assert [command[2] for command in commands] == ["record", "export", "export"]
-    assert commands[0][commands[0].index("--attach") + 1] == "22"
     assert commands[0][commands[0].index("--device") + 1] == "SIM-1"
+    assert "--all-processes" in commands[0] and "--attach" not in commands[0]
     assert (tmp_path / "samples" / "sampler.log").read_text().count("exit 0") == 3
