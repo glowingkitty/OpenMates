@@ -571,7 +571,7 @@ assertions:
       surface: cli
     - &id060
       path: scripts/tests/test_claude_dispatch.py
-      line: 618
+      line: 626
       name: test_ai_test_user_run_starts_chats_directly_and_marco_approved_ones_skip_the_cap
       surface: cli
     tests:
@@ -142004,17 +142004,17 @@ assertions:
       surface: tooling
     - &id17980
       path: scripts/tests/test_claude_dispatch.py
-      line: 374
+      line: 382
       name: test_new_zellij_server_starts_in_its_own_systemd_scope
       surface: tooling
     - &id17981
       path: scripts/tests/test_claude_dispatch.py
-      line: 398
+      line: 406
       name: test_chat_layout_has_one_terminal_pane_and_no_plugins
       surface: tooling
     - &id17982
       path: scripts/tests/test_claude_dispatch.py
-      line: 406
+      line: 414
       name: test_zellij_scope_start_failure_is_an_error
       surface: tooling
     tests:

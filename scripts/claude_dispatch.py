@@ -265,7 +265,9 @@ def admit_new_chat(*, production: bool = False) -> str | None:
     if result.returncode == 0:
         return None
     if result.returncode == 3:
-        return (result.stdout.strip().splitlines() or ["the running-chat cap is reached"])[-1]
+        # The whole refusal: its first line says why, the rest lists the chats it counted, so a
+        # wrong count is visible in start_chat's answer (2026-11-27).
+        return result.stdout.strip() or "the running-chat cap is reached"
     raise DispatchError(f"chat admission check failed (exit {result.returncode}): {result.stderr.strip()[-300:]}")
 
 

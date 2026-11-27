@@ -370,6 +370,14 @@ def test_admission_check_errors_fail_loudly(monkeypatch):
         REAL_ADMIT()
 
 
+def test_admission_refusal_keeps_the_counted_chat_list(monkeypatch):
+    refusal = ("no room: 15 chats hold a slot (admission limit 15); counted:\n"
+               "  - aaaaaaaa claude/pane 'Chat A': state is busy (last activity 0 min ago)")
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda *a, **k: type(
+        "Result", (), {"returncode": 3, "stdout": refusal + "\n", "stderr": ""})())
+    assert REAL_ADMIT() == refusal
+
+
 # contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
 def test_new_zellij_server_starts_in_its_own_systemd_scope(monkeypatch):
     """A server started by the broker or a timer must not live in their cgroup: restarting that
