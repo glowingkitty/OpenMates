@@ -82,6 +82,9 @@ OPTIMIZED_BENCHMARK_SETTINGS = (
 APP_PROFILE_SECONDS = 15
 APP_SAMPLE_POLL_SECONDS = 0.1
 APP_SAMPLED_PROCESS = 2
+# XCUITest spawns the app suspended and resumes it itself; attaching the
+# profiler before that resume makes the launch fail, so wait until it runs.
+APP_PROFILE_ATTACH_DELAY_SECONDS = 2.0
 APP_PROCESS_PATTERN = r"OpenMates\.app/(Contents/MacOS/)?OpenMates( |$)"
 TEST_ALLOWANCE_SECONDS = 300
 # Private startup preserves all three process relaunches and their independent
@@ -486,6 +489,8 @@ def sample_app_process(folder: Path, stop) -> None:
             seen.append(found[0])
         if len(seen) < APP_SAMPLED_PROCESS:
             continue
+        if stop.wait(APP_PROFILE_ATTACH_DELAY_SECONDS):
+            return
         trace = folder / f"launch-pid{found[0]}.trace"
         steps = [
             ["xcrun", "xctrace", "record", "--template", "Time Profiler", "--attach", found[0],
@@ -498,6 +503,8 @@ def sample_app_process(folder: Path, stop) -> None:
         ]
         with (folder / "sampler.log").open("a") as log:
             for step in steps:
+                log.write(f"{step[2]} start\n")
+                log.flush()
                 done = subprocess.run(step, capture_output=True, text=True, check=False,
                                       timeout=APP_PROFILE_SECONDS + 120)
                 log.write(f"{step[2]} exit {done.returncode}\n{done.stderr[-2000:]}\n")
