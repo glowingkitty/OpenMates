@@ -200,7 +200,8 @@ def test_counts_split_working_idle_stopped_done_and_archived(monkeypatch):
     assert (summary["running"], summary["working"], summary["idle_running"]) == (4, 3, 1)
     assert (summary["idle_stopped"], summary["done_to_archive"], summary["archived"]) == (1, 1, 1)
     assert summary["queued_new_chats"] == 2 and summary["max_running"] == 20
-    assert "4 running of max 16" in lc.status_line(summary)
+    assert summary["slots_held"] == 3  # the idle c2 holds none
+    assert "3 of 16 slots held by chats at work, 4 processes running" in lc.status_line(summary)
 
 
 def test_config_file_overrides_defaults_and_rejects_unknown_keys(tmp_path):
@@ -753,6 +754,7 @@ def test_admission_reserves_last_slot_for_production(monkeypatch):
     monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
     monkeypatch.setattr(lc.host_load_guard, "gate", lambda _: None)
     monkeypatch.setattr(lc.codex_chats, "live", lambda: {str(i): {} for i in range(15)})
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW, "working"))
     requests = []
 
     def reap(args, config, room):
@@ -777,6 +779,7 @@ def test_only_production_waiter_may_use_last_free_slot(tmp_path, monkeypatch):
     monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
     running = {str(i): {} for i in range(15)}
     monkeypatch.setattr(lc.codex_chats, "live", lambda: running)
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW, "working"))
     observed = []
 
     def deliver(waiters, *args, room, **kwargs):
@@ -787,3 +790,61 @@ def test_only_production_waiter_may_use_last_free_slot(tmp_path, monkeypatch):
     config = dict(CONFIG, production_chat_ids=["release"])
     lc.wake_waiting({"release": [], "ordinary": [], "1": []}, [], {}, tmp_path, NOW, config)
     assert observed == [({"release", "1"}, 1)]
+
+
+def test_admission_counts_only_chats_at_work_and_lists_them(tmp_path, monkeypatch, capsys):
+    """2026-11-27: start_chat refused with "15 chats run (admission limit 15)" while 2 chats worked;
+    11 idle Codex chats, refused for Codex's usage limit, and an idle terminal chat filled the count."""
+    monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
+    monkeypatch.setattr(lc, "load_config", lambda: dict(CONFIG))
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
+    monkeypatch.setattr(lc.host_load_guard, "gate", lambda _: None)
+    monkeypatch.setattr(lc.time, "time", lambda: NOW)
+    at_work = [chat(session_id="busy", status="busy", title="Apple notifications"),
+               chat(session_id="recent", last_activity=NOW - 60),
+               chat(session_id="ci", children=[*MCP, "/bin/bash -c cargo test"])]
+    idle = [chat(session_id="asks", pushed_question="Ship it?"), chat(session_id="term", kind="terminal"),
+            chat(session_id="pinned", protected=True), chat(session_id="between-continues")]
+    codex = {f"codex-{n}": {"pid": 100 + n} for n in range(11)}
+    codex["codex-working"] = {"pid": 200}
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: codex)
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda cid: (
+        (NOW - 10, "working") if cid == "codex-working" else (NOW - 90 * 60, "idle")))
+    monkeypatch.setattr(lc, "_children", lambda pid: [])
+    left = at_work + idle
+    monkeypatch.setattr(lc, "run_cycle", lambda args, config, room: (left, 0))
+    holding, not_counted = lc.slot_holders(left, NOW, CONFIG, tmp_path)
+    assert sorted(row["session_id"] for row in holding) == ["busy", "ci", "codex-working", "recent"]
+    assert len(not_counted) == 15
+    assert lc.main(["admit"]) == 0  # 4 of 15 slots held: start_chat works again
+
+    left = at_work + [chat(session_id=f"busy-{n}", status="busy") for n in range(11)] + idle
+    assert lc.main(["admit"]) == lc.EXIT_NO_ROOM
+    out = capsys.readouterr().out
+    assert out.startswith("no room: 15 chats hold a slot (admission limit 15); counted:")
+    assert "busy claude/pane 'Apple notifications': state is busy" in out
+    assert "codex-wo codex/codex '(untitled)': turn running" in out
+    assert "running but idle, not counted (15):" in out and "asks claude/pane" in out
+
+
+def test_codex_chat_with_a_pending_message_holds_its_slot(tmp_path, monkeypatch):
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW - HOUR, "idle"))
+    monkeypatch.setattr(lc, "_children", lambda pid: [])
+    assert lc.codex_slot_reason("c", 1, NOW, CONFIG, tmp_path) == ""
+    (tmp_path / "connector-deliveries.json").write_text(json.dumps({"c": {}}))
+    assert lc.codex_slot_reason("c", 1, NOW, CONFIG, tmp_path) == "a message or background process is pending"
+
+
+def test_codex_chats_that_reported_done_are_archived_without_a_reopen():
+    """28 stopped Codex chats sat in "done to archive": the connector reopens a Claude chat to
+    /exit it, which a Codex chat has no use for (no app session, cwd gone)."""
+    registry = {"done": {"state": "stopped", "kind": "codex", "reason": "reported done", "last_activity": iso(NOW)},
+                "old": {"state": "done", "kind": "codex", "reason": "reported done", "last_activity": iso(NOW)},
+                "asked": {"state": "done", "kind": "codex", "reason": "asked the owner",
+                          "last_activity": iso(NOW - 30 * HOUR)},
+                "claude": {"state": "stopped", "kind": "pane", "reason": "reported done with a ✅ push",
+                           "last_activity": iso(NOW - 30 * HOUR)}}
+    lc.refresh_registry(registry, [], NOW, CONFIG)
+    assert registry["done"]["state"] == registry["old"]["state"] == "archived"
+    assert registry["asked"]["state"] == "done"  # waits on Marco: left for him
+    assert registry["claude"]["state"] == "done"

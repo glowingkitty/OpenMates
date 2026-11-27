@@ -194,3 +194,53 @@ def test_idle_waiting_codex_frees_slot_but_ready_active_and_held_chats_keep_it(h
                                signal_fn=lambda pid, sig: calls.append(pid))
     assert [entry["chat_id"] for entry in stopped] == [ids["parked"]]
     assert calls == [100]
+
+
+# contract-test: tooling
+def test_reap_stops_usage_refused_and_long_idle_chats_with_reopen_hints(home, monkeypatch):
+    """2026-11-27: 11 Codex chats whose turns Codex refused for its usage limit pushed nothing and
+    held admission slots for hours; nothing ever woke them."""
+    ids = {name: codex_chats.new_record(name, "gpt-6.2-sol", "medium", "/repo", False)["chat_id"]
+           for name in ("refused", "idle_long", "idle_short", "working", "refused_held")}
+    monkeypatch.setattr(codex_chats, "live", lambda: {cid: {"pid": n} for n, cid in enumerate(ids.values(), 100)})
+    ends = {ids["refused"]: (1000.0, "idle", "usage_limit_exceeded"), ids["idle_long"]: (1000.0, "idle", ""),
+            ids["idle_short"]: (4000.0, "idle", ""), ids["working"]: (1000.0, "working", ""),
+            ids["refused_held"]: (1000.0, "idle", "usage_limit_exceeded")}
+    monkeypatch.setattr(codex_chats, "turn_end", lambda cid: ends[cid])
+    monkeypatch.setattr(codex_chats, "last_times", lambda cid: (ends[cid][0], 900.0))
+    stopped = codex_chats.reap(lambda *_: {}, 3, set(), now=5000.0, act=False,
+                               can_suspend=lambda cid, _: cid != ids["refused_held"],
+                               idle_suspend_minutes=60, reset_at=lambda: 9999.0)
+    by_id = {entry["chat_id"]: entry for entry in stopped}
+    assert set(by_id) == {ids["refused"], ids["idle_long"]}
+    assert by_id[ids["refused"]]["reopen_at"] == 9999.0
+    assert by_id[ids["idle_long"]]["unfinished"] is True
+    # Without the lifecycle's can_suspend (old callers) nothing new is stopped.
+    assert codex_chats.reap(lambda *_: {}, 3, set(), now=5000.0, act=False) == []
+
+
+# contract-test: tooling
+def test_turn_end_reads_the_refusal_and_usage_skips_windowless_readings(home):
+    record = codex_chats.new_record("t", "gpt-6.2-sol", "medium", "/repo", False)
+    record["thread_id"] = THREAD
+    codex_chats.save(record)
+    weekly = {"used_percent": 100.0, "window_minutes": 10080, "resets_at": 1796299689}
+    _rollout(home, [
+        {"timestamp": "2026-11-27T10:41:54.699Z", "type": "event_msg", "payload": {"type": "task_started"}},
+        {"timestamp": "2026-11-27T10:41:55.754Z", "type": "event_msg",
+         "payload": {"type": "token_count", "rate_limits": {"limit_id": "codex", "primary": weekly}}},
+        {"timestamp": "2026-11-27T10:41:55.760Z", "type": "event_msg",
+         "payload": {"type": "token_count", "rate_limits": {"limit_id": "premium", "primary": None}}},
+        {"timestamp": "2026-11-27T10:41:55.762Z", "type": "event_msg",
+         "payload": {"type": "task_complete", "last_agent_message": None,
+                     "error": {"message": "usage limit", "codex_error_info": "usage_limit_exceeded"}}},
+    ])
+    assert codex_chats.turn_end(record["chat_id"])[1:] == ("idle", "usage_limit_exceeded")
+    assert codex_chats.turn_activity(record["chat_id"])[1] == "idle"
+    from datetime import datetime, timezone
+
+    reading, before = codex_chats.usage(), datetime(2026, 11, 27, 13, tzinfo=timezone.utc)
+    assert reading["weekly"]["used_percent"] == 100.0
+    assert codex_chats.exhausted_windows(reading, before) == ["weekly:2026-12-03T12:08:09+00:00"]
+    assert codex_chats.usage_reset_at(reading, before) == 1796299689.0
+    assert codex_chats.usage_reset_at(reading, datetime(2026, 12, 4, tzinfo=timezone.utc)) is None

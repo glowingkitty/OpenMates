@@ -34,6 +34,14 @@ starve the host-resources guard. This script keeps them in check:
                 (one implementation, in the connector) and it stops counting against the
                 app's session limit.
 
+Admission (`admit`, the dev connector's start_chat): a new chat needs a free slot of
+`admission_limit` (min(max_running, CPUs), less one kept for production releases). Only a chat
+at work holds a slot (slot_reason / codex_slot_reason); an idle running chat does not, and the
+refusal lists every chat it counted with why. 2026-11-27: 11 idle Codex chats, refused for
+Codex's usage limit, counted as running and blocked start_chat with 2 chats at work.
+Codex chats: codex_chats.reap stops one that reported done, asked, waits, was refused for the
+usage limit (a timer reopens it at the reset) or sat `codex_idle_suspend_minutes` without any.
+
 Cap: at most `max_running` (default 20) chat processes run at once. Beyond that, the
 longest-idle chat that may be suspended is stopped first. `admit` makes room for a
 new chat or says why it must wait; claude_dispatch.py queues the chat then, never
@@ -135,6 +143,7 @@ DEFAULTS = {
     "free_slots": 4,  # slots the wake leaves free for new chats
     "cap_question_idle_hours": 4.0,
     "pressure_idle_minutes": 15.0,
+    "codex_idle_suspend_minutes": 60.0,  # an idle Codex chat without ✅, ❓ or waiter is stopped after this
     "protected_chat_ids": [],  # operator pin, including across reap and capacity checks
     "production_chat_ids": [],  # owner-registered release chats may take the last slot
     "zellij_sessions": ["claude"],  # more via config.json
@@ -721,9 +730,96 @@ def refresh_registry(registry: dict[str, dict], live: list[Chat], now: float, co
         ):
             del registry[chat.session_id]
     for entry in registry.values():
-        if (entry["state"] == "stopped" and entry.get("reason") != BILLING_QUESTION
+        if (entry["state"] in ("stopped", "done") and entry.get("kind") == "codex"
+                and entry.get("reason") == CODEX_REPORTED_DONE):
+            # A Codex chat has no Claude app session to close: the stopped process is the whole
+            # archive. The connector's reopen-and-/exit never worked for them (cwd gone, no
+            # bridge), so 28 of them sat in "done to archive" (2026-11-27).
+            entry.update(state="archived", archived_at=entry.get("archived_at") or _utc(now))
+        elif (entry["state"] == "stopped" and entry.get("reason") != BILLING_QUESTION
                 and now - _iso(entry["last_activity"]) > config["done_hours"] * 3600):
             entry["state"] = "done"
+
+
+CODEX_REPORTED_DONE = "reported done"  # codex_chats.reap's reason for a ✅ chat
+CODEX_RESET_MESSAGE = ("[chat lifecycle] Codex usage has reset. Your last turn was refused for the usage limit, "
+                       "so continue the work where it stopped (if it is already done, say so in one line).")
+CODEX_UNKNOWN_RESET_HOURS = 6.0  # retry then when Codex reports no reset time
+
+
+def slot_reason(chat: Chat, now: float, config: dict) -> str:
+    """Why this running Claude chat holds an admission slot, or '' when it is idle.
+
+    Owner rule 2026-11-20, enforced for admission on 2026-11-27: only a chat at work holds a
+    slot (working, waiting on a permission, a background command, sub-agent or job, an
+    unanswered message, or active within `idle_stop_minutes`). An idle chat that waits on the
+    owner, is protected, started by hand or between continue prompts uses memory, which the
+    host-resources guard checks, but no slot.
+    """
+    if chat.status != "idle":
+        return f"state is {chat.status or 'unknown'}"
+    if chat.waiting_for:
+        return f"waits for {chat.waiting_for}"
+    if busy := [command for command in chat.children if TOOL_SERVER_MARKER not in command.lower()]:
+        return f"background process: {busy[0][:50]}"
+    if chat.agents:
+        return f"background sub-agent: {chat.agents[0][:50]}"
+    if waiting := [waiter for waiter in chat.waiters if waiter.blocks_stop(now)]:
+        return "waits on " + waiting[0].label(now)
+    if chat.undelivered and not waiting_on_billing(chat):
+        return "a finished job's result has not reached it"
+    if chat.last_speaker == "user":
+        return "its last message has no reply"
+    idle = now - chat.last_activity
+    if idle <= config["idle_stop_minutes"] * 60:
+        return f"active {idle / 60:.0f} min ago"
+    return ""
+
+
+def codex_slot_reason(chat_id: str, pid: int, now: float, config: dict, directory: Path) -> str:
+    """Why a running Codex chat holds an admission slot, or '' when it is idle (see slot_reason)."""
+    activity, state = codex_chats.turn_activity(chat_id)
+    if state != "idle":
+        return "turn running" if state else "no finished turn yet"
+    if now - activity <= config["idle_stop_minutes"] * 60:
+        return f"active {(now - activity) / 60:.0f} min ago"
+    if not codex_can_suspend(chat_id, pid, directory, config):
+        return "a message or background process is pending"
+    return ""
+
+
+def slot_holders(live: list[Chat], now: float, config: dict, directory: Path,
+                 codex_live: dict[str, dict] | None = None) -> tuple[list[dict], list[dict]]:
+    """(chats holding an admission slot, running chats that do not), one row per chat."""
+    holding: list[dict] = []
+    idle: list[dict] = []
+    claude_ids = {chat.session_id for chat in live}
+    for chat in live:
+        row = {"session_id": chat.session_id, "title": chat.title or chat.name, "engine": "claude",
+               "kind": chat.kind, "last_activity": _utc(chat.last_activity) if chat.last_activity else "",
+               "reason": slot_reason(chat, now, config)}
+        (holding if row["reason"] else idle).append(row)
+    codex_live = codex_chats.live() if codex_live is None else codex_live
+    for chat_id, info in codex_live.items():
+        if chat_id in claude_ids:
+            continue
+        activity = codex_chats.turn_activity(chat_id)[0]
+        record = (codex_chats.load(chat_id) if codex_chats.UUID_RE.match(chat_id) else None) or {}
+        row = {"session_id": chat_id, "title": str(record.get("title") or ""), "engine": "codex", "kind": "codex",
+               "last_activity": _utc(activity) if activity else "",
+               "reason": codex_slot_reason(chat_id, int(info.get("pid") or 0), now, config, directory)}
+        (holding if row["reason"] else idle).append(row)
+    return holding, idle
+
+
+def slot_lines(rows: list[dict], now: float) -> list[str]:
+    lines = []
+    for row in rows:
+        ago = f"{(now - _iso(row['last_activity'])) / 60:.0f} min ago" if row["last_activity"] else "unknown"
+        title = " ".join((row["title"] or "(untitled)").split())[:60]
+        lines.append(f"  - {row['session_id'][:8]} {row['engine']}/{row['kind']} '{title}': "
+                     f"{row['reason'] or 'idle'} (last activity {ago})")
+    return lines
 
 
 def counts(live: list[Chat], registry: dict[str, dict], now: float, config: dict, own: str,
@@ -734,7 +830,10 @@ def counts(live: list[Chat], registry: dict[str, dict], now: float, config: dict
     codex_running = set(codex_chats.live()) - {chat.session_id for chat in live}
     working += sum(codex_chats.turn_activity(chat_id)[1] == "working" for chat_id in codex_running)
     running = len(live) + len(codex_running)
-    return {
+    holding, _idle = slot_holders(live, now, config, state_dir(),
+                                  {chat_id: info for chat_id, info in codex_chats.live().items()
+                                   if chat_id in codex_running})
+    return {"slots_held": len(holding),
         "at": _utc(now), "running": running, "running_claude": len(live),
         "running_codex": len(codex_running), "max_running": int(config["max_running"]),
         "admission_limit": admission_limit(config, production=True),
@@ -1201,9 +1300,9 @@ def unfinished_stalled(registry: dict[str, dict], status: dict | None = None) ->
 
 def status_line(summary: dict) -> str:
     limit = summary.get("admission_limit", summary["max_running"])
-    return (f"Chats: {summary['running']} running of max {limit} "
-            f"({summary['working']} working, {summary['idle_running']} idle but kept for an open question "
-            f"or unanswered message), "
+    held = summary.get("slots_held", summary["running"])
+    return (f"Chats: {held} of {limit} slots held by chats at work, {summary['running']} processes running "
+            f"({summary['working']} working, {summary['idle_running']} idle; idle chats hold no slot), "
             f"{summary['idle_stopped']} idle-stopped, {summary['done_to_archive']} done to archive, "
             f"{summary['archived']} archived, {summary['queued_new_chats']} new chats queued, "
             f"{summary.get('waiting_running', 0)} running and {summary.get('waiting_closed', 0)} closed chats "
@@ -1242,14 +1341,20 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
         for entry in ([] if UNREADABLE in waiters else
                       codex_chats.reap(pushed, config["idle_stop_minutes"], set(waiters), now,
                                        can_suspend=lambda cid, pid: codex_can_suspend(cid, pid, directory, config),
-                                       ready={cid for cid, items in waiters.items() if any(w.ready for w in items)})):
+                                       ready={cid for cid, items in waiters.items() if any(w.ready for w in items)},
+                                       idle_suspend_minutes=float(config["codex_idle_suspend_minutes"]),
+                                       reset_at=codex_chats.usage_reset_at)):
             log_event(directory, {"event": "codex_stopped", "session_id": entry["chat_id"], "why": entry["why"]})
             chat_id = entry["chat_id"]
             prior = registry.setdefault(chat_id, {})
+            title = str((codex_chats.load(chat_id) or {}).get("title") or prior.get("title") or "")
             prior.update(state="archived" if entry.get("archived") else "stopped", stopped_at=_utc(now),
-                         last_activity=_utc(now), kind="codex", reason=entry["why"])
+                         last_activity=_utc(now), kind="codex", reason=entry["why"], title=title)
             if entry.get("archived"):
                 prior["archived_at"] = _utc(now)
+            if "reopen_at" in entry:  # its refused prompt is not lost: a timer reopens it after the reset
+                at = entry["reopen_at"] or now + CODEX_UNKNOWN_RESET_HOURS * 3600
+                claude_chat_waiters.add(directory, chat_id, "timer", CODEX_RESET_MESSAGE, at=max(at, now + 60))
     idle_minutes = (min(config["pressure_idle_minutes"], config["idle_stop_minutes"])
                     if getattr(args, "pressure", False) else None)
     plan: list[tuple[Chat, Decision]] = []
@@ -1382,7 +1487,7 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
         return outcome
 
     live_codex = codex_chats.live()
-    free = admission_limit(config, production=True) - len({chat.session_id for chat in left} | live_codex.keys())
+    free = admission_limit(config, production=True) - len(slot_holders(left, now, config, directory, live_codex)[0])
     reserved = int(config["free_slots"])
     room = max(0, min(int(config["wake_batch"]), free - max(1, reserved)))
     owner_waits = {chat.session_id for chat in left if chat.protected or waiting_on_billing(chat)}
@@ -1526,11 +1631,13 @@ def main(argv: list[str] | None = None) -> int:
         args.command = "reap"
         limit = admission_limit(config, production=args.production)
         left, _ = run_cycle(args, config, room=1 + int(config["max_running"]) - limit)
-        running = len({chat.session_id for chat in left} | codex_chats.live().keys())
-        if running < limit:
+        now = time.time()
+        holding, idle = slot_holders(left, now, config, state_dir())
+        if len(holding) < limit:
             return 0
-        print(f"no room: {running} chats run (admission limit {limit}) and none may be suspended now "
-              "(all working, waiting or recently active)")
+        print("\n".join([f"no room: {len(holding)} chats hold a slot (admission limit {limit}); counted:",
+                         *slot_lines(holding, now)]
+                        + ([f"running but idle, not counted ({len(idle)}):", *slot_lines(idle, now)] if idle else [])))
         return EXIT_NO_ROOM
     _, failed = run_cycle(args, config)
     if args.command == "reap" and not args.dry_run and queued_launches():

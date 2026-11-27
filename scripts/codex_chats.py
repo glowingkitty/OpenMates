@@ -497,12 +497,25 @@ def last_times(chat_id: str) -> tuple[float, float]:
     return activity, prompt
 
 
+USAGE_LIMIT_ERROR = "usage_limit_exceeded"
+
+
 def turn_activity(chat_id: str) -> tuple[float, str]:
     """Rollout activity time and most recent turn boundary, using a bounded read."""
+    changed, state, _error = turn_end(chat_id)
+    return changed, state
+
+
+def turn_end(chat_id: str) -> tuple[float, str, str]:
+    """(rollout activity time, working|idle|'', error code of the last finished turn or '').
+
+    A turn Codex refused (2026-11-27: `usage_limit_exceeded` until the weekly reset) ends
+    with `task_complete` carrying an error and no answer, so the chat never pushes ✅ or ❓.
+    """
     record = load(chat_id) or {}
     path = rollout_path(record.get("thread_id") or "")
     if path is None:
-        return 0, ""
+        return 0, "", ""
     try:
         changed = path.stat().st_mtime
         with path.open("rb") as stream:
@@ -512,7 +525,7 @@ def turn_activity(chat_id: str) -> tuple[float, str]:
                 stream.readline()
             rows = stream.read().splitlines()
     except FileNotFoundError:
-        return 0, ""
+        return 0, "", ""
     for line in reversed(rows):
         if b'"event_msg"' not in line:
             continue
@@ -520,22 +533,41 @@ def turn_activity(chat_id: str) -> tuple[float, str]:
             row = json.loads(line)
         except (ValueError, UnicodeError):
             continue
-        event = (row.get("payload") or {}).get("type")
+        payload = row.get("payload") or {}
+        event = payload.get("type")
         if event in ("user_message", "task_started"):
-            return changed, "working"
+            return changed, "working", ""
         if event in ("task_complete", "turn_aborted"):
-            return changed, "idle"
-    return changed, ""
+            error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+            return changed, "idle", str(error.get("codex_error_info") or "")
+    return changed, "", ""
+
+
+def usage_reset_at(reading: dict | None = None, now: datetime | None = None) -> float | None:
+    """Epoch time when every exhausted Codex window has reset; None when none is exhausted or known."""
+    reading = usage() if reading is None else reading
+    exhausted = {item.split(":", 1)[0] for item in exhausted_windows(reading, now)}
+    resets = [datetime.fromisoformat(reading[window]["resets_at"]).timestamp() for window in exhausted
+              if (reading.get(window) or {}).get("resets_at")]
+    return max(resets) if resets else None
 
 
 def reap(pushed, idle_minutes: float, waiting: set[str], now: float, act: bool = True,
-         signal_fn=os.kill, can_suspend=None, ready: set[str] | None = None) -> list[dict[str, Any]]:
+         signal_fn=os.kill, can_suspend=None, ready: set[str] | None = None,
+         idle_suspend_minutes: float | None = None, reset_at=None) -> list[dict[str, Any]]:
     """Stop live Codex chats that reported done (✅) or asked the owner (❓) and sat idle since.
 
     Same rule as Claude pane chats (claude_idle_chats.py): a chat is closed only when it
     pushed done or asked, waits on no waiter and its last step is `idle_minutes` old. A new
     message (dev connector send_message) or its waiter reopens it with `codex resume`.
     `pushed(chat_id, last_prompt_at)` returns the chat's push marker ({} when none).
+
+    With `can_suspend` (the lifecycle), two more idle chats are stopped, since nothing ever
+    wakes an idle Codex process (2026-11-27: 11 of them held 11 of 15 slots for hours):
+      * its last turn was refused for the usage limit: stopped at once; the entry carries
+        `reopen_at` (`reset_at()`, the limit's reset) so a timer reopens it to continue,
+      * idle `idle_suspend_minutes` without ✅, ❓ or waiter: stopped with `unfinished`; its
+        worktree stays snapshotted and listed, and a new message reopens it.
     """
     import signal
 
@@ -546,17 +578,30 @@ def reap(pushed, idle_minutes: float, waiting: set[str], now: float, act: bool =
         waits = chat_id in waiting
         if waits and can_suspend is None:
             continue
+        error = ""
         if can_suspend is not None:
             activity, state = turn_activity(chat_id)
             if state != "idle" or now - activity < idle_minutes * 60 or not can_suspend(chat_id, info["pid"]):
                 continue
+            error = turn_end(chat_id)[2]
         activity, prompt = last_times(chat_id)
         marker = pushed(chat_id, prompt) or {}
         kind = marker.get("kind")
-        if (kind not in ("✅", "❓") and not waits) or now - max(activity, float(marker.get("ts", 0))) < idle_minutes * 60:
+        quiet = now - max(activity, float(marker.get("ts", 0)))
+        extra: dict[str, Any] = {}
+        if error == USAGE_LIMIT_ERROR and not waits:
+            reason = "Codex usage limit reached; reopens when the limit resets"
+            extra["reopen_at"] = reset_at() if reset_at else None
+        elif kind in ("✅", "❓") or waits:
+            if quiet < idle_minutes * 60:
+                continue
+            reason = "registered wait" if waits else "reported done" if kind == "✅" else "asked the owner"
+        elif can_suspend is not None and idle_suspend_minutes is not None and quiet >= idle_suspend_minutes * 60:
+            reason = f"idle {quiet / 60:.0f} min without ✅, question or waiter"
+            extra["unfinished"] = True
+        else:
             continue
-        reason = "registered wait" if waits else "reported done" if kind == "✅" else "asked the owner"
-        entry = {"chat_id": chat_id, "pid": info["pid"], "why": reason}
+        entry = {"chat_id": chat_id, "pid": info["pid"], "why": reason, **extra}
         if marker.get("source") == "chat_compaction_handoff":
             entry["archived"] = True
         if act:
@@ -645,6 +690,10 @@ def usage(newest: int = 20) -> dict[str, Any]:
                 observed = datetime.fromisoformat(str(item.get("timestamp")).replace("Z", "+00:00")).timestamp()
             except ValueError:
                 observed = path.stat().st_mtime
+            # Codex writes one reading per limit id; the "premium" one has no windows and
+            # hid an exhausted weekly limit (2026-11-27), so only readings with a window count.
+            if not any(_window(limits.get(key), observed) for key in ("primary", "secondary")):
+                continue
             if best is None or observed > best[0]:
                 best = (observed, limits)
     if best is None:
