@@ -310,3 +310,32 @@ def test_apple_build_compiles_macos_even_when_the_ios_build_fails(tmp_path, monk
     assert results[-1]["failures"] == ["apple/B.swift:3:4: error: mac only"]
     errors = (tmp_path / "test-results" / "apple-build" / "swift-errors.txt").read_text().splitlines()
     assert errors == ["apple/A.swift:1:2: error: ios only", "apple/B.swift:3:4: error: mac only"]
+
+
+def test_only_private_startup_builds_with_the_release_optimizer():
+    for specs in (sorted(ci_apple.STARTUP_BENCHMARK_SPECS), sorted(ci_apple.MAC_STARTUP_BENCHMARK_SPECS)):
+        build = ci_apple.xcode_plan("apple-ui", Path("/out"), specs, benchmark=True)[2][1]
+        assert all(setting in build for setting in ci_apple.OPTIMIZED_BENCHMARK_SETTINGS)
+    ordinary = ci_apple.xcode_plan("apple-ui", Path("/out"), ["OpenMatesUITests/A/testB"])[2][1]
+    assert not any(setting in ordinary for setting in ci_apple.OPTIMIZED_BENCHMARK_SETTINGS)
+
+
+def test_sampler_records_only_the_first_cached_relaunch(tmp_path, monkeypatch):
+    import subprocess
+
+    pids = iter(["11", "11", "22", "22", "33"])
+    sampled: list[str] = []
+
+    class Stop:
+        def wait(self, _seconds):
+            return False
+
+    def fake_run(command, **_kwargs):
+        if command[0] == "pgrep":
+            return subprocess.CompletedProcess(command, 0, stdout=next(pids) + "\n")
+        sampled.append(command[1])
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    ci_apple.sample_app_process(tmp_path / "samples", Stop())
+    assert sampled == ["22", "22"]

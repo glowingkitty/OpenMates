@@ -1628,6 +1628,37 @@ jobs:
           OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
           OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
           OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+      # The web baseline runs on this same runner right after the Apple test, so
+      # both clients are compared under one machine, network and account state.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        with:
+          package_json_file: subject/package.json
+      - name: Install the same-runner web benchmark
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 20
+        run: |
+          umask 077
+          mkdir -p test-results/apple-ui/private-web
+          pnpm install --frozen-lockfile > test-results/apple-ui/private-web/install.log 2>&1
+          pnpm --dir frontend/apps/web_app exec playwright install chromium >> test-results/apple-ui/private-web/install.log 2>&1
+      - name: Measure web startup and existing chats on the same runner
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 30
+        working-directory: subject/frontend/apps/web_app
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: https://app.dev.openmates.org
+          OPENMATES_PRIVATE_ACCOUNT_TIMINGS: '1'
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+        run: |
+          umask 077
+          out="$GITHUB_WORKSPACE/subject/test-results/apple-ui/private-web"
+          mkdir -p "$out"
+          PLAYWRIGHT_JSON_OUTPUT_FILE="$out/results.json" pnpm exec playwright test tests/personal-devtest-chat-timings.spec.ts \
+            --retries=0 --workers=1 --reporter=json --output="$out/playwright" > "$out/runner.log" 2>&1 \
+            || echo "::warning::Same-runner web benchmark failed. See encrypted evidence."
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -1675,6 +1706,9 @@ jobs:
           output=test-results/apple-ui
           test -f "$output/private-xcode.log" || exit 0
           files=(private-xcode.log)
+          for extra in private-samples private-web; do
+            if test -d "$output/$extra"; then files+=("$extra"); fi
+          done
           if test -d "$output/OpenMatesUITests.xcresult"; then
             xcrun xcresulttool export attachments --path "$output/OpenMatesUITests.xcresult" --output-path "$output/attachments" \
               > "$output/private-export.log" 2>&1 || true

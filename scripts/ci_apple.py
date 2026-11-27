@@ -70,6 +70,17 @@ MAC_STARTUP_BENCHMARK_SPECS = {
 PERSONAL_CREDENTIAL_KEYS = tuple(
     f"OPENMATES_PERSONAL_TEST_ACOUNT_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")
 )
+# Release optimisation for the private startup benchmark (the Release defaults).
+OPTIMIZED_BENCHMARK_SETTINGS = (
+    "SWIFT_OPTIMIZATION_LEVEL=-O",
+    "SWIFT_COMPILATION_MODE=wholemodule",
+    "GCC_OPTIMIZATION_LEVEL=s",
+)
+# Stack samples of the benchmarked app process: where its main thread spends startup.
+APP_SAMPLE_SECONDS = 2
+APP_SAMPLE_POLL_SECONDS = 0.2
+APP_SAMPLE_LIMIT = 20
+APP_SAMPLED_PROCESS = 2
 TEST_ALLOWANCE_SECONDS = 300
 # Private startup preserves all three process relaunches and their independent
 # foreground, sidebar, reconciliation and quiet-process measurements.
@@ -234,6 +245,10 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
     # fixtures seed the core's cached chat list). They are always set together; a Release build
     # with the condition fails to compile. The core and TestFlight lanes never set either.
     settings += [TEST_SUPPORT_SETTING, TEST_SUPPORT_SWIFT_FLAGS]
+    if startup_platform:
+        # Timings must reflect shipped code: the Release optimizer on the Debug
+        # configuration that still compiles the benchmark's timing probes.
+        settings += list(OPTIMIZED_BENCHMARK_SETTINGS)
     # One build per job, for every lane. Xcode's "Continue building after errors" compiles
     # every reachable file, so a failed build lists all Swift errors instead of the first batch.
     build = [
@@ -432,11 +447,48 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
         raise ValueError("Invalid personal benchmark credential format")
     with os.fdopen(os.open(credential_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as handle:
         handle.writelines(f"{key}={value}\n" for key, value in credentials.items())
+    import threading
+
+    stop = threading.Event()
+    sampler = threading.Thread(target=sample_app_process, args=(output / "private-samples", stop), daemon=True)
+    sampler.start()
     try:
         with (output / "private-xcode.log").open("w") as log:
             return subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=False).returncode
     finally:
+        stop.set()
+        sampler.join(timeout=APP_SAMPLE_SECONDS + 5)
         credential_file.unlink()
+
+
+def sample_app_process(folder: Path, stop) -> None:
+    """Record `sample` call stacks of exactly one launched OpenMates app process.
+
+    The macOS app and the iOS Simulator app are both host processes, so the
+    host's `sample` tool sees them. Only the second distinct process (the first
+    cached relaunch after sign-in) is sampled, back to back, so the other
+    launches keep undisturbed timings. Output stays in the private evidence.
+    """
+    import subprocess
+
+    folder.mkdir(parents=True, exist_ok=True)
+    seen: list[str] = []
+    taken = 0
+    while taken < APP_SAMPLE_LIMIT and not stop.wait(APP_SAMPLE_POLL_SECONDS):
+        found = subprocess.run(["pgrep", "-n", "-f", r"OpenMates\.app/(Contents/MacOS/)?OpenMates$"],
+                               capture_output=True, text=True, check=False).stdout.split()
+        if not found:
+            continue
+        if found[0] not in seen:
+            seen.append(found[0])
+        if len(seen) != APP_SAMPLED_PROCESS or found[0] != seen[-1]:
+            if len(seen) > APP_SAMPLED_PROCESS:
+                return
+            continue
+        taken += 1
+        target = folder / f"sample-{taken:02d}-pid{found[0]}.txt"
+        subprocess.run(["sample", found[0], str(APP_SAMPLE_SECONDS), "-mayDie", "-file", str(target)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
