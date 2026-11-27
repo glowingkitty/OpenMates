@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -76,10 +77,10 @@ OPTIMIZED_BENCHMARK_SETTINGS = (
     "SWIFT_COMPILATION_MODE=wholemodule",
     "GCC_OPTIMIZATION_LEVEL=s",
 )
-# Stack samples of the benchmarked app process: where its main thread spends startup.
-APP_SAMPLE_SECONDS = 2
-APP_SAMPLE_POLL_SECONDS = 0.2
-APP_SAMPLE_LIMIT = 20
+# Time Profiler trace of one benchmarked app process: where its main thread
+# spends startup. The host `sample` tool records no frames of Simulator apps.
+APP_PROFILE_SECONDS = 15
+APP_SAMPLE_POLL_SECONDS = 0.1
 APP_SAMPLED_PROCESS = 2
 APP_PROCESS_PATTERN = r"OpenMates\.app/(Contents/MacOS/)?OpenMates( |$)"
 TEST_ALLOWANCE_SECONDS = 300
@@ -458,24 +459,24 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
             return subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=False).returncode
     finally:
         stop.set()
-        sampler.join(timeout=APP_SAMPLE_SECONDS + 5)
+        sampler.join(timeout=APP_PROFILE_SECONDS + 240)
         credential_file.unlink()
 
 
 def sample_app_process(folder: Path, stop) -> None:
-    """Record `sample` call stacks of exactly one launched OpenMates app process.
+    """Record a Time Profiler trace of exactly one launched OpenMates app process.
 
-    The macOS app and the iOS Simulator app are both host processes, so the
-    host's `sample` tool sees them. Only the second distinct process (the first
-    cached relaunch after sign-in) is sampled, back to back, so the other
-    launches keep undisturbed timings. Output stays in the private evidence.
+    The macOS app and the iOS Simulator app are both host processes. Only the
+    second distinct process (the first cached relaunch after sign-in) is
+    profiled, so the other launches keep undisturbed timings; that launch is
+    left out of the medians. The trace and its exported time-profile table
+    stay in the private evidence; failures are logged beside them.
     """
     import subprocess
 
     folder.mkdir(parents=True, exist_ok=True)
     seen: list[str] = []
-    taken = 0
-    while taken < APP_SAMPLE_LIMIT and not stop.wait(APP_SAMPLE_POLL_SECONDS):
+    while not stop.wait(APP_SAMPLE_POLL_SECONDS):
         # The app is launched with test arguments after its executable path.
         found = subprocess.run(["pgrep", "-n", "-f", APP_PROCESS_PATTERN],
                                capture_output=True, text=True, check=False).stdout.split()
@@ -483,16 +484,26 @@ def sample_app_process(folder: Path, stop) -> None:
             continue
         if found[0] not in seen:
             seen.append(found[0])
-        if len(seen) != APP_SAMPLED_PROCESS or found[0] != seen[-1]:
-            if len(seen) > APP_SAMPLED_PROCESS:
-                return
+        if len(seen) < APP_SAMPLED_PROCESS:
             continue
-        taken += 1
-        target = folder / f"sample-{taken:02d}-pid{found[0]}.txt"
-        sampled = subprocess.run(["sample", found[0], str(APP_SAMPLE_SECONDS), "-mayDie", "-file", str(target)],
-                                 capture_output=True, text=True, check=False)
+        trace = folder / f"launch-pid{found[0]}.trace"
+        steps = [
+            ["xcrun", "xctrace", "record", "--template", "Time Profiler", "--attach", found[0],
+             "--time-limit", f"{APP_PROFILE_SECONDS}s", "--output", str(trace), "--no-prompt"],
+            ["xcrun", "xctrace", "export", "--input", str(trace), "--toc",
+             "--output", str(folder / "toc.xml")],
+            ["xcrun", "xctrace", "export", "--input", str(trace), "--xpath",
+             '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]',
+             "--output", str(folder / "time-profile.xml")],
+        ]
         with (folder / "sampler.log").open("a") as log:
-            log.write(f"sample {taken} pid-index {len(seen)} exit {sampled.returncode}\n")
+            for step in steps:
+                done = subprocess.run(step, capture_output=True, text=True, check=False,
+                                      timeout=APP_PROFILE_SECONDS + 120)
+                log.write(f"{step[2]} exit {done.returncode}\n{done.stderr[-2000:]}\n")
+        # The exported table holds every sampled stack; the raw bundle is large.
+        shutil.rmtree(trace, ignore_errors=True)
+        return
 
 
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
