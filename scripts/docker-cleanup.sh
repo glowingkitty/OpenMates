@@ -100,6 +100,16 @@ run_docker "Capping unused BuildKit cache at ${CACHE_KEEP_MB}MB (budget ${BUDGET
 # aged dangling images; Docker also protects container-referenced images.
 run_docker "Pruning dangling images older than ${IMAGE_AGE_FILTER#until=}:" image prune -f --filter "$IMAGE_AGE_FILTER" || true
 
+# Tagged images no container uses (old builds, rollback tags) used to be kept
+# forever, so images grew past their budget while the disk filled (TASK-5181).
+# Over the image budget or from UNUSED_IMAGE_DISK_PERCENT used, remove unused
+# images older than a day; images of running or stopped containers stay.
+UNUSED_IMAGE_DISK_PERCENT="${OPENMATES_DOCKER_UNUSED_IMAGE_PERCENT:-85}"
+if [ "$IMAGES_MB" -gt "$BUDGET_MB" ] || [ "$DISK_USE_PCT" -ge "$UNUSED_IMAGE_DISK_PERCENT" ]; then
+    run_docker "Pruning unused images older than 24h (images ${IMAGES_MB}MB, budget ${BUDGET_MB}MB, disk ${DISK_USE_PCT}%):" \
+        image prune -a -f --filter "until=24h" || true
+fi
+
 DISK_USE_AFTER=$(df -P / | awk 'NR == 2 {gsub(/%/, "", $5); print $5}')
 DISK_FREE_AFTER=$(df -hP / | awk 'NR == 2 {print $4}')
 echo "Docker cleanup complete: ${DISK_USE_AFTER}% used, ${DISK_FREE_AFTER} free."

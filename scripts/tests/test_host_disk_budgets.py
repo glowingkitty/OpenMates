@@ -145,3 +145,34 @@ def test_dependency_folders_of_idle_worktrees_only(tmp_path, monkeypatch):
     units = budgets.dependency_units(projects)
     assert [unit.path for unit in units] == [worktrees / "agent-idle/frontend/node_modules"]
     assert units[0].last_used == pytest.approx(NOW - 40 * HOUR)
+
+
+def test_ci_evidence_and_runtime_scratch_of_idle_worktrees_are_units(tmp_path, monkeypatch):
+    """Downloaded CI results inside worktrees count toward the worktrees budget (TASK-5181)."""
+    projects = tmp_path / "projects"
+    worktrees = projects / "OpenMates/.openmates-agent-worktrees"
+    _folder(worktrees / "agent-idle/test-results/ci-runs/run", 40)
+    _folder(worktrees / "agent-idle/.runtime/proof-1", 40)
+    _folder(worktrees / "agent-idle/src", 40)
+    monkeypatch.setattr(usage, "worktree_roots", lambda projects_: [str(worktrees / "agent-idle")])
+    paths = {unit.path for unit in budgets.dependency_units(projects)}
+    assert paths == {worktrees / "agent-idle/test-results", worktrees / "agent-idle/.runtime"}
+
+
+def test_sibling_project_rust_target_goes_only_when_nothing_works_in_that_project(tmp_path, monkeypatch):
+    projects = tmp_path / "projects"
+    repo = projects / "OpenMates"
+    repo.mkdir(parents=True)
+    idle = _folder(projects / "idle-project/target", 30)
+    busy = _folder(projects / "busy-project/target", 40)
+    monkeypatch.setattr(usage, "rust_paths", lambda projects_: [str(idle), str(busy)])
+    monkeypatch.setattr(usage, "other_project_roots",
+                        lambda projects_: [str(projects / "busy-project"), str(projects / "idle-project")])
+    monkeypatch.setattr(usage, "worktree_roots", lambda projects_: [])
+    monkeypatch.setattr(usage, "filesystem", lambda path: {"percent": 60.0})
+    monkeypatch.setattr(budgets, "_size", lambda path: 20 * GB)
+    report = budgets.enforce(repo, apply=True, in_use=[str(projects / "busy-project/frontend")], cargo=[],
+                             references=set(), now=NOW, scratch_root=tmp_path / "scratch",
+                             measure=lambda cats: {"rust": 40 * GB})
+    assert [item["path"] for item in report["deleted"] if item["category"] == "rust"] == [str(idle)]
+    assert busy.is_dir() and report["skipped"]["in_use"] == 1

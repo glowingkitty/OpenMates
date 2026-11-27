@@ -7,6 +7,7 @@ import argparse
 import fcntl
 import json
 import re
+import sqlite3
 import subprocess
 import sys
 import time
@@ -32,6 +33,13 @@ WAKE_GRACE = 120
 ORDINARY_WAKE_GRACE = 300
 MAX_WAKE_ATTEMPTS = 2
 RELEASE_STALL = 10 * 60
+# A chat held by the disk coordinator is waiting, not stalled: queue the
+# coordinator's cleanup instead of waking it or alerting Marco, and alert only
+# when the wait outlasts DISK_WAIT_ALERT (cleanup could not free enough).
+DISK_WAIT = re.compile(r"\bdisk (?:space|capacity|reserve|full)\b|\bwaiting for (?:free )?(?:disk|space)\b"
+                       r"|\bfree (?:disk )?space\b", re.I)
+DISK_WAIT_ALERT = 2 * 3600
+DISK_CLEANUP_KINDS = ("host", "docker", "worktrees", "managed", "proof")
 USER_PAUSE = re.compile(r"owner(?:-requested)? pause|(?:paused|withdrawn) by (?:marco|owner)|owner authoriz|three-failure", re.I)
 PROMPT = ("The dev-host watchdog found unfinished work in this chat. Verify the current Task and worktree. "
           "Continue the authorized dev work and preserve any pending owner decisions. "
@@ -387,6 +395,41 @@ def current_cases(cases: dict, directory: Path, now: float, live: dict, status: 
     return dict(current.values())
 
 
+def disk_wait(incident: dict, coordinator=None) -> bool:
+    """True when the chat is held by disk capacity (its reason, or a waiting ledger request of its Task)."""
+    if DISK_WAIT.search(incident.get("reason") or ""):
+        return True
+    task = incident.get("task")
+    if not task:
+        return False
+    if coordinator is None:
+        import disk_coordinator
+
+        coordinator = disk_coordinator.configured(lifecycle.canonical_root())
+        if coordinator is None:
+            return False
+    try:
+        with coordinator.db() as db:
+            row = db.execute("SELECT 1 FROM requests WHERE state='waiting' AND task_id=? "
+                             "AND reason LIKE 'Waiting for disk capacity%' LIMIT 1", (task,)).fetchone()
+    except sqlite3.Error:
+        return False
+    return row is not None
+
+
+def queue_disk_cleanup(coordinator=None) -> bool:
+    """Ask the elected disk coordinator to run every cleanup kind now; False if it is not configured."""
+    import disk_coordinator
+
+    repository = lifecycle.canonical_root()
+    coordinator = coordinator or disk_coordinator.configured(repository)
+    if coordinator is None:
+        return False
+    for kind in DISK_CLEANUP_KINDS:
+        coordinator.enqueue_maintenance(repository, kind)
+    return True
+
+
 def attempt(chat_id: str, incident: dict, live: dict, codex: dict) -> str:
     prompt = PROMPT
     if incident.get("fresh_context"):
@@ -433,6 +476,10 @@ def display_title(title: str) -> str:
 
 def alert_text(incident: dict, mark: dict) -> str:
     title = display_title(incident.get("task_title") or incident.get("title") or "")
+    if mark.get("disk_wait"):
+        return (f"{title} is waiting for disk space.\n"
+                "Automatic cleanup ran but did not free enough space for its next step yet. "
+                "The chat continues by itself once space is free.")
     reason = friendly_reason(incident)
     result = "got no new step" if mark.get("outcome") == "ok" else "could not reach it safely"
     action = ("Check with the release team before continuing the rollout."
@@ -508,6 +555,30 @@ def cycle(directory: Path, now: float, *, dry_run: bool = False, notify: bool = 
             mark = {"kind": incident["kind"], "since": incident.get("since"),
                     "scope_step": incident["scope_step"], "task": incident.get("task")}
         marks[mark_key] = mark
+        if disk_wait(incident):
+            # Waiting for disk space is not a stall: trigger cleanup, never wake or count attempts.
+            mark.setdefault("attempts", 0)  # keeps the mark (and the wait start) across passes
+            mark.setdefault("disk_wait", now)
+            if now - mark.get("disk_cleanup_at", 0) >= ORDINARY_WAKE_GRACE:
+                try:
+                    queued = queue_disk_cleanup()
+                except (OSError, RuntimeError, sqlite3.Error) as error:
+                    queued = False
+                    incident["cleanup_error"] = type(error).__name__
+                mark["disk_cleanup_at"] = now
+                mark["disk_cleanup_queued"] = queued
+            incident["outcome"] = "Waiting for disk space; cleanup queued"
+            if (notify and incident["alertable"] and not mark.get("alerted")
+                    and now - mark["disk_wait"] >= DISK_WAIT_ALERT):
+                message = alert_text(incident, mark)
+                mark["alerted"] = chat_usage_watch.send(message, chats=[chat_id])
+                if mark["alerted"]:
+                    agent_question.record_push(lifecycle.canonical_root(), message, now, chat_id=chat_id,
+                                               title=incident["task_title"] or incident["title"],
+                                               task_id=incident["task"], source="chat-recovery-watchdog")
+            waiters._write_json(marks_path, marks)
+            continue
+        mark.pop("disk_wait", None)
         grace = WAKE_GRACE if incident.get("release") else ORDINARY_WAKE_GRACE
         last = mark.get("attempted_at")
         if last is not None and now - last < grace:

@@ -281,7 +281,8 @@ def _publish_reserved(
     if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", session_id):
         raise ValueError("Invalid session identity")
     if shutil.disk_usage(root).free < DISK_RESERVE + MAX_CHANGED_BYTES:
-        raise RuntimeError("CI snapshot would risk the 30 GiB dev-server disk reserve")
+        raise RuntimeError(f"Waiting for disk space: a CI snapshot would risk the {DISK_RESERVE // 1024**3} GiB "
+                           "dev-server disk reserve; the disk coordinator cleans up automatically")
     patch = None
     original_head = git(root, "rev-parse", "HEAD")
     if resolved_patch:

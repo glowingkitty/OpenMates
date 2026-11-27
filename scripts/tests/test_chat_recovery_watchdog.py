@@ -216,3 +216,44 @@ def test_live_ci_for_task_member_suppresses_old_collaboration_alert(tmp_path, mo
     cases = {CHAT: {"kind": "parked", "since": START}}
     assert watchdog.current_cases(cases, tmp_path, START + 3600, {}, waiting, set(),
                                   [task("Live collaboration", NEXT_CHAT)], {}) == {}
+
+
+def test_disk_wait_queues_cleanup_instead_of_alerting_as_stalled(tmp_path, monkeypatch):
+    """A chat held by the disk coordinator is waiting, not stalled (TASK-5181)."""
+    monkeypatch.setattr(watchdog.lifecycle, "live_chats", lambda *a, **k: [])
+    monkeypatch.setattr(watchdog.codex_chats, "live", lambda: {})
+    monkeypatch.setattr(watchdog, "protected_chats", lambda *a: set())
+    monkeypatch.setattr(watchdog, "cached_tasks", lambda _: [task("Apple startup")])
+    monkeypatch.setattr(watchdog, "problems", lambda *a: {
+        CHAT: {"kind": "parked", "title": "Apple startup",
+               "reason": "CI held: waiting for disk space before the snapshot", "since": 100}})
+    messages, attempts, cleanups = [], [], []
+    monkeypatch.setattr(watchdog.chat_usage_watch, "send", lambda text, **kw: messages.append(text) or True)
+    monkeypatch.setattr(watchdog, "attempt", lambda *a: attempts.append(a) or "ok")
+    monkeypatch.setattr(watchdog, "queue_disk_cleanup", lambda: cleanups.append(1) or True)
+    for timestamp in range(1900, 1900 + 7200, 300):
+        watchdog.cycle(tmp_path, timestamp)
+    assert attempts == [] and messages == []
+    assert len(cleanups) >= 2
+    watchdog.cycle(tmp_path, 1900 + 7200)
+    assert len(messages) == 1
+    assert messages[0].startswith("Apple startup is waiting for disk space.")
+    assert "stalled" not in messages[0]
+
+
+def test_disk_wait_matches_a_waiting_ledger_request_of_the_task(tmp_path):
+    import sqlite3
+
+    database = tmp_path / "ledger.sqlite3"
+    with sqlite3.connect(database) as db:
+        db.execute("CREATE TABLE requests (state TEXT, task_id TEXT, reason TEXT)")
+        db.execute("INSERT INTO requests VALUES ('waiting', ?, 'Waiting for disk capacity: 1 additional bytes')",
+                   (TASK,))
+
+    class Ledger:
+        def db(self):
+            connection = sqlite3.connect(database)
+            return connection
+
+    assert watchdog.disk_wait({"reason": "a work step", "task": TASK}, Ledger())
+    assert not watchdog.disk_wait({"reason": "a work step", "task": "other"}, Ledger())

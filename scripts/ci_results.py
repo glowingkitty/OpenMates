@@ -1,7 +1,7 @@
 """Bounded, cached retrieval of source-bound GitHub test artifacts.
 
 Results are downloaded once under the coordinator's lock. ZIP paths and expanded
-sizes are checked before extraction, and the dev server retains 30 GiB free.
+sizes are checked before extraction, and the dev server retains its 10 GiB disk floor.
 Credentials and private setup files are never valid returned evidence paths.
 See docs/plans/isolated-github-tests/plan.yml.
 """
@@ -1705,7 +1705,7 @@ def fetch(github, job: dict, root: Path) -> dict:
         from scripts.resource_budget import reserve
     except ModuleNotFoundError:
         from resource_budget import reserve
-    # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
+    # Retrieval keeps the host's 10 GiB floor (RESERVE, resource_budget.MIN_FREE).
     diagnostic_reserve = (
         260 * 1024**2
         if job.get("mode") == "rust-native-dev"
@@ -1850,7 +1850,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
         or shutil.disk_usage(root).free < RESERVE
     ):
         raise RuntimeError(
-            "Artifact retrieval would exceed size limit or 30 GiB reserve"
+            f"Artifact retrieval would exceed size limit or the {RESERVE // 1024**3} GiB disk reserve"
         )
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(

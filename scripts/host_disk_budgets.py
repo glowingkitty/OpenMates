@@ -9,10 +9,10 @@ PRESSURE_PERCENT or more.
 
 | category | unit | protected |
 |---|---|---|
-| rust (25 GB) | one cargo target folder, or one subfolder of the shared cache root | a cargo/rustc process names it or works in its worktree; used in the last hour |
+| rust (25 GB) | one cargo target folder (OpenMates checkouts, sibling projects, /tmp), or one subfolder of the shared cache root | a cargo/rustc process names it or works in its worktree; any process works in its sibling project; used in the last hour |
 | ci_artifacts (10 GB) | one run under test-results/ci-runs, logs/ci-runs, logs/ci-candidates | a non-terminal CI job references it; changed in the last hour |
 | scratchpads (6 GB, 2 GB per chat) | one entry of a chat's scratch folder | open or in use; changed in the last 6 h |
-| worktrees (15 GB) | node_modules or .svelte-kit of an agent worktree | a process works in the worktree; a file in it changed in the last 12 h |
+| worktrees (15 GB) | node_modules or .svelte-kit of an agent worktree, or its downloaded CI evidence and runtime scratch (top-level test-results/, .runtime/) | a process works in the worktree; a file in it changed in the last 12 h |
 
 Everything removed is rebuildable (build output, downloaded CI results, installed
 dependencies, scratch files); source, worktrees themselves, WIP and recovery
@@ -41,6 +41,9 @@ WORKTREE_IDLE_SECONDS = 12 * 3600
 SCRATCH_PER_CHAT = 2 * usage.GB
 SHARED_RUST_ROOT = usage.HOME / ".cache" / "openmates-rust-target"
 DEPENDENCY_NAMES = frozenset({"node_modules", ".svelte-kit"})
+# Top-level worktree folders that only hold downloaded CI results and runtime scratch.
+# Without them the worktrees budget could never get under its cap (TASK-5181).
+WORKTREE_SCRATCH_NAMES = ("test-results", ".runtime")
 
 
 @dataclass
@@ -109,12 +112,16 @@ def _worktree_of(path: str, roots: list[str]) -> Path | None:
 
 def rust_units(projects: Path) -> list[Unit]:
     roots = usage.worktree_roots(projects) + [str(projects / "OpenMates")]
+    siblings = usage.other_project_roots(projects)
     units = []
     for path in usage.rust_paths(projects):
         folder = Path(path)
         children = [child for child in folder.iterdir() if child.is_dir() and not child.is_symlink()] \
             if folder == SHARED_RUST_ROOT else [folder]
-        units += [Unit(child, _recent_mtime(child), owner=_worktree_of(str(child), roots)) for child in children]
+        for child in children:
+            sibling = _worktree_of(str(child), siblings)
+            units.append(Unit(child, _recent_mtime(child), group="sibling" if sibling else "",
+                              owner=sibling or _worktree_of(str(child), roots)))
     return units
 
 
@@ -157,6 +164,10 @@ def dependency_units(projects: Path, max_depth: int = 4) -> list[Unit]:
     for root in usage.worktree_roots(projects):
         worktree = Path(root)
         activity = _worktree_activity(worktree)
+        for name in WORKTREE_SCRATCH_NAMES:
+            scratch = worktree / name
+            if scratch.is_dir() and not scratch.is_symlink():
+                units.append(Unit(scratch, max(activity, _deep_mtime(scratch)), owner=worktree))
         base = root.rstrip("/").count("/")
         for current, dirs, _files in os.walk(root):
             for name in [name for name in dirs if name in DEPENDENCY_NAMES]:
@@ -237,6 +248,8 @@ def enforce(repository: Path, *, apply: bool, in_use: list[str], cargo: list[str
         prefix, owner = str(unit.path), str(unit.owner) if unit.owner else None
         if any(_within(item, prefix) or (owner and _within(item, owner)) for item in cargo):
             return "cargo_running"
+        if unit.group == "sibling" and owner and any(_within(item, owner) for item in in_use):
+            return "in_use"  # a chat or dev server works in that project: keep its build output
         return busy(unit)
 
     def worktree_busy(unit: Unit) -> str | None:
