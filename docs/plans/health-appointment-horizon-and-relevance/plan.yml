@@ -11,7 +11,7 @@ scope:
   - Provider-specific names or implementation in the public repository.
   - Booking or treatment advice.
 title: Extend appointment availability windows and evaluate optional ranking
-status: implementing
+status: verified
 scenarios:
 - id: S-1
   title: Search appointments with booking evidence
@@ -28,7 +28,7 @@ acceptance_criteria:
   text: Verify the long-window requests on dev and compare optional ranking on identical candidates for psychiatry
     and other specialties.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: manual
   verification_ids:
@@ -48,9 +48,15 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      reason: Live dev CLI chats exercised both extended windows through installed sources. Calendar checks
+        compared request counts and elapsed time, and a replay of identical candidates compared eligibility
+        and ordering with relevance ranking off and on.
+      subject_commit: 0a74c5aeb114d33ebb1812166df6c63bb54248ae
+      timestamp: '2026-11-27T10:37:21Z'
 implementation_state:
-  subject_commit: 2047a95a87d677e3a9aa55a0bfbf8e2af0616631
+  subject_commit: 0a74c5aeb114d33ebb1812166df6c63bb54248ae
 approvals:
   plan:
     status: approved
@@ -71,16 +77,16 @@ attempts:
   task_id: TASK-1
   recorded_at: '2026-11-26T15:26:14.177024+00:00'
 handoff:
-  next_action: Verify the neutral implementation and the private package together on dev.
+  next_action: Review the draft Specification for the supported windows and optional ranking.
   current_task_id: TASK-1
   command: python3 scripts/plan_verify.py docs/plans/health-appointment-horizon-and-relevance/plan.yml --phase complete
-  expected_outcome: Verified extended appointment search and comparison on dev
-  last_verified_commit: 2047a95a87d677e3a9aa55a0bfbf8e2af0616631
+  expected_outcome: The implementation remains verified while Specification approval is pending.
+  last_verified_commit: 0a74c5aeb114d33ebb1812166df6c63bb54248ae
 tasks:
 - id: TASK-1
   title: Implement and verify extended appointment searches and optional ranking
-  status: in_progress
-  phase: working_tasks
+  status: done
+  phase: complete
   covers:
     scenarios:
     - S-1
