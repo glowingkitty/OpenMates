@@ -77,17 +77,14 @@ OPTIMIZED_BENCHMARK_SETTINGS = (
     "SWIFT_COMPILATION_MODE=wholemodule",
     "GCC_OPTIMIZATION_LEVEL=s",
 )
-# Time Profiler trace of one benchmarked app process: where its main thread
-# spends startup. The host `sample` tool records no frames of Simulator apps.
-APP_PROFILE_SECONDS = 15
-APP_PROFILE_STEP_TIMEOUT_SECONDS = 600
-APP_SAMPLE_INTERVAL_MS = 1
-APP_SAMPLE_POLL_SECONDS = 0.1
-APP_SAMPLED_PROCESS = 2
-# XCUITest spawns the app suspended and resumes it itself; attaching the
-# profiler before that resume makes the launch fail, so wait until it runs.
-APP_PROFILE_ATTACH_DELAY_SECONDS = 2.0
-APP_PROCESS_PATTERN = r"OpenMates\.app/(Contents/MacOS/)?OpenMates( |$)"
+# The benchmark app samples its own main thread (NativeMainThreadSampler) and
+# writes symbol-only stacks to its temporary directory: profilers and the host
+# `sample` tool record nothing inside the hosted runner's virtual machine.
+APP_SAMPLE_FILE_GLOBS = (
+    "Library/Developer/CoreSimulator/Devices/*/data/Containers/Data/Application/*/tmp/openmates-main-samples-*.txt",
+    "Library/Containers/*/Data/tmp/openmates-main-samples-*.txt",
+)
+APP_SAMPLE_TEMP_GLOB = "/private/var/folders/*/*/T/openmates-main-samples-*.txt"
 TEST_ALLOWANCE_SECONDS = 300
 # Private startup preserves all three process relaunches and their independent
 # foreground, sidebar, reconciliation and quiet-process measurements.
@@ -454,80 +451,26 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
         raise ValueError("Invalid personal benchmark credential format")
     with os.fdopen(os.open(credential_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as handle:
         handle.writelines(f"{key}={value}\n" for key, value in credentials.items())
-    import threading
-
-    stop = threading.Event()
-    sampler = threading.Thread(target=sample_app_process, args=(output / "private-samples", stop), daemon=True)
-    sampler.start()
     try:
         with (output / "private-xcode.log").open("w") as log:
             return subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=False).returncode
     finally:
-        stop.set()
-        sampler.join(timeout=3 * APP_PROFILE_STEP_TIMEOUT_SECONDS)
+        collect_app_samples(output / "private-samples")
         credential_file.unlink()
 
 
-def is_simulator_process(pid: str) -> bool:
-    """Whether a launched app pid runs inside CoreSimulator rather than on the host."""
-    import subprocess
+def collect_app_samples(folder: Path, home: Path | None = None, temp_glob: str = APP_SAMPLE_TEMP_GLOB) -> None:
+    """Move the benchmark app's own main-thread samples into the private evidence."""
+    import glob
+    import shutil
 
-    command = subprocess.run(["ps", "-p", pid, "-o", "command="], capture_output=True,
-                             text=True, check=False).stdout
-    return "/CoreSimulator/" in command
-
-
-def sample_app_process(folder: Path, stop) -> None:
-    """Sample the call stacks of exactly one launched macOS OpenMates app process.
-
-    Only the second distinct process (the first cached relaunch after sign-in)
-    is sampled, so the other launches keep undisturbed timings; that launch is
-    left out of the medians. The host `sample` tool captures every thread's
-    stacks of a macOS process inside the hosted runner's virtual machine (as
-    root, since the unsigned CI app lacks get-task-allow),
-    where Time Profiler gets no CPU samples and cannot see Simulator apps; a
-    Simulator launch is logged as unprofiled. The text call tree stays in the
-    private evidence; failures are logged beside it.
-    """
-    import subprocess
-
+    home = home or Path.home()
+    found = [Path(path) for pattern in APP_SAMPLE_FILE_GLOBS for path in glob.glob(str(home / pattern))]
+    found += [Path(path) for path in glob.glob(temp_glob)]
     folder.mkdir(parents=True, exist_ok=True)
-    seen: list[str] = []
-    while not stop.wait(APP_SAMPLE_POLL_SECONDS):
-        # The app is launched with test arguments after its executable path.
-        found = subprocess.run(["pgrep", "-n", "-f", APP_PROCESS_PATTERN],
-                               capture_output=True, text=True, check=False).stdout.split()
-        if not found:
-            continue
-        if found[0] not in seen:
-            seen.append(found[0])
-        if len(seen) < APP_SAMPLED_PROCESS:
-            continue
-        if stop.wait(APP_PROFILE_ATTACH_DELAY_SECONDS):
-            return
-        with (folder / "sampler.log").open("a") as log:
-            if is_simulator_process(found[0]):
-                log.write("simulator process: no stack sampler available on the hosted runner\n")
-                return
-            output = folder / f"launch-pid{found[0]}.sample.txt"
-            # The CI build is unsigned, so the app has no get-task-allow
-            # entitlement: as the runner user `sample` attaches but records an
-            # empty call graph. Root (passwordless sudo on hosted runners) can
-            # read the threads of this non-hardened, ad-hoc signed app.
-            step = ["sudo", "-n", "sample", found[0], str(APP_PROFILE_SECONDS),
-                    str(APP_SAMPLE_INTERVAL_MS), "-mayDie", "-file", str(output)]
-            log.write("sample start\n")
-            log.flush()
-            try:
-                done = subprocess.run(step, capture_output=True, text=True, check=False,
-                                      timeout=APP_PROFILE_STEP_TIMEOUT_SECONDS)
-            except subprocess.TimeoutExpired:
-                log.write(f"sample timeout after {APP_PROFILE_STEP_TIMEOUT_SECONDS}s\n")
-                return
-            log.write(f"sample exit {done.returncode}\n{done.stderr[-2000:]}\n")
-            threads = output.read_text(errors="replace").count("Thread_") if output.exists() else 0
-            log.write(f"sampled threads {threads}\n")
-        return
+    for source in found:
+        shutil.move(str(source), folder / source.name)
+    (folder / "sampler.log").write_text(f"app sample files {len(found)}\n")
 
 
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:

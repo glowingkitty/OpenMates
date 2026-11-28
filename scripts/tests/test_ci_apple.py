@@ -320,40 +320,20 @@ def test_only_private_startup_builds_with_the_release_optimizer():
     assert not any(setting in ordinary for setting in ci_apple.OPTIMIZED_BENCHMARK_SETTINGS)
 
 
-def _run_sampler(tmp_path, monkeypatch, process_command):
-    import subprocess
-
-    pids = iter(["11", "11", "22", "33"])
-    commands: list[list[str]] = []
-
-    class Stop:
-        def wait(self, _seconds):
-            return False
-
-    def fake_run(command, **_kwargs):
-        if command[0] == "pgrep":
-            return subprocess.CompletedProcess(command, 0, stdout=next(pids) + "\n")
-        if command[0] == "ps":
-            return subprocess.CompletedProcess(command, 0, stdout=process_command)
-        commands.append(command)
-        return subprocess.CompletedProcess(command, 0, stderr="")
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    ci_apple.sample_app_process(tmp_path / "samples", Stop())
-    return commands, (tmp_path / "samples" / "sampler.log").read_text()
-
-
-def test_profiler_samples_only_the_first_cached_macos_relaunch(tmp_path, monkeypatch):
-    commands, log = _run_sampler(tmp_path, monkeypatch, "/tmp/D/OpenMates.app/Contents/MacOS/OpenMates -x\n")
-    assert len(commands) == 1 and commands[0][:4] == ["sudo", "-n", "sample", "22"]
-    assert commands[0][-1].endswith("launch-pid22.sample.txt")
-    assert "sample exit 0" in log and "sampled threads 0" in log
-
-
-def test_profiler_logs_simulator_launches_as_unprofiled(tmp_path, monkeypatch):
-    commands, log = _run_sampler(
-        tmp_path, monkeypatch, "/Users/x/Library/Developer/CoreSimulator/Devices/D/OpenMates.app/OpenMates -x\n")
-    assert commands == []
-    assert "no stack sampler" in log
+def test_benchmark_collects_the_apps_own_main_thread_samples(tmp_path):
+    simulator = tmp_path / "home/Library/Developer/CoreSimulator/Devices/D/data/Containers/Data/Application/A/tmp"
+    macos = tmp_path / "temp/T"
+    for folder in (simulator, macos):
+        folder.mkdir(parents=True)
+    (simulator / "openmates-main-samples-11.txt").write_text("E 1")
+    (macos / "openmates-main-samples-22.txt").write_text("E 2")
+    (macos / "unrelated.txt").write_text("x")
+    evidence = tmp_path / "evidence"
+    ci_apple.collect_app_samples(evidence, home=tmp_path / "home",
+                                 temp_glob=str(tmp_path / "temp/*/openmates-main-samples-*.txt"))
+    assert sorted(path.name for path in evidence.iterdir()) == [
+        "openmates-main-samples-11.txt", "openmates-main-samples-22.txt", "sampler.log"]
+    assert not (simulator / "openmates-main-samples-11.txt").exists()
+    assert (macos / "unrelated.txt").exists()
 
 
